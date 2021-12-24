@@ -1,12 +1,13 @@
 package p2p
 
 import (
+	"bufio"
 	"bytes"
-	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net"
-	"time"
 )
 
 const defaultListenPort = 6969
@@ -17,10 +18,18 @@ type nodes string
 // sample Block
 type Block struct{}
 
+// 0 -> peer-sync-request, give me ur peer list please
+// 1 -> peer-sync-response
+// -1 -> close connection
+type Msg struct {
+	MsgType    int                 `json:"type"` // type of messge, 0 -> peer-sync-request, give me ur peer list please
+	KnownPeers map[string]PeerNode `json:"known-peers"`
+	BlockMsg   Block               `json:"block"`
+}
 type Node struct {
-	BootStrapNodes []nodes
+	BootStrapNodes []string
 	Port           string
-	Addr           *net.UDPAddr
+	Addr           string
 	Dailer         *net.Conn
 	KnownPeers     map[string]PeerNode
 
@@ -48,31 +57,72 @@ func (n *Node) Status(b *Block, dest net.Addr) {
 	n.Send(msg.Bytes(), dest)
 }
 
+// Listen handles any incommoing request
 func (n *Node) Listen() {
-
-	fmt.Println("Listening on a port for new peers", n.Port)
-
-	// load its db state somehow
-
-	ctx, err := context.WithCancel(context.Background())
+	listener, err := net.Listen("tcp", n.Addr)
 	if err != nil {
-		// this is a fatal error my guy
+		log.Fatalf("Could not spawn message request handler due to error %v\n", err)
 	}
 
-	go n.sync(ctx)
-
-	listener, err := net.ListenUDP("UDP", n.Addr)
-	if err != nil {
-		// ...
-	}
-
-	msg := []byte{}
 	for {
-		listener.Read(msg)
+		conn, _ := listener.Accept()
+		go n.HandleMessageRequest(conn)
 	}
 }
 
-// it finds other peers
+// Requesting its peers to send peer list data
+func (n *Node) SyncPeerList() {
+	for _, v := range n.BootStrapNodes {
+		peerList := n.GetPeerList(v)
+		for k, v := range peerList {
+			if _, ok := n.KnownPeers[k]; !ok {
+				n.KnownPeers[k] = v
+			}
+		}
+	}
+}
+
+func (n *Node) GetPeerList(v string) map[string]PeerNode {
+	peerList := map[string]PeerNode{}
+	conn, err := net.Dial("tcp", v)
+	if err != nil {
+		log.Println("Could not connect due to error", err)
+		return peerList
+	}
+	defer conn.Close()
+
+	msg := Msg{
+		MsgType: 0,
+	}
+
+	msgb, err := json.Marshal(&msg)
+	if err != nil {
+		log.Println("could not craft peer request message")
+		return peerList
+	}
+
+	msgb = append(msgb, '\n')
+	if _, err = conn.Write(msgb); err != nil {
+		log.Println("Could not send msg request")
+	}
+
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadSlice('\n')
+	if err != nil {
+		log.Println("Could not read meessage response")
+		return peerList
+	}
+	var resp Msg
+	if err = json.Unmarshal(line, &resp); err != nil {
+		log.Println("Could not understand peer list response")
+		return peerList
+	}
+
+	peerList = resp.KnownPeers
+	return peerList
+}
+
+/* it finds other peers
 func (n *Node) Sync(ctx context.Context) {
 	ticker := time.NewTicker(60 * time.Second)
 
@@ -85,8 +135,9 @@ func (n *Node) Sync(ctx context.Context) {
 			ticker.Stop()
 		}
 	}
-}
+}*/
 
+/*
 func (n *Node) FetchNewBlockAndPeers() {
 	for _, peer := range n.KnownPeers {
 		status, err := GetPeerInfo(peer)
@@ -95,7 +146,7 @@ func (n *Node) FetchNewBlockAndPeers() {
 		}
 		// else update local block stuff
 
-		/*updating block, consensus algorithm code here*/
+		//updating block, consensus algorithm code here
 
 		// checking if any new peer was found
 		for peer, _ := range status.KnownPeers {
@@ -108,4 +159,4 @@ func (n *Node) FetchNewBlockAndPeers() {
 
 	}
 
-}
+}*/
