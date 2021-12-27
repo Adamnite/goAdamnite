@@ -14,7 +14,3 @@ type StatusRes struct {
 	Number     uint64
 	KnownPeers []PeerNode
 }
-
-func (p *PeerNode) GetTCPAddress() string {
-	return p.IP + ":" + string(p.Port)
-}

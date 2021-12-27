@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"testing"
+	"time"
 )
 
 func TestPeerListUpdate(t *testing.T) {
@@ -16,7 +17,7 @@ func TestPeerListUpdate(t *testing.T) {
 	}
 	p2.Addr = "0.0.0.0:6969"
 	go p2.Listen()
-
+	time.Sleep(5 * time.Second)
 	// sync peer list i.e. sends sends g0et peer request message
 	p1.BootStrapNodes = []string{"127.0.0.1:6969"}
 	p1.SyncPeerList()

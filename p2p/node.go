@@ -39,6 +39,7 @@ type Node struct {
 // New creates a new peer and returns it
 func New() Node {
 	var n Node
+	n.KnownPeers = map[string]PeerNode{}
 	return n
 }
 
