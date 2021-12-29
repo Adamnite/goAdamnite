@@ -1,10 +1,8 @@
 package p2p
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -40,6 +38,8 @@ type Node struct {
 func New() Node {
 	var n Node
 	n.KnownPeers = map[string]PeerNode{}
+	// loading peer list from config file
+	n.LoadKnownPeers()
 	return n
 }
 
@@ -83,8 +83,13 @@ func (n *Node) SyncPeerList() {
 	}
 }
 
+// GetPeerList communiates with the node, passed as arguement and gets peer list
 func (n *Node) GetPeerList(v string) map[string]PeerNode {
+	var err error
 	peerList := map[string]PeerNode{}
+
+	fmt.Println("trying to connect with", v)
+
 	conn, err := net.Dial("tcp", v)
 	if err != nil {
 		log.Println("Could not connect due to error", err)
@@ -92,34 +97,8 @@ func (n *Node) GetPeerList(v string) map[string]PeerNode {
 	}
 	defer conn.Close()
 
-	msg := Msg{
-		MsgType: 0,
-	}
+	peerList = n.SendPeerSyncRequest(&conn)
 
-	msgb, err := json.Marshal(&msg)
-	if err != nil {
-		log.Println("could not craft peer request message")
-		return peerList
-	}
-
-	msgb = append(msgb, '\n')
-	if _, err = conn.Write(msgb); err != nil {
-		log.Println("Could not send msg request")
-	}
-
-	reader := bufio.NewReader(conn)
-	line, err := reader.ReadSlice('\n')
-	if err != nil {
-		log.Println("Could not read meessage response")
-		return peerList
-	}
-	var resp Msg
-	if err = json.Unmarshal(line, &resp); err != nil {
-		log.Println("Could not understand peer list response")
-		return peerList
-	}
-
-	peerList = resp.KnownPeers
 	return peerList
 }
 

@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-type Config struct {
+type PeerInfo struct {
 	KnownPeers     map[string]PeerNode `json:"known-peers"`
 	BootStrapNodes []string            `json:"boot-strap-nodes"`
 }
@@ -17,7 +17,7 @@ func (p *Node) LoadKnownPeers() {
 		log.Fatalf("Could not open known-peers.json due to error %v\n", err)
 	}
 
-	var c Config
+	var c PeerInfo
 
 	if err = json.Unmarshal(content, &c); err != nil {
 		log.Fatalf("Could not unmarshall due to error %v\n", err)
