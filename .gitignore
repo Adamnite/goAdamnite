@@ -1,2 +1,3 @@
 p2p.exe
 known-peers.json
+./server_test/**

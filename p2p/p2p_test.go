@@ -11,9 +11,9 @@ func TestPeerListUpdate(t *testing.T) {
 	p1 := New()
 
 	p2 := New()
-	p2.KnownPeers = map[string]PeerNode{
-		"3.3.3.3": PeerNode{},
-		"4.4.4.4": PeerNode{},
+	p2.Peers = []PeerNode{
+		PeerNode{IP: "1.1.1.1", Port: "6969"},
+		PeerNode{IP: "4.4.4.4", Port: "6969"},
 	}
 	p2.Addr = "0.0.0.0:6969"
 	go p2.Listen()
@@ -22,12 +22,12 @@ func TestPeerListUpdate(t *testing.T) {
 	p1.BootStrapNodes = []string{"127.0.0.1:6969"}
 	p1.SyncPeerList()
 
-	if len(p1.KnownPeers) == 0 {
+	if len(p1.Peers) == 0 {
 		t.Fatal("Known peer list is empty, error")
 	}
 
 	for _, v := range knownPeerList {
-		if _, ok := p2.KnownPeers[v]; !ok {
+		if !p2.checkIfPeerExists(v) {
 			t.Fatalf("The peer %s is not present, sync failed\n", v)
 		}
 	}

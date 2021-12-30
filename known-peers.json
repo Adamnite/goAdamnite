@@ -1,3 +1,9 @@
 {
-    "boot-strap-nodes":["20.127.103.77:6969"]   
+    "peers":[ {
+        "ip":"127.0.0.1",
+        "port":"6969",
+        "isActive":true,
+        "is-bootstrap-node":true
+   }
+]
 }

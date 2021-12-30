@@ -9,10 +9,10 @@ import (
 )
 
 // SendPeerSyncRequest sends peer sync request
-func (n *Node) SendPeerSyncRequest(conn *net.Conn) map[string]PeerNode {
+func (n *Node) SendPeerSyncRequest(conn *net.Conn) []PeerNode {
 
 	// Peer list
-	peerList := map[string]PeerNode{}
+	peerList := []PeerNode{}
 
 	// MstType 0 indicates peer sync request
 	msg := Msg{
@@ -51,6 +51,6 @@ func (n *Node) SendPeerSyncRequest(conn *net.Conn) map[string]PeerNode {
 		return peerList
 	}
 	fmt.Println("Received", resp)
-	peerList = resp.KnownPeers
+	peerList = resp.Peers
 	return peerList
 }

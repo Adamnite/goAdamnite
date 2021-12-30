@@ -8,8 +8,7 @@ import (
 )
 
 type PeerInfo struct {
-	KnownPeers     map[string]PeerNode `json:"known-peers"`
-	BootStrapNodes []string            `json:"boot-strap-nodes"`
+	Peers []PeerNode `json:"peers"`
 }
 
 func (p *Node) LoadKnownPeers() {
@@ -25,9 +24,9 @@ func (p *Node) LoadKnownPeers() {
 	}
 	fmt.Println("from config file", c)
 	// we do not want nil assignments
-	if len(c.KnownPeers) != 0 {
-		p.KnownPeers = c.KnownPeers
+	if len(c.Peers) != 0 {
+		p.Peers = c.Peers
 	}
-	p.BootStrapNodes = c.BootStrapNodes
+	p.Peers = c.Peers
 
 }

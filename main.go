@@ -18,12 +18,11 @@ func main() {
 	// if anyone wants to connect with me
 	if len(os.Args) < 2 || os.Args[1] == "--client-node" {
 		p1.Mode = "client"
-		fmt.Println("outside loop the peer list", p1.KnownPeers)
+		fmt.Println("Started in client mode", p1.Peers)
 		for {
 			p1.SyncPeerList()
-			fmt.Println("After syncing", p1.KnownPeers)
+			fmt.Println("After syncing", p1.Peers)
 			time.Sleep(10 * time.Second)
-			fmt.Println("After syncing", p1.KnownPeers)
 		}
 
 	} else if os.Args[1] == "--full-node" {

@@ -31,9 +31,9 @@ func (n *Node) HandleMessageRequest(conn net.Conn) {
 		// peer-sync-request
 		case 0:
 			resp := Msg{
-				MsgType:    1,
-				KnownPeers: n.KnownPeers,
-				BlockMsg:   struct{}{},
+				MsgType:  1,
+				Peers:    n.Peers,
+				BlockMsg: struct{}{},
 			}
 			fmt.Println("sending message", resp)
 			respb, err := json.Marshal(resp)

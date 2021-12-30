@@ -20,16 +20,16 @@ type Block struct{}
 // 1 -> peer-sync-response
 // -1 -> close connection
 type Msg struct {
-	MsgType    int                 `json:"type"` // type of messge, 0 -> peer-sync-request, give me ur peer list please
-	KnownPeers map[string]PeerNode `json:"known-peers"`
-	BlockMsg   Block               `json:"block"`
+	MsgType  int        `json:"type"` // type of messge, 0 -> peer-sync-request, give me ur peer list please
+	Peers    []PeerNode `json:"peers"`
+	BlockMsg Block      `json:"block"`
 }
 type Node struct {
 	BootStrapNodes []string
 	Port           string
 	Addr           string
 	Dailer         *net.Conn
-	KnownPeers     map[string]PeerNode
+	Peers          []PeerNode
 	Mode           string
 	DBPath         string
 }
@@ -37,7 +37,7 @@ type Node struct {
 // New creates a new peer and returns it
 func New() Node {
 	var n Node
-	n.KnownPeers = map[string]PeerNode{}
+	n.Peers = []PeerNode{}
 	// loading peer list from config file
 	n.LoadKnownPeers()
 	return n
@@ -73,20 +73,21 @@ func (n *Node) Listen() {
 
 // Requesting its peers to send peer list data
 func (n *Node) SyncPeerList() {
-	for _, v := range n.BootStrapNodes {
-		peerList := n.GetPeerList(v)
-		for k, v := range peerList {
-			if _, ok := n.KnownPeers[k]; !ok {
-				n.KnownPeers[k] = v
+	for _, v := range n.Peers {
+		peerList := n.GetPeerList(v.IP + ":" + v.Port)
+		for _, v := range peerList {
+			if !n.checkIfPeerExists(v.IP) {
+				n.Peers = append(n.Peers, v)
 			}
+
 		}
 	}
 }
 
 // GetPeerList communiates with the node, passed as arguement and gets peer list
-func (n *Node) GetPeerList(v string) map[string]PeerNode {
+func (n *Node) GetPeerList(v string) []PeerNode {
 	var err error
-	peerList := map[string]PeerNode{}
+	peerList := []PeerNode{}
 
 	fmt.Println("trying to connect with", v)
 
@@ -116,6 +117,15 @@ func (n *Node) Sync(ctx context.Context) {
 		}
 	}
 }*/
+
+func (n *Node) checkIfPeerExists(peer string) bool {
+	for _, v := range n.Peers {
+		if v.IP == peer {
+			return true
+		}
+	}
+	return false
+}
 
 /*
 func (n *Node) FetchNewBlockAndPeers() {
