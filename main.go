@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"p2p/p2p"
 	"time"
 )
@@ -15,14 +16,19 @@ func main() {
 	p1.Addr = "0.0.0.0:6969"
 
 	// if anyone wants to connect with me
-	go p1.Listen()
+	if len(os.Args) < 2 || os.Args[1] == "--client-node" {
+		p1.Mode = "client"
+		fmt.Println("outside loop the peer list", p1.KnownPeers)
+		for {
+			p1.SyncPeerList()
+			fmt.Println("After syncing", p1.KnownPeers)
+			time.Sleep(10 * time.Second)
+			fmt.Println("After syncing", p1.KnownPeers)
+		}
 
-	fmt.Println("outside loop the peer list", p1.KnownPeers)
-	for {
-		p1.SyncPeerList()
-		fmt.Println("After syncing", p1.KnownPeers)
-		time.Sleep(10 * time.Second)
-		fmt.Println("After syncing", p1.KnownPeers)
+	} else if os.Args[1] == "--full-node" {
+		p1.Mode = "full-node"
+		p1.Listen()
 	}
 
 }

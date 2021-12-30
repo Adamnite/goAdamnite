@@ -30,8 +30,8 @@ type Node struct {
 	Addr           string
 	Dailer         *net.Conn
 	KnownPeers     map[string]PeerNode
-
-	DBPath string
+	Mode           string
+	DBPath         string
 }
 
 // New creates a new peer and returns it

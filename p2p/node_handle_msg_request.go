@@ -3,6 +3,7 @@ package p2p
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 )
@@ -14,12 +15,14 @@ func (n *Node) HandleMessageRequest(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	var msg Msg
 	for {
+		fmt.Println("listening for incomming message")
 		line, err := reader.ReadSlice('\n')
 		if err != nil {
 			log.Println("Error could not read from conn", err)
 			return
 		}
 
+		fmt.Println("Mesage received")
 		if err = json.Unmarshal(line, &msg); err != nil {
 			log.Println("Error could not unmarshall the message")
 			return
