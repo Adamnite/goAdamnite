@@ -3,6 +3,7 @@ package p2p
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 )
@@ -18,6 +19,7 @@ func (n *Node) SendPeerSyncRequest(conn *net.Conn) map[string]PeerNode {
 		MsgType: 0,
 	}
 
+	fmt.Println("Sending connect message")
 	// marshallig to send data
 	msgb, err := json.Marshal(&msg)
 	if err != nil {
@@ -31,7 +33,8 @@ func (n *Node) SendPeerSyncRequest(conn *net.Conn) map[string]PeerNode {
 	if _, err = writer.Write(msgb); err != nil {
 		log.Println("Could not send msg request")
 	}
-
+	writer.Flush()
+	fmt.Println("writer wrote the message")
 	// waiting for response
 	reader := bufio.NewReader(*conn)
 	line, err := reader.ReadSlice('\n')
@@ -47,7 +50,7 @@ func (n *Node) SendPeerSyncRequest(conn *net.Conn) map[string]PeerNode {
 		log.Println("Could not understand peer list response")
 		return peerList
 	}
-
+	fmt.Println("Received", resp)
 	peerList = resp.KnownPeers
 	return peerList
 }

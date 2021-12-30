@@ -35,6 +35,7 @@ func (n *Node) HandleMessageRequest(conn net.Conn) {
 				KnownPeers: n.KnownPeers,
 				BlockMsg:   struct{}{},
 			}
+			fmt.Println("sending message", resp)
 			respb, err := json.Marshal(resp)
 			if err != nil {
 				log.Println("could not craft message of  type 1, known peer response")

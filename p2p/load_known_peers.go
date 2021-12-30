@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 )
@@ -22,7 +23,7 @@ func (p *Node) LoadKnownPeers() {
 	if err = json.Unmarshal(content, &c); err != nil {
 		log.Fatalf("Could not unmarshall due to error %v\n", err)
 	}
-
+	fmt.Println("from config file", c)
 	// we do not want nil assignments
 	if len(c.KnownPeers) != 0 {
 		p.KnownPeers = c.KnownPeers
