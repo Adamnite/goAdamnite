@@ -38,6 +38,7 @@ type Node struct {
 func New() Node {
 	var n Node
 	n.Peers = []PeerNode{}
+	n.Addr = "0.0.0.0:6969"
 	// loading peer list from config file
 	n.LoadKnownPeers()
 	return n
@@ -103,21 +104,6 @@ func (n *Node) GetPeerList(v string) []PeerNode {
 	return peerList
 }
 
-/* it finds other peers
-func (n *Node) Sync(ctx context.Context) {
-	ticker := time.NewTicker(60 * time.Second)
-
-	for {
-		select {
-		case <-ticker.C:
-			// searching for new peers
-			n.FetchNewBlockAndPeers()
-		case <-ctx.Done():
-			ticker.Stop()
-		}
-	}
-}*/
-
 func (n *Node) checkIfPeerExists(peer string) bool {
 	for _, v := range n.Peers {
 		if v.IP == peer {
@@ -126,27 +112,3 @@ func (n *Node) checkIfPeerExists(peer string) bool {
 	}
 	return false
 }
-
-/*
-func (n *Node) FetchNewBlockAndPeers() {
-	for _, peer := range n.KnownPeers {
-		status, err := GetPeerInfo(peer)
-		if err != nil {
-			// Could not connect with peer
-		}
-		// else update local block stuff
-
-		//updating block, consensus algorithm code here
-
-		// checking if any new peer was found
-		for peer, _ := range status.KnownPeers {
-			p, ok := n.KnownPeers[peer.GetTCPAddress()]
-			if !ok {
-				// new peer, updating peer list
-				n.KnownPeers[peer.GetTCPAddress()] = p.PeerNode
-			}
-		}
-
-	}
-
-}*/
