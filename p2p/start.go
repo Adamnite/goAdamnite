@@ -9,7 +9,6 @@ import (
 // Start is the entry point for the main function, depending on the mode
 // it calls the necessary function
 func (n *Node) Start() {
-
 	// if no arguement was supplied, or first arguement was --client-mode run as client mode
 	if len(os.Args) < 2 || os.Args[1] == "--client-node" {
 		n.Mode = "client"

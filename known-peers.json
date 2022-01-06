@@ -1,6 +1,6 @@
 {
     "peers":[ {
-        "ip":"127.0.0.1",
+        "ip":"20.127.103.77",
         "port":"6969",
         "isActive":true,
         "is-bootstrap-node":true
