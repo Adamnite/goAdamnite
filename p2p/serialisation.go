@@ -1,4 +1,4 @@
-package main
+package p2p
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ func deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 		value := values.Elem().Field(i)
 
 		if value.Type().String() == "main.vlqInt" {
-			result, _, size := variantLengthQuantity(byteArr[counter:])
+			result, size := variantLengthQuantity(byteArr[counter:])
 			tmp.Field(i).SetUint(uint64(result)) // Addressable
 			values.Set(tmp)
 			counter += size
@@ -151,7 +151,7 @@ func serialize(t interface{}) []byte {
 	}
 	return buf.Bytes()
 }
-func variantLengthQuantity(byteArr []byte) (vlqInt, []byte, int) {
+func variantLengthQuantity(byteArr []byte) (vlqInt, int) {
 	var variant []uint32
 	i := 0
 	for {
@@ -171,13 +171,14 @@ func variantLengthQuantity(byteArr []byte) (vlqInt, []byte, int) {
 		result += variant[i] * uint32(math.Pow(128, p))
 		p++
 	}
-	buf := new(bytes.Buffer)
-	checkError(binary.Write(buf, binary.BigEndian, result))
-	return vlqInt(result), buf.Bytes(), len(variant)
+	return vlqInt(result), len(variant)
 }
 func toVariantLengthQuantity(number vlqInt) []byte {
 	numberBuffer := new(bytes.Buffer)
-	checkError(binary.Write(numberBuffer, binary.BigEndian, number))
+	err := binary.Write(numberBuffer, binary.BigEndian, number)
+	if err != nil {
+		return numberBuffer.Bytes()
+	}
 	neededBytes := 0
 	for _, b := range numberBuffer.Bytes() {
 		if b != 0 {
