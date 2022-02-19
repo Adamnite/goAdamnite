@@ -1,0 +1,3 @@
+//The crypto folder is meant to contain basic cryptographic primitives that will be used for address hashing and the generation of signatures through ECDSA. 
+
+//Look at the Protocol Implementation Document for more details on theoretical implementation.
