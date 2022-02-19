@@ -5,8 +5,12 @@ const (
 	AddressLength = 20
 
 	// HashLength is the expected length of the hash
-	HashLength = 32
+	HashLength = 64
 )
 
 type Address [AddressLength]byte
 type Hash [HashLength]byte
+
+
+////TODO: Add encoding and decoding to different data types for both address and hash.
+//Add Formatting
