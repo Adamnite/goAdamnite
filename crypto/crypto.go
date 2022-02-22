@@ -9,16 +9,19 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	csha512 "crypto/sha512"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"math/big"	"golang.org/x/crypto/sha3"
-	"golang.org/x/crypto/ripemd160"
-	"crypto/rand"
 	"hash"
+	"io"
+	"math/big"
 	"os"
-	"github.com/adamnite/go-adamnite/common")
+
+	"golang.org/x/crypto/ripemd160"
+
+	"github.com/adamnite/go-adamnite/common"
+)
 
 var (
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
@@ -29,60 +32,60 @@ var (
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(Secp256k1(), rand.Reader)
 }
-func mainState interface {
-  hash.Hash
-  Read([]byte) (int, error)
-}
+
+type mainState interface {
+	hash.Hash
+	Read([]byte) (int, error)
 }
 
-
-func newState() mainState{
-  return sha3.new512().(mainState)
-  }
+func newState() mainState {
+	return csha512.New512_256().(mainState)
+}
 
 func sha512(data ...[]byte) []byte {
-  	b := make([]byte, 64)
-  	d := newState()
-  	for _, b := range data {
-  		d.Write(b)
-  	}
-  	d.Read(b)
-  	return b
-  }
+	b := make([]byte, 64)
+	d := newState()
+	for _, b := range data {
+		d.Write(b)
+	}
+	d.Read(b)
+	return b
+}
 
 func NewRipemd160State() hash.Hash {
-  	return ripemd160.New()
-  }
+	return ripemd160.New()
+}
 
+func Ripemd160Hash(data ...[]byte) []byte {
+	hasher := NewRipemd160State()
 
-func Ripemd160Hash(data ...[]byte) []byte *Ripemd160 {
-    	result := new(Ripemd160)
-    	for i := range result.Hash {
-    		result.Hash[i] = binary.LittleEndian.Uint32(s[i*4 : (i+1)*4])
-    	}
-    	return result
-    }
+	for _, b := range data {
+		hasher.Write(b)
+	}
+
+	hashBytes := hasher.Sum(nil)
+	return hashBytes
+}
 
 //String Function can be used in cases where a message needs to be hashed
-func NewRipemd160String(s string) *Ripemd160 {
-  	bytes, err := hex.DecodeString(s)
-  	Throw(err)
+func NewRipemd160String(s string) []byte {
+	bytes, err := hex.DecodeString(s)
+	if err != nil {
+		return nil
+	}
 
-  	result := new(Ripemd160)
-  	for i := range result.Hash {
-  		result.Hash[i] = binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4])
-  	}
+	return Ripemd160Hash(bytes)
+}
 
-  	return result
-  }
+// func CreateAddress(a common.Address, nonce uint64) common.Address {
+//For now assuming we use recursive-length-prefix for the POC implementation
+//Probably will want to use a seperate implementation or create our own
+//considering Ethereum's problems with securely encoding values in smart contracts.
+// data, _ := rlp.EncodeToBytes([]interface{}{a, nonce})
+// return common.BytesToAddress(Ripemd160Hash(sha512(data))[12:])
+// }
 
-func CreateAddress(a common.Address, nonce uint64) common.Address {
-  //For now assuming we use recursive-length-prefix for the POC implementation
-  //Probably will want to use a seperate implementation or create our own
-  //considering Ethereum's problems with securely encoding values in smart contracts.
-  	data, _ := rlp.EncodeToBytes([]interface{}{a, nonce})
-  	return common.BytesToAddress(Ripemd160Hash(Keccak256(data))[12:])
-  }// ToECDSA creates a private key with the given D value.
+// ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
 	return toECDSA(d, true)
 }
@@ -201,5 +204,5 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
-	return common.BytesToAddress(pubBytes)
+	return common.BytesToAddress(Ripemd160Hash(sha512(pubBytes)))
 }
