@@ -11,6 +11,18 @@ const (
 type Address [AddressLength]byte
 type Hash [HashLength]byte
 
-
 ////TODO: Add encoding and decoding to different data types for both address and hash.
 //Add Formatting
+
+func (addr *Address) SetBytes(b []byte) {
+	if len(b) > len(addr) {
+		b = b[len(b)-AddressLength:]
+	}
+	copy(addr[AddressLength-len(b):], b)
+}
+
+func BytesToAddress(b []byte) Address {
+	var addr Address
+	addr.SetBytes(b)
+	return addr
+}
