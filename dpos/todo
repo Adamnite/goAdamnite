@@ -1,0 +1,4 @@
+1. implement the structure of witness(or block producer)
+2. implement the logic to pick winner based on voting
+3. implement the voting logic
+4. 
