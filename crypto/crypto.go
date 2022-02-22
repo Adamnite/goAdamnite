@@ -1,3 +1,7 @@
+//Copyright Archie Chaudhury and Tsiamfei 2022
+//Package Crypto is heavily inspired by Go-Ethereum's implmentation,
+//which was authored by Jeffery Wilcke and others.
+
 package crypto
 
 import (
@@ -6,12 +10,73 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+  "golang.org/x/crypto/sha3"
+  "golang.org/x/crypto/ripemd160"
+  "crypto/rand"
+  "hash"
 )
 
 var (
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
+
+
+
+func mainState interface {
+  hash.Hash
+  Read([]byte) (int, error)
+}
+}
+
+
+func newState() mainState{
+  return sha3.new512().(mainState)
+  }
+
+func sha512(data ...[]byte) []byte {
+  	b := make([]byte, 64)
+  	d := newState()
+  	for _, b := range data {
+  		d.Write(b)
+  	}
+  	d.Read(b)
+  	return b
+  }
+
+func NewRipemd160State() hash.Hash {
+  	return ripemd160.New()
+  }
+
+
+func Ripemd160Hash(data ...[]byte) []byte *Ripemd160 {
+    	result := new(Ripemd160)
+    	for i := range result.Hash {
+    		result.Hash[i] = binary.LittleEndian.Uint32(s[i*4 : (i+1)*4])
+    	}
+    	return result
+    }
+
+//String Function can be used in cases where a message needs to be hashed
+func NewRipemd160String(s string) *Ripemd160 {
+  	bytes, err := hex.DecodeString(s)
+  	Throw(err)
+
+  	result := new(Ripemd160)
+  	for i := range result.Hash {
+  		result.Hash[i] = binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4])
+  	}
+
+  	return result
+  }
+
+func CreateAddress(a common.Address, nonce uint64) common.Address {
+  //For now assuming we use recursive-length-prefix for the POC implementation
+  //Probably will want to use a seperate implementation or create our own
+  //considering Ethereum's problems with securely encoding values in smart contracts.
+  	data, _ := rlp.EncodeToBytes([]interface{}{a, nonce})
+  	return common.BytesToAddress(Ripemd160Hash(Keccak256(data))[12:])
+  }
 
 // ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
