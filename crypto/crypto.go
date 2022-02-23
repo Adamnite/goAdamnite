@@ -84,7 +84,10 @@ func NewRipemd160String(s string) []byte {
 // data, _ := rlp.EncodeToBytes([]interface{}{a, nonce})
 // return common.BytesToAddress(Ripemd160Hash(sha512(data))[12:])
 // }
-
+//Creates Address, given an initial salt for encoding
+func CreateAddress(a common.Address, nonce uint64) common.Address {
+  	return common.BytesToAddress(Ripemd160Hash(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
+  }
 // ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
 	return toECDSA(d, true)
