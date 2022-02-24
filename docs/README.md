@@ -54,4 +54,5 @@ This is essentially a cyclic process, and will be repeated for the life of the b
 Specific low level details concerning the actual implementation (such as data parsing for block proposal) will also have to be implemented. More details on this to
 follow. 
 
-
+An prefixing alrogirithm for both encodoing and decoding (serialization and deserialization) needs to be defined. This can simply be an expansion of the 
+serialization.go file in the P2P folder developed by PiecePaper. Definitions will essentially include mappings for converting bytes, strings, arrays, and other data types to structures that can be parsed within the Adamnite Protocol. These rules will need to be defined, and encoded in a separate package that can be imported into the core blockchain and cryptography packages. 
