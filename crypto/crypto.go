@@ -28,18 +28,21 @@ var (
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
 
+// DigestLength sets the signature digest exact length
+const DigestLength = 32
+
 // GenerateKey generates a new private key.
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(Secp256k1(), rand.Reader)
 }
 
-type mainState interface {
+type MainState interface {
 	hash.Hash
-	Read([]byte) (int, error)
+	Sum(in []byte) []byte
 }
 
-func newState() mainState {
-	return csha512.New512_256().(mainState)
+func newState() MainState {
+	return csha512.New512_256().(MainState)
 }
 
 func sha512(data ...[]byte) []byte {
@@ -48,7 +51,7 @@ func sha512(data ...[]byte) []byte {
 	for _, b := range data {
 		d.Write(b)
 	}
-	d.Read(b)
+	b = d.Sum(b)
 	return b
 }
 
@@ -85,9 +88,10 @@ func NewRipemd160String(s string) []byte {
 // return common.BytesToAddress(Ripemd160Hash(sha512(data))[12:])
 // }
 //Creates Address, given an initial salt for encoding
-func CreateAddress(a common.Address, nonce uint64) common.Address {
-  	return common.BytesToAddress(Ripemd160Hash(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
-  }
+// func CreateAddress(a common.Address, nonce uint64) common.Address {
+// 	return common.BytesToAddress(Ripemd160Hash(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:]))
+// }
+
 // ToECDSA creates a private key with the given D value.
 func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
 	return toECDSA(d, true)
@@ -208,4 +212,10 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
 	return common.BytesToAddress(Ripemd160Hash(sha512(pubBytes)))
+}
+
+func zeroBytes(bytes []byte) {
+	for i := range bytes {
+		bytes[i] = 0
+	}
 }
