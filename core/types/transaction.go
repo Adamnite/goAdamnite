@@ -16,6 +16,14 @@ var (
 	ErrorInvalidTransaction = errors.New("Transaction Balance is too large")
 )
 
+type TxType int64
+
+const (
+	VOTE_TX TxType = iota
+	NORMAL_TX
+	CONTRACT_TX
+)
+
 // Transaction is an Adamnite transaction.
 type Transaction struct {
 	InnerData Transaction_Data
@@ -36,6 +44,7 @@ func CreateTx(InnerData Transaction_Data) *Transaction {
 // TxData is the underlying data of a transaction.
 type Transaction_Data interface {
 	// copy creates a deep copy and initializes all fields
+	txtype() TxType
 	copy() Transaction_Data
 	chain_TYPE() *big.Int
 	to() *common.Address
@@ -56,6 +65,21 @@ type Transactions []*Transaction
 //proper encoding and decoding of transactions, fetch operations (the fetching of various transaction releated data),
 //and some stack operations such as shift.
 
+func NewTx(inner Transaction_Data) *Transaction {
+	tx := new(Transaction)
+	tx.setDecoded(inner.copy(), 0)
+	return tx
+}
+
 func (tx *Transaction) Decode(s Transaction_Data, _ int) {
 
+}
+
+// setDecoded sets the inner transaction and size after decoding.
+func (tx *Transaction) setDecoded(inner Transaction_Data, size int) {
+	tx.InnerData = inner
+	tx.timestamp = time.Now()
+	if size > 0 {
+		tx.size.Store(common.StorageSize(size))
+	}
 }
