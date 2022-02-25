@@ -25,6 +25,10 @@ func (addr *Address) SetBytes(b []byte) {
 	copy(addr[AddressLength-len(b):], b)
 }
 
+func HexToAddress(str string) Address {
+	return BytesToAddress(FromHex(str))
+}
+
 func BytesToAddress(b []byte) Address {
 	var addr Address
 	addr.SetBytes(b)

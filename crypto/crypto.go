@@ -31,6 +31,8 @@ var (
 // DigestLength sets the signature digest exact length
 const DigestLength = 32
 
+const SignatureLength = 65 // 64 bytes for ECDSA signature and the last byte is for the recovery id.
+
 // GenerateKey generates a new private key.
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(Secp256k1(), rand.Reader)
@@ -45,7 +47,7 @@ func newState() MainState {
 	return csha512.New512_256().(MainState)
 }
 
-func sha512(data ...[]byte) []byte {
+func Sha512(data ...[]byte) []byte {
 	b := make([]byte, 64)
 	d := newState()
 	for _, b := range data {
@@ -211,7 +213,14 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
-	return common.BytesToAddress(Ripemd160Hash(sha512(pubBytes)))
+	return common.BytesToAddress(Ripemd160Hash(Sha512(pubBytes[1:])))
+}
+
+func ValidateSignatureValues(v byte, r, s *big.Int) bool {
+	if r.Cmp(common.Big1) < 0 || s.Cmp(common.Big1) < 0 {
+		return false
+	}
+	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0 && (v == 0 || v == 1)
 }
 
 func zeroBytes(bytes []byte) {

@@ -4,10 +4,8 @@ package serialization
 //the Adamnite POC. It can help with data encoding and decoding for variable length quantities.
 //This package was orginally developed by Marcos Gomez (PiecePaper).
 
-
 //This file contains code for serialization and deserialization, with support for
 //variable length quantities as well.
-
 
 import (
 	"bytes"
@@ -19,7 +17,7 @@ import (
 // From wikipedia: https://en.wikipedia.org/wiki/Variable-length_quantity
 type vlqInt uint64
 
-func deserialize(byteArr []byte, t interface{}) (interface{}, int) {
+func Deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 	values := reflect.ValueOf(&t).Elem()
 	lenSlice := 0
 	tmp := reflect.New(values.Elem().Type()).Elem()
@@ -41,23 +39,23 @@ func deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 		}
 		switch value.Kind() {
 		case reflect.Struct:
-			nestedStruct, n := deserialize(byteArr[counter:], value.Interface())
+			nestedStruct, n := Deserialize(byteArr[counter:], value.Interface())
 			tmp.Field(i).Set(reflect.ValueOf(nestedStruct))
 			values.Set(tmp)
 			counter += n
 			break
-    case reflect.String:
-      length_string = len(value)
-      for n := 0; n < length_string; n++ {
-        empty := reflect.New(reflect.TypeOf(value.Interface()).Elem()).Elem()
-        element, size := deserialize(byteArr[counter:], empty.Interface())
-        tmp.Field(i).Set(
-          reflect.Append(tmp.Field(i),
-            reflect.ValueOf(element),
-          ),
-        )
-        counter += size
-      }
+		case reflect.String:
+			length_string := value.Len()
+			for n := 0; n < length_string; n++ {
+				empty := reflect.New(reflect.TypeOf(value.Interface()).Elem()).Elem()
+				element, size := Deserialize(byteArr[counter:], empty.Interface())
+				tmp.Field(i).Set(
+					reflect.Append(tmp.Field(i),
+						reflect.ValueOf(element),
+					),
+				)
+				counter += size
+			}
 		case reflect.Uint8:
 			tmp.Field(i).SetUint(uint64(byteArr[counter]))
 			values.Set(tmp)
@@ -101,7 +99,7 @@ func deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 		case reflect.Slice:
 			for n := 0; n < lenSlice; n++ {
 				empty := reflect.New(reflect.TypeOf(value.Interface()).Elem()).Elem()
-				element, size := deserialize(byteArr[counter:], empty.Interface())
+				element, size := Deserialize(byteArr[counter:], empty.Interface())
 				tmp.Field(i).Set(
 					reflect.Append(tmp.Field(i),
 						reflect.ValueOf(element),
@@ -115,7 +113,7 @@ func deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 	}
 	return values.Interface(), counter
 }
-func serialize(t interface{}) []byte {
+func Serialize(t interface{}) []byte {
 	buf := new(bytes.Buffer)
 	values := reflect.ValueOf(&t).Elem()
 	num := reflect.ValueOf(t).NumField()
@@ -130,7 +128,7 @@ func serialize(t interface{}) []byte {
 		}
 		switch value.Kind() {
 		case reflect.Struct:
-			result := serialize(value.Interface())
+			result := Serialize(value.Interface())
 			buf.Write(result)
 			break
 		case reflect.Uint8:
@@ -165,7 +163,7 @@ func serialize(t interface{}) []byte {
 		case reflect.Slice:
 			for n := 0; n < value.Len(); n++ {
 				slice := reflect.New(reflect.TypeOf(value.Interface()).Elem()).Elem()
-				sliceBuf := serialize(slice.Interface())
+				sliceBuf := Serialize(slice.Interface())
 				buf.Write(sliceBuf)
 			}
 		}

@@ -14,7 +14,7 @@ func Secp256k1() elliptic.Curve {
 }
 
 //Recover Public Key from signature
-func recover(hash, signature []byte) ([]byte, error) {
+func Recover(hash, signature []byte) ([]byte, error) {
 	return secp256k1.RecoverPubkey(hash, signature)
 }
 

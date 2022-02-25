@@ -83,3 +83,26 @@ func (tx *Transaction) setDecoded(inner Transaction_Data, size int) {
 		tx.size.Store(common.StorageSize(size))
 	}
 }
+
+func (tx *Transaction) Type() TxType {
+	return tx.InnerData.txtype()
+}
+
+func (tx *Transaction) RawSignature() (v, r, s *big.Int) {
+	return tx.InnerData.rawSignature()
+}
+
+// WithSignature returns a new transaction with the given signature.
+func (tx *Transaction) WithSignature(signer Signer, signature []byte) (*Transaction, error) {
+	r, s, v, err := signer.SignatureValues(tx, signature)
+	if err != nil {
+		return nil, err
+	}
+
+	cpy := tx.InnerData.copy()
+	cpy.setSignatue(signer.ChainType(), v, r, s)
+	return &Transaction{InnerData: cpy, timestamp: tx.timestamp}, nil
+}
+
+// Nonce returns the sender account nonce of the transaction.
+func (tx *Transaction) Nonce() uint64 { return tx.InnerData.nonce() }
