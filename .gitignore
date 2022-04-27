@@ -1,3 +1,6 @@
 p2p.exe
 known-peers.json
 ./server_test/**
+/cmd/gnite/*.exe
+/.vscode
+/tests/__debug_bin.exe
