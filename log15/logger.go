@@ -12,6 +12,7 @@ const timeKey = "t"
 const lvlKey = "lvl"
 const msgKey = "msg"
 const errorKey = "LOG15_ERROR"
+const skipLevel = 2
 
 // Lvl is a type for predefined log levels.
 type Lvl int
@@ -23,6 +24,7 @@ const (
 	LvlWarn
 	LvlInfo
 	LvlDebug
+	LvlTrace
 )
 
 // Returns the name of a Lvl
@@ -38,6 +40,8 @@ func (l Lvl) String() string {
 		return "eror"
 	case LvlCrit:
 		return "crit"
+	case LvlTrace:
+		return "trce"
 	default:
 		panic("bad level")
 	}
@@ -57,6 +61,8 @@ func LvlFromString(lvlString string) (Lvl, error) {
 		return LvlError, nil
 	case "crit":
 		return LvlCrit, nil
+	case "trce":
+		return LvlTrace, nil
 	default:
 		// try to catch e.g. "INFO", "WARN" without slowing down the fast path
 		lower := strings.ToLower(lvlString)
@@ -101,6 +107,7 @@ type Logger interface {
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
 	Crit(msg string, ctx ...interface{})
+	Trace(msg string, ctx ...interface{})
 }
 
 type logger struct {
@@ -108,13 +115,13 @@ type logger struct {
 	h   *swapHandler
 }
 
-func (l *logger) write(msg string, lvl Lvl, ctx []interface{}) {
+func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skipLevel int) {
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
 		Msg:  msg,
 		Ctx:  newContext(l.ctx, ctx),
-		Call: stack.Caller(2),
+		Call: stack.Caller(skipLevel),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
 			Msg:  msgKey,
@@ -138,23 +145,27 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 }
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {
-	l.write(msg, LvlDebug, ctx)
+	l.write(msg, LvlDebug, ctx, skipLevel)
 }
 
 func (l *logger) Info(msg string, ctx ...interface{}) {
-	l.write(msg, LvlInfo, ctx)
+	l.write(msg, LvlInfo, ctx, skipLevel)
 }
 
 func (l *logger) Warn(msg string, ctx ...interface{}) {
-	l.write(msg, LvlWarn, ctx)
+	l.write(msg, LvlWarn, ctx, skipLevel)
 }
 
 func (l *logger) Error(msg string, ctx ...interface{}) {
-	l.write(msg, LvlError, ctx)
+	l.write(msg, LvlError, ctx, skipLevel)
 }
 
 func (l *logger) Crit(msg string, ctx ...interface{}) {
-	l.write(msg, LvlCrit, ctx)
+	l.write(msg, LvlCrit, ctx, skipLevel)
+}
+
+func (l *logger) Trace(msg string, ctx ...interface{}) {
+	l.write(msg, LvlTrace, ctx, skipLevel)
 }
 
 func (l *logger) GetHandler() Handler {

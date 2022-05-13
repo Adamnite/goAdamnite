@@ -9,7 +9,7 @@ const (
 	AddressLength = 20
 
 	// HashLength is the expected length of the hash
-	HashLength = 64
+	HashLength = 32
 )
 
 type Address [AddressLength]byte

@@ -15,18 +15,22 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/common/math"
 )
 
 var (
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
+
+var errInvalidPubkey = errors.New("invalid secp256k1 public key")
 
 // DigestLength sets the signature digest exact length
 const DigestLength = 32
@@ -36,6 +40,19 @@ const SignatureLength = 65 // 64 bytes for ECDSA signature and the last byte is 
 // GenerateKey generates a new private key.
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(Secp256k1(), rand.Reader)
+}
+
+func SaveECDSA(file string, key *ecdsa.PrivateKey) error {
+	k := hex.EncodeToString(FromECDSA(key))
+	return ioutil.WriteFile(file, []byte(k), 0600)
+}
+
+// FromECDSA exports a private key into a binary dump.
+func FromECDSA(priv *ecdsa.PrivateKey) []byte {
+	if priv == nil {
+		return nil
+	}
+	return math.PaddedBigBytes(priv.D, priv.Params().BitSize/8)
 }
 
 type MainState interface {
@@ -227,4 +244,13 @@ func zeroBytes(bytes []byte) {
 	for i := range bytes {
 		bytes[i] = 0
 	}
+}
+
+// UnmarshalPubkey converts bytes to a secp256k1 public key.
+func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
+	x, y := elliptic.Unmarshal(S256(), pub)
+	if x == nil {
+		return nil, errInvalidPubkey
+	}
+	return &ecdsa.PublicKey{Curve: S256(), X: x, Y: y}, nil
 }
