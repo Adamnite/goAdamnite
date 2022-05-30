@@ -12,7 +12,7 @@ const timeKey = "t"
 const lvlKey = "lvl"
 const msgKey = "msg"
 const errorKey = "LOG15_ERROR"
-const skipLevel = 2
+const skipLevel = 0
 
 // Lvl is a type for predefined log levels.
 type Lvl int

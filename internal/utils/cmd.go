@@ -5,6 +5,9 @@ import (
 	"io"
 	"os"
 	"runtime"
+
+	"github.com/adamnite/go-adamnite/node"
+	"github.com/urfave/cli/v2"
 )
 
 func Fatalf(format string, args ...interface{}) {
@@ -22,4 +25,10 @@ func Fatalf(format string, args ...interface{}) {
 	}
 	fmt.Fprintf(w, "Fatal: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+func StartNode(ctx *cli.Context, stack *node.Node) {
+	if err := stack.Start(); err != nil {
+		Fatalf("Error starting protocol stack: %v", err)
+	}
 }
