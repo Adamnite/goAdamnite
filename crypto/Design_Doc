@@ -18,3 +18,5 @@ VRF Construction and use within the Adamnite Protocol (ie, how validators/witnes
 -The following function is calculated for each node: VRF(SK, r) = N, where N is the result for the VRF calulation. 
 
 -Each node then check if N is within the range (0,M). The first 26 validators to report success are selected to serve as witnesses for the round.
+
+-Witnesses control both block production and block validation.
