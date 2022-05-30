@@ -1,3 +1,20 @@
 //The crypto folder is meant to contain basic cryptographic primitives that will be used for address hashing and the generation of signatures through ECDSA. 
 
 //Look at the Protocol Implementation Document for more details on theoretical implementation.
+
+
+
+
+
+
+VRF Construction and use within the Adamnite Protocol (ie, how validators/witnesses will be selected for consensus):
+
+-Every node that has declared that it wants to be a witness has a unique public-private key pair. We denote the private key as the secret key SK.
+
+-Every 6 rounds (each round is 162 blocks), the top 10% of vote-getters are put in witness pool A, and a salt is added to a seed r. For the genesis block/round, r is without any salt.
+
+-For each node in pool A, a weighted average M of the following 4 components is calculated: votes_recieved (25%), amount (25%), percentage of correct block produced (40%), and amount of times previously selected (10%).
+
+-The following function is calculated for each node: VRF(SK, r) = N, where N is the result for the VRF calulation. 
+
+-Each node then check if N is within the range (0,M). The first 26 validators to report success are selected to serve as witnesses for the round.
