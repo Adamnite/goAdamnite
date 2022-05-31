@@ -1,20 +1,25 @@
+//This implementation is largely based off of GoAlgorand's implementation;
+
+
+
 package vrf
 
 import (
-        "crypto/ecdsa"
-        "crypto/elliptic"
-        "crypto/sha512"
         "error"
         "C"
-
-
-
 )
 
 func check_sodium(){
   if.C.sodium_init() == -1 {
     panic("sodium_init() failed")
   }
+}
+
+type VRFKeyPair struct {
+  _struct struct{} 'codec:""'
+
+  PK VRFPublicKey
+  SK VRFPrivateKey
 }
 
 
@@ -29,65 +34,62 @@ type (
 
 )
 
-//Wrapper for VRF Functions, like the one employed by VeChain
-type VRFfunctions interface {
-  Generate(sk VRFPrivateKey, alpha_string []byte) (beta_string, pi []byte, err error)
-  Verify(pk VRFPublicKey, alpha_string, pi []byte) (beta_string []byte, err error)
+//Generates a new public-private key pair, from a predetermined 32 byte salt
+func KeyGenSalt(salt [32]byte) (pub VRFPublicKey, priv VRFPrivateKey) {
+  C.crypto_vrf_keypair_salt((*C.uchar)(&pub[0]), (C*.uchar)(&priv), (*C.uchar)(&salt[0]))
+  return pub,priv
 }
 
-
-var (
-	// Secp256k1Sha256Tai is the pre-configured VRF object with secp256k1/SHA256 and hash_to_curve_try_and_increment algorithm.
-	Secp256k1Sha512Tai = New(&Config{
-		Curve:       secp256k1.S256(),
-		SuiteString: 0xfe,
-		Cofactor:    0x01,
-		NewHasher:   sha512.New,
-		Decompress: func(c elliptic.Curve, pk []byte) (x, y *big.Int) {
-			var fx, fy secp256k1.FieldVal
-			// Reject unsupported public key formats for the given length.
-			format := pk[0]
-			switch format {
-			case secp256k1.PubKeyFormatCompressedEven, secp256k1.PubKeyFormatCompressedOdd:
-			default:
-				return
-			}
-
-			// Parse the x coordinate while ensuring that it is in the allowed
-			// range.
-			if overflow := fx.SetByteSlice(pk[1:33]); overflow {
-				return
-			}
-
-			// Attempt to calculate the y coordinate for the given x coordinate such
-			// that the result pair is a point on the secp256k1 curve and the
-			// solution with desired oddness is chosen.
-			wantOddY := format == secp256k1.PubKeyFormatCompressedOdd
-			if !secp256k1.DecompressY(&fx, wantOddY, &fy) {
-				return
-			}
-			fy.Normalize()
-			return new(big.Int).SetBytes(fx.Bytes()[:]), new(big.Int).SetBytes(fy.Bytes()[:])
-		},
-	})
-	// P256Sha256Tai is the pre-configured VRF object with P256/SHA256 and hash_to_curve_try_and_increment algorithm.
-	P256Sha256Tai = New(&Config{
-		Curve:       elliptic.P256(),
-		SuiteString: 0x01,
-		Cofactor:    0x01,
-		NewHasher:   sha512.New,
-		Decompress:  elliptic.UnmarshalCompressed,
-	})
-)
-
-func New(cfg *Config) VRF {
-  return &vrf(cfg: *cfg)
+// VrfKeygen generates a random VRF keypair.
+func VrfKeygen() (pub VRFPublickey, priv VRFPrivatekey) {
+	C.crypto_vrf_keypair((*C.uchar)(&pub[0]), (*C.uchar)(&priv[0]))
+	return pub, priv
 }
 
-type vrf struct {
-  cfg Config
+// Pubkey returns the public key that corresponds to the given private key.
+func (sk VRFPrivateKey) Pubkey() (pk VRFPublicKey) {
+	C.crypto_vrf_sk_to_pk((*C.uchar)(&pk[0]), (*C.uchar)(&sk[0]))
+	return pk
 }
 
+func (sk VRFPrivateKey) proveBytes(msg []byte) (proof Proof, ok bool) {
+	// &msg[0] will make Go panic if msg is zero length
+	m := (*C.uchar)(C.NULL)
+	if len(msg) != 0 {
+		m = (*C.uchar)(&msg[0])
+	}
+	ret := C.crypto_vrf_prove((*C.uchar)(&proof[0]), (*C.uchar)(&sk[0]), (*C.uchar)(m), (C.ulonglong)(len(msg)))
+	return proof, ret == 0
+}
 
+// Prove constructs a VRF Proof for a given Hashable.
+// ok will be false if the private key is malformed.
+func (sk VRFPrivateKey) Prove(message Hashable) (proof Proof, ok bool) {
+	return sk.proveBytes(HashRep(message))
+}
 
-// The Generate function outputs a beta string and a Proof
+// Hash converts a VRF proof to a VRF output without verifying the proof.
+// TODO: Consider removing so that we don't accidentally hash an unverified proof
+func (proof Proof) Hash() (hash Beta_String, ok bool) {
+	ret := C.crypto_vrf_proof_to_hash((*C.uchar)(&hash[0]), (*C.uchar)(&proof[0]))
+	return hash, ret == 0
+}
+
+func (pk VRFPublicKey) verifyBytes(proof Proof, msg []byte) (bool, Beta_String) {
+	var out Beta_String
+	// &msg[0] will make Go panic if msg is zero length
+	m := (*C.uchar)(C.NULL)
+	if len(msg) != 0 {
+		m = (*C.uchar)(&msg[0])
+	}
+	ret := C.crypto_vrf_verify((*C.uchar)(&out[0]), (*C.uchar)(&pk[0]), (*C.uchar)(&proof[0]), (*C.uchar)(m), (C.ulonglong)(len(msg)))
+	return ret == 0, out
+}
+
+// Verify checks a VRF proof of a given Hashable. If the proof is valid the pseudorandom Beta_String will be returned.
+// For a given public key and message, there are potentially multiple valid proofs.
+// However, given a public key and message, all valid proofs will yield the same output.
+// Moreover, the output is indistinguishable from random to anyone without the proof or the secret key.
+func (pk VRFPublicKey) Verify(p Proof, message Hashable) (bool, Beta_String) {
+	return pk.verifyBytes(p, HashRep(message))
+}
