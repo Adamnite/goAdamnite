@@ -6,8 +6,8 @@ type Config struct {
 	Genesis   *core.Genesis `toml:",omitempty"`
 	NetworkId uint64
 
-	TxPool    core.TxPoolConfig
-	Validator core.ValidatorConfig
+	TxPool  core.TxPoolConfig
+	Witness core.WitnessConfig
 }
 
 var Defaults = Config{

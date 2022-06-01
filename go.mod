@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5
 	github.com/go-stack/stack v1.8.1
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/huin/goupnp v1.0.3
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
@@ -13,6 +14,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-isatty v0.0.14
 	github.com/naoina/toml v0.1.1
+	github.com/peterh/liner v1.0.1-0.20180619022028-8c1271fcf47f
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/urfave/cli/v2 v2.5.0
@@ -39,6 +41,7 @@ require (
 	github.com/influxdata/flux v0.161.0 // indirect
 	github.com/influxdata/influxql v1.1.1-0.20211004132434-7e7d61973256 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect

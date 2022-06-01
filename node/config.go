@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/adamnite/go-adamnite/accounts/keystore"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/p2p"
@@ -16,8 +17,9 @@ import (
 )
 
 const (
-	datadirPrivateKey   = "nodekey"
-	datadirNodeDatabase = "nodes"
+	datadirPrivateKey      = "nodekey"
+	datadirNodeDatabase    = "nodes"
+	datadirDefaultKeystore = "keys"
 )
 
 type Config struct {
@@ -207,4 +209,29 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
+}
+
+func (c *Config) AccountConfig() (int, int, string, error) {
+	scryptN := keystore.StandardScryptN
+	scryptP := keystore.StandardScryptP
+
+	var (
+		keydir string
+		err    error
+	)
+
+	switch {
+	case filepath.IsAbs(c.KeyStoreDir):
+		keydir = c.KeyStoreDir
+	case c.DataDir != "":
+		if c.KeyStoreDir == "" {
+			keydir = filepath.Join(c.DataDir, datadirDefaultKeystore)
+		} else {
+			keydir, err = filepath.Abs(c.KeyStoreDir)
+		}
+	case c.KeyStoreDir != "":
+		keydir, err = filepath.Abs(c.KeyStoreDir)
+	}
+
+	return scryptN, scryptP, keydir, err
 }

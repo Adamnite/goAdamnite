@@ -1,6 +1,9 @@
 package math
 
-import "math/big"
+import (
+	"math"
+	"math/big"
+)
 
 const (
 	// number of bits in a big.Word
@@ -31,4 +34,28 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 	ret := make([]byte, n)
 	ReadBits(bigint, ret)
 	return ret
+}
+
+func GetPercent(amount *big.Int, max *big.Int) float32 {
+	aLen := GetDecimal(amount)
+	bLen := GetDecimal(max)
+
+	aExp := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(bLen-aLen+3)), nil)
+	aMul := new(big.Int).Mul(amount, aExp)
+
+	div := new(big.Int).Div(aMul, max).Int64()
+
+	dExp := math.Pow10(bLen - aLen + 3)
+	fDiv := float32(div) / float32(dExp)
+	return fDiv
+}
+
+func GetDecimal(a *big.Int) int {
+	decimal := -1
+	bInt := new(big.Int).Set(a)
+	for bInt.Int64() != 0 {
+		bInt = new(big.Int).Div(bInt, big.NewInt(10))
+		decimal++
+	}
+	return decimal
 }
