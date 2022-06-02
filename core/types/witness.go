@@ -15,7 +15,11 @@ type Witness interface {
 
 	// GetBlockValidationPercents returns the percent of
 	GetBlockValidationPercents() float32
+
+	// GetElectedCount returns the number of elected round
 	GetElectedCount() uint64
+
+	// GetStakingAmount returns the total amount of staking for vote
 	GetStakingAmount() *big.Int
 }
 
