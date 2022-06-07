@@ -24,8 +24,10 @@ type Witness interface {
 }
 
 type WitnessImpl struct {
-	Address common.Address
-	Voters  []Voter
+	Address   common.Address
+	Voters    []Voter
+	Prove     []byte
+	WeightVRF []byte
 }
 
 func (w *WitnessImpl) GetAddress() common.Address {

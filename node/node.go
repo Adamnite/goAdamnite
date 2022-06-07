@@ -1,9 +1,12 @@
 package node
 
 import (
+	"errors"
 	"path/filepath"
 	"sync"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/p2p"
 	"github.com/adamnite/go-adamnite/rpc"
@@ -29,6 +32,8 @@ type Node struct {
 
 	inprocHandler *rpc.Server
 	rpcAPIs       []rpc.API
+
+	openedDatabases map[*OpenedDB]struct{}
 }
 
 func New(cfg *Config) (*Node, error) {
@@ -49,11 +54,12 @@ func New(cfg *Config) (*Node, error) {
 	}
 
 	node := &Node{
-		config:        cfg,
-		log:           cfg.Logger,
-		stop:          make(chan struct{}),
-		inprocHandler: rpc.NewAdamniteRPCServer(),
-		server:        &p2p.Server{Config: cfg.P2P},
+		config:          cfg,
+		log:             cfg.Logger,
+		stop:            make(chan struct{}),
+		inprocHandler:   rpc.NewAdamniteRPCServer(),
+		server:          &p2p.Server{Config: cfg.P2P},
+		openedDatabases: make(map[*OpenedDB]struct{}),
 	}
 
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
@@ -126,6 +132,70 @@ func (n *Node) startInProc() error {
 	return nil
 }
 
+// ResolvePath returns the absolute path of a resource in the instance directory.
+func (n *Node) ResolvePath(x string) string {
+	return n.config.ResolvePath(x)
+}
+
+func (n *Node) OpenDatabase(fileName string, cache int, handle int, readonly bool) (adamnitedb.Database, error) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.state == closedState {
+		return nil, ErrNodeStopped
+	}
+
+	var db adamnitedb.Database
+	var err error
+
+	if n.config.DataDir == "" {
+		return nil, errors.New("datadir directory does not exists")
+	} else {
+		dbPath := n.ResolvePath(fileName)
+		db, err = rawdb.NewAdamniteLevelDB(dbPath, cache, handle, readonly)
+	}
+
+	if err == nil {
+		db = n.wrapDatabase(db)
+	}
+	return db, nil
+}
+
 func (n *Node) Wait() {
 	<-n.stop
+}
+
+type OpenedDB struct {
+	adamnitedb.Database
+	n *Node
+}
+
+func (db *OpenedDB) Close() error {
+	db.n.lock.Lock()
+	delete(db.n.openedDatabases, db)
+	db.n.lock.Unlock()
+	return db.Database.Close()
+}
+
+func (n *Node) closeAllDatabases() (errors []error) {
+	for db := range n.openedDatabases {
+		delete(n.openedDatabases, db)
+		if err := db.Database.Close(); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors
+}
+
+func (n *Node) wrapDatabase(db adamnitedb.Database) adamnitedb.Database {
+	wrapper := &OpenedDB{db, n}
+	n.openedDatabases[wrapper] = struct{}{}
+	return wrapper
+}
+
+func (n *Node) Server() *p2p.Server {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.server
 }

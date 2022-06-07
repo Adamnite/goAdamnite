@@ -25,6 +25,10 @@ func (addr *Address) SetBytes(b []byte) {
 	copy(addr[AddressLength-len(b):], b)
 }
 
+func (addr *Address) Bytes() []byte {
+	return addr[:]
+}
+
 func HexToAddress(str string) Address {
 	return BytesToAddress(FromHex(str))
 }
@@ -50,4 +54,24 @@ func (a Address) Hex() string {
 // String implements fmt.Stringer.
 func (a Address) String() string {
 	return a.Hex()
+}
+
+func (h *Hash) SetBytes(b []byte) {
+	if len(b) > len(h) {
+		b = b[len(b)-HashLength:]
+	}
+
+	copy(h[HashLength-len(b):], b)
+}
+
+func (h Hash) Bytes() []byte { return h[:] }
+
+func BytesToHash(b []byte) Hash {
+	var h Hash
+	h.SetBytes(b)
+	return h
+}
+
+func HexToHash(s string) Hash {
+	return BytesToHash(FromHex(s))
 }

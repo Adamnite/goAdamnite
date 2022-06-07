@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"unicode"
 
+	"github.com/adamnite/go-adamnite/adm"
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
 	"github.com/adamnite/go-adamnite/internal/utils"
 	"github.com/adamnite/go-adamnite/node"
@@ -45,19 +46,22 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, adamConfig) {
 			utils.Fatalf("%v", err)
 		}
 	}
+
 	utils.SetNodeConfig(ctx, &cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
+	utils.SetAdamniteConfig(ctx, stack, &cfg.Adamnite)
+
 	return stack, cfg
 }
 
-func makeAdamniteNode(ctx *cli.Context) *node.Node {
-	stack, _ := makeConfigNode(ctx)
-
-	return stack
+func makeAdamniteNode(ctx *cli.Context) (*node.Node, adm.AdamniteAPI) {
+	stack, cfg := makeConfigNode(ctx)
+	adamniteImpl := utils.RegisterAdamniteSerivce(stack, &cfg.Adamnite)
+	return stack, adamniteImpl
 }
 
 // These settings ensure that TOML keys use the same names as Go struct fields.

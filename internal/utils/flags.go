@@ -4,6 +4,10 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/adamnite/go-adamnite/adm"
+	"github.com/adamnite/go-adamnite/adm/adamconfig"
+	"github.com/adamnite/go-adamnite/common/fdutils"
+	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/p2p"
@@ -18,10 +22,41 @@ var (
 		Usage: "Password file to use for non-interactive password input",
 		Value: "",
 	}
+	MainnetFlag = cli.BoolFlag{
+		Name:  "mainnet",
+		Usage: "Adamnite mainnet",
+	}
+	TestnetFlag = cli.BoolFlag{
+		Name:  "testnet",
+		Usage: "Adamnite testnet",
+	}
+	WitnessFalg = cli.BoolFlag{
+		Name:  "witness",
+		Usage: "Adamnite witness",
+	}
+	WitnessAccount = cli.IntFlag{
+		Name:  "witness.account",
+		Usage: "The account number of witness",
+	}
+	DemoFlag = cli.BoolFlag{
+		Name:  "demo",
+		Usage: "Adamnite POC demo version",
+	}
 )
 
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
+}
+
+func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config) {
+	switch {
+	case ctx.Bool(MainnetFlag.Name):
+		cfg.Genesis = core.DefaultGenesisBlock()
+	case ctx.Bool(TestnetFlag.Name):
+		cfg.Genesis = core.DefaultTestnetGenesisBlock()
+	}
+
+	cfg.AdamniteDbHandles = MakeAdamniteDatabaseHandles()
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
@@ -71,4 +106,26 @@ func MakePasswordList(ctx *cli.Context) []string {
 		lines[i] = strings.TrimRight(lines[i], "\r")
 	}
 	return lines
+}
+
+func MakeAdamniteDatabaseHandles() int {
+	hLimit, err := fdutils.GetMaxHandles()
+	if err != nil {
+		Fatalf("Failed to retrieve file descripto allowance: %v", err)
+	}
+
+	hRaised, err := fdutils.GetRaise(uint64(hLimit))
+	if err != nil {
+		Fatalf("Failed to raise file descriptor allowance: %v", err)
+	}
+	return int(hRaised / 2)
+}
+
+func RegisterAdamniteSerivce(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {
+	backend, err := adm.New(node, cfg)
+	if err != nil {
+		Fatalf("Failed to register the Adamnite service: %v", err)
+	}
+
+	return backend
 }

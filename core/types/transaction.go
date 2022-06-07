@@ -1,12 +1,14 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/rlp"
 )
 
 var (
@@ -16,7 +18,7 @@ var (
 	ErrorInvalidTransaction = errors.New("Transaction Balance is too large")
 )
 
-type TxType int64
+type TxType int8
 
 const (
 	VOTE_TX TxType = iota
@@ -60,6 +62,13 @@ type Transaction_Data interface {
 }
 
 type Transactions []*Transaction
+
+func (s Transactions) Len() int { return len(s) }
+
+func (s Transactions) EncodeIndex(i int, w *bytes.Buffer) {
+	tx := s[i]
+	tx.encodeTyped(w)
+}
 
 //// TODO: Implement structure for creating a new transaction, basic message transactions (will do this weekend),
 //proper encoding and decoding of transactions, fetch operations (the fetching of various transaction releated data),
@@ -106,3 +115,56 @@ func (tx *Transaction) WithSignature(signer Signer, signature []byte) (*Transact
 
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.InnerData.nonce() }
+
+func (tx *Transaction) ATEMax() uint64 { return tx.InnerData.ATE_MAX() }
+
+func (tx *Transaction) ATEPrice() *big.Int { return tx.InnerData.ATE_price() }
+
+func (tx *Transaction) Amount() *big.Int { return tx.InnerData.amount() }
+
+func (tx *Transaction) Cost() *big.Int {
+	total := new(big.Int).Mul(new(big.Int).SetUint64(tx.ATEMax()), tx.ATEPrice())
+	total.Add(total, tx.Amount())
+	return total
+}
+
+func (tx *Transaction) Size() common.StorageSize {
+	if size := tx.size.Load(); size != nil {
+		return size.(common.StorageSize)
+	}
+	c := writeCounter(0)
+	rlp.Encode(&c, &tx.InnerData)
+	tx.size.Store(common.StorageSize(c))
+	return common.StorageSize(c)
+}
+
+func (tx *Transaction) Hash() common.Hash {
+	if hash := tx.hash.Load(); hash != nil {
+		return hash.(common.Hash)
+	}
+
+	var h common.Hash
+	h = prefixedRlpHash(byte(tx.Type()), tx.InnerData)
+	tx.hash.Store(h)
+	return h
+}
+
+// encodeTyped writes the canonical encoding of a typed transaction to w.
+func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
+	w.WriteByte(byte(tx.Type()))
+	return rlp.Encode(w, tx.InnerData)
+}
+
+type TxByNonce Transactions
+
+func (s TxByNonce) Len() int           { return len(s) }
+func (s TxByNonce) Less(i, j int) bool { return s[i].Nonce() < s[j].Nonce() }
+func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func (tx *Transaction) ATEPriceCmp(other *Transaction) int {
+	return tx.InnerData.ATE_price().Cmp(other.InnerData.ATE_price())
+}
+
+func (tx *Transaction) ATEPriceIntCmp(other *big.Int) int {
+	return tx.InnerData.ATE_price().Cmp(other)
+}

@@ -1,8 +1,10 @@
 package launcher
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/adamnite/go-adamnite/adm"
 	"github.com/adamnite/go-adamnite/internal/debug"
 	"github.com/adamnite/go-adamnite/internal/flags"
 	"github.com/adamnite/go-adamnite/internal/utils"
@@ -49,12 +51,27 @@ func adamniteMain(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args.Get(0))
 	}
 
-	stack := makeAdamniteNode(ctx)
-	startNode(ctx, stack)
+	stack, adamnite := makeAdamniteNode(ctx)
+	startNode(ctx, stack, adamnite)
 	stack.Wait()
 	return nil
 }
 
-func startNode(ctx *cli.Context, stack *node.Node) {
+func startNode(ctx *cli.Context, stack *node.Node, adamnite adm.AdamniteAPI) {
 	utils.StartNode(ctx, stack)
+
+	if ctx.Bool(utils.WitnessFalg.Name) {
+		if ctx.Int(utils.WitnessAccount.Name) == 0 {
+			utils.Fatalf("Witness account was not set")
+		}
+
+		adamniteImpl, ok := adamnite.(*adm.AdamniteImpl)
+		if !ok {
+			utils.Fatalf("Adamnite service not running: %v", errors.New("AdamniteImpl not created"))
+		}
+
+		if err := adamniteImpl.StartConsensus(); err != nil {
+			utils.Fatalf("Failed to start consensus: %v", err)
+		}
+	}
 }
