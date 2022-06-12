@@ -6,12 +6,14 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm"
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/fdutils"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/p2p"
 	"github.com/adamnite/go-adamnite/p2p/enode"
+	"github.com/adamnite/go-adamnite/p2p/nat"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/urfave/cli/v2"
 )
@@ -30,17 +32,26 @@ var (
 		Name:  "testnet",
 		Usage: "Adamnite testnet",
 	}
+	DemoFlag = cli.BoolFlag{
+		Name:  "demo",
+		Usage: "Adamnite POC demo version",
+	}
 	WitnessFalg = cli.BoolFlag{
 		Name:  "witness",
 		Usage: "Adamnite witness",
 	}
-	WitnessAccount = cli.IntFlag{
-		Name:  "witness.account",
-		Usage: "The account number of witness",
+	WitnessAddressFlag = cli.StringFlag{
+		Name:  "witness.addr",
+		Usage: "The address of witness",
 	}
-	DemoFlag = cli.BoolFlag{
-		Name:  "demo",
-		Usage: "Adamnite POC demo version",
+	NetworkIP = cli.StringFlag{
+		Name:  "network.ip",
+		Usage: "The external IP address of the node",
+	}
+	NATFlag = cli.StringFlag{
+		Name:  "nat",
+		Usage: "NAT port mapping mechanism (any|none|upnp|pmp|extip:<IP>)",
+		Value: "any",
 	}
 )
 
@@ -54,13 +65,31 @@ func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config
 		cfg.Genesis = core.DefaultGenesisBlock()
 	case ctx.Bool(TestnetFlag.Name):
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
+	case ctx.Bool(DemoFlag.Name):
+		cfg.Genesis = core.DefaultDemoGenesisBlock()
 	}
 
 	cfg.AdamniteDbHandles = MakeAdamniteDatabaseHandles()
+
+	setWitnessAddress(ctx, cfg)
+}
+
+func setWitnessAddress(ctx *cli.Context, cfg *adamconfig.Config) {
+	var witnessAddr string
+	if ctx.IsSet(WitnessFalg.Name) && ctx.IsSet(WitnessAddressFlag.Name) {
+		witnessAddr = ctx.String(WitnessAddressFlag.Name)
+	}
+
+	cfg.Validator.WitnessAddress = common.HexToAddress(witnessAddr)
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	setBootstrapNode(ctx, cfg)
+	setNAT(ctx, cfg)
+
+	if ctx.String(NetworkIP.Name) != "" {
+		cfg.ListenAddr = ctx.String(NetworkIP.Name)
+	}
 }
 
 func setBootstrapNode(ctx *cli.Context, cfg *p2p.Config) {
@@ -128,4 +157,15 @@ func RegisterAdamniteSerivce(node *node.Node, cfg *adamconfig.Config) *adm.Adamn
 	}
 
 	return backend
+}
+
+// setNAT creates a port mapper from command line flags.
+func setNAT(ctx *cli.Context, cfg *p2p.Config) {
+	if ctx.IsSet(NATFlag.Name) {
+		natif, err := nat.Parse(ctx.String(NATFlag.Name))
+		if err != nil {
+			Fatalf("Option %s: %v", NATFlag.Name, err)
+		}
+		cfg.NAT = natif
+	}
 }

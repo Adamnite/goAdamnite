@@ -1,11 +1,14 @@
 package core
 
 import (
+	"sync"
+
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
+	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
 )
 
@@ -24,7 +27,14 @@ type Blockchain struct {
 	witness types.Witness
 
 	// For demo version
-	blocks []types.Block // memory cache
+	blocks        []types.Block // memory cache
+	accountStates map[common.Address]accountSet
+
+	// events
+	importBlockFeed event.Feed
+	scope           event.SubscriptionScope
+
+	chainlock sync.RWMutex
 }
 
 func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engine dpos.DPOS) (*Blockchain, error) {
@@ -56,4 +66,32 @@ func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
 
 func (bc *Blockchain) CurrentBlock() *types.Block {
 	return &bc.blocks[len(bc.blocks)-1]
+}
+
+func (bc *Blockchain) WriteBlock(block *types.Block) error {
+	bc.chainlock.Lock()
+	defer bc.chainlock.Unlock()
+
+	bc.blocks = append(bc.blocks, *block)
+	return nil
+}
+
+func (bc *Blockchain) AddImportedBlock(block *types.Block) error {
+	bc.chainlock.Lock()
+	defer bc.chainlock.Unlock()
+
+	currentBlock := bc.CurrentBlock()
+
+	if currentBlock.Numberu64() >= block.Numberu64() {
+		return nil
+	}
+
+	bc.blocks = append(bc.blocks, *block)
+
+	bc.importBlockFeed.Send(ImportBlockEvent{Block: block})
+	return nil
+}
+
+func (bc *Blockchain) SubscribeImportBlockEvent(ch chan<- ImportBlockEvent) event.Subscription {
+	return bc.scope.Track(bc.importBlockFeed.Subscribe(ch))
 }

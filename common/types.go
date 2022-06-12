@@ -2,6 +2,8 @@ package common
 
 import (
 	"encoding/hex"
+
+	"github.com/adamnite/go-adamnite/common/hexutil"
 )
 
 const (
@@ -74,4 +76,8 @@ func BytesToHash(b []byte) Hash {
 
 func HexToHash(s string) Hash {
 	return BytesToHash(FromHex(s))
+}
+
+func (h Hash) Hex() string {
+	return hexutil.Encode(h[:])
 }

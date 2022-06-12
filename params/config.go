@@ -10,6 +10,10 @@ var (
 	TestnetChainConfig = &ChainConfig{
 		ChainID: big.NewInt(889),
 	}
+
+	DemoChainConfig = &ChainConfig{
+		ChainID: big.NewInt(890),
+	}
 )
 
 type ChainConfig struct {

@@ -2,6 +2,7 @@ package adamconfig
 
 import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/node"
@@ -15,6 +16,8 @@ type Config struct {
 	TxPool  core.TxPoolConfig
 	Witness core.WitnessConfig
 
+	Validator validator.Config
+
 	// Adamnite DB options
 	AdamniteDbCache   int
 	AdamniteDbHandles int `toml:"-"`
@@ -24,6 +27,15 @@ var Defaults = Config{
 	NetworkId: 888,
 	TxPool:    core.DefaultTxPoolConfig,
 	Witness:   core.DefaultWitnessConfig,
+
+	AdamniteDbCache: 512,
+}
+
+var DemoDefaults = Config{
+	NetworkId: 890,
+	TxPool:    core.DefaultTxPoolConfig,
+	Witness:   core.DefaultDemoWitnessConfig,
+	Validator: validator.DefaultDemoConfig,
 
 	AdamniteDbCache: 512,
 }

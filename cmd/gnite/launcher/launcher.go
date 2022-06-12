@@ -18,6 +18,18 @@ var (
 	gitDate   = ""
 
 	app = flags.NewApp(gitCommit, gitDate, "the go-adamnite command line interface")
+
+	demoFlags = []cli.Flag{
+		&utils.DemoFlag,
+	}
+	networkFlags = []cli.Flag{
+		&utils.NetworkIP,
+		&utils.NATFlag,
+	}
+	witnessFlags = []cli.Flag{
+		&utils.WitnessFalg,
+		&utils.WitnessAddressFlag,
+	}
 )
 
 func init() {
@@ -27,6 +39,11 @@ func init() {
 	app.Commands = []*cli.Command{
 		&accountCommand,
 	}
+
+	app.Flags = append(app.Flags, demoFlags...)
+	app.Flags = append(app.Flags, networkFlags...)
+	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, witnessFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		if err := debug.Setup(ctx); err != nil {
@@ -61,8 +78,8 @@ func startNode(ctx *cli.Context, stack *node.Node, adamnite adm.AdamniteAPI) {
 	utils.StartNode(ctx, stack)
 
 	if ctx.Bool(utils.WitnessFalg.Name) {
-		if ctx.Int(utils.WitnessAccount.Name) == 0 {
-			utils.Fatalf("Witness account was not set")
+		if ctx.String(utils.WitnessAddressFlag.Name) == "" {
+			utils.Fatalf("Witness address was not set")
 		}
 
 		adamniteImpl, ok := adamnite.(*adm.AdamniteImpl)

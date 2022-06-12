@@ -33,6 +33,7 @@ type TxPool struct {
 	chain       blockChain
 
 	pending map[common.Address]*txList
+	all     *txLookup
 }
 
 type blockChain interface {
@@ -48,7 +49,12 @@ func NewTxPool(config TxPoolConfig, chainConfig *params.ChainConfig, chain block
 		chain:       chain,
 
 		pending: make(map[common.Address]*txList),
+		all:     newTxLookup(),
 	}
 
 	return pool
+}
+
+func (pool *TxPool) Get(txHash common.Hash) *types.Transaction {
+	return pool.all.Get(txHash)
 }

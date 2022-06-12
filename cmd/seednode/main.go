@@ -99,6 +99,7 @@ func main() {
 	printNotice(&nodeKey.PublicKey, *realaddr)
 	db, err := enode.OpenDB("")
 	localNode := enode.NewLocalNode(db, nodeKey)
+	localNode.SetFallbackIP(realaddr.IP)
 
 	cfg := discover.Config{
 		PrivateKey:  nodeKey,

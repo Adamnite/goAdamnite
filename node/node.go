@@ -7,6 +7,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/p2p"
 	"github.com/adamnite/go-adamnite/rpc"
@@ -26,12 +27,15 @@ type Node struct {
 	ipc    *ipcServer
 	server *p2p.Server
 
+	eventmux *event.TypeMux
+
 	startStopLock sync.Mutex
 	state         int
 	lock          sync.Mutex
 
 	inprocHandler *rpc.Server
 	rpcAPIs       []rpc.API
+	services      []Service
 
 	openedDatabases map[*OpenedDB]struct{}
 }
@@ -60,6 +64,7 @@ func New(cfg *Config) (*Node, error) {
 		inprocHandler:   rpc.NewAdamniteRPCServer(),
 		server:          &p2p.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
+		eventmux:        new(event.TypeMux),
 	}
 
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
@@ -94,8 +99,29 @@ func (n *Node) Start() error {
 
 	// Open networking and RPC endpoints
 	err := n.openEndPoints()
+
+	services := make([]Service, len(n.services))
+	copy(services, n.services)
 	n.lock.Unlock()
 
+	if err != nil {
+		// n.doClose(nil)
+		return err
+	}
+
+	// Start all registered services.
+	var started []Service
+	for _, service := range services {
+		if err = service.Start(); err != nil {
+			break
+		}
+		started = append(started, service)
+	}
+	// Check if any service failed to start.
+	if err != nil {
+		// n.stopServices(started)
+		// n.doClose(nil)
+	}
 	return err
 }
 
@@ -198,4 +224,43 @@ func (n *Node) Server() *p2p.Server {
 	defer n.lock.Unlock()
 
 	return n.server
+}
+
+func (n *Node) RegistProtocols(protocols []p2p.Protocol) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.state != initializingState {
+		panic("cannot regist protocols on running or stopped node")
+	}
+
+	n.server.Protocols = append(n.server.Protocols, protocols...)
+}
+
+func (n *Node) RegistServices(serivce Service) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.state != initializingState {
+		panic("cannot regist service on runing or stopped node")
+	}
+
+	if containsService(n.services, serivce) {
+		panic("The service %T was already registered")
+	}
+
+	n.services = append(n.services, serivce)
+}
+
+func (n *Node) EventMux() *event.TypeMux {
+	return n.eventmux
+}
+
+func containsService(lfs []Service, l Service) bool {
+	for _, obj := range lfs {
+		if obj == l {
+			return true
+		}
+	}
+	return false
 }

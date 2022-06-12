@@ -37,7 +37,7 @@ type Wallet interface {
 	SignDataWithPassphrase(account Account, passphrase, mimeType string, data []byte) ([]byte, error)
 
 	// SignText requests the wallet to sign the hash of a given piece of data, prefixed
-	// by the Ethereum prefix scheme
+	// by the Adamnite prefix scheme
 	SignText(account Account, text []byte) ([]byte, error)
 
 	// SignTextWithPassphrase is identical to Signtext, but also takes a password

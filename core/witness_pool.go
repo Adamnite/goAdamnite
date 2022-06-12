@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
@@ -31,12 +32,21 @@ var DefaultWitnessConfig = WitnessConfig{
 	WitnessCount: 27,
 }
 
+var DefaultDemoWitnessConfig = WitnessConfig{
+	WitnessCount: 3,
+}
+
 type WitnessCandidatePool struct {
 	config      WitnessConfig
 	chainConfig *params.ChainConfig
 	chain       blockChain
 
 	witnessCandidates []types.Witness
+}
+
+type WitnessPool struct {
+	witnesses []types.Witness
+	blacklist []types.Witness
 }
 
 func (wp *WitnessCandidatePool) GetCandidates() []types.Witness {
@@ -109,5 +119,41 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain
 		witnessCandidates: make([]types.Witness, 0),
 	}
 
+	if chainConfig.ChainID == params.DemoChainConfig.ChainID {
+		genesis := DefaultDemoGenesisBlock()
+
+		for _, w := range genesis.WitnessList {
+			witness := &types.WitnessImpl{
+				Address: w.address,
+				Voters:  w.voters,
+			}
+			pool.witnessCandidates = append(pool.witnessCandidates, witness)
+		}
+	}
+
 	return pool
+}
+
+func (cp *WitnessCandidatePool) GetWitneessPool() *WitnessPool {
+	wp := &WitnessPool{
+		witnesses: cp.witnessCandidates,
+	}
+	return wp
+}
+
+func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
+	if prevWitnessAddr == nil {
+		return wp.witnesses[0].GetAddress()
+	}
+
+	for i, witness := range wp.witnesses {
+		if witness.GetAddress() == *prevWitnessAddr {
+			if i >= len(wp.witnesses)-1 {
+				return wp.witnesses[0].GetAddress()
+			} else {
+				return wp.witnesses[i+1].GetAddress()
+			}
+		}
+	}
+	return common.Address{}
 }

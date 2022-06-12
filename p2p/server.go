@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,6 +31,9 @@ const (
 	defaultDialTimeout = 15 * time.Second
 
 	discmixTimeout = 5 * time.Second
+
+	frameReadTimeout  = 30 * time.Second
+	frameWriteTimeout = 20 * time.Second
 )
 
 type Config struct {
@@ -179,6 +183,10 @@ func (srv *Server) Start() (err error) {
 		return errors.New("Server.Privatekey must be set to a non-nil key")
 	}
 
+	if srv.newTransport == nil {
+		srv.newTransport = newRLPX
+	}
+
 	if err := srv.setupLocalNode(); err != nil {
 		return err
 	}
@@ -263,6 +271,9 @@ func (srv *Server) setupDiscovery() error {
 	} else {
 		srv.DiscV5, err = discover.ListenV5(conn, srv.localnode, cfg)
 	}
+
+	srv.discmix.AddSource(srv.DiscV5.RandomNodes())
+
 	if err != nil {
 		return err
 	}
@@ -399,6 +410,10 @@ func nodeFromConn(pubkey *ecdsa.PublicKey, conn net.Conn) *enode.Node {
 func (srv *Server) setupLocalNode() error {
 	pubkey := crypto.FromECDSAPub(&srv.PrivateKey.PublicKey)
 	srv.ourHandshake = &protoHandshake{Version: baseProtocolVersion, Name: srv.Name, ID: pubkey[1:]}
+	for _, p := range srv.Protocols {
+		srv.ourHandshake.Caps = append(srv.ourHandshake.Caps, p.cap())
+	}
+	sort.Sort(capsByNameAndVersion(srv.ourHandshake.Caps))
 
 	db, err := enode.OpenDB(srv.Config.NodeDatabase)
 	if err != nil {
@@ -409,6 +424,21 @@ func (srv *Server) setupLocalNode() error {
 	srv.localnode = enode.NewLocalNode(db, srv.PrivateKey)
 	srv.localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 
+	switch srv.NAT.(type) {
+	case nil:
+		// No Nat interface, do nothing
+	case nat.ExtIP:
+		ip, _ := srv.NAT.ExternalIP()
+		srv.localnode.SetStaticIP(ip)
+	default:
+		srv.loopWG.Add(1)
+		go func() {
+			defer srv.loopWG.Done()
+			if ip, err := srv.NAT.ExternalIP(); err == nil {
+				srv.localnode.SetStaticIP(ip)
+			}
+		}()
+	}
 	return nil
 }
 
@@ -494,7 +524,7 @@ func (srv *Server) listenLoop() {
 			srv.log.Trace("Accepted connection", "addr", fd.RemoteAddr())
 		}
 		go func() {
-			// srv.SetupConn(fd, inboundConn, nil)
+			srv.SetupConn(fd, inboundConn, nil)
 			slots <- struct{}{}
 		}()
 	}
@@ -599,6 +629,10 @@ running:
 	}
 
 	srv.log.Trace("P2P networking is spinning down")
+
+	if srv.DiscV5 != nil {
+		srv.DiscV5.Close()
+	}
 
 	for _, p := range peers {
 		p.Disconnect(DiscQuitting)

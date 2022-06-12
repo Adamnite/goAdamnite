@@ -5,8 +5,10 @@ go 1.17
 require (
 	github.com/VictoriaMetrics/fastcache v1.10.0
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5
+	github.com/deckarep/golang-set v1.8.0
 	github.com/go-stack/stack v1.8.1
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
+	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/huin/goupnp v1.0.3
@@ -37,7 +39,6 @@ require (
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v2.0.5+incompatible // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/influxdata/flux v0.161.0 // indirect

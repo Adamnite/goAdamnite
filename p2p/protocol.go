@@ -22,6 +22,7 @@ type Protocol struct {
 	Length         uint64
 	Run            func(peer *Peer, rw MsgReadWriter) error
 	PeerInfo       func(id enode.ID) interface{}
+	NodeInfo       func() interface{}
 	DialCandidates enode.Iterator
 	Attributes     []enr.Entry
 }

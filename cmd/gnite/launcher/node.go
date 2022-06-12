@@ -36,7 +36,7 @@ func defaultNodeConfig() node.Config {
 
 func makeConfigNode(ctx *cli.Context) (*node.Node, adamConfig) {
 	cfg := adamConfig{
-		Adamnite: adamconfig.Defaults,
+		Adamnite: adamconfig.DemoDefaults,
 		Node:     defaultNodeConfig(),
 	}
 
