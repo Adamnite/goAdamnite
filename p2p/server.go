@@ -208,6 +208,23 @@ func (srv *Server) Start() (err error) {
 	return nil
 }
 
+func (srv *Server) Stop() {
+	srv.lock.Lock()
+	if !srv.running {
+		srv.lock.Unlock()
+		return
+	}
+
+	srv.running = false
+	if srv.listener != nil {
+		srv.listener.Close()
+	}
+
+	close(srv.quit)
+	srv.lock.Unlock()
+	srv.loopWG.Wait()
+}
+
 func (srv *Server) setupDiscovery() error {
 	srv.discmix = enode.NewFairMix(discmixTimeout)
 

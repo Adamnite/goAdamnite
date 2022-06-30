@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
+	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/urfave/cli/v2"
 )
@@ -27,8 +30,29 @@ func Fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-func StartNode(ctx *cli.Context, stack *node.Node) {
-	if err := stack.Start(); err != nil {
-		Fatalf("Error starting protocol stack: %v", err)
+func StartNode(ctx *cli.Context, node *node.Node) {
+	if err := node.Start(); err != nil {
+		Fatalf("Error starting protocol node: %v", err)
 	}
+
+	go func() {
+		sigc := make(chan os.Signal, 1)
+		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)
+
+		defer signal.Stop(sigc)
+
+		<-sigc
+		log15.Info("Adamnite engine shutting down...")
+		go node.Close()
+
+		// temp time
+		for i := 10; i > 0; i-- {
+			<-sigc
+			if i > 1 {
+				log15.Warn("Already shutting down, interrupt times", "times", i-1)
+			}
+		}
+
+		// debug.LoudPanic("boom")
+	}()
 }

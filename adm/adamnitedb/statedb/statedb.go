@@ -73,6 +73,13 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+	stateObj := s.GetOrNewStateObj(addr)
+	if stateObj != nil {
+		stateObj.SetBalance(amount)
+	}
+}
+
 func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	s.Finalise(deleteEmptyObjects)
 

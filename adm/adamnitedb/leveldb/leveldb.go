@@ -76,11 +76,14 @@ func (db *Database) Close() error {
 	db.quitLock.Lock()
 	defer db.quitLock.Unlock()
 
-	if db.quitChan != nil {
-		errChan := make(chan error)
-		db.quitChan <- errChan
-		db.quitChan = nil
-	}
+	// if db.quitChan != nil {
+	// 	errChan := make(chan error)
+	// 	db.quitChan <- errChan
+	// 	if err := <-errChan; err != nil {
+	// 		db.log.Error("DB error occured", "err", err)
+	// 	}
+	// 	db.quitChan = nil
+	// }
 	return db.db.Close()
 }
 

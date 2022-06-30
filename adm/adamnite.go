@@ -56,7 +56,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	}
 
 	log15.Info("Initialised chain configuration", "config", chainConfig)
-	log15.Info("Adamnite genesis hash", "hash", genesisHash)
+	log15.Info("Adamnite genesis hash", "hash", genesisHash.Hex())
 
 	adamnite := &AdamniteImpl{
 		config:     config,
@@ -115,7 +115,7 @@ func (adam *AdamniteImpl) Start() error {
 }
 
 func (adam *AdamniteImpl) Stop() error {
-	adam.adamniteDialCandidates.Close()
+	// adam.adamniteDialCandidates.Close()
 	adam.eventMux.Stop()
 	return nil
 }

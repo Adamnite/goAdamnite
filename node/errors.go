@@ -2,6 +2,8 @@ package node
 
 import (
 	"errors"
+	"fmt"
+	"reflect"
 	"syscall"
 )
 
@@ -19,4 +21,12 @@ func convertFileLockError(err error) error {
 		return ErrDatadirUsed
 	}
 	return err
+}
+
+type NodeServiceStopError struct {
+	Services map[reflect.Type]error
+}
+
+func (e *NodeServiceStopError) Error() string {
+	return fmt.Sprintf("adamnite node services: %v", e.Services)
 }

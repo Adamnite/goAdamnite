@@ -43,6 +43,17 @@ var DefaultConfig = Config{
 	},
 }
 
+var DefaultDemoConfig = Config{
+	Name:    "gnite-demo",
+	IPCPath: "gnite-demo.ipc",
+	DataDir: "",
+	P2P: p2p.Config{
+		MaxPeers:   50,
+		ListenAddr: ":30900",
+		NAT:        nat.Any(),
+	},
+}
+
 // DefaultDataDir is the default data directory to use for the databases and other
 // persistence requirements.
 func DefaultDataDir() string {

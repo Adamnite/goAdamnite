@@ -68,14 +68,16 @@ func adamniteMain(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args.Get(0))
 	}
 
-	stack, adamnite := makeAdamniteNode(ctx)
-	startNode(ctx, stack, adamnite)
-	stack.Wait()
+	node, adamnite := makeAdamniteNode(ctx)
+	defer node.Close()
+
+	startNode(ctx, node, adamnite)
+	node.Wait()
 	return nil
 }
 
-func startNode(ctx *cli.Context, stack *node.Node, adamnite adm.AdamniteAPI) {
-	utils.StartNode(ctx, stack)
+func startNode(ctx *cli.Context, node *node.Node, adamnite adm.AdamniteAPI) {
+	utils.StartNode(ctx, node)
 
 	if ctx.Bool(utils.WitnessFalg.Name) {
 		if ctx.String(utils.WitnessAddressFlag.Name) == "" {

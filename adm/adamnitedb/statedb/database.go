@@ -30,7 +30,7 @@ type Database interface {
 }
 
 type Trie interface {
-	Get([]byte) []byte
+	GetKey([]byte) []byte
 	TryGet(key []byte) ([]byte, error)
 	TryUpdate(key, value []byte) error
 	TryDelete(key []byte) error

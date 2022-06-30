@@ -1,8 +1,9 @@
 package node
 
 import (
-	"errors"
+	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
@@ -105,7 +106,7 @@ func (n *Node) Start() error {
 	n.lock.Unlock()
 
 	if err != nil {
-		// n.doClose(nil)
+		n.releaseResources(nil)
 		return err
 	}
 
@@ -119,8 +120,8 @@ func (n *Node) Start() error {
 	}
 	// Check if any service failed to start.
 	if err != nil {
-		// n.stopServices(started)
-		// n.doClose(nil)
+		n.stopServices(started)
+		n.releaseResources(nil)
 	}
 	return err
 }
@@ -131,6 +132,10 @@ func (n *Node) openEndPoints() error {
 		return convertFileLockError(err)
 	}
 	err := n.startRPC()
+	if err != nil {
+		n.stopRPC()
+		n.server.Stop()
+	}
 
 	return err
 }
@@ -147,6 +152,10 @@ func (n *Node) startRPC() error {
 	}
 
 	return nil
+}
+
+func (n *Node) stopRPC() {
+	n.ipc.stop()
 }
 
 func (n *Node) startInProc() error {
@@ -175,7 +184,7 @@ func (n *Node) OpenDatabase(fileName string, cache int, handle int, readonly boo
 	var err error
 
 	if n.config.DataDir == "" {
-		return nil, errors.New("datadir directory does not exists")
+		db = rawdb.NewMemoryDB()
 	} else {
 		dbPath := n.ResolvePath(fileName)
 		db, err = rawdb.NewAdamniteLevelDB(dbPath, cache, handle, readonly)
@@ -242,11 +251,11 @@ func (n *Node) RegistServices(serivce Service) {
 	defer n.lock.Unlock()
 
 	if n.state != initializingState {
-		panic("cannot regist service on runing or stopped node")
+		panic("cannot register service on runing or stopped node")
 	}
 
 	if containsService(n.services, serivce) {
-		panic("The service %T was already registered")
+		panic(fmt.Sprintf("The service %T was already registered", serivce))
 	}
 
 	n.services = append(n.services, serivce)
@@ -263,4 +272,63 @@ func containsService(lfs []Service, l Service) bool {
 		}
 	}
 	return false
+}
+
+func (n *Node) Close() error {
+	n.startStopLock.Lock()
+	defer n.startStopLock.Unlock()
+
+	n.lock.Lock()
+	state := n.state
+	n.lock.Unlock()
+
+	switch state {
+	case initializingState:
+		return n.releaseResources(nil)
+	case runningState:
+		var errs []error
+		if err := n.stopServices(n.services); err != nil {
+			errs = append(errs, err)
+		}
+		return n.releaseResources(errs)
+	case closedState:
+		return ErrNodeStopped
+	default:
+		panic(fmt.Sprintf("Unknown node state: %d", state))
+	}
+}
+
+func (n *Node) stopServices(running []Service) error {
+	stopError := &NodeServiceStopError{Services: make(map[reflect.Type]error)}
+
+	for i := len(running) - 1; i >= 0; i-- {
+		if err := running[i].Stop(); err != nil {
+			stopError.Services[reflect.TypeOf(running[i])] = err
+		}
+	}
+
+	if len(stopError.Services) > 0 {
+		return stopError
+	}
+	return nil
+}
+
+func (n *Node) releaseResources(errs []error) error {
+	n.stopRPC()
+
+	n.lock.Lock()
+	n.state = closedState
+	dbErrs := n.closeAllDatabases()
+	errs = append(errs, dbErrs...)
+	n.lock.Unlock()
+
+	close(n.stop)
+	switch len(errs) {
+	case 0:
+		return nil
+	case 1:
+		return errs[1]
+	default:
+		return fmt.Errorf("%v", errs)
+	}
 }

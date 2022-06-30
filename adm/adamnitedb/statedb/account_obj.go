@@ -2,6 +2,7 @@ package statedb
 
 import (
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -214,4 +215,8 @@ func (s *stateObject) setError(err error) {
 	if s.dbErr == nil {
 		s.dbErr = err
 	}
+}
+
+func (s *stateObject) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, s.data)
 }

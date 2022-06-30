@@ -3,6 +3,7 @@ package rawdb
 import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/leveldb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/memorydb"
 )
 
 type AdamniteDB struct {
@@ -21,4 +22,8 @@ func NewAdamniteLevelDB(fileName string, cache int, handles int, readonly bool) 
 		return nil, err
 	}
 	return NewAdamniteDB(db), nil
+}
+
+func NewMemoryDB() adamnitedb.Database {
+	return NewAdamniteDB(memorydb.New())
 }
