@@ -21,5 +21,5 @@ func TestSignatureAndVerify(t *testing.T) {
 	nodeInfo.SetUDP(20)
 	nodeInfo.SetIP(net.IPv4(10, 10, 10, 10))
 
-	require.NoError(t, Sign(&nodeInfo, privKey, TypeURLV1))
+	require.NoError(t, Sign(&nodeInfo, privKey, nil, TypeURLV1))
 }

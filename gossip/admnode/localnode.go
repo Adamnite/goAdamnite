@@ -92,5 +92,9 @@ func (n *LocalNode) doSign(infoType NodeInfoType) error {
 		return errors.New("cannot find private key")
 	}
 
-	return Sign(n.curNodeInfo, n.key, infoType)
+	return Sign(n.curNodeInfo, n.key, nil, infoType)
+}
+
+func (n *LocalNode) Database() *NodeDB {
+	return n.db
 }

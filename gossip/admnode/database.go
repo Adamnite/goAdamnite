@@ -5,11 +5,16 @@ import (
 	"encoding/binary"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
+)
+
+const (
+	dbNodeKeyPrefix = "gn:"
 )
 
 // NodeDB is the node database, storing previously seen live nodes
@@ -66,4 +71,30 @@ func newDiskNodeDB(path string) (*NodeDB, error) {
 	}
 
 	return &NodeDB{levelDB: db, quit: make(chan struct{})}, nil
+}
+
+// QueryNodes retrieves random nodes to be used as bootstrap node.
+func (db *NodeDB) QueryRandomNodes(count int, maxAge time.Duration) []*GossipNode {
+	// now := time.Now()
+	// nodes := make([]*GossipNode, 0, count)
+	// iter := db.levelDB.NewIterator(nil, nil)
+	// var id NodeID
+	// defer iter.Release()
+
+	// for seeks := 0; len(nodes) < count && seeks < count*5; seeks++ {
+	// 	rand.Read(id[:])
+	// 	iter.Seek(getNodeKey(id))
+
+	// }
+	return nil
+}
+
+func getNodeKey(id NodeID) []byte {
+	key := append([]byte(dbNodeKeyPrefix), id[:]...)
+	return key
+}
+
+func isValidNode(id, data []byte) *GossipNode {
+	// node := new(GossipNode)
+	return nil
 }

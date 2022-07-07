@@ -2,11 +2,21 @@ package gossip
 
 import (
 	"crypto/ecdsa"
+	"time"
 
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/gossip/admnode"
 	"github.com/adamnite/go-adamnite/gossip/nat"
+	"github.com/adamnite/go-adamnite/gossip/utils"
 	"github.com/adamnite/go-adamnite/log15"
+)
+
+const (
+	defaultMaxInboundConnections  = 15
+	defaultMaxOutboundConnections = 15
+	defaultMaxPendingConnections  = 15
+
+	inboundAtemptDuration = 60 * time.Second
 )
 
 type Config struct {
@@ -16,11 +26,20 @@ type Config struct {
 	// ListenAddr is the listening address, incomming connection from other nodes
 	ListenAddr string
 
+	// MaxPendingConnections is the maximum number of pending incomming peer connections
+	MaxPendingConnections int
+
 	// MaxInboundConnection is the maximum number of incomming peer connections
-	MaxInboundConnection int
+	MaxInboundConnections int
 
 	// MaxOutboundConnection is the maximum number of outbounding peer connections
-	MaxOutboundConnection int
+	MaxOutboundConnections int
+
+	// PeerBlackList is the black list of the peers
+	PeerBlackList *utils.IPNetList
+
+	// PeerWhiteList is the white list of the peers
+	PeerWhiteList *utils.IPNetList
 
 	// BootstrapNodes are used to establish connectivity with the rest of the network
 	BootstrapNodes []*admnode.GossipNode
