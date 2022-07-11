@@ -27,6 +27,15 @@ func NewLocalNode(db *NodeDB, key *ecdsa.PrivateKey) *LocalNode {
 	return localNode
 }
 
+func (n *LocalNode) Node() *GossipNode {
+	n.doSign(TypeURLV1)
+	node := &GossipNode{
+		id:   &n.id,
+		info: n.curNodeInfo,
+	}
+	return node
+}
+
 func (n *LocalNode) NodeInfo() *NodeInfo {
 	return n.curNodeInfo
 }

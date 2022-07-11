@@ -1,6 +1,6 @@
 // A BAR Resilient P2P network server for distributed ledger system
 
-package gossip
+package bargossip
 
 import (
 	"crypto/ecdsa"
@@ -289,7 +289,7 @@ func (srv *Server) listenThread() {
 			break
 		}
 
-		remotePeerIP := NetAddrToIP(peerConn.RemoteAddr())
+		remotePeerIP := utils.NetAddrToIP(peerConn.RemoteAddr())
 		if err := srv.checkInboundConnections(remotePeerIP); err != nil {
 			srv.log.Debug("Rejected inbound connection", "addr", peerConn.RemoteAddr(), "err", err)
 			peerConn.Close()

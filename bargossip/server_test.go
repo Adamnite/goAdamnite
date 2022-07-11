@@ -1,11 +1,11 @@
-package gossip
+package bargossip
 
 import (
 	"crypto/ecdsa"
 	"testing"
 
+	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/gossip/nat"
 	"github.com/adamnite/go-adamnite/internal/testlog"
 	"github.com/adamnite/go-adamnite/log15"
 )

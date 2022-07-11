@@ -1,13 +1,13 @@
-package gossip
+package bargossip
 
 import (
 	"crypto/ecdsa"
 	"time"
 
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/nat"
+	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/gossip/admnode"
-	"github.com/adamnite/go-adamnite/gossip/nat"
-	"github.com/adamnite/go-adamnite/gossip/utils"
 	"github.com/adamnite/go-adamnite/log15"
 )
 

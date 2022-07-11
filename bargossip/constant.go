@@ -1,11 +1,11 @@
-package gossip
+package bargossip
 
 import (
 	"crypto/ecdsa"
 	"net"
 	"time"
 
-	"github.com/adamnite/go-adamnite/gossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
 )
 
 const (
