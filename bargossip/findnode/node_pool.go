@@ -12,8 +12,8 @@ import (
 	"github.com/adamnite/go-adamnite/log15"
 )
 
-// NodeTable is the table that stores the neighbor nodes.
-type NodeTable struct {
+// NodePool is the table that stores the neighbor nodes.
+type NodePool struct {
 	bootstrapNodes []*node
 	db             *admnode.NodeDB
 	log            log15.Logger
@@ -28,12 +28,12 @@ type NodeTable struct {
 }
 
 type bucket struct {
-	entries      []*node
-	replacements []*node
+	whitelist []*node
+	graylist  []*node
 }
 
-func newNodeTable(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootnodes []*admnode.GossipNode, log log15.Logger) (*NodeTable, error) {
-	table := &NodeTable{
+func newNodePool(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootnodes []*admnode.GossipNode, log log15.Logger) (*NodePool, error) {
+	table := &NodePool{
 		db:        db,
 		log:       log,
 		transport: findNodeTransport,
@@ -51,7 +51,7 @@ func newNodeTable(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootn
 	return table, nil
 }
 
-func (tab *NodeTable) initialize() {
+func (tab *NodePool) initialize() {
 	// initialize rand
 	tab.resetRand()
 
@@ -59,7 +59,7 @@ func (tab *NodeTable) initialize() {
 	tab.loadNodes()
 }
 
-func (tab *NodeTable) resetRand() {
+func (tab *NodePool) resetRand() {
 	var b [8]byte
 	crand.Read(b[:])
 
@@ -68,7 +68,7 @@ func (tab *NodeTable) resetRand() {
 	tab.mu.Unlock()
 }
 
-func (tab *NodeTable) loadNodes() {
+func (tab *NodePool) loadNodes() {
 	seeds := wrapFindNodes(tab.db.QueryRandomNodes(seedCount, seedMaxAge))
 	seeds = append(seeds, tab.bootstrapNodes...)
 	for i := range seeds {
@@ -78,7 +78,7 @@ func (tab *NodeTable) loadNodes() {
 	}
 }
 
-func (tab *NodeTable) addSeenNode(n *node) {
+func (tab *NodePool) addSeenNode(n *node) {
 	if n.ID() == tab.transport.SelfNode().ID() {
 		return
 	}
@@ -87,34 +87,36 @@ func (tab *NodeTable) addSeenNode(n *node) {
 	defer tab.mu.Unlock()
 
 	b := tab.getBucket(*n.ID())
-	if contains(b.entries, *n.ID()) {
+	if contains(b.whitelist, *n.ID()) {
 		return
 	}
 
-	if len(b.entries) >= BucketSize {
+	if len(b.whitelist) >= BucketSize {
 		return
 	}
 
-	b.entries = append(b.entries, n)
-	b.replacements = deleteNode(b.replacements, n)
+	b.whitelist = append(b.whitelist, n)
+	b.graylist = deleteNode(b.graylist, n)
 	n.addedAt = time.Now()
 }
 
-func (tab *NodeTable) getBucket(id admnode.NodeID) *bucket {
+func (tab *NodePool) getBucket(id admnode.NodeID) *bucket {
 	distance := admnode.LogDist(*tab.transport.SelfNode().ID(), id)
 	return tab.getBucketAtDistance(distance)
 }
 
-func (tab *NodeTable) getBucketAtDistance(distance int) *bucket {
+func (tab *NodePool) getBucketAtDistance(distance int) *bucket {
 	if distance <= FirstBucketBitSize {
 		return tab.buckets[0]
 	}
 	return tab.buckets[distance-FirstBucketBitSize-1]
 }
 
-func (tab *NodeTable) backgroundThread() {
+// backgroundThread update buckets
+func (tab *NodePool) backgroundThread() {
 	var refreshTick = time.NewTicker(tableRefreshInterval)
 	var refreshDone = make(chan struct{})
+
 	defer refreshTick.Stop()
 
 	go tab.refreshTable(refreshDone)
@@ -143,7 +145,7 @@ loop:
 }
 
 // refreshTable performs a finding a random node to keep bucket full.
-func (tab *NodeTable) refreshTable(done chan struct{}) {
+func (tab *NodePool) refreshTable(done chan struct{}) {
 	defer close(done)
 
 	tab.loadNodes()
@@ -154,12 +156,12 @@ func (tab *NodeTable) refreshTable(done chan struct{}) {
 	}
 }
 
-func (tab *NodeTable) close() {
+func (tab *NodePool) close() {
 	close(tab.closeReq)
 	<-tab.closed
 }
 
-func (tab *NodeTable) findnodeByID(target admnode.NodeID, count int, live bool) *nodes {
+func (tab *NodePool) findnodeByID(target admnode.NodeID, count int, live bool) *nodes {
 	tab.mu.Lock()
 	defer tab.mu.Unlock()
 
@@ -167,7 +169,7 @@ func (tab *NodeTable) findnodeByID(target admnode.NodeID, count int, live bool) 
 	liveNodes := &nodes{targetId: target}
 
 	for _, bucket := range tab.buckets {
-		for _, node := range bucket.entries {
+		for _, node := range bucket.whitelist {
 			ns.push(node, count)
 			if live && node.livenessChecks > 0 {
 				liveNodes.push(node, count)
@@ -181,18 +183,33 @@ func (tab *NodeTable) findnodeByID(target admnode.NodeID, count int, live bool) 
 	return ns
 }
 
-func (tab *NodeTable) getBucketLen(id admnode.NodeID) int {
+func (tab *NodePool) getBucketLen(id admnode.NodeID) int {
 	tab.mu.Lock()
 	defer tab.mu.Unlock()
-	return len(tab.getBucket(id).entries)
+	return len(tab.getBucket(id).whitelist)
 }
 
-func (tab *NodeTable) deleteNode(node *node) {
+func (tab *NodePool) deleteNode(node *node) {
 	tab.mu.Lock()
 	defer tab.mu.Unlock()
 	tab.deleteInBucket(tab.getBucket(*node.ID()), node)
 }
 
-func (tab *NodeTable) deleteInBucket(b *bucket, n *node) {
-	b.entries = deleteNode(b.entries, n)
+func (tab *NodePool) deleteInBucket(b *bucket, n *node) {
+	b.whitelist = deleteNode(b.whitelist, n)
+}
+
+// getNode returns the node with the given ID on whitelist of table.
+func (tab *NodePool) getNode(id admnode.NodeID) *admnode.GossipNode {
+	tab.mu.Lock()
+	defer tab.mu.Unlock()
+
+	bucket := tab.getBucket(id)
+	for _, n := range bucket.whitelist {
+		if *n.ID() == id {
+			return &n.GossipNode
+		}
+	}
+
+	return nil
 }

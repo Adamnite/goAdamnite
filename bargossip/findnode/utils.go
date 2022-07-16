@@ -1,6 +1,8 @@
 package findnode
 
-import "github.com/adamnite/go-adamnite/bargossip/admnode"
+import (
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
+)
 
 func contains(nodes []*node, id admnode.NodeID) bool {
 	for _, n := range nodes {

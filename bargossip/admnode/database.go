@@ -242,3 +242,21 @@ func isValidNode(id, data []byte) *GossipNode {
 	}
 	return node
 }
+
+func (db *NodeDB) Node(id NodeID) *GossipNode {
+	data, err := db.levelDB.Get(getNodeKey(id), nil)
+	if err != nil {
+		return nil
+	}
+	return parseDecodeNode(id[:], data)
+}
+
+func parseDecodeNode(id, data []byte) *GossipNode {
+	node := new(GossipNode)
+	if err := msgpack.Unmarshal(data, &node); err != nil {
+		panic(fmt.Errorf("parse admnode db failed: %v", err))
+	}
+
+	copy(node.id[:], id)
+	return node
+}

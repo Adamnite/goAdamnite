@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/findnode"
+	"github.com/adamnite/go-adamnite/bargossip/nat"
+	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/gossip/admnode"
-	"github.com/adamnite/go-adamnite/gossip/nat"
-	"github.com/adamnite/go-adamnite/gossip/utils"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
@@ -27,6 +28,8 @@ type Server struct {
 	log      log15.Logger
 
 	localnode *admnode.LocalNode
+
+	findNodeUdpLayer *findnode.UDPLayer
 
 	lock   sync.Mutex
 	loopWG sync.WaitGroup
@@ -193,13 +196,18 @@ func (srv *Server) initializeLocalNode() error {
 	return nil
 }
 
-func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) error {
+func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {
+	findnodeCfg := &findnode.Config{
+		PrivateKey:    srv.ServerPrvKey,
+		PeerBlackList: srv.PeerBlackList,
+		PeerWhiteList: srv.PeerWhiteList,
+		Bootnodes:     srv.BootstrapNodes,
+		Log:           srv.log,
+		Clock:         srv.clock,
+	}
 
-}
-
-func (srv *Server) run() {
-	srv.log.Info("Adamnite p2p server started", "localnode", srv.localnode.NodeInfo().ToURL())
-	defer srv.loopWG.Done()
+	srv.findNodeUdpLayer, err = findnode.Start(listener, srv.localnode, *findnodeCfg)
+	return err
 }
 
 // ***************************************************************************************************** //
@@ -247,7 +255,19 @@ func getNodeFromConn(pubKey *ecdsa.PublicKey, conn net.Conn) *admnode.GossipNode
 // ******************************** ADAMNITE P2P Server Threads **************************************** //
 // ***************************************************************************************************** //
 
-// listenThread runs in its own goroutine and accepts inbound connections.
+// run is a background thread
+func (srv *Server) run() {
+	srv.log.Info("Adamnite BAR-GOSSIP server started", "localnode", srv.localnode.NodeInfo().ToURL())
+	defer srv.loopWG.Done()
+	defer srv.nodedb.Close()
+
+	srv.log.Debug("Adamnite BAR-GOSSIP is stopping now ")
+	if srv.findNodeUdpLayer != nil {
+		srv.findNodeUdpLayer.Close()
+	}
+}
+
+// listenThread runs in its own goroutine and accepts inbound connections. (TCP listen thread)
 func (srv *Server) listenThread() {
 	defer srv.loopWG.Done()
 
@@ -277,7 +297,7 @@ func (srv *Server) listenThread() {
 
 		for {
 			peerConn, err = srv.listener.Accept()
-			if IsTemporaryError(err) {
+			if findnode.IsTemporaryError(err) {
 				srv.log.Debug("Peer packet temporary read error", "err", err)
 				time.Sleep(time.Millisecond * 100)
 				continue

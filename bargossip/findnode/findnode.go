@@ -10,7 +10,7 @@ type nodeFindFunc func(*node) ([]*node, error)
 
 // find performs a network search for nodes close to the given target node.
 type find struct {
-	table    *NodeTable
+	table    *NodePool
 	findFunc nodeFindFunc
 	result   nodes
 	queries  int
@@ -23,7 +23,7 @@ type find struct {
 	replyCh  chan []*node
 }
 
-func newFind(ctx context.Context, table *NodeTable, targetNodeID admnode.NodeID, findFunc nodeFindFunc) *find {
+func newFind(ctx context.Context, table *NodePool, targetNodeID admnode.NodeID, findFunc nodeFindFunc) *find {
 	f := &find{
 		table:    table,
 		findFunc: findFunc,
