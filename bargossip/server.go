@@ -102,6 +102,8 @@ func (srv *Server) initialize() (err error) {
 		return err
 	}
 
+	srv.initializeDialScheduler()
+
 	return nil
 }
 
@@ -194,6 +196,11 @@ func (srv *Server) initializeLocalNode() error {
 	}
 
 	return nil
+}
+
+// initializeDialScheduler initialize the dial scheduler so that connect to nodes on TCP channel
+func (srv *Server) initializeDialScheduler() {
+
 }
 
 func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {

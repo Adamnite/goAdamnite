@@ -12,9 +12,8 @@ import (
 )
 
 const (
-	defaultMaxInboundConnections  = 15
-	defaultMaxOutboundConnections = 15
-	defaultMaxPendingConnections  = 15
+	defaultMaxInboundConnections = 15
+	defaultMaxPendingConnections = 15
 
 	inboundAtemptDuration = 60 * time.Second
 )
