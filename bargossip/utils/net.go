@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"strings"
 )
 
-var lan4, lan6, special4, special6 Netlist
+var lan4, lan6, special4, special6 IPNetList
 
 func init() {
 	// Lists from RFC 5735, RFC 5156,
@@ -60,76 +59,6 @@ func NetAddrToIP(addr net.Addr) net.IP {
 	default:
 		return nil
 	}
-}
-
-// Netlist is a list of IP networks.
-type Netlist []net.IPNet
-
-// ParseNetlist parses a comma-separated list of CIDR masks.
-// Whitespace and extra commas are ignored.
-func ParseNetlist(s string) (*Netlist, error) {
-	ws := strings.NewReplacer(" ", "", "\n", "", "\t", "")
-	masks := strings.Split(ws.Replace(s), ",")
-	l := make(Netlist, 0)
-	for _, mask := range masks {
-		if mask == "" {
-			continue
-		}
-		_, n, err := net.ParseCIDR(mask)
-		if err != nil {
-			return nil, err
-		}
-		l = append(l, *n)
-	}
-	return &l, nil
-}
-
-// MarshalTOML implements toml.MarshalerRec.
-func (l Netlist) MarshalTOML() interface{} {
-	list := make([]string, 0, len(l))
-	for _, net := range l {
-		list = append(list, net.String())
-	}
-	return list
-}
-
-// UnmarshalTOML implements toml.UnmarshalerRec.
-func (l *Netlist) UnmarshalTOML(fn func(interface{}) error) error {
-	var masks []string
-	if err := fn(&masks); err != nil {
-		return err
-	}
-	for _, mask := range masks {
-		_, n, err := net.ParseCIDR(mask)
-		if err != nil {
-			return err
-		}
-		*l = append(*l, *n)
-	}
-	return nil
-}
-
-// Add parses a CIDR mask and appends it to the list. It panics for invalid masks and is
-// intended to be used for setting up static lists.
-func (l *Netlist) Add(cidr string) {
-	_, n, err := net.ParseCIDR(cidr)
-	if err != nil {
-		panic(err)
-	}
-	*l = append(*l, *n)
-}
-
-// Contains reports whether the given IP is contained in the list.
-func (l *Netlist) Contains(ip net.IP) bool {
-	if l == nil {
-		return false
-	}
-	for _, net := range *l {
-		if net.Contains(ip) {
-			return true
-		}
-	}
-	return false
 }
 
 // IsLAN reports whether an IP is a local network address.

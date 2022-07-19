@@ -32,7 +32,7 @@ func newFind(ctx context.Context, table *NodePool, targetNodeID admnode.NodeID, 
 		asked:    make(map[admnode.NodeID]bool),
 		seen:     make(map[admnode.NodeID]bool),
 		cancelCh: ctx.Done(),
-		replyCh:  make(chan []*node),
+		replyCh:  make(chan []*node, 3),
 	}
 
 	f.asked[*table.transport.SelfNode().ID()] = true

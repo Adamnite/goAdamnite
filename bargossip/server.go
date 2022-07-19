@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/dial"
 	"github.com/adamnite/go-adamnite/bargossip/findnode"
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
@@ -33,6 +34,8 @@ type Server struct {
 
 	lock   sync.Mutex
 	loopWG sync.WaitGroup
+
+	dialScheduler *dial.Scheduler
 
 	nodedb *admnode.NodeDB
 
@@ -73,6 +76,10 @@ func (srv *Server) Stop() {
 		srv.listener.Close()
 	}
 	close(srv.quit)
+
+	if srv.dialScheduler != nil {
+		srv.dialScheduler.Stop()
+	}
 	srv.lock.Unlock()
 	srv.loopWG.Wait()
 }
@@ -200,7 +207,13 @@ func (srv *Server) initializeLocalNode() error {
 
 // initializeDialScheduler initialize the dial scheduler so that connect to nodes on TCP channel
 func (srv *Server) initializeDialScheduler() {
-
+	cfg := dial.Config{
+		SelfID:        *srv.localnode.Node().ID(),
+		PeerBlackList: srv.PeerBlackList,
+		PeerWhiteList: srv.PeerWhiteList,
+	}
+	srv.dialScheduler = dial.New(cfg, nil, srv.AddConnection)
+	srv.dialScheduler.Start()
 }
 
 func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {
@@ -329,13 +342,13 @@ func (srv *Server) listenThread() {
 		}
 
 		go func() {
-			srv.AddConnection(peerConn, inboundConnection, nil)
+			srv.AddConnection(peerConn, dial.InboundConnection, nil)
 			pendingInboundConnSlots <- struct{}{}
 		}()
 	}
 }
 
-func (srv *Server) AddConnection(peerConn net.Conn, connFlag connectionFlag, remotePeerNode *admnode.GossipNode) error {
+func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag, remotePeerNode *admnode.GossipNode) error {
 	wrapPeerConn := wrapPeerConnection{conn: peerConn, connFlags: connFlag, chError: make(chan error)}
 
 	if remotePeerNode != nil {

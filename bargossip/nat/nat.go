@@ -43,7 +43,7 @@ func Parse(spec string) (Interface, error) {
 		}
 	}
 	switch mech {
-	case "":
+	case "", "none":
 		return nil, nil
 	case "any":
 		return Any(), nil

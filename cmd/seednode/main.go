@@ -7,13 +7,13 @@ import (
 	"net"
 	"os"
 
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/findnode"
+	"github.com/adamnite/go-adamnite/bargossip/nat"
+	gossiputils "github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/internal/utils"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/p2p/discover"
-	"github.com/adamnite/go-adamnite/p2p/enode"
-	"github.com/adamnite/go-adamnite/p2p/nat"
-	"github.com/adamnite/go-adamnite/p2p/netutil"
 )
 
 func main() {
@@ -24,7 +24,8 @@ func main() {
 		natdesc       = flag.String("nat", "none", "port mapping mechanism (any|none|upnp|pmp|extip:<IP>)")
 		genKey        = flag.String("genkey", "", "generate a node key")
 		writeAddr     = flag.Bool("writeaddress", false, "write out the node's public key and quit")
-		netrestrict   = flag.String("netrestrict", "", "restrict network communication to the given IP networks (CIDR masks)")
+		blacklistflag = flag.String("blacklist", "", "restrict network communication to the given IP networks (CIDR masks)")
+		whitelistflag = flag.String("whitelist", "", "restrict network communication to the given IP networks (CIDR masks)")
 		nodeKeyFile   = flag.String("nodekey", "", "private key filename")
 
 		nodeKey *ecdsa.PrivateKey
@@ -68,11 +69,19 @@ func main() {
 		os.Exit(0)
 	}
 
-	var restrictList *netutil.Netlist
-	if *netrestrict != "" {
-		restrictList, err = netutil.ParseNetlist(*netrestrict)
+	var blacklist *gossiputils.IPNetList
+	if *blacklistflag != "" {
+		blacklist, err = gossiputils.ParseNetlist(*blacklistflag)
 		if err != nil {
-			utils.Fatalf("-netrestrict: %v", err)
+			utils.Fatalf("-blacklist: %v", err)
+		}
+	}
+
+	var whitelist *gossiputils.IPNetList
+	if *whitelistflag != "" {
+		whitelist, err = gossiputils.ParseNetlist(*whitelistflag)
+		if err != nil {
+			utils.Fatalf("-blacklist: %v", err)
 		}
 	}
 
@@ -89,7 +98,7 @@ func main() {
 	realaddr := conn.LocalAddr().(*net.UDPAddr)
 	if natm != nil {
 		if !realaddr.IP.IsLoopback() {
-			go nat.Map(natm, nil, "udp", realaddr.Port, realaddr.Port, "adamnite discovery")
+			go nat.Map(natm, nil, "udp", realaddr.Port, realaddr.Port, "adamnite seednode port mapping")
 		}
 		if ext, err := natm.ExternalIP(); err == nil {
 			realaddr = &net.UDPAddr{IP: ext, Port: realaddr.Port}
@@ -97,16 +106,17 @@ func main() {
 	}
 
 	printNotice(&nodeKey.PublicKey, *realaddr)
-	db, err := enode.OpenDB("")
-	localNode := enode.NewLocalNode(db, nodeKey)
-	localNode.SetFallbackIP(realaddr.IP)
+	db, err := admnode.OpenDB("")
+	localNode := admnode.NewLocalNode(db, nodeKey)
+	localNode.SetIP(realaddr.IP)
 
-	cfg := discover.Config{
-		PrivateKey:  nodeKey,
-		NetRestrict: restrictList,
+	cfg := findnode.Config{
+		PrivateKey:    nodeKey,
+		PeerBlackList: blacklist,
+		PeerWhiteList: whitelist,
 	}
 
-	if _, err := discover.ListenV5(conn, localNode, cfg); err != nil {
+	if _, err := findnode.Start(conn, localNode, cfg); err != nil {
 		utils.Fatalf("%v", err)
 	}
 
@@ -117,8 +127,8 @@ func printNotice(nodeKey *ecdsa.PublicKey, addr net.UDPAddr) {
 	if addr.IP.IsUnspecified() {
 		addr.IP = net.IP{127, 0, 0, 1}
 	}
-	n := enode.NewV4(nodeKey, addr.IP, 0, addr.Port)
-	fmt.Println(n.URLv4())
+	n := admnode.NewWithParams(nodeKey, addr.IP, 0, uint16(addr.Port))
+	fmt.Println(n.NodeInfo().ToURL())
 	fmt.Println("Note: you're using cmd/seednode, a developer tool.")
 	fmt.Println("We recommend using a regular node as bootstrap node for production deployments.")
 }

@@ -37,11 +37,16 @@ func newNodePool(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootno
 		db:        db,
 		log:       log,
 		transport: findNodeTransport,
+		rand:      mrand.New(mrand.NewSource(0)),
+	}
+
+	for i := range table.buckets {
+		table.buckets[i] = &bucket{}
 	}
 
 	for _, node := range bootnodes {
 		if err := node.IsValidate(); err != nil {
-			return nil, fmt.Errorf("invalid bootstrap node %q: %v", node, err)
+			return nil, fmt.Errorf("invalid bootstrap node %v: %v", node, err)
 		}
 	}
 

@@ -6,24 +6,22 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/dial"
 )
 
 const (
-	handshakeTimeout = 6 * time.Second
-)
+	handshakeTimeout            = 6 * time.Second
+	AdamniteTCPHandshakeVersion = 1
 
-type connectionFlag int32
-
-const (
-	inboundConnection connectionFlag = 1 << iota
-	outboundConnection
+	messageWriteTimeout = 20 * time.Second
+	messageReadTimeout  = 20 * time.Second
 )
 
 // wrapPeerConnection is the wrapper to connection with the remote peer
 type wrapPeerConnection struct {
 	conn      net.Conn
 	node      *admnode.GossipNode
-	connFlags connectionFlag
+	connFlags dial.ConnectionFlag
 
 	peerTransport
 

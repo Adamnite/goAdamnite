@@ -431,7 +431,7 @@ func (n *UDPLayer) checkResponseNode(nodeInfo *admnode.NodeInfo, distances []uin
 				break
 			}
 		}
-		if found == true {
+		if found {
 			return nil, errors.New("not required node in distance")
 		}
 	}
