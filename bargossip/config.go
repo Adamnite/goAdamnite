@@ -49,6 +49,9 @@ type Config struct {
 	// NAT is used to make the listening port available to the Internet
 	NAT nat.Interface
 
+	// ChainProtocol is used to communicate with peers about the blockchain information
+	ChainProtocol []SubProtocol
+
 	// Logger is a logger to use with gossip server
 	Logger log15.Logger
 

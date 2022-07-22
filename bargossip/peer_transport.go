@@ -8,6 +8,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -125,8 +126,21 @@ func (t *peerTransportImpl) doHandshake(prvKey *ecdsa.PrivateKey) (*ecdsa.Public
 	return hKeys.remotePubKey, err
 }
 
-func (t *peerTransportImpl) doExchangeProtocol() {
+func (t *peerTransportImpl) doExchangeProtocol(exchProto *exchangeProtocol) (remoteExchangeProto *exchangeProtocol, err error) {
+	werr := make(chan error, 1)
+	go func() {
+		werr <- t.Send(exchangeProtocolMsg, exchProto)
+	}()
 
+	if remoteExchangeProto, err = t.readExchangeProtocol(); err != nil {
+		<-werr
+		return nil, err
+	}
+	if err = <-werr; err != nil {
+		return nil, fmt.Errorf("exchange protocol send err: %v", err)
+	}
+
+	return remoteExchangeProto, nil
 }
 
 func (t *peerTransportImpl) ReadMsg() (Msg, error) {
@@ -143,7 +157,10 @@ func (t *peerTransportImpl) WriteMsg(msg Msg) error {
 	defer t.rwmu.Unlock()
 
 	t.wbuf.Reset()
-	if _, err := io.CopyN(&t.wbuf, msg.Payload, int64(msg.Size)); err != nil {
+	if writtenSize, err := t.wbuf.Write(msg.Payload); err != nil || writtenSize != int(msg.Size) {
+		if writtenSize != int(msg.Size) {
+			return errors.New("message size error")
+		}
 		return err
 	}
 
@@ -154,6 +171,11 @@ func (t *peerTransportImpl) WriteMsg(msg Msg) error {
 	if t.state == nil {
 		panic("cannot write message before handshake")
 	}
+
+	if len(t.wbuf.Bytes()) > messagePayloadMaxSize {
+		return errTooLargeMessage
+	}
+
 	return nil
 }
 
@@ -179,6 +201,29 @@ func (t *peerTransportImpl) InitWithHandshakeKeys(hKeys handshakeKeys) {
 		egressMAC:  hKeys.EgressMAC,
 		ingressMAC: hKeys.IngressMAC,
 	}
+}
+
+func (t *peerTransportImpl) Send(msgCode uint64, data interface{}) error {
+	payload, err := msgpack.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return t.WriteMsg(Msg{Code: msgCode, Size: uint32(binary.Size(payload)), Payload: payload})
+}
+
+func (t *peerTransportImpl) readExchangeProtocol() (*exchangeProtocol, error) {
+	msg, err := t.ReadMsg()
+	if err != nil {
+		return nil, err
+	}
+
+	var exchProto exchangeProtocol
+	if err := msg.Decode(exchProto); err != nil {
+		return nil, err
+	}
+
+	return &exchProto, nil
 }
 
 // ********************************************************************************************
@@ -213,7 +258,7 @@ func startHandshake(conn io.ReadWriter, prvKey *ecdsa.PrivateKey, remotePeerPubK
 
 	hMsg := new(handshakeMsg)
 	copy(hMsg.Nonce[:], encKeys.initNonce)
-	copy(hMsg.SenderPubKey[:], crypto.FromECDSAPub(&prvKey.PublicKey)[:])
+	copy(hMsg.SenderPubKey[:], crypto.FromECDSAPub(&prvKey.PublicKey)[1:])
 	copy(hMsg.Signature[:], signature)
 	hMsg.Version = AdamniteTCPHandshakeVersion
 

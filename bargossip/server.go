@@ -29,6 +29,7 @@ type Server struct {
 	log      log15.Logger
 
 	localnode *admnode.LocalNode
+	exchProto *exchangeProtocol
 
 	findNodeUdpLayer *findnode.UDPLayer
 
@@ -42,7 +43,9 @@ type Server struct {
 	inboundConnHistory utils.InboundConnHeap
 
 	// Channels
-	quit chan struct{}
+	quit                       chan struct{}
+	handshakeValidateCh        chan *wrapPeerConnection
+	exchangeProtocolValidateCh chan *wrapPeerConnection
 }
 
 // Start starts the server.
@@ -104,6 +107,8 @@ func (srv *Server) initialize() (err error) {
 	}
 
 	srv.quit = make(chan struct{})
+	srv.handshakeValidateCh = make(chan *wrapPeerConnection)
+	srv.exchangeProtocolValidateCh = make(chan *wrapPeerConnection)
 
 	if err := srv.initializeLocalNode(); err != nil {
 		return err
@@ -116,6 +121,9 @@ func (srv *Server) initialize() (err error) {
 
 // initializeLocalNode
 func (srv *Server) initializeLocalNode() error {
+	// Create exchange protocol
+	srv.exchProto = &exchangeProtocol{}
+
 	// Create the local node DB.
 	db, err := admnode.OpenDB(srv.Config.NodeDatabase)
 	if err != nil {
@@ -281,6 +289,27 @@ func (srv *Server) run() {
 	defer srv.loopWG.Done()
 	defer srv.nodedb.Close()
 
+	var peers = make(map[admnode.NodeID]*Peer)
+	inboundConnCount := 0
+
+running:
+	for {
+		select {
+		case <-srv.quit:
+			break running
+		case wc := <-srv.handshakeValidateCh:
+			wc.chError <- srv.handshakeValidate(wc, peers, inboundConnCount)
+		case wc := <-srv.exchangeProtocolValidateCh:
+			err := srv.addPeerValidate(wc, peers, inboundConnCount)
+			if err != nil {
+				wc.chError <- err
+				continue
+			}
+
+			p := srv.startPeer(wc)
+		}
+	}
+
 	srv.log.Debug("Adamnite BAR-GOSSIP is stopping now ")
 	if srv.findNodeUdpLayer != nil {
 		srv.findNodeUdpLayer.Close()
@@ -379,5 +408,67 @@ func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag
 		wrapPeerConn.node = getNodeFromConn(remotePubKey, peerConn)
 	}
 
+	if err = srv.getValidate(&wrapPeerConn, srv.handshakeValidateCh); err != nil {
+		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		return err
+	}
+	remoteExchProto, err := wrapPeerConn.doExchangeProtocol(srv.exchProto)
+	if err != nil {
+		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		return err
+	}
+
+	wrapPeerConn.protocol = remoteExchProto
+	if err = srv.getValidate(&wrapPeerConn, srv.exchangeProtocolValidateCh); err != nil {
+		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		return err
+	}
+
 	return nil
+}
+
+// handshakeValidate validates the connection
+func (srv *Server) handshakeValidate(connection *wrapPeerConnection, peers map[admnode.NodeID]*Peer, inboundCount int) error {
+	switch {
+	case connection.connFlags&dial.InboundConnection != 0 && inboundCount > srv.MaxInboundConnections:
+		return errTooManyInboundConnection
+	case connection.node.ID() == srv.localnode.Node().ID():
+		return errHandshakeWithSelf
+	case peers[*connection.node.ID()] != nil:
+		return errAlreadyConnected
+	default:
+		return nil
+	}
+}
+
+func (srv *Server) addPeerValidate(connection *wrapPeerConnection, peers map[admnode.NodeID]*Peer, inboundCount int) error {
+	if len(srv.ChainProtocol) == 0 || !srv.isMatchChainProtocols(connection.protocol) {
+		return errNotMatchChainProtocol
+	}
+
+	return srv.handshakeValidate(connection, peers, inboundCount)
+}
+
+// getValidate send connection to the channel and returns the result
+func (srv *Server) getValidate(connection *wrapPeerConnection, channel chan<- *wrapPeerConnection) error {
+	select {
+	case <-srv.quit:
+		return errServerStopped
+	case channel <- connection:
+		return <-connection.chError
+	}
+}
+
+// isMatchChainProtocols checks the protocol that matches with remote.
+func (srv *Server) isMatchChainProtocols(remoteExchProto *exchangeProtocol) bool {
+	matchCount := 0
+
+	for _, remoteProtoID := range remoteExchProto.ProtocolIDs {
+		for _, ownProtocol := range srv.ChainProtocol {
+			if remoteProtoID == ownProtocol.ProtocolID {
+				matchCount++
+			}
+		}
+	}
+	return matchCount > 0
 }

@@ -15,6 +15,8 @@ const (
 
 	messageWriteTimeout = 20 * time.Second
 	messageReadTimeout  = 20 * time.Second
+
+	messagePayloadMaxSize = 1024 * 1024 * 16 // 16MB
 )
 
 // wrapPeerConnection is the wrapper to connection with the remote peer
@@ -22,6 +24,7 @@ type wrapPeerConnection struct {
 	conn      net.Conn
 	node      *admnode.GossipNode
 	connFlags dial.ConnectionFlag
+	protocol  *exchangeProtocol
 
 	peerTransport
 
@@ -37,10 +40,15 @@ type MsgWriter interface {
 	WriteMsg(Msg) error
 }
 
+type MsgReadWriter interface {
+	MsgReader
+	MsgWriter
+}
+
 // peerTransport is the interface to establish the transport between peers
 type peerTransport interface {
-	doHandshake(prvKey *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) // First step to exchange the key
-	doExchangeProtocol()                                            // Second step to exchange the protocol
+	doHandshake(prvKey *ecdsa.PrivateKey) (*ecdsa.PublicKey, error)            // First step to exchange the key
+	doExchangeProtocol(exchProto *exchangeProtocol) (*exchangeProtocol, error) // Second step to exchange the protocol
 
 	MsgReader
 	MsgWriter
