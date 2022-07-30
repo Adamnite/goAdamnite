@@ -12,6 +12,8 @@ var (
 	errAlreadyConnected         = errors.New("already connected")
 	errTooLargeMessage          = errors.New("message body size too large")
 	errNotMatchChainProtocol    = errors.New("not match with chain protocol")
+	errShuttingDown             = errors.New("shutting down")
+	errProtocolReturned         = errors.New("protocol returned")
 )
 
 // IsTimeout checks whether the given error is a timeout.

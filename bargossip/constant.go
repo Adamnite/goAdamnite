@@ -17,6 +17,8 @@ const (
 	messageReadTimeout  = 20 * time.Second
 
 	messagePayloadMaxSize = 1024 * 1024 * 16 // 16MB
+
+	pingInterval = 5 * time.Second
 )
 
 // wrapPeerConnection is the wrapper to connection with the remote peer

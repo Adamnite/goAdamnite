@@ -2,6 +2,8 @@ package bargossip
 
 // SubProtocol represents Adamnite blockchain p2p sub protocols that concerned with blockchain.
 type SubProtocol struct {
-	ProtocolID uint
-	Run        func(peer *Peer, rw MsgReader) error
+	ProtocolID         uint
+	ProtocolCodeOffset uint
+	ProtocolLength     uint
+	Run                func(peer *Peer, rw MsgReader) error
 }

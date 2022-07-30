@@ -31,6 +31,8 @@ type Server struct {
 	localnode *admnode.LocalNode
 	exchProto *exchangeProtocol
 
+	subProtocol []SubProtocol
+
 	findNodeUdpLayer *findnode.UDPLayer
 
 	lock   sync.Mutex
@@ -307,6 +309,11 @@ running:
 			}
 
 			p := srv.startPeer(wc)
+			peers[*p.peerConn.node.ID()] = p
+
+			srv.log.Debug("Added peer", "id", p.peerConn.node.ID(), "addr", p.peerConn.node.IP(), "TCP", p.peerConn.node.TCP())
+
+			// ToDo: add peer to dial scheduler
 		}
 	}
 
@@ -471,4 +478,11 @@ func (srv *Server) isMatchChainProtocols(remoteExchProto *exchangeProtocol) bool
 		}
 	}
 	return matchCount > 0
+}
+
+// startPeer starts the peer module to communicate with remote peer.
+func (srv *Server) startPeer(conn *wrapPeerConnection) *Peer {
+	peer := newPeer(conn, srv.log, srv.subProtocol)
+	go peer.start()
+	return peer
 }
