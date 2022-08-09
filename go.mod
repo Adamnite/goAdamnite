@@ -10,6 +10,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
 	github.com/golang/snappy v0.0.4
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/huin/goupnp v1.0.3
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
@@ -25,6 +26,7 @@ require (
 	github.com/urfave/cli/v2 v2.5.0
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
 	golang.org/x/sys v0.0.0-20220405052023-b1e9470b6e64
+	
 )
 
 require (
@@ -75,4 +77,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 )
