@@ -2,10 +2,15 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"unicode"
+
+	"github.com/adamnite/go-adamnite/log15"
 )
 
 var (
@@ -68,6 +73,17 @@ func (asr *adamniteServiceRegistry) registerName(name string, receiver interface
 		}
 	}
 	return nil
+}
+
+// callback returns the callback corresponding to the given RPC method name.
+func (r *adamniteServiceRegistry) callback(method string) *rpcCallback {
+	elem := strings.SplitN(method, serviceMethodSeparator, 2)
+	if len(elem) != 2 {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.services[elem[0]].callbacks[elem[1]]
 }
 
 func suitableCallbacks(receiver reflect.Value) map[string]*rpcCallback {
@@ -135,6 +151,41 @@ func (c *rpcCallback) makeArgTypes() {
 	}
 }
 
+// call invokes the callback.
+func (c *rpcCallback) call(ctx context.Context, method string, args []reflect.Value) (res interface{}, errRes error) {
+	// Create the argument slice.
+	fullargs := make([]reflect.Value, 0, 2+len(args))
+	if c.receiver.IsValid() {
+		fullargs = append(fullargs, c.receiver)
+	}
+	if c.hasCtx {
+		fullargs = append(fullargs, reflect.ValueOf(ctx))
+	}
+	fullargs = append(fullargs, args...)
+
+	// Catch panic while running the callback.
+	defer func() {
+		if err := recover(); err != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			log15.Error("RPC method " + method + " crashed: " + fmt.Sprintf("%v\n%s", err, buf))
+			errRes = errors.New("method handler crashed")
+		}
+	}()
+	// Run the callback.
+	results := c.function.Call(fullargs)
+	if len(results) == 0 {
+		return nil, nil
+	}
+	if c.errPos >= 0 && !results[c.errPos].IsNil() {
+		// Method has returned non-nil error value.
+		err := results[c.errPos].Interface().(error)
+		return reflect.Value{}, err
+	}
+	return results[0].Interface(), nil
+}
+
 // Is t context.Context or *context.Context?
 func isContextType(t reflect.Type) bool {
 	for t.Kind() == reflect.Ptr {
@@ -178,4 +229,11 @@ func formatName(name string) string {
 		ret[0] = unicode.ToLower(ret[0])
 	}
 	return string(ret)
+}
+
+// subscription returns a subscription callback in the given service.
+func (r *adamniteServiceRegistry) subscription(service, name string) *rpcCallback {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.services[service].subscriptions[name]
 }
