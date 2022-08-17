@@ -11,6 +11,14 @@ import (
 
 type CodecOption int
 
+const (
+	// OptionMethodInvocation is an indication that the codec supports RPC method calls
+	OptionMethodInvocation CodecOption = 1 << iota
+
+	// OptionSubscriptions is an indication that the codec supports RPC notifications
+	OptionSubscriptions = 1 << iota // support pub sub
+)
+
 // RPC server
 type Server struct {
 	services adamniteServiceRegistry
