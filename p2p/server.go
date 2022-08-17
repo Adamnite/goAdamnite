@@ -36,6 +36,8 @@ const (
 	frameWriteTimeout = 20 * time.Second
 )
 
+var errServerStopped = errors.New("server stopped")
+
 type Config struct {
 	Name       string            `toml:",omitempty"`
 	PrivateKey *ecdsa.PrivateKey `toml:"-"`
@@ -141,6 +143,96 @@ type transport interface {
 	// the tests. Closing the actual network connection doesn't do
 	// anything in those tests because MsgPipe doesn't use it.
 	close(err error)
+}
+
+// Peers returns all connected peers.
+func (srv *Server) Peers() []*Peer {
+	var ps []*Peer
+	srv.doPeerOp(func(peers map[enode.ID]*Peer) {
+		for _, p := range peers {
+			ps = append(ps, p)
+		}
+	})
+	return ps
+}
+
+func (srv *Server) AddPeer(node *enode.Node) {
+	srv.dialsched.addStatic(node)
+}
+
+func (srv *Server) RemovePeer(node *enode.Node) {
+	var (
+		ch  chan *PeerEvent
+		sub event.Subscription
+	)
+	// Disconnect the peer on the main loop.
+	srv.doPeerOp(func(peers map[enode.ID]*Peer) {
+		srv.dialsched.removeStatic(node)
+		if peer := peers[node.ID()]; peer != nil {
+			ch = make(chan *PeerEvent, 1)
+			sub = srv.peerFeed.Subscribe(ch)
+			peer.Disconnect(DiscRequested)
+		}
+	})
+	// Wait for the peer connection to end.
+	if ch != nil {
+		defer sub.Unsubscribe()
+		for ev := range ch {
+			if ev.Peer == node.ID() && ev.Type == PeerEventTypeDrop {
+				return
+			}
+		}
+	}
+}
+
+// AddTrustedPeer adds the given node to a reserved whitelist which allows the
+// node to always connect, even if the slot are full.
+func (srv *Server) AddTrustedPeer(node *enode.Node) {
+	select {
+	case srv.addtrusted <- node:
+	case <-srv.quit:
+	}
+}
+
+// RemoveTrustedPeer removes the given node from the trusted peer set.
+func (srv *Server) RemoveTrustedPeer(node *enode.Node) {
+	select {
+	case srv.removetrusted <- node:
+	case <-srv.quit:
+	}
+}
+
+// SubscribePeers subscribes the given channel to peer events
+func (srv *Server) SubscribeEvents(ch chan *PeerEvent) event.Subscription {
+	return srv.peerFeed.Subscribe(ch)
+}
+
+func (srv *Server) Self() *enode.Node {
+	srv.lock.Lock()
+	ln := srv.localnode
+	srv.lock.Unlock()
+
+	if ln == nil {
+		return enode.NewV4(&srv.PrivateKey.PublicKey, net.ParseIP("0.0.0.0"), 0, 0)
+	}
+	return ln.Node()
+}
+
+func (srv *Server) PeerCount() int {
+	var count int
+	srv.doPeerOp(func(ps map[enode.ID]*Peer) {
+		count = len(ps)
+	})
+	return count
+}
+
+// doPeerOp runs fn on the main loop.
+func (srv *Server) doPeerOp(fn peerOpFunc) {
+	select {
+	case srv.peerOp <- fn:
+		<-srv.peerOpDone
+	case <-srv.quit:
+	}
 }
 
 func (srv *Server) Start() (err error) {
