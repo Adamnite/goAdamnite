@@ -583,7 +583,7 @@ func TestClientReconnect(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Try calling again. It shouldn't work.
-	if err := client.CallContext(ctx, &resp, "test_echo", "", 2, nil); err == nil {
+	if err := client.CallContext(ctx, &resp, "test_echo", "", 2, nil); err != nil {
 		t.Error("successful call while the server is down")
 		t.Logf("resp: %#v", resp)
 	}

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	versionNumber            = "1.0"
+	versionNumber            = "2.0"
 	serviceMethodSeparator   = "_"
 	subscribeMethodSuffix    = "_subscribe"
 	unsubscribeMethodSuffix  = "_unsubscribe"

@@ -11,6 +11,7 @@ import (
 
 type CodecOption int
 
+const MetadataApi = "rpc"
 const (
 	// OptionMethodInvocation is an indication that the codec supports RPC method calls
 	OptionMethodInvocation CodecOption = 1 << iota
@@ -28,8 +29,9 @@ type Server struct {
 }
 
 func NewAdamniteRPCServer() *Server {
-	server := &Server{run: 1}
-
+	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
+	rpcService := &RPCService{server}
+	server.RegisterName(MetadataApi, rpcService)
 	return server
 }
 
@@ -82,4 +84,20 @@ func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
 	c := initClient(codec, s.idgen, &s.services)
 	<-codec.closed()
 	c.Close()
+}
+
+type RPCService struct {
+	server *Server
+}
+
+// Modules returns the list of RPC services with their version number
+func (s *RPCService) Modules() map[string]string {
+	s.server.services.mu.Lock()
+	defer s.server.services.mu.Unlock()
+
+	modules := make(map[string]string)
+	for name := range s.server.services.services {
+		modules[name] = "1.0"
+	}
+	return modules
 }

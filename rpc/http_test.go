@@ -139,14 +139,14 @@ func TestHTTPErrorResponse(t *testing.T) {
 	if httpErr.StatusCode != http.StatusTeapot {
 		t.Error("unexpected status code", httpErr.StatusCode)
 	}
-	if httpErr.Status != "418 I'm a Adamnite" {
+	if httpErr.Status != "418 I'm a teapot" {
 		t.Error("unexpected status text", httpErr.Status)
 	}
 	if body := string(httpErr.Body); body != "error has occurred!\n" {
 		t.Error("unexpected body", body)
 	}
 
-	if errMsg := httpErr.Error(); errMsg != "418 I'm a Adamnite: error has occurred!\n" {
+	if errMsg := httpErr.Error(); errMsg != "418 I'm a teapot: error has occurred!\n" {
 		t.Error("unexpected error message", errMsg)
 	}
 }
