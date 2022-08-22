@@ -199,9 +199,9 @@ func TestServerRemovePeerDisconnect(t *testing.T) {
 		PrivateKey:  newkey(),
 		MaxPeers:    1,
 		NoDiscovery: true,
-
-		ListenAddr: "127.0.0.1:0",
-		Logger:     testlog.Logger(t, log15.LvlTrace).New("server", "2"),
+		NoDial:      true,
+		ListenAddr:  "127.0.0.1:0",
+		Logger:      testlog.Logger(t, log15.LvlTrace).New("server", "2"),
 	}}
 	srv1.Start()
 	defer srv1.Stop()
@@ -224,9 +224,9 @@ func TestServerAtCap(t *testing.T) {
 	trustedID := enode.PubkeyToIDV4(&trustedNode.PublicKey)
 	srv := &Server{
 		Config: Config{
-			PrivateKey: newkey(),
-			MaxPeers:   10,
-
+			PrivateKey:   newkey(),
+			MaxPeers:     10,
+			NoDial:       true,
 			NoDiscovery:  true,
 			TrustedNodes: []*enode.Node{newNode(trustedID, "")},
 			Logger:       testlog.Logger(t, log15.LvlTrace),

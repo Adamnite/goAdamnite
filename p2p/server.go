@@ -57,6 +57,7 @@ type Config struct {
 	NetRestrict  *netutil.Netlist `toml:",omitempty"`
 
 	Dialer    AdamniteNodeDialer `toml:"-"`
+	NoDial    bool               `toml:",omitempty"`
 	Protocols []Protocol         `toml:"-"`
 
 	EnableMsgEvents bool
@@ -254,7 +255,7 @@ func (srv *Server) Start() (err error) {
 		srv.clock = mclock.System{}
 	}
 
-	if srv.ListenAddr == "" {
+	if srv.NoDial && srv.ListenAddr == "" {
 		srv.log.Warn("P2P server will be useless")
 	}
 
@@ -395,7 +396,7 @@ type sharedUDPConn struct {
 }
 
 func (srv *Server) maxDialedConns() (limit int) {
-	if srv.MaxPeers == 0 {
+	if srv.NoDial || srv.MaxPeers == 0 {
 		return 0
 	}
 	limit = srv.MaxPeers / defaultDialRatio
