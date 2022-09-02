@@ -51,15 +51,13 @@ type operation struct {
 
 func (m *Machine) step() {
 	if m.pointInCode < uint64(len(m.vmCode)) {
-		var op operation
-		op, m.vmCode = popFromOpcodeStack(m.vmCode)
+		op := m.vmCode[m.pointInCode]
 		m.do(op)
 	}
 }
 func (m *Machine) run() {
 	for m.pointInCode < uint64(len(m.vmCode)) {
-		var op operation
-		op, m.vmCode = popFromOpcodeStack(m.vmCode)
+		op := m.vmCode[m.pointInCode]
 		m.do(op)
 	}
 }
@@ -67,8 +65,17 @@ func (m *Machine) outputStack() string {
 	ans := ""
 	for _, v := range m.vmStack {
 		ans += fmt.Sprint(v) + "\n"
-		// println(v.to_string)
+		// println(fmt.Sprint(v))
 
+	}
+	return ans
+}
+
+func (m *Machine) outputMemory() string {
+	ans := ""
+	for _, v := range m.vmMemory {
+
+		ans += strconv.FormatUint(uint64(v), 16) + " "
 	}
 	return ans
 }
@@ -78,12 +85,27 @@ func (m *Machine) do(op operation) {
 	//creating memory would look like
 	// m.vmMemory = append(m.vmMemory, 0)
 	switch op.opcode {
-	case 0x7e: //const i64
-		m.pushToStack(uint64(0))
-		println("added")
-		break
+	case 0x42: //const i64
+		println("adding")
+		if len(op.params) == 1 {
+			m.pushToStack(uint64(op.params[0]))
+		} else {
+			m.pushToStack(uint64(0))
+		}
 
-	case 0x00:
+		break
+	case 0x50: //i64.eqz is top value 0
+		println("popping to check if is 0")
+		if len(m.vmStack) == 0 {
+			m.pushToStack(1)
+		} else if m.popFromStack() == 0 {
+			m.pushToStack(uint64(1))
+		} else {
+			m.pushToStack(uint64(0))
+		}
+		break
+	case 0x00: //unreachable
+	case 0x01: //nop
 	default:
 		break
 	}
@@ -104,11 +126,13 @@ func parseCodeToOpcodes(code []string) []operation {
 	var operations []operation
 	println("parsing apart the code")
 	for _, s := range code {
+		println(s)
 		values := strings.Split(s, " ")
 
 		opcode, err := strconv.ParseInt(values[0], 16, 8)
 		var params []int8
 		if err != nil {
+			println("first error case")
 			println(err.Error())
 			//TODO: check if err is used
 		}
@@ -117,6 +141,7 @@ func parseCodeToOpcodes(code []string) []operation {
 			if i != 0 {
 				param, err := strconv.ParseInt(a, 16, 8)
 				if err != nil {
+					println("second error case")
 					println(err)
 					//TODO: check if err is used
 				}
@@ -132,10 +157,12 @@ func parseCodeToOpcodes(code []string) []operation {
 
 func (m *Machine) popFromStack() uint64 {
 	var ans uint64
+	println("popping from stack")
 	ans, m.vmStack = m.vmStack[len(m.vmStack)-1], m.vmStack[:len(m.vmStack)-1]
 	return ans
 }
 func (m *Machine) pushToStack(n uint64) {
+	println("pushing to stack")
 	m.vmStack = append(m.vmStack, n)
 }
 func popFromOpcodeStack(ops []operation) (operation, []operation) {
