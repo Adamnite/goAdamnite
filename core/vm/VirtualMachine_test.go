@@ -50,3 +50,18 @@ func generateTestWasm() []string {
 		"0B",
 		"0B 15 17"}
 }
+
+func Test_virtualMachineWithMyCode(t *testing.T) {
+	wasm := []string{
+		"7e"}
+
+	vm := newVirtualMachine(wasm, Storage{})
+	vm.run()
+	// vm.do(operation{opcode: 0x7e})
+
+	println("vm memory consists of")
+	println(vm.outputStack())
+	if vm.outputStack() != "0\n" {
+		t.Fail()
+	}
+}
