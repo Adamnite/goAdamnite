@@ -27,6 +27,7 @@ type Machine struct {
 	contractStorage Storage  //the storage of the smart contracts data.
 	vmMemory        []byte   //i believe the agreed on stack size was
 	locals          []uint64 //local vals that the VM code can call
+	debugStack      bool     //should it output the stack every operation
 }
 type MemoryType interface {
 	to_string() string
@@ -64,8 +65,8 @@ func (m *Machine) run() {
 }
 func (m *Machine) outputStack() string {
 	ans := ""
-	for _, v := range m.vmStack {
-		ans += strconv.FormatUint(v, 16) + "\n"
+	for i, v := range m.vmStack {
+		ans += strconv.FormatInt(int64(i), 16) + " ::: " + strconv.FormatUint(v, 16) + "\n"
 		// println(fmt.Sprint(v))
 
 	}
@@ -97,7 +98,7 @@ func (m *Machine) do(op operation) {
 		nextElse := findNext(0x05, m.pointInCode, m.vmCode) //0x04 for else
 
 		if m.popFromStack() != uint64(0) {
-			println("if case ran")
+			// println("if case ran")
 			completionPoint := nextElse
 			if nextEnd < nextElse {
 				completionPoint = nextEnd
@@ -107,7 +108,7 @@ func (m *Machine) do(op operation) {
 				m.do(m.vmCode[m.pointInCode])
 			}
 		} else if nextElse < nextEnd && nextElse != 0 { //if there is an else statement
-			println("else case ran")
+			// println("else case ran")
 			m.pointInCode = nextElse
 			for m.pointInCode < nextEnd { //run all the commands between the else and the endPoint
 				m.do(m.vmCode[m.pointInCode])
@@ -118,18 +119,18 @@ func (m *Machine) do(op operation) {
 		m.pushToStack(m.locals[op.params[0]]) //pushes the local value at index to the stack
 	case 0x21: //local.set
 		//im not too clear why this would be called.
+		for len(m.locals) < int(op.params[0]) {
+			m.locals = append(m.locals, uint64(0))
+		}
 		m.locals[op.params[0]] = m.popFromStack()
 	case 0x42: //const i64
-		// println("adding")
 		if len(op.params) == 1 {
 			m.pushToStack(uint64(op.params[0]))
 		} else {
 			m.pushToStack(uint64(0))
 		}
 
-		break
 	case 0x50: //i64.eqz is top value 0
-		// println("popping to check if is 0")
 		if len(m.vmStack) == 0 {
 			m.pushToStack(1)
 		} else if m.popFromStack() == 0 {
@@ -137,14 +138,23 @@ func (m *Machine) do(op operation) {
 		} else {
 			m.pushToStack(uint64(0))
 		}
-		break
+	case 0x7C: //i64.add
+		m.pushToStack(m.popFromStack() + m.popFromStack())
+	case 0x7D: //i64.sub
+		a := m.popFromStack()
+		b := m.popFromStack()
+		m.pushToStack(b - a)
+	case 0x7E: //i64.mul
+		m.pushToStack(m.popFromStack() * m.popFromStack())
 	case 0x00: //unreachable
 	case 0x01: //nop
 	default:
 		break
 	}
 	m.pointInCode += 1
-
+	if m.debugStack {
+		println(m.outputStack())
+	}
 }
 
 func newVirtualMachine(code []string, storage Storage) *Machine {
@@ -152,7 +162,7 @@ func newVirtualMachine(code []string, storage Storage) *Machine {
 	machine.pointInCode = 0
 	machine.vmCode = parseCodeToOpcodes(code)
 	machine.contractStorage = storage
-
+	machine.debugStack = false
 	return machine
 }
 func parseCodeToOpcodes(code []string) []operation {
@@ -198,9 +208,6 @@ func (m *Machine) popFromStack() uint64 {
 func (m *Machine) pushToStack(n uint64) {
 	// println("pushing to stack")
 	m.vmStack = append(m.vmStack, n)
-}
-func popFromOpcodeStack(ops []operation) (operation, []operation) {
-	return ops[len(ops)-1], ops[:len(ops)-1]
 }
 func findNext(opcode uint8, start uint64, ops []operation) uint64 {
 	for i := start; i < uint64(len(ops)); i++ {

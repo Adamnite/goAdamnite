@@ -5,14 +5,10 @@ import (
 )
 
 func Test_newVirtualMachine(t *testing.T) {
-	vm := newVirtualMachine(generateTestWasm(), Storage{})
 	// TODO: make this fail. Once the wasm is actually ran, it will fail!
-	vm.locals = []uint64{0}
-
-	vm.run()
-	println(len(vm.vmStack) != 0)
-	println(len(vm.vmMemory) == 0)
-	println(vm.outputStack())
+	println(doesStackMatchExpected(generateTestWasm(), []uint64{2}, false, []uint64{2}))
+	println(doesStackMatchExpected(generateTestWasm(), []uint64{1}, false, []uint64{0}))
+	// println(vm.outputStack())
 	// if we make it this far, ill count it as a success
 }
 
@@ -78,11 +74,24 @@ func generateTestWasm() []string {
 		"20 00",          //get local
 		"20 00",          //get local
 		"42 01",          //i64 const 01
-		"7D",             //i64_sub or op_f32
+		"7D",             //i64_sub
 		"10 00",          //op_call block 00
 		"7E",             //i64, or i64.mul
 		"0B",             //end
 		"0B 15 17"}       //end 15, 17
+}
+
+func doesStackMatchExpected(wasm []string, ansStack []uint64, debug bool, locals []uint64) bool {
+	vm := newVirtualMachine(wasm, Storage{})
+
+	vm.debugStack = debug
+	vm.locals = locals
+	allClear := true
+	vm.run()
+	for i, x := range ansStack {
+		allClear = allClear && (vm.vmStack[i] == x)
+	}
+	return allClear
 }
 
 func Test_virtualMachineWithBasicIfCaseCode(t *testing.T) {
@@ -90,6 +99,8 @@ func Test_virtualMachineWithBasicIfCaseCode(t *testing.T) {
 		"42 05", //i64.const 0x05
 		"04 7E", //make an if statement that will run (the top value is 0x05)
 		"42 F0", //there should be a 0xF0 on the stack due to this
+		"05",    //else case that shouldnt run
+		"42 FF", //shouldnt see any FF
 		"0B",    //put an end for that if statement.
 		"42 00", //push 0x00 to the stack, lets test the else side
 		"04 7E", //test the top value is not equal to 00(will fail)
@@ -98,14 +109,8 @@ func Test_virtualMachineWithBasicIfCaseCode(t *testing.T) {
 		"42 F0", //hope to see the stack total being F0 F0 at the end
 		"0B",    //end to this if statement
 	}
-
-	vm := newVirtualMachine(wasm, Storage{})
-	vm.run()
-
-	// println("vm stack consists of")
-	// println(vm.outputStack())
-	// println(vm.outputMemory())
-	if vm.outputStack() != "f0\nf0\n" {
+	ansStack := []uint64{0xF0, 0xF0}
+	if !doesStackMatchExpected(wasm, ansStack, false, []uint64{}) {
 		t.Fail()
 	}
 }
