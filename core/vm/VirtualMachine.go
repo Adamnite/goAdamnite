@@ -24,8 +24,9 @@ type Machine struct {
 	pointInCode     uint64
 	vmCode          []operation //opcodes are stored as
 	vmStack         []uint64
-	contractStorage Storage //the storage of the smart contracts data.
-	vmMemory        []byte  //i believe the agreed on stack size was
+	contractStorage Storage  //the storage of the smart contracts data.
+	vmMemory        []byte   //i believe the agreed on stack size was
+	locals          []uint64 //local vals that the VM code can call
 }
 type MemoryType interface {
 	to_string() string
@@ -113,7 +114,11 @@ func (m *Machine) do(op operation) {
 			}
 		}
 		m.pointInCode = nextEnd //no mater what, go to the end
-
+	case 0x20: //local.get
+		m.pushToStack(m.locals[op.params[0]]) //pushes the local value at index to the stack
+	case 0x21: //local.set
+		//im not too clear why this would be called.
+		m.locals[op.params[0]] = m.popFromStack()
 	case 0x42: //const i64
 		// println("adding")
 		if len(op.params) == 1 {

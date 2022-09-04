@@ -7,11 +7,12 @@ import (
 func Test_newVirtualMachine(t *testing.T) {
 	vm := newVirtualMachine(generateTestWasm(), Storage{})
 	// TODO: make this fail. Once the wasm is actually ran, it will fail!
-	vm.step()
-	println(len(vm.vmMemory) == 0)
+	vm.locals = []uint64{0}
+
 	vm.run()
 	println(len(vm.vmStack) != 0)
 	println(len(vm.vmMemory) == 0)
+	println(vm.outputStack())
 	// if we make it this far, ill count it as a success
 }
 
@@ -60,8 +61,8 @@ func Test_newVirtualMachine(t *testing.T) {
 func generateTestWasm() []string {
 	// https://en.wikipedia.org/wiki/WebAssembly code grabbed from
 	return []string{
-		"00 61 73 6D", //WASM binary magic!
-		"01 00 00 00", //wasm binary version
+		// "00 61 73 6D", //WASM binary magic!
+		// "01 00 00 00", //wasm binary version
 		// space hear to clearly remove header
 		"01 00",          //section code, size (guess) 0
 		"01 60",          //"num types", func
@@ -71,7 +72,7 @@ func generateTestWasm() []string {
 		"00 00",          //unreachable
 		"20 00",          //get local 00
 		"50",             //i64 eqz
-		"04 7E",          //if, either i64, or i64_mul
+		"04 7E",          //if, with the popped value type i64. runs if not 0
 		"42 01",          //i64 const, val 1
 		"05",             //else
 		"20 00",          //get local
