@@ -2,7 +2,9 @@ package vm
 
 type Opcode byte
 
-// Directly from WASM, and from the Adamnite Technical Paper and Documenta
+// type OpSize uint8
+
+// Directly from WASM, and from the Adamnite Technical Paper and Document
 
 // Language types opcodes as defined by:
 // http://webassembly_org/docs/binary-encoding/#language-types
@@ -46,11 +48,11 @@ const (
 
 // Variable access
 const (
-	Op_get_local  Opcode = 0x20
-	Op_set_local         = 0x21
-	Op_tee_local         = 0x22
-	Op_get_global        = 0x23
-	Op_set_global        = 0x24
+	Op_get_local  = 0x20
+	Op_set_local  = 0x21
+	Op_tee_local  = 0x22
+	Op_get_global = 0x23
+	Op_set_global = 0x24
 )
 
 // Memory-related operators
