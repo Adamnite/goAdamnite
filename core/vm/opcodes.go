@@ -4,7 +4,6 @@ type Opcode byte
 
 // Directly from WASM, and from the Adamnite Technical Paper and Documenta
 
-
 // Language types opcodes as defined by:
 // http://webassembly_org/docs/binary-encoding/#language-types
 const (
@@ -36,7 +35,7 @@ const (
 const (
 	Op_call          Opcode = 0x10
 	Op_call_indirect        = 0x11
-	Op_delegate_call				= 0x18
+	Op_delegate_call        = 0x18
 )
 
 // Parametric operators
@@ -230,23 +229,23 @@ const (
 	Op_f64_reinterpret_i64        = 0xbf
 )
 
-//Environment Related Operations
+// Environment Related Operations
 const (
-	Op_address Opcode = 0xc1
-	Op_balance  			= 0xc2
-	Op_caller  				= 0xc3
-	Op_datasize				= 0xc4
-	Op_caller_balance = 0xc5
-	Op_timestamp 			= 0xc6
+	Op_address        Opcode = 0xc1
+	Op_balance               = 0xc2
+	Op_caller                = 0xc3
+	Op_datasize              = 0xc4
+	Op_caller_balance        = 0xc5
+	Op_timestamp             = 0xc6
 )
 
-//Fee and storage level operations
+// Fee and storage level operations
 const (
-	Op_add_gas Opcode = 0xd1
-	Op_gas_price 			= 0xd2
-	Op_code_size			= 0xd3
-	Op_data_size		  = 0xd4
-	Op_get_code 			= 0xd5
-	Op_copy_code 			= 0xd6
-	Op_get_data 			= 0xd7
+	Op_add_gas   Opcode = 0xd1
+	Op_gas_price        = 0xd2
+	Op_code_size        = 0xd3
+	Op_data_size        = 0xd4
+	Op_get_code         = 0xd5
+	Op_copy_code        = 0xd6
+	Op_get_data         = 0xd7
 )
