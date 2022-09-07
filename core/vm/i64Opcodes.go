@@ -86,7 +86,7 @@ type i64LESigned struct{}
 func (op i64LESigned) doOp(m *Machine) {
 	a := int64(m.popFromStack())
 	b := int64(m.popFromStack())
-	if a < b {
+	if a <= b {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -98,7 +98,7 @@ type i64LEUnSigned struct{}
 func (op i64LEUnSigned) doOp(m *Machine) {
 	a := m.popFromStack()
 	b := m.popFromStack()
-	if a < b {
+	if a <= b {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)

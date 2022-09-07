@@ -108,12 +108,12 @@ const (
 	Op_i64_eqz         = 0x50 //
 	Op_i64_eq          = 0x51 //
 	Op_i64_ne          = 0x52 //
-	Op_i64_lt_s        = 0x53 //
-	Op_i64_lt_u        = 0x54 //
+	Op_i64_lt_s        = 0x53
+	Op_i64_lt_u        = 0x54
 	Op_i64_gt_s        = 0x55
 	Op_i64_gt_u        = 0x56
-	Op_i64_le_s        = 0x57
-	Op_i64_le_u        = 0x58
+	Op_i64_le_s        = 0x57 //
+	Op_i64_le_u        = 0x58 //
 	Op_i64_ge_s        = 0x59
 	Op_i64_ge_u        = 0x5a
 	Op_f32_eq          = 0x5b
