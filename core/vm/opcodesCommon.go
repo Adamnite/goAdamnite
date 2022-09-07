@@ -24,4 +24,5 @@ func (op localSet) doOp(m *Machine) {
 		m.locals = append(m.locals, uint64(0))
 	}
 	m.locals[op.point] = m.popFromStack()
+	m.pointInCode++
 }
