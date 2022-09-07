@@ -223,14 +223,6 @@ const (
 	Op_f64_promote_f32          = 0xbb
 )
 
-// Reinterpretations
-const (
-	Op_i32_reinterpret_f32 Opcode = 0xbc
-	Op_i64_reinterpret_f64        = 0xbd
-	Op_f32_reinterpret_i32        = 0xbe
-	Op_f64_reinterpret_i64        = 0xbf
-)
-
 // Environment Related Operations
 const (
 	Op_address        Opcode = 0xc1
