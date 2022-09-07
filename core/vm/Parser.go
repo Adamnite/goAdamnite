@@ -56,6 +56,12 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_i64_le_u:
 			ansOps = append(ansOps, i64LEUnSigned{})
 			pointInBytes += 1
+		case Op_i64_ge_s:
+			ansOps = append(ansOps, i64GESigned{})
+			pointInBytes += 1
+		case Op_i64_ge_u:
+			ansOps = append(ansOps, i64GEUnSigned{})
+			pointInBytes += 1
 
 		case Op_i64_and:
 			ansOps = append(ansOps, i64And{})

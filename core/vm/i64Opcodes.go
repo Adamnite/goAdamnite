@@ -104,3 +104,27 @@ func (op i64LEUnSigned) doOp(m *Machine) {
 		m.pushToStack(0)
 	}
 }
+
+type i64GESigned struct{}
+
+func (op i64GESigned) doOp(m *Machine) {
+	a := int64(m.popFromStack())
+	b := int64(m.popFromStack())
+	if a >= b {
+		m.pushToStack(1)
+	} else {
+		m.pushToStack(0)
+	}
+}
+
+type i64GEUnSigned struct{}
+
+func (op i64GEUnSigned) doOp(m *Machine) {
+	a := m.popFromStack()
+	b := m.popFromStack()
+	if a >= b {
+		m.pushToStack(1)
+	} else {
+		m.pushToStack(0)
+	}
+}

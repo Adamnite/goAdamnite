@@ -114,8 +114,8 @@ const (
 	Op_i64_gt_u        = 0x56
 	Op_i64_le_s        = 0x57 //
 	Op_i64_le_u        = 0x58 //
-	Op_i64_ge_s        = 0x59
-	Op_i64_ge_u        = 0x5a
+	Op_i64_ge_s        = 0x59 //
+	Op_i64_ge_u        = 0x5a //
 	Op_f32_eq          = 0x5b
 	Op_f32_ne          = 0x5c
 	Op_f32_lt          = 0x5d
