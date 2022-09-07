@@ -8,6 +8,8 @@ import (
 
 const wasmMagic = "0061736D01000000"
 
+var wasmMagicBytes = []byte{0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00}
+
 func parseString(opString string) []OperationCommon {
 	//sanitize the input of all possible special characters. Mostly used for tests
 	s := strings.ReplaceAll(opString, " ", "")
@@ -31,14 +33,42 @@ func parseString(opString string) []OperationCommon {
 
 func parseBytes(bytes []byte) []OperationCommon {
 	ansOps := []OperationCommon{}
-	pointInBytes := 8
-	//should check that the first 8 bytes are indeed the "wasm binary magic" and version number
+	pointInBytes := 0
+	if bytes[1] == 0x61 {
+		pointInBytes += 8
+	}
 	// println(hex.EncodeToString(bytes))
 	for pointInBytes < len(bytes) {
 		switch bytes[pointInBytes] {
+
+		case Op_i64_eqz:
+			ansOps = append(ansOps, i64Eqz{})
+			pointInBytes += 1
+		case Op_i64_eq:
+			ansOps = append(ansOps, i64Eq{})
+			pointInBytes += 1
+		case Op_i64_ne:
+			ansOps = append(ansOps, i64Ne{})
+			pointInBytes += 1
+		case Op_i64_le_s:
+			ansOps = append(ansOps, i64LESigned{})
+			pointInBytes += 1
+		case Op_i64_le_u:
+			ansOps = append(ansOps, i64LEUnSigned{})
+			pointInBytes += 1
+
+		case Op_i64_and:
+			ansOps = append(ansOps, i64And{})
+			pointInBytes += 1
+		case Op_i64_or:
+			ansOps = append(ansOps, i64Or{})
+			pointInBytes += 1
+		case Op_i64_xor:
+			ansOps = append(ansOps, i64Xor{})
+			pointInBytes += 1
+
 		case Op_i64_const:
 			var op = i64Const{int64(bytes[pointInBytes+1])}
-
 			ansOps = append(ansOps, op)
 			pointInBytes += 2
 		case Op_i64_add:

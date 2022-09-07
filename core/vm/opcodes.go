@@ -106,10 +106,10 @@ const (
 	Op_i32_ge_s        = 0x4e
 	Op_i32_ge_u        = 0x4f
 	Op_i64_eqz         = 0x50 //
-	Op_i64_eq          = 0x51
-	Op_i64_ne          = 0x52
-	Op_i64_lt_s        = 0x53
-	Op_i64_lt_u        = 0x54
+	Op_i64_eq          = 0x51 //
+	Op_i64_ne          = 0x52 //
+	Op_i64_lt_s        = 0x53 //
+	Op_i64_lt_u        = 0x54 //
 	Op_i64_gt_s        = 0x55
 	Op_i64_gt_u        = 0x56
 	Op_i64_le_s        = 0x57
@@ -160,9 +160,9 @@ const (
 	Op_i64_div_u           = 0x80
 	Op_i64_rem_s           = 0x81
 	Op_i64_rem_u           = 0x82
-	Op_i64_and             = 0x83
-	Op_i64_or              = 0x84
-	Op_i64_xor             = 0x85
+	Op_i64_and             = 0x83 //
+	Op_i64_or              = 0x84 //
+	Op_i64_xor             = 0x85 //
 	Op_i64_shl             = 0x86
 	Op_i64_shr_s           = 0x87
 	Op_i64_shr_u           = 0x88

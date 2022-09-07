@@ -4,7 +4,6 @@ type OperationCommon interface {
 	doOp(m *Machine)
 }
 type Operation struct{}
-type i64Add struct{}
 
 type localGet struct {
 	point int64
