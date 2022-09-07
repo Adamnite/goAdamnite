@@ -48,8 +48,8 @@ const (
 
 // Variable access
 const (
-	Op_get_local  = 0x20
-	Op_set_local  = 0x21
+	Op_get_local  = 0x20 //
+	Op_set_local  = 0x21 //
 	Op_tee_local  = 0x22
 	Op_get_global = 0x23
 	Op_set_global = 0x24
