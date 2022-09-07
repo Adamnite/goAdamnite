@@ -132,12 +132,12 @@ const (
 
 // Numeric operators
 const (
-	Op_i32_clz      Opcode = 0x67
+	Op_i32_clz      Opcode = 0x67 
 	Op_i32_ctz             = 0x68
-	Op_i32_popcnt          = 0x69
-	Op_i32_add             = 0x6a
-	Op_i32_sub             = 0x6b
-	Op_i32_mul             = 0x6c
+	Op_i32_popcnt          = 0x69 
+	Op_i32_add             = 0x6a // done
+	Op_i32_sub             = 0x6b // done
+	Op_i32_mul             = 0x6c // done
 	Op_i32_div_s           = 0x6d
 	Op_i32_div_u           = 0x6e
 	Op_i32_rem_s           = 0x6f
@@ -150,6 +150,7 @@ const (
 	Op_i32_shr_u           = 0x76
 	Op_i32_rotl            = 0x77
 	Op_i32_rotr            = 0x78
+	
 	Op_i64_clz             = 0x79
 	Op_i64_ctz             = 0x7a
 	Op_i64_popcnt          = 0x7b
