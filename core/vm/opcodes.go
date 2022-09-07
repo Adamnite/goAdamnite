@@ -24,8 +24,8 @@ const (
 	Op_nop                = 0x01
 	Op_block              = 0x02
 	Op_loop               = 0x03
-	Op_if                 = 0x04
-	Op_else               = 0x05
+	Op_if                 = 0x04 //
+	Op_else               = 0x05 //
 	Op_end                = 0x0b
 	Op_br                 = 0x0c
 	Op_br_if              = 0x0d
@@ -87,7 +87,7 @@ const (
 // Constants opcodes
 const (
 	Op_i32_const Opcode = 0x41
-	Op_i64_const        = 0x42
+	Op_i64_const        = 0x42 //
 	Op_f32_const        = 0x43
 	Op_f64_const        = 0x44
 )
@@ -105,7 +105,7 @@ const (
 	Op_i32_le_u        = 0x4d
 	Op_i32_ge_s        = 0x4e
 	Op_i32_ge_u        = 0x4f
-	Op_i64_eqz         = 0x50
+	Op_i64_eqz         = 0x50 //
 	Op_i64_eq          = 0x51
 	Op_i64_ne          = 0x52
 	Op_i64_lt_s        = 0x53
@@ -153,9 +153,9 @@ const (
 	Op_i64_clz             = 0x79
 	Op_i64_ctz             = 0x7a
 	Op_i64_popcnt          = 0x7b
-	Op_i64_add             = 0x7c
-	Op_i64_sub             = 0x7d
-	Op_i64_mul             = 0x7e
+	Op_i64_add             = 0x7c //
+	Op_i64_sub             = 0x7d //
+	Op_i64_mul             = 0x7e //
 	Op_i64_div_s           = 0x7f
 	Op_i64_div_u           = 0x80
 	Op_i64_rem_s           = 0x81

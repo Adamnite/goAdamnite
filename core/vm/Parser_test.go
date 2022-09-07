@@ -41,12 +41,16 @@ func Test_parseBytes(t *testing.T) {
 		{},
 		append(wasmMagic, 0x42, 0x00),
 		append(wasmMagic, 0x42, 0x00, 0x42, 0x01),
+		append(wasmMagic, Op_if, Op_i64, Op_i64_const, 0xF0, Op_else, Op_i64_const, 0x0F, Op_end),
 	}
 	expectedAnswers := [][]OperationCommon{
 		{},
 		{i64Const{00}},
 		{i64Const{00}, i64Const{01}},
+		{opIf{2, 3}, i64Const{0xF0}, i64Const{0x0F}},
 	}
+	// fmt.Println(parseBytes(testBytes[3]))
+	// println(len(expectedAnswers))
 	for i := 0; i < len(expectedAnswers); i++ {
 		parsed := parseBytes(testBytes[i])
 		if len(parsed) != len(expectedAnswers[i]) {

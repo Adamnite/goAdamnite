@@ -109,7 +109,7 @@ func Test_virtualMachineWithBasicIfCaseCode(t *testing.T) {
 	// 	"42 F0", //hope to see the stack total being F0 F0 at the end
 	// 	"0B",    //end to this if statement
 	// }
-	wasm := parseString("42 00 42 01 7c")
+	wasm := parseString("42 01 04 7E 42 0F 05 42 F0 0B")
 	// ansStack := []uint64{0xF0, 0xF0}
 	println(len(wasm))
 	vm := newVirtualMachine(wasm, Storage{})

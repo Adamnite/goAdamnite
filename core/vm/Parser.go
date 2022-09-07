@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/hex"
+	"reflect"
 	"strings"
 )
 
@@ -49,6 +50,41 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_i64_mul:
 			ansOps = append(ansOps, i64Mul{})
 			pointInBytes += 1
+		case Op_if:
+			//has a param block type, im not sure what its used for, so lets ignore that...
+			//the rest of the conditional statements code must be filled at the end
+			ansOps = append(ansOps, opIf{0, 0})
+			pointInBytes += 2
+		case Op_else:
+			//have to look back for the last if statement that does not yet have an end or an else statement
+			foundIf := false
+			for i := len(ansOps) - 1; i >= 0 && !foundIf; i-- {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opIf{}) {
+					foo := ansOps[i].(opIf)
+					if foo.elsePoint == 0 && foo.endPoint == 0 {
+						foo.elsePoint = int64(len(ansOps))
+						ansOps[i] = foo
+						foundIf = true
+					}
+				}
+			}
+			pointInBytes += 1
+		case Op_end:
+			//look for last condition statement
+			//TODO: add check for loop, and block statements
+			foundConditional := false
+			for i := len(ansOps) - 1; i >= 0 && !foundConditional; i-- {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opIf{}) {
+					foo := ansOps[i].(opIf)
+					if foo.endPoint == 0 {
+						foo.endPoint = int64(len(ansOps))
+						ansOps[i] = foo
+						foundConditional = true
+					}
+				}
+			}
+			pointInBytes += 1
+
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

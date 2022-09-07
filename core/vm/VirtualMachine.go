@@ -44,12 +44,6 @@ type Storage struct {
 
 }
 
-type operation struct {
-	//generate based on passed opcode list
-	opcode uint8
-	params []uint8 //any params that may be passed with the opcode?
-}
-
 func (m *Machine) step() {
 	if m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
@@ -88,40 +82,6 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-// func (m *Machine) do(op operation) {
-// 	//here is where the operations should run.
-// 	//creating memory would look like
-// 	// m.vmMemory = append(m.vmMemory, 0)
-// 	switch op.opcode {
-// 	case 0x04: //if statement
-// 		// if statements are passed a value type, but can ignore that and just assume any number would have the same response.
-// 		// i.64 0 is 0x0000000000000000, i32 0 is 0x00000000, with a 64 bit stack, they equal the same thing.
-// 		// this may be added so you could do cool things like only check half of a i.64 at a time, we will see.
-
-// 		// if stack.pop !=0, do all steps until an else, or an end
-// 		// if stack.pop ==0, go to the closest end, or else statement (whichever has a lower val)
-// 		nextEnd := findNext(0x0B, m.pointInCode, m.vmCode)  //0x0B for end
-// 		nextElse := findNext(0x05, m.pointInCode, m.vmCode) //0x04 for else
-
-// 		if m.popFromStack() != uint64(0) {
-// 			// println("if case ran")
-// 			completionPoint := nextElse
-// 			if nextEnd < nextElse {
-// 				completionPoint = nextEnd
-// 			}
-// 			m.pointInCode += 1 //run all the commands between this, and the completion point (the else statement, or the end for this if)
-// 			for m.pointInCode < completionPoint {
-// 				m.do(m.vmCode[m.pointInCode])
-// 			}
-// 		} else if nextElse < nextEnd && nextElse != 0 { //if there is an else statement
-// 			// println("else case ran")
-// 			m.pointInCode = nextElse
-// 			for m.pointInCode < nextEnd { //run all the commands between the else and the endPoint
-// 				m.do(m.vmCode[m.pointInCode])
-// 			}
-// 		}
-// 		m.pointInCode = nextEnd //no mater what, go to the end
-
 func newVirtualMachine(code []OperationCommon, storage Storage) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
@@ -132,40 +92,6 @@ func newVirtualMachine(code []OperationCommon, storage Storage) *Machine {
 	return machine
 }
 
-// func parseCodeToOpcodes(code []string) []operation {
-// 	// convert all the wasm data to opcodes with their function
-// 	var operations []operation
-// 	// println("parsing apart the code")
-// 	for _, s := range code {
-// 		// println(s)
-// 		values := strings.Split(s, " ")
-
-// 		opcode, err := strconv.ParseUint(values[0], 16, 8)
-// 		var params []uint8
-// 		if err != nil {
-// 			println("first error case")
-// 			println(err.Error())
-// 			//TODO: check if err is used
-// 		}
-
-// 		for i, a := range values {
-// 			if i != 0 {
-// 				param, err := strconv.ParseUint(a, 16, 8)
-// 				if err != nil {
-// 					println("second error case")
-// 					println(err.Error())
-// 					//TODO: check if err is used
-// 				}
-// 				params = append(params, uint8(param))
-// 			}
-// 		}
-// 		operations = append(operations, operation{
-// 			opcode: uint8(opcode),
-// 			params: params})
-// 	}
-// 	return operations
-// }
-
 func (m *Machine) popFromStack() uint64 {
 	var ans uint64
 	// println("popping from stack")
@@ -175,20 +101,4 @@ func (m *Machine) popFromStack() uint64 {
 func (m *Machine) pushToStack(n uint64) {
 	// println("pushing to stack")
 	m.vmStack = append(m.vmStack, n)
-}
-func findNext(opcode uint8, start uint64, ops []operation) uint64 {
-	for i := start; i < uint64(len(ops)); i++ {
-		if ops[i].opcode == opcode {
-			return i
-		}
-	}
-	return 0 //means something went wrong
-}
-func findPrevious(opcode uint8, start uint64, ops []operation) uint64 {
-	for i := start; i >= 0; i-- {
-		if ops[i].opcode == opcode {
-			return i
-		}
-	}
-	return 0xFFFFFFFFFFFFFFFF //assume all 1's is an error.
 }
