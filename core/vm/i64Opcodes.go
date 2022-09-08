@@ -1,5 +1,16 @@
 package vm
 
+import "math/bits"
+
+type i64Const struct {
+	val int64
+}
+
+func (op i64Const) doOp(m *Machine) {
+	m.pushToStack(uint64(op.val))
+	m.pointInCode++
+}
+
 type i64Add struct{}
 
 func (op i64Add) doOp(m *Machine) {
@@ -23,12 +34,21 @@ func (do i64Mul) doOp(m *Machine) {
 	m.pointInCode++
 }
 
-type i64Const struct {
-	val int64
+type i64Div_s struct{}
+
+func (do i64Div_s) doOp(m *Machine) {
+	a := int64(m.popFromStack())
+	b := int64(m.popFromStack()) //b by a
+	m.pushToStack(uint64(b / a))
+	m.pointInCode++
 }
 
-func (op i64Const) doOp(m *Machine) {
-	m.pushToStack(uint64(op.val))
+type i64Div_u struct{}
+
+func (do i64Div_u) doOp(m *Machine) {
+	a := m.popFromStack()
+	b := m.popFromStack() //b by a
+	m.pushToStack(uint64(b / a))
 	m.pointInCode++
 }
 
@@ -138,5 +158,50 @@ func (op i64GEUnSigned) doOp(m *Machine) {
 	} else {
 		m.pushToStack(0)
 	}
+	m.pointInCode++
+}
+
+type i64Shl struct{}
+
+func (op i64Shl) doOp(m *Machine) {
+	a := m.popFromStack()
+	b := m.popFromStack()
+	m.pushToStack(b << a)
+	m.pointInCode++
+}
+
+type i64Shr_s struct{}
+
+func (op i64Shr_s) doOp(m *Machine) {
+	a := int64(m.popFromStack())
+	b := int64(m.popFromStack())
+	m.pushToStack(uint64(b >> a))
+	m.pointInCode++
+}
+
+type i64Shr_u struct{}
+
+func (op i64Shr_u) doOp(m *Machine) {
+	a := m.popFromStack()
+	b := m.popFromStack()
+	m.pushToStack(b >> a)
+	m.pointInCode++
+}
+
+type i64Rotl struct{}
+
+func (op i64Rotl) doOp(m *Machine) {
+	a := int64(m.popFromStack())
+	b := int64(m.popFromStack())
+	m.pushToStack(bits.RotateLeft64(uint64(b), int(a)))
+	m.pointInCode++
+}
+
+type i64Rotr struct{}
+
+func (op i64Rotr) doOp(m *Machine) {
+	a := m.popFromStack()
+	b := m.popFromStack()
+	m.pushToStack(bits.RotateLeft64(uint64(b), -1*int(a)))
 	m.pointInCode++
 }

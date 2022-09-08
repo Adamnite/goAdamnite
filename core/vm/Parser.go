@@ -72,6 +72,21 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_i64_xor:
 			ansOps = append(ansOps, i64Xor{})
 			pointInBytes += 1
+		case Op_i64_shl:
+			ansOps = append(ansOps, i64Shl{})
+			pointInBytes += 1
+		case Op_i64_shr_s:
+			ansOps = append(ansOps, i64Shr_s{})
+			pointInBytes += 1
+		case Op_i64_shr_u:
+			ansOps = append(ansOps, i64Shr_u{})
+			pointInBytes += 1
+		case Op_i64_rotl:
+			ansOps = append(ansOps, i64Rotl{})
+			pointInBytes += 1
+		case Op_i64_rotr:
+			ansOps = append(ansOps, i64Rotr{})
+			pointInBytes += 1
 
 		case Op_i64_const:
 			var op = i64Const{int64(bytes[pointInBytes+1])}
@@ -85,6 +100,12 @@ func parseBytes(bytes []byte) []OperationCommon {
 			pointInBytes += 1
 		case Op_i64_mul:
 			ansOps = append(ansOps, i64Mul{})
+			pointInBytes += 1
+		case Op_i64_div_s:
+			ansOps = append(ansOps, i64Div_s{})
+			pointInBytes += 1
+		case Op_i64_div_u:
+			ansOps = append(ansOps, i64Div_u{})
 			pointInBytes += 1
 		case Op_if:
 			//has a param block type, im not sure what its used for, so lets ignore that...
