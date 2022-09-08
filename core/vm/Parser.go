@@ -141,6 +141,12 @@ func parseBytes(bytes []byte) []OperationCommon {
 				}
 			}
 			pointInBytes += 1
+		case Op_current_memory:
+			ansOps = append(ansOps, currentMemory{})
+			pointInBytes += 1
+		case Op_grow_memory:
+			ansOps = append(ansOps, growMemory{})
+			pointInBytes += 1
 
 		default:
 			print("skipping over byte at: ")

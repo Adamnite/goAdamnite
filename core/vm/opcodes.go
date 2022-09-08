@@ -80,8 +80,8 @@ const (
 	Op_i64_store8            = 0x3c
 	Op_i64_store16           = 0x3d
 	Op_i64_store32           = 0x3e
-	Op_current_memory        = 0x3f
-	Op_grow_memory           = 0x40
+	Op_current_memory        = 0x3f //
+	Op_grow_memory           = 0x40 //
 )
 
 // Constants opcodes
@@ -105,29 +105,32 @@ const (
 	Op_i32_le_u        = 0x4d
 	Op_i32_ge_s        = 0x4e
 	Op_i32_ge_u        = 0x4f
-	Op_i64_eqz         = 0x50 //
-	Op_i64_eq          = 0x51 //
-	Op_i64_ne          = 0x52 //
-	Op_i64_lt_s        = 0x53
-	Op_i64_lt_u        = 0x54
-	Op_i64_gt_s        = 0x55
-	Op_i64_gt_u        = 0x56
-	Op_i64_le_s        = 0x57 //
-	Op_i64_le_u        = 0x58 //
-	Op_i64_ge_s        = 0x59 //
-	Op_i64_ge_u        = 0x5a //
-	Op_f32_eq          = 0x5b
-	Op_f32_ne          = 0x5c
-	Op_f32_lt          = 0x5d
-	Op_f32_gt          = 0x5e
-	Op_f32_le          = 0x5f
-	Op_f32_ge          = 0x60
-	Op_f64_eq          = 0x61
-	Op_f64_ne          = 0x62
-	Op_f64_lt          = 0x63
-	Op_f64_gt          = 0x64
-	Op_f64_le          = 0x65
-	Op_f64_ge          = 0x66
+
+	Op_i64_eqz  = 0x50 //
+	Op_i64_eq   = 0x51 //
+	Op_i64_ne   = 0x52 //
+	Op_i64_lt_s = 0x53
+	Op_i64_lt_u = 0x54
+	Op_i64_gt_s = 0x55
+	Op_i64_gt_u = 0x56
+	Op_i64_le_s = 0x57 //
+	Op_i64_le_u = 0x58 //
+	Op_i64_ge_s = 0x59 //
+	Op_i64_ge_u = 0x5a //
+
+	Op_f32_eq = 0x5b
+	Op_f32_ne = 0x5c
+	Op_f32_lt = 0x5d
+	Op_f32_gt = 0x5e
+	Op_f32_le = 0x5f
+	Op_f32_ge = 0x60
+
+	Op_f64_eq = 0x61
+	Op_f64_ne = 0x62
+	Op_f64_lt = 0x63
+	Op_f64_gt = 0x64
+	Op_f64_le = 0x65
+	Op_f64_ge = 0x66
 )
 
 // Numeric operators
