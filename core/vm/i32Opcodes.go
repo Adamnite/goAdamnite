@@ -69,3 +69,12 @@ func (op i32Divu) doOp(m *Machine) {
 	}
 	m.pointInCode++
 }
+
+type i32Const struct {
+	val int32
+}
+
+func (op i32Const) doOp(m *Machine) {
+	m.pushToStack(uint64(op.val))
+	m.pointInCode++
+}

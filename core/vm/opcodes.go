@@ -86,7 +86,7 @@ const (
 
 // Constants opcodes
 const (
-	Op_i32_const Opcode = 0x41
+	Op_i32_const Opcode = 0x41 // Done
 	Op_i64_const        = 0x42 //
 	Op_f32_const        = 0x43
 	Op_f64_const        = 0x44

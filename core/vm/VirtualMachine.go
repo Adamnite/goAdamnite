@@ -94,11 +94,17 @@ func newVirtualMachine(code []OperationCommon, storage Storage) *Machine {
 
 func (m *Machine) popFromStack() uint64 {
 	var ans uint64
-	// println("popping from stack")
+
+	if m.debugStack {
+		println("popping from stack")
+	}
 	ans, m.vmStack = m.vmStack[len(m.vmStack)-1], m.vmStack[:len(m.vmStack)-1]
 	return ans
 }
 func (m *Machine) pushToStack(n uint64) {
-	// println("pushing to stack")
+
+	if m.debugStack {
+		println("pushing to stack")
+	}
 	m.vmStack = append(m.vmStack, n)
 }
