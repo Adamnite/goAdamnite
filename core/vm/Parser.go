@@ -34,7 +34,7 @@ func parseString(opString string) []OperationCommon {
 func parseBytes(bytes []byte) []OperationCommon {
 	ansOps := []OperationCommon{}
 	pointInBytes := 0
-	if bytes[1] == 0x61 {
+	if bytes[1] == 0x61 { //TODO: have this check the whole WASM magic number
 		pointInBytes += 8
 	}
 	// println(hex.EncodeToString(bytes))
@@ -148,6 +148,10 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, growMemory{})
 			pointInBytes += 1
 
+		case Op_call:
+			pointInBytes += 1
+			ansOps = append(ansOps, call{bytes[pointInBytes : pointInBytes+64]})
+			pointInBytes += 64
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

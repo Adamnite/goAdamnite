@@ -47,3 +47,28 @@ func (op growMemory) doOp(m *Machine) {
 
 	m.pointInCode++
 }
+
+type call struct {
+	hashToCall []byte
+}
+
+func (op call) doOp(m *Machine) {
+	var newVM *Machine
+	if allZeros(op.hashToCall) {
+		newVM = newVirtualMachine(m.vmCode, m.contractStorage)
+
+	} else {
+		newVM = newVirtualMachine(getCode(op.hashToCall), m.contractStorage)
+	}
+	newVM.vmStack = m.vmStack
+	newVM.run()
+}
+
+func allZeros(arr []byte) bool {
+	for _, v := range arr {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
