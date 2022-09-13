@@ -65,6 +65,8 @@ func (op i32Divu) doOp(m *Machine) {
 
 	if i1 != 0 {
 		m.pushToStack(uint64(uint32(i1 / i2)))
+	} else {
+		panic("Division by zero")
 	}
 	m.pointInCode++
 }
@@ -77,3 +79,39 @@ func (op i32Const) doOp(m *Machine) {
 	m.pushToStack(uint64(uint32(op.val)))
 	m.pointInCode++
 }
+
+
+type i32Eqz struct {}
+
+func (op i32Eqz) doOp(m *Machine) {
+	//i32.eqz is top value 0
+	if len(m.vmStack) == 0 {
+		m.pushToStack(1)
+	} else if m.popFromStack() == 0 {
+		m.pushToStack(uint64(uint32(1)))
+	} else {
+		m.pushToStack(uint64(uint32(0)))
+	}
+	m.pointInCode++
+}
+
+type i32Shl struct {}
+
+func (op i32Shl) doOp(m *Machine) {
+	a := uint32(m.popFromStack())
+	b := uint32(m.popFromStack())
+
+	m.pushToStack(uint64(uint32(a << (b % 32))))
+	m.pointInCode++;
+}
+
+type i32ShrS struct {}
+
+func (op i32ShrS) doOp(m *Machine) {
+	a := uint32(m.popFromStack())
+	b := uint32(m.popFromStack())
+
+	m.pushToStack(uint64(uint32(a >> (b % 32))))
+	m.pointInCode++;
+}
+

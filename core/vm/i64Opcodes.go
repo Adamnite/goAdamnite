@@ -39,6 +39,11 @@ type i64Div_s struct{}
 func (do i64Div_s) doOp(m *Machine) {
 	a := int64(m.popFromStack())
 	b := int64(m.popFromStack()) //b by a
+
+	if a == 0 {
+		panic("Division by 0")
+	}
+
 	m.pushToStack(uint64(b / a))
 	m.pointInCode++
 }
@@ -48,6 +53,11 @@ type i64Div_u struct{}
 func (do i64Div_u) doOp(m *Machine) {
 	a := m.popFromStack()
 	b := m.popFromStack() //b by a
+
+	if a == 0 {
+		panic("Division by 0")
+	}
+	
 	m.pushToStack(uint64(b / a))
 	m.pointInCode++
 }
