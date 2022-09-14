@@ -221,9 +221,9 @@ func (op i32Shl) doOp(m *Machine) {
 	m.pointInCode++;
 }
 
-type i32ShrS struct {}
+type i32Shrs struct {}
 
-func (op i32ShrS) doOp(m *Machine) {
+func (op i32Shrs) doOp(m *Machine) {
 	a := int32(m.popFromStack())
 	b := uint32(m.popFromStack())
 
@@ -231,9 +231,9 @@ func (op i32ShrS) doOp(m *Machine) {
 	m.pointInCode++;
 }
 
-type i32ShrU struct {}
+type i32Shru struct {}
 
-func (op i32ShrU) doOp(m *Machine) {
+func (op i32Shru) doOp(m *Machine) {
 	a := uint32(m.popFromStack())
 	b := uint32(m.popFromStack())
 
@@ -241,9 +241,9 @@ func (op i32ShrU) doOp(m *Machine) {
 	m.pointInCode++;
 }
 
-type i32DivS struct {}
+type i32Divs struct {}
 
-func (op i32DivS) doOp(m *Machine) {
+func (op i32Divs) doOp(m *Machine) {
 	a := int32(uint32(m.popFromStack()))
 	b := int32(uint32(m.popFromStack()))
 
@@ -259,9 +259,9 @@ func (op i32DivS) doOp(m *Machine) {
 	m.pointInCode++
 }
 
-type i32RemS struct {}
+type i32Rems struct {}
 
-func (op i32RemS) doOp(m *Machine) {
+func (op i32Rems) doOp(m *Machine) {
 	a := int32(m.popFromStack())
 	b := int32(m.popFromStack())
 

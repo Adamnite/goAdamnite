@@ -94,7 +94,7 @@ const (
 
 // Comparison operators
 const (
-	Op_i32_eqz  Opcode = 0x45 // done
+	Op_i32_eqz  	   = 0x45 // done
 	Op_i32_eq          = 0x46 // done
 	Op_i32_ne          = 0x47 // done
 	Op_i32_lt_s        = 0x48 // done

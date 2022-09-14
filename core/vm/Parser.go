@@ -41,6 +41,120 @@ func parseBytes(bytes []byte) []OperationCommon {
 	for pointInBytes < len(bytes) {
 		switch bytes[pointInBytes] {
 
+		case Op_i32_const:
+			ansOps = append(ansOps, i32Const{int32(bytes[pointInBytes+1])})
+			pointInBytes += 2
+		case Op_i32_sub:
+			ansOps = append(ansOps, i32Sub{})
+			pointInBytes += 1
+		case Op_i32_add:
+			ansOps = append(ansOps, i32Add{})
+			pointInBytes += 1
+		case Op_i32_div_s:
+			ansOps = append(ansOps, i32Divs{})
+			pointInBytes += 1
+		case Op_i32_clz:
+			ansOps = append(ansOps, i32Clz{})
+			pointInBytes += 1
+		case Op_i32_ctz:
+			ansOps = append(ansOps, i32Ctz{})
+			pointInBytes += 1
+
+		case Op_i32_popcnt:
+			ansOps = append(ansOps, i32PopCnt{})
+			pointInBytes += 1
+		case Op_i32_mul:
+			ansOps = append(ansOps, i32Mul{})
+			pointInBytes += 1
+
+		case Op_i32_rem_s:
+			ansOps = append(ansOps, i32Rems{})
+			pointInBytes += 1
+
+		case Op_i32_rem_u:
+			ansOps = append(ansOps, i32Remu{})
+			pointInBytes += 1
+
+		case Op_i32_and:
+			ansOps = append(ansOps, i32And{})
+			pointInBytes += 1
+
+		case Op_i32_or:
+			ansOps = append(ansOps, i32Or{})
+			pointInBytes += 1
+		case Op_i32_xor:
+			ansOps = append(ansOps, i32Xor{})
+			pointInBytes += 1
+
+		case Op_i32_shl:
+			ansOps = append(ansOps, i32Shl{})
+			pointInBytes += 1
+
+		case Op_i32_shr_s:
+			ansOps = append(ansOps, i32Shrs{})
+			pointInBytes += 1
+
+		case Op_i32_shr_u:
+			ansOps = append(ansOps, i32Shru{})
+			pointInBytes += 1
+
+		case Op_i32_rotl:
+			ansOps = append(ansOps, i32Rotl{})
+			pointInBytes += 1
+
+		case Op_i32_rotr:
+			ansOps = append(ansOps, i32Rotr{})
+			pointInBytes += 1
+
+		case Op_i32_div_u:
+			ansOps = append(ansOps, i32Divu{})
+			pointInBytes += 1 
+
+		case Op_i32_eqz:
+			ansOps = append(ansOps, i32Eqz{})
+			pointInBytes += 1
+
+		case Op_i32_eq:
+			ansOps = append(ansOps, i32Eq{})
+			pointInBytes += 1
+
+		case Op_i32_ne:
+			ansOps = append(ansOps, i32Ne{})
+			pointInBytes += 1
+
+		case Op_i32_lt_s:
+			ansOps = append(ansOps, i32Lts{})
+			pointInBytes += 1
+
+		case Op_i32_lt_u:
+			ansOps = append(ansOps, i32Ltu{})
+			pointInBytes += 1
+
+		case Op_i32_gt_s:
+			ansOps = append(ansOps, i32Gts{})
+			pointInBytes += 1
+
+		case Op_i32_gt_u:
+			ansOps = append(ansOps, i32Gtu{})
+			pointInBytes += 1
+			
+		case Op_i32_le_s:
+			ansOps = append(ansOps, i32Les{})
+			pointInBytes += 1
+
+		case Op_i32_le_u:
+			ansOps = append(ansOps, i32Leu{})
+			pointInBytes += 1
+
+		case Op_i32_ge_s:
+			ansOps = append(ansOps, i32Ges{})
+			pointInBytes += 1
+
+		case Op_i32_ge_u:
+			ansOps = append(ansOps, i32Eqz{})
+			pointInBytes += 1
+
+		
 		case Op_i64_eqz:
 			ansOps = append(ansOps, i64Eqz{})
 			pointInBytes += 1
