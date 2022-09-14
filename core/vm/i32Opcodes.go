@@ -55,7 +55,7 @@ func (op i32Remu) doOp(m *Machine) {
 	i1 := uint32(m.popFromStack())
 	i2 := uint32(m.popFromStack())
 
-	if i1 != 0 {
+	if i2 != 0 {
 		m.pushToStack(uint64(uint32(i1 % i2)))
 	} else {
 		panic("Division by Zero")

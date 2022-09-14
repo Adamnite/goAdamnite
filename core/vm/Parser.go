@@ -165,21 +165,50 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, i64Ne{})
 			pointInBytes += 1
 		case Op_i64_le_s:
-			ansOps = append(ansOps, i64LESigned{})
+			ansOps = append(ansOps, i64Les{})
 			pointInBytes += 1
 		case Op_i64_le_u:
-			ansOps = append(ansOps, i64LEUnSigned{})
+			ansOps = append(ansOps, i64Leu{})
 			pointInBytes += 1
 		case Op_i64_ge_s:
-			ansOps = append(ansOps, i64GESigned{})
+			ansOps = append(ansOps, i64Ges{})
 			pointInBytes += 1
 		case Op_i64_ge_u:
-			ansOps = append(ansOps, i64GEUnSigned{})
+			ansOps = append(ansOps, i64Geu{})
 			pointInBytes += 1
 
 		case Op_i64_and:
 			ansOps = append(ansOps, i64And{})
 			pointInBytes += 1
+		
+		case Op_i64_lt_s:
+			ansOps = append(ansOps, i64Lts{})
+			pointInBytes += 1
+
+		case Op_i64_lt_u:
+			ansOps = append(ansOps, i64Ltu{})
+			pointInBytes += 1
+		
+		case Op_i64_gt_u:
+			ansOps = append(ansOps, i64Gtu{})
+			pointInBytes += 1
+		
+		case Op_i64_gt_s:
+			ansOps = append(ansOps, i64Gts{})
+			pointInBytes += 1
+
+		case Op_i64_clz:
+			ansOps = append(ansOps, i64Clz{})
+			pointInBytes += 1
+
+		case Op_i64_ctz:
+			ansOps = append(ansOps, i64Ctz{})
+			pointInBytes += 1
+
+		case Op_i64_popcnt:
+			ansOps = append(ansOps, i64PopCnt{})
+			pointInBytes += 1
+
 		case Op_i64_or:
 			ansOps = append(ansOps, i64Or{})
 			pointInBytes += 1
@@ -190,10 +219,10 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, i64Shl{})
 			pointInBytes += 1
 		case Op_i64_shr_s:
-			ansOps = append(ansOps, i64Shr_s{})
+			ansOps = append(ansOps, i64Shrs{})
 			pointInBytes += 1
 		case Op_i64_shr_u:
-			ansOps = append(ansOps, i64Shr_u{})
+			ansOps = append(ansOps, i64Shru{})
 			pointInBytes += 1
 		case Op_i64_rotl:
 			ansOps = append(ansOps, i64Rotl{})
@@ -216,11 +245,20 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, i64Mul{})
 			pointInBytes += 1
 		case Op_i64_div_s:
-			ansOps = append(ansOps, i64Div_s{})
+			ansOps = append(ansOps, i64Divs{})
 			pointInBytes += 1
 		case Op_i64_div_u:
-			ansOps = append(ansOps, i64Div_u{})
+			ansOps = append(ansOps, i64Divu{})
 			pointInBytes += 1
+		
+		case Op_i64_rem_s:
+			ansOps = append(ansOps, i64Rems{})
+			pointInBytes += 1
+
+		case Op_i64_rem_u:
+			ansOps = append(ansOps, i64Remu{})
+			pointInBytes += 1
+
 		case Op_if:
 			//has a param block type, im not sure what its used for, so lets ignore that...
 			//the rest of the conditional statements code must be filled at the end
