@@ -94,17 +94,17 @@ const (
 
 // Comparison operators
 const (
-	Op_i32_eqz  Opcode = 0x45
-	Op_i32_eq          = 0x46
-	Op_i32_ne          = 0x47
-	Op_i32_lt_s        = 0x48
-	Op_i32_lt_u        = 0x49
-	Op_i32_gt_s        = 0x4a
-	Op_i32_gt_u        = 0x4b
-	Op_i32_le_s        = 0x4c
-	Op_i32_le_u        = 0x4d
-	Op_i32_ge_s        = 0x4e
-	Op_i32_ge_u        = 0x4f
+	Op_i32_eqz  Opcode = 0x45 // done
+	Op_i32_eq          = 0x46 // done
+	Op_i32_ne          = 0x47 // done
+	Op_i32_lt_s        = 0x48 // done
+	Op_i32_lt_u        = 0x49 // done
+	Op_i32_gt_s        = 0x4a // done
+	Op_i32_gt_u        = 0x4b // done
+	Op_i32_le_s        = 0x4c // done
+	Op_i32_le_u        = 0x4d // done
+	Op_i32_ge_s        = 0x4e // done
+	Op_i32_ge_u        = 0x4f // done
 
 	Op_i64_eqz  = 0x50 //
 	Op_i64_eq   = 0x51 //
@@ -135,24 +135,24 @@ const (
 
 // Numeric operators
 const (
-	Op_i32_clz    = 0x67
-	Op_i32_ctz    = 0x68
-	Op_i32_popcnt = 0x69
+	Op_i32_clz    = 0x67 // Done
+	Op_i32_ctz    = 0x68 // Done
+	Op_i32_popcnt = 0x69 // Done
 	Op_i32_add    = 0x6a // done
 	Op_i32_sub    = 0x6b // done
 	Op_i32_mul    = 0x6c // done
-	Op_i32_div_s  = 0x6d // Do we need this ?
+	Op_i32_div_s  = 0x6d // Done
 	Op_i32_div_u  = 0x6e // done
-	Op_i32_rem_s  = 0x6f // Do we need this ?
+	Op_i32_rem_s  = 0x6f // Done
 	Op_i32_rem_u  = 0x70 // done
 	Op_i32_and    = 0x71 // done
 	Op_i32_or     = 0x72 // done
 	Op_i32_xor    = 0x73 // done
-	Op_i32_shl    = 0x74
-	Op_i32_shr_s  = 0x75
-	Op_i32_shr_u  = 0x76
-	Op_i32_rotl   = 0x77
-	Op_i32_rotr   = 0x78
+	Op_i32_shl    = 0x74 // done
+	Op_i32_shr_s  = 0x75 // done
+	Op_i32_shr_u  = 0x76 // done
+	Op_i32_rotl   = 0x77 // done
+	Op_i32_rotr   = 0x78 // done
 
 	Op_i64_clz      = 0x79
 	Op_i64_ctz      = 0x7a
