@@ -27,7 +27,29 @@ type Machine struct {
 	vmMemory        []byte   //i believe the agreed on stack size was
 	locals          []uint64 //local vals that the VM code can call
 	debugStack      bool     //should it output the stack every operation
+	
+	table            []uint32
+	globals          []int64
+
+	callStack       []Frame
+	config			VMConfig
 }
+
+type VMConfig struct {
+	maxCallStackDepth        uint
+	gasLimit                 uint64
+	returnOnGasLimitExceeded bool
+}
+
+// Frame represents a call frame.
+type Frame struct {
+	functionID   int // The function identifier
+	Code         []byte // the code
+	locals       []int64
+	ip           int
+}
+
+
 type MemoryType interface {
 	to_string() string
 }
@@ -82,13 +104,14 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func newVirtualMachine(code []OperationCommon, storage Storage) *Machine {
+func newVirtualMachine(code []OperationCommon, storage Storage, config VMConfig) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	// machine.vmCode = parseCodeToOpcodes(code)
 	machine.vmCode = code
 	machine.contractStorage = storage
 	machine.debugStack = false
+	machine.config = config
 	return machine
 }
 

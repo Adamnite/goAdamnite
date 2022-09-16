@@ -82,7 +82,7 @@ func generateTestWasm() []string {
 }
 
 func doesStackMatchExpected(wasm []OperationCommon, ansStack []uint64, debug bool, locals []uint64) bool {
-	vm := newVirtualMachine(wasm, Storage{})
+	vm := newVirtualMachine(wasm, Storage{}, VMConfig{})
 
 	vm.debugStack = debug
 	vm.locals = locals
@@ -112,7 +112,7 @@ func Test_virtualMachineWithBasicIfCaseCode(t *testing.T) {
 	wasm := parseString("42 01 04 7E 42 0F 05 42 F0 0B")
 	// ansStack := []uint64{0xF0, 0xF0}
 	println(len(wasm))
-	vm := newVirtualMachine(wasm, Storage{})
+	vm := newVirtualMachine(wasm, Storage{}, VMConfig{})
 	vm.debugStack = true
 	// vm.step()
 	// vm.step()
