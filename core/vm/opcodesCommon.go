@@ -55,10 +55,10 @@ type call struct {
 func (op call) doOp(m *Machine) {
 	var newVM *Machine
 	if allZeros(op.hashToCall) {
-		newVM = newVirtualMachine(m.vmCode, m.contractStorage)
+		newVM = newVirtualMachine(m.vmCode, m.contractStorage, m.config)
 
 	} else {
-		newVM = newVirtualMachine(getCode(op.hashToCall), m.contractStorage)
+		newVM = newVirtualMachine(getCode(op.hashToCall), m.contractStorage, m.config)
 	}
 	newVM.vmStack = m.vmStack
 	newVM.run()

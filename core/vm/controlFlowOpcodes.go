@@ -13,7 +13,7 @@ func (op opIf) doOp(m *Machine) {
 		if op.elsePoint == 0 {
 			lastPoint = op.endPoint
 		}
-		vm := newVirtualMachine(m.vmCode[m.pointInCode+1:lastPoint], m.contractStorage)
+		vm := newVirtualMachine(m.vmCode[m.pointInCode+1:lastPoint], m.contractStorage, m.config)
 		vm.vmStack = m.vmStack
 		vm.debugStack = m.debugStack
 		vm.run()
@@ -21,7 +21,7 @@ func (op opIf) doOp(m *Machine) {
 
 	} else if op.elsePoint != 0 {
 		//do their else statement
-		vm := newVirtualMachine(m.vmCode[op.elsePoint:op.endPoint], m.contractStorage)
+		vm := newVirtualMachine(m.vmCode[op.elsePoint:op.endPoint], m.contractStorage, m.config)
 		vm.vmStack = m.vmStack
 		vm.debugStack = m.debugStack
 		vm.run()
