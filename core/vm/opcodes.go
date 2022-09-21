@@ -240,7 +240,7 @@ const (
 
 // Fee and storage level operations
 const (
-	Op_add_gas   = 0xd1
+	Op_value   = 0xd1
 	Op_gas_price = 0xd2
 	Op_code_size = 0xd3
 	Op_data_size = 0xd4
