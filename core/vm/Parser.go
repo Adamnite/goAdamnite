@@ -304,6 +304,80 @@ func parseBytes(bytes []byte) []OperationCommon {
 			pointInBytes += 1
 			ansOps = append(ansOps, call{bytes[pointInBytes : pointInBytes+64]})
 			pointInBytes += 64
+		
+		case Op_nop:
+			ansOps = append(ansOps, noOp{})
+			pointInBytes += 1
+		case Op_unreachable:
+			ansOps = append(ansOps, unReachable{})
+			pointInBytes += 1
+
+		case Op_i32_wrap_i64:
+			ansOps = append(ansOps, i32Wrapi64{})
+			pointInBytes += 1	
+		case Op_i32_trunc_s_f32, Op_i32_trunc_u_f32:
+			ansOps = append(ansOps, i32Truncsf32{})
+			pointInBytes += 1
+		case Op_i32_trunc_s_f64, Op_i32_trunc_u_f64:
+			ansOps = append(ansOps, i32Truncsf64{});
+			pointInBytes += 1
+		
+		case Op_i64_extend_s_i32:
+			ansOps = append(ansOps, i64Extendsi32{})
+			pointInBytes += 1
+		
+		case Op_i64_trunc_s_f32, Op_i64_trunc_u_f32:
+			ansOps = append(ansOps, i64Truncsf32{})
+			pointInBytes += 1
+		
+		case Op_i64_trunc_s_f64, Op_i64_trunc_u_f64:
+			ansOps = append(ansOps, i64Truncsf64{})
+			pointInBytes += 1
+		
+		case Op_f32_convert_s_i32:
+			ansOps = append(ansOps, f32Convertsi32{})
+			pointInBytes += 1
+		
+		case Op_f32_convert_u_i32:
+			ansOps = append(ansOps, f32Convertui32{})
+			pointInBytes += 1
+		
+		case Op_i64_extend_u_i32:
+			ansOps = append(ansOps, i64Extendui32{})
+			pointInBytes += 1
+		
+		case Op_f32_convert_s_i64:
+			ansOps = append(ansOps, f32Convertsi64{})
+			pointInBytes += 1
+
+		case Op_f32_convert_u_i64:
+			ansOps = append(ansOps, f32Convertui64{})
+			pointInBytes += 1
+		
+		case Op_f32_demote_f64:
+			ansOps = append(ansOps, f32Demotef64{})
+			pointInBytes += 1
+		case Op_f64_convert_s_i32:
+			ansOps = append(ansOps, f64convertsi32{})
+			pointInBytes += 1
+		case Op_f64_convert_u_i32:
+			ansOps = append(ansOps, f64convertui32{})
+			pointInBytes += 1
+		case Op_f64_convert_s_i64:
+			ansOps = append(ansOps, f64Convertsi64{})
+			pointInBytes += 1
+		case Op_f64_convert_u_i64:
+			ansOps = append(ansOps, f64Convertui64{})
+			pointInBytes += 1
+		case Op_f64_promote_f32:
+			ansOps = append(ansOps, )
+			pointInBytes += 1
+
+		case Op_br:
+		case Op_br_if:
+		case Op_br_table:
+		case Op_return:
+		
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

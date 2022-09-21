@@ -29,3 +29,15 @@ func (op opIf) doOp(m *Machine) {
 	}
 	m.pointInCode = uint64(op.endPoint)
 }
+
+type noOp struct {}
+
+func (op noOp) doOp(m *Machine) {
+	m.pointInCode++
+}
+
+type unReachable struct {}
+
+func (op unReachable) doOp(m *Machine) {
+	m.pointInCode++
+}

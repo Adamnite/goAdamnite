@@ -20,9 +20,9 @@ const (
 
 // Control flow operators
 const (
-	Op_unreachable = 0x00
-	Op_nop         = 0x01
-	Op_block       = 0x02
+	Op_unreachable = 0x00 // done
+	Op_nop         = 0x01 // done
+	Op_block       = 0x02 
 	Op_loop        = 0x03
 	Op_if          = 0x04 //
 	Op_else        = 0x05 //
@@ -204,27 +204,28 @@ const (
 
 // Conversions
 const (
-	Op_i32_wrap_i64      = 0xa7
-	Op_i32_trunc_s_f32   = 0xa8
-	Op_i32_trunc_u_f32   = 0xa9
-	Op_i32_trunc_s_f64   = 0xaa
-	Op_i32_trunc_u_f64   = 0xab
-	Op_i64_extend_s_i32  = 0xac
-	Op_i64_extend_u_i32  = 0xad
-	Op_i64_trunc_s_f32   = 0xae
-	Op_i64_trunc_u_f32   = 0xaf
-	Op_i64_trunc_s_f64   = 0xb0
-	Op_i64_trunc_u_f64   = 0xb1
-	Op_f32_convert_s_i32 = 0xb2
-	Op_f32_convert_u_i32 = 0xb3
-	Op_f32_convert_s_i64 = 0xb4
-	Op_f32_convert_u_i64 = 0xb5
-	Op_f32_demote_f64    = 0xb6
-	Op_f64_convert_s_i32 = 0xb7
-	Op_f64_convert_u_i32 = 0xb8
-	Op_f64_convert_s_i64 = 0xb9
-	Op_f64_convert_u_i64 = 0xba
-	Op_f64_promote_f32   = 0xbb
+	Op_i32_wrap_i64      = 0xa7 // done
+	Op_i32_trunc_s_f32   = 0xa8 // done
+	Op_i32_trunc_u_f32   = 0xa9 // done
+	Op_i32_trunc_s_f64   = 0xaa // done
+	Op_i32_trunc_u_f64   = 0xab // done
+	Op_i64_extend_s_i32  = 0xac // done 
+	Op_i64_extend_u_i32  = 0xad // done
+	Op_i64_trunc_s_f32   = 0xae // done
+	Op_i64_trunc_u_f32   = 0xaf // done
+	Op_i64_trunc_s_f64   = 0xb0 // done
+	Op_i64_trunc_u_f64   = 0xb1 // done
+	Op_f32_convert_s_i32 = 0xb2 // done
+	Op_f32_convert_u_i32 = 0xb3 // done 
+	Op_f32_convert_s_i64 = 0xb4 // done
+	Op_f32_convert_u_i64 = 0xb5 // done 
+
+	Op_f32_demote_f64    = 0xb6 // done
+	Op_f64_convert_s_i32 = 0xb7 // done 
+	Op_f64_convert_u_i32 = 0xb8 // done 
+	Op_f64_convert_s_i64 = 0xb9 // done 
+	Op_f64_convert_u_i64 = 0xba // done 
+	Op_f64_promote_f32   = 0xbb // done
 )
 
 // Environment Related Operations
