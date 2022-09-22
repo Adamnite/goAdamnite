@@ -41,3 +41,25 @@ type unReachable struct {}
 func (op unReachable) doOp(m *Machine) {
 	m.pointInCode++
 }
+
+type opDrop struct {}
+
+func (op opDrop) doOp(m *Machine) {
+	m.popFromStack()
+	m.pointInCode++
+}
+
+type opSelect struct {}
+
+func (op opSelect) doOp(m *Machine) {
+	a := uint32(m.popFromStack())
+	b := uint32(m.popFromStack())
+	c := uint32(m.popFromStack())
+
+	if c != 0 {
+		m.pushToStack(uint64(a))
+	} else {
+		m.pushToStack(uint64(b))
+	}
+	m.pointInCode++
+}

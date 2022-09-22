@@ -293,6 +293,13 @@ func parseBytes(bytes []byte) []OperationCommon {
 				}
 			}
 			pointInBytes += 1
+		
+		case Op_drop:
+			ansOps = append(ansOps, opDrop{})
+			pointInBytes++
+		case Op_select:
+			ansOps = append(ansOps, opSelect{})
+			pointInBytes++
 		case Op_current_memory:
 			ansOps = append(ansOps, currentMemory{})
 			pointInBytes += 1
@@ -370,9 +377,74 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, f64Convertui64{})
 			pointInBytes += 1
 		case Op_f64_promote_f32:
-			ansOps = append(ansOps, )
+			ansOps = append(ansOps, f64Promotef32{})
 			pointInBytes += 1
+		
+		case Op_f32_const:
+			ansOps = append(ansOps, f32Const{float32(bytes[pointInBytes+1])})
+			pointInBytes += 2
 
+		case Op_f32_eq:
+			ansOps = append(ansOps, f32Eq{})
+			pointInBytes +=1
+		case Op_f32_ne:
+			ansOps = append(ansOps, f32Neq{})
+			pointInBytes +=1
+		case Op_f32_lt:
+			ansOps = append(ansOps, f32Lt{})
+			pointInBytes +=1
+		case Op_f32_gt:
+			ansOps = append(ansOps, f32Gt{})
+			pointInBytes +=1
+		case Op_f32_le:
+			ansOps = append(ansOps, f32Le{})
+			pointInBytes +=1
+		case Op_f32_ge:
+			ansOps = append(ansOps, f32Ge{})
+			pointInBytes +=1
+		case Op_f32_abs:
+			ansOps = append(ansOps, f32Abs{})
+			pointInBytes += 1
+		case Op_f32_neg:
+			ansOps = append(ansOps, f32Neg{})
+			pointInBytes += 1
+		case Op_f32_ceil:
+			ansOps = append(ansOps, f32Ceil{})
+			pointInBytes += 1
+		case Op_f32_floor:
+			ansOps = append(ansOps, f32Floor{})
+			pointInBytes += 1
+		case Op_f32_trunc:
+			ansOps = append(ansOps, f32Trunc{})
+			pointInBytes += 1
+		case Op_f32_nearest:
+			ansOps = append(ansOps, f32Nearest{})
+			pointInBytes += 1
+		case Op_f32_sqrt:
+			ansOps = append(ansOps, f32Sqrt{})
+			pointInBytes += 1
+		case Op_f32_add:
+			ansOps = append(ansOps, f32Add{})
+			pointInBytes += 1
+		case Op_f32_sub:
+			ansOps = append(ansOps, f32Sub{})
+			pointInBytes += 1
+		case Op_f32_mul:
+			ansOps = append(ansOps, f32Mul{})
+			pointInBytes += 1
+		case Op_f32_div:
+			ansOps = append(ansOps, f32Div{})
+			pointInBytes += 1
+		case Op_f32_min:
+			ansOps = append(ansOps, f32Min{})
+			pointInBytes += 1
+		case Op_f32_max:
+			ansOps = append(ansOps, f32Max{})
+			pointInBytes += 1
+		case Op_f32_copysign:
+			ansOps = append(ansOps, f32CopySign{})
+			pointInBytes += 1
+			
 		case Op_br:
 		case Op_br_if:
 		case Op_br_table:

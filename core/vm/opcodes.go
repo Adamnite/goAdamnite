@@ -42,8 +42,8 @@ const (
 
 // Parametric operators
 const (
-	Op_drop   = 0x1a
-	Op_select = 0x1b
+	Op_drop   = 0x1a // done
+	Op_select = 0x1b // done
 )
 
 // Variable access
@@ -88,7 +88,7 @@ const (
 const (
 	Op_i32_const = 0x41 // Done
 	Op_i64_const = 0x42 //
-	Op_f32_const = 0x43
+	Op_f32_const = 0x43 // done
 	Op_f64_const = 0x44
 )
 
@@ -118,12 +118,12 @@ const (
 	Op_i64_ge_s = 0x59 //
 	Op_i64_ge_u = 0x5a //
 
-	Op_f32_eq = 0x5b
-	Op_f32_ne = 0x5c
-	Op_f32_lt = 0x5d
-	Op_f32_gt = 0x5e
-	Op_f32_le = 0x5f
-	Op_f32_ge = 0x60
+	Op_f32_eq = 0x5b // done
+	Op_f32_ne = 0x5c // done 
+	Op_f32_lt = 0x5d // done
+	Op_f32_gt = 0x5e // done
+	Op_f32_le = 0x5f // done
+	Op_f32_ge = 0x60 // done
 
 	Op_f64_eq = 0x61
 	Op_f64_ne = 0x62
@@ -172,20 +172,20 @@ const (
 	Op_i64_shr_u    = 0x88 // done
 	Op_i64_rotl     = 0x89 // done
 	Op_i64_rotr     = 0x8a // done
-	Op_f32_abs      = 0x8b
-	Op_f32_neg      = 0x8c
-	Op_f32_ceil     = 0x8d
-	Op_f32_floor    = 0x8e
-	Op_f32_trunc    = 0x8f
-	Op_f32_nearest  = 0x90
-	Op_f32_sqrt     = 0x91
-	Op_f32_add      = 0x92
-	Op_f32_sub      = 0x93
-	Op_f32_mul      = 0x94
-	Op_f32_div      = 0x95
-	Op_f32_min      = 0x96
-	Op_f32_max      = 0x97
-	Op_f32_copysign = 0x98
+	Op_f32_abs      = 0x8b	// done
+	Op_f32_neg      = 0x8c	// done
+	Op_f32_ceil     = 0x8d	// done
+	Op_f32_floor    = 0x8e	// done
+	Op_f32_trunc    = 0x8f	// done
+	Op_f32_nearest  = 0x90	// done
+	Op_f32_sqrt     = 0x91	// done
+	Op_f32_add      = 0x92	// done
+	Op_f32_sub      = 0x93	// done
+	Op_f32_mul      = 0x94	// done
+	Op_f32_div      = 0x95	// done
+	Op_f32_min      = 0x96	// done
+	Op_f32_max      = 0x97	// done
+	Op_f32_copysign = 0x98  // done
 	Op_f64_abs      = 0x99
 	Op_f64_neg      = 0x9a
 	Op_f64_ceil     = 0x9b
