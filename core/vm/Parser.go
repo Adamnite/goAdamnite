@@ -444,7 +444,72 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_f32_copysign:
 			ansOps = append(ansOps, f32CopySign{})
 			pointInBytes += 1
-			
+		
+		case Op_f64_const:
+			ansOps = append(ansOps, f64Const{float64(bytes[pointInBytes+1])})
+			pointInBytes += 2
+
+		case Op_f64_eq:
+			ansOps = append(ansOps, f64Eq{})
+			pointInBytes += 1
+		case Op_f64_ne:
+			ansOps = append(ansOps, f64Ne{})
+			pointInBytes += 1
+		case Op_f64_lt:
+			ansOps = append(ansOps, f64Lt{})
+			pointInBytes += 1
+		case Op_f64_gt:
+			ansOps = append(ansOps, f64Gt{})
+			pointInBytes += 1
+		case Op_f64_le:
+			ansOps = append(ansOps, f64Le{})
+			pointInBytes += 1
+		case Op_f64_ge:
+			ansOps = append(ansOps, f64Ge{})
+			pointInBytes += 1
+		case Op_f64_abs:
+			ansOps = append(ansOps, f64Abs{})
+			pointInBytes += 1 
+		case Op_f64_neg:
+			ansOps = append(ansOps, f64Neg{})
+			pointInBytes += 1 
+		case Op_f64_ceil:
+			ansOps = append(ansOps, f64Ceil{})
+			pointInBytes += 1 
+		case Op_f64_floor:
+			ansOps = append(ansOps, f64Floor{})
+			pointInBytes += 1 
+		case Op_f64_trunc:
+			ansOps = append(ansOps, f64Trunc{})
+			pointInBytes += 1 
+		case Op_f64_nearest:
+			ansOps = append(ansOps, f64Nearest{})
+			pointInBytes += 1 
+		case Op_f64_sqrt:
+			ansOps = append(ansOps, f64Sqrt{})
+			pointInBytes += 1 
+		case Op_f64_add:
+			ansOps = append(ansOps, f64Add{})
+			pointInBytes += 1 
+		case Op_f64_sub:
+			ansOps = append(ansOps, f64Sub{})
+			pointInBytes += 1 
+		case Op_f64_mul:
+			ansOps = append(ansOps, f64Mul{})
+			pointInBytes += 1 
+		case Op_f64_div:
+			ansOps = append(ansOps, f64Div{})
+			pointInBytes += 1 
+		case Op_f64_min:
+			ansOps = append(ansOps, f64Min{})
+			pointInBytes += 1 
+		case Op_f64_max     :
+			ansOps = append(ansOps, f64Max{})
+			pointInBytes += 1 
+		case Op_f64_copysign:
+			ansOps = append(ansOps, f64CopySign{})
+			pointInBytes += 1
+		
 		case Op_br:
 		case Op_br_if:
 		case Op_br_table:

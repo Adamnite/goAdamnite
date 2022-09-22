@@ -89,7 +89,7 @@ const (
 	Op_i32_const = 0x41 // Done
 	Op_i64_const = 0x42 //
 	Op_f32_const = 0x43 // done
-	Op_f64_const = 0x44
+	Op_f64_const = 0x44 // done
 )
 
 // Comparison operators
@@ -125,12 +125,12 @@ const (
 	Op_f32_le = 0x5f // done
 	Op_f32_ge = 0x60 // done
 
-	Op_f64_eq = 0x61
-	Op_f64_ne = 0x62
-	Op_f64_lt = 0x63
-	Op_f64_gt = 0x64
-	Op_f64_le = 0x65
-	Op_f64_ge = 0x66
+	Op_f64_eq = 0x61 // done
+	Op_f64_ne = 0x62 // done
+	Op_f64_lt = 0x63 // done
+	Op_f64_gt = 0x64 // done
+	Op_f64_le = 0x65 // done
+	Op_f64_ge = 0x66 // done
 )
 
 // Numeric operators
@@ -186,20 +186,20 @@ const (
 	Op_f32_min      = 0x96	// done
 	Op_f32_max      = 0x97	// done
 	Op_f32_copysign = 0x98  // done
-	Op_f64_abs      = 0x99
-	Op_f64_neg      = 0x9a
-	Op_f64_ceil     = 0x9b
-	Op_f64_floor    = 0x9c
-	Op_f64_trunc    = 0x9d
-	Op_f64_nearest  = 0x9e
-	Op_f64_sqrt     = 0x9f
-	Op_f64_add      = 0xa0
-	Op_f64_sub      = 0xa1
-	Op_f64_mul      = 0xa2
-	Op_f64_div      = 0xa3
-	Op_f64_min      = 0xa4
-	Op_f64_max      = 0xa5
-	Op_f64_copysign = 0xa6
+	Op_f64_abs      = 0x99  // done
+	Op_f64_neg      = 0x9a  // done
+	Op_f64_ceil     = 0x9b  // done
+	Op_f64_floor    = 0x9c  // done
+	Op_f64_trunc    = 0x9d  // done
+	Op_f64_nearest  = 0x9e  // done
+	Op_f64_sqrt     = 0x9f  // done
+	Op_f64_add      = 0xa0  // done
+	Op_f64_sub      = 0xa1  // done
+	Op_f64_mul      = 0xa2  // done
+	Op_f64_div      = 0xa3  // done
+	Op_f64_min      = 0xa4  // done
+	Op_f64_max      = 0xa5  // done
+	Op_f64_copysign = 0xa6  // done
 )
 
 // Conversions
