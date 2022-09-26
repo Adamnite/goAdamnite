@@ -57,29 +57,33 @@ const (
 
 // Memory-related operators
 const (
-	Op_i32_load       = 0x28
-	Op_i64_load       = 0x29
+	Op_i32_load       = 0x28 // done
+	Op_i64_load       = 0x29 // done
 	Op_f32_load       = 0x2a
 	Op_f64_load       = 0x2b
-	Op_i32_load8_s    = 0x2c
-	Op_i32_load8_u    = 0x2d
-	Op_i32_load16_s   = 0x2e
-	Op_i32_load16_u   = 0x2f
-	Op_i64_load8_s    = 0x30
-	Op_i64_load8_u    = 0x31
-	Op_i64_load16_s   = 0x32
-	Op_i64_load16_u   = 0x33
-	Op_i64_load32_s   = 0x34
-	Op_i64_load32_u   = 0x35
-	Op_i32_store      = 0x36
-	Op_i64_store      = 0x37
+	Op_i32_load8_s    = 0x2c // done
+	Op_i32_load8_u    = 0x2d // done
+
+	Op_i32_load16_s   = 0x2e // done
+	Op_i32_load16_u   = 0x2f // done
+
+	Op_i64_load8_s    = 0x30 // done
+	Op_i64_load8_u    = 0x31 // done 
+	Op_i64_load16_s   = 0x32 // done
+	Op_i64_load16_u   = 0x33 // done
+	Op_i64_load32_s   = 0x34 // done
+	Op_i64_load32_u   = 0x35 // done
+	Op_i32_store      = 0x36 // done
+	Op_i64_store      = 0x37 // done
 	Op_f32_store      = 0x38
 	Op_f64_store      = 0x39
-	Op_i32_store8     = 0x3a
+	Op_i32_store8     = 0x3a // done 
+	
 	Op_i32_store16    = 0x3b
 	Op_i64_store8     = 0x3c
 	Op_i64_store16    = 0x3d
-	Op_i64_store32    = 0x3e
+
+	Op_i64_store32    = 0x3e // done
 	Op_current_memory = 0x3f //
 	Op_grow_memory    = 0x40 //
 )

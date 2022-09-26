@@ -568,7 +568,47 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_f64_copysign:
 			ansOps = append(ansOps, f64CopySign{})
 			pointInBytes += 1
-				
+		
+		case Op_i32_load, Op_i64_load32_u:
+			ansOps = append(ansOps, i32Load{})
+			pointInBytes += 1
+		
+		case Op_i32_store, Op_i64_store32:
+			ansOps = append(ansOps, i32Store{})
+			pointInBytes += 1
+		
+		case Op_i64_load:
+			ansOps = append(ansOps, i64Load{})
+			pointInBytes += 1
+		case Op_i64_store:
+			ansOps = append(ansOps, i64Store{})
+			pointInBytes += 1
+		case Op_i32_load8_s, Op_i64_load8_s:
+			ansOps = append(ansOps, i32Load8s{})
+			pointInBytes += 1
+		case Op_i32_store8, Op_i64_store8:
+			ansOps = append(ansOps, i32Store8{})
+			pointInBytes += 1
+		case Op_i32_load8_u, Op_i64_load8_u:
+			ansOps = append(ansOps, i32Load8u{})
+			pointInBytes += 1
+		
+		case Op_i64_load32_s:
+			ansOps = append(ansOps, i64Load32s{})
+			pointInBytes += 1
+
+		case Op_i32_load16_u, Op_i64_load16_u:
+			ansOps = append(ansOps, i32Load16u{})
+			pointInBytes += 1
+
+		case Op_i64_load16_s, Op_i32_load16_s:
+			ansOps = append(ansOps, i64Load16s{})
+			pointInBytes += 1
+
+		case Op_i32_store16, Op_i64_store16:
+			ansOps = append(ansOps, i32Store16{})
+			pointInBytes += 1
+	
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)
