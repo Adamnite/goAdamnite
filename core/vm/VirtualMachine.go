@@ -6,6 +6,12 @@ import (
 	"strconv"
 )
 
+
+const (
+	// DefaultPageSize is the linear memory page size.
+	defaultPageSize = 65536
+)
+
 var LE = binary.LittleEndian //an easier way to call little endian. I personally am not the biggest fan of LE,
 // however, it is the specified standard of WASM.
 // even though web applications traditionally used BE
@@ -18,6 +24,11 @@ type VirtualMachine interface {
 	outputStack() string
 }
 
+type controlBlock struct {
+	code []OperationCommon // Can this []byte instead ?
+	startAt, elseAt, endAt uint64
+	op byte // Contains the value of the opcode that triggered this
+}
 type Machine struct {
 	VirtualMachine
 	pointInCode     uint64
@@ -27,12 +38,16 @@ type Machine struct {
 	vmMemory        []byte   //i believe the agreed on stack size was
 	locals          []uint64 //local vals that the VM code can call
 	debugStack      bool     //should it output the stack every operation
+	globals         []uint64
+	controlBlockStack []controlBlock // Represents the labels indexes at which br, br_if can jump to
 	
+	// Tables contents references to functions. This can be used to achieve dynamic function calling. 
+	// It will be used by the `call_inderect` opcode
+	// https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#webassembly_tables
 	table            []uint32
-	globals          []int64
-
 	callStack       []Frame
 	config			VMConfig
+	gas             uint64 // The allocated gas for the code execution
 }
 
 type VMConfig struct {

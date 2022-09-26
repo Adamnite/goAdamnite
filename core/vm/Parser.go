@@ -260,40 +260,99 @@ func parseBytes(bytes []byte) []OperationCommon {
 			pointInBytes += 1
 
 		case Op_if:
-			//has a param block type, im not sure what its used for, so lets ignore that...
-			//the rest of the conditional statements code must be filled at the end
-			ansOps = append(ansOps, opIf{0, 0})
-			pointInBytes += 2
+			// Store the current position as the startpoint of the if block
+			ifBlock := opIf{uint64(pointInBytes), 0, 0, []OperationCommon{}, Op_if}
+			// Parse untill we find 0x0b (Op_end) or 0x05 (Op_else)
+			foundTerminator := false
+			for i := pointInBytes; i < len(ansOps); i++ {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
+					// If without else block
+					ifBlock.endPoint = uint64(i)
+					ifBlock.code = ansOps[pointInBytes:uint64(i)]
+					foundTerminator = true
+					break
+				}
+
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opElse{}) {
+					// If with else block
+					ifBlock.elsePoint = uint64(i)
+					ifBlock.code = ansOps[pointInBytes:uint64(i)]
+					foundTerminator = true
+					break
+				}
+			}
+
+			if !foundTerminator {
+				panic("Block type without an end statement")
+			}
+			ansOps = append(ansOps, ifBlock)
 		case Op_else:
-			//have to look back for the last if statement that does not yet have an end or an else statement
-			foundIf := false
-			for i := len(ansOps) - 1; i >= 0 && !foundIf; i-- {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opIf{}) {
-					foo := ansOps[i].(opIf)
-					if foo.elsePoint == 0 && foo.endPoint == 0 {
-						foo.elsePoint = int64(len(ansOps))
-						ansOps[i] = foo
-						foundIf = true
-					}
+	
+			elseBlock := opElse{uint64(pointInBytes), 0, []OperationCommon{}}
+			// Parse untill we find 0x0b (Op_end)
+			foundTerminator := false
+			for i := pointInBytes; i < len(ansOps); i++ {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
+					elseBlock.endPoint = uint64(i)
+					elseBlock.code = ansOps[pointInBytes:uint64(i)]
+					foundTerminator = true
+					break
 				}
 			}
-			pointInBytes += 1
-		case Op_end:
-			//look for last condition statement
-			//TODO: add check for loop, and block statements
-			foundConditional := false
-			for i := len(ansOps) - 1; i >= 0 && !foundConditional; i-- {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opIf{}) {
-					foo := ansOps[i].(opIf)
-					if foo.endPoint == 0 {
-						foo.endPoint = int64(len(ansOps))
-						ansOps[i] = foo
-						foundConditional = true
-					}
-				}
+			if !foundTerminator {
+				panic("Block type without an end statement")
 			}
+
+			ansOps = append(ansOps, elseBlock)
+		case Op_br:
+			ansOps = append(ansOps, opBr{})
 			pointInBytes += 1
+		case Op_br_if:
+			ansOps = append(ansOps, opBrIf{})
+		case Op_return:
+			// pops return value off the stack and returns from the current function.
+			ansOps = append(ansOps, opReturn{})
 		
+		case Op_block:
+			// Store the current position as the startpoint of the block
+			block := opBlock{uint64(pointInBytes), 0, []OperationCommon{}}
+			// Parse untill we find 0x0b (Op_end)
+			foundTerminator := false
+			for i := pointInBytes; i < len(ansOps); i++ {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
+					block.endPoint = uint64(i)
+					foundTerminator = true
+					break
+				}
+			}
+			if !foundTerminator {
+				panic("Block type without an end statement")
+			}
+			block.code = ansOps[pointInBytes:block.endPoint]
+			ansOps = append(ansOps, block)
+			pointInBytes += int(block.endPoint)
+		case Op_end:
+			ansOps = append(ansOps, opEnd{})
+			pointInBytes += 1
+		case Op_loop:
+			// Store the current position as the startpoint of the block
+			loopBlock := opLoop{uint64(pointInBytes), 0, []OperationCommon{}}
+			// Parse untill we find 0x0b (Op_end)
+			foundTerminator := false
+			for i := pointInBytes; i < len(ansOps); i++ {
+				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
+					loopBlock.endPoint = uint64(i)
+					foundTerminator = true
+					break
+				}
+			}
+			if !foundTerminator {
+				panic("Block type without an end statement")
+			}
+			loopBlock.code = ansOps[pointInBytes:loopBlock.endPoint]
+			ansOps = append(ansOps, loopBlock)
+			pointInBytes += int(loopBlock.endPoint)
+
 		case Op_drop:
 			ansOps = append(ansOps, opDrop{})
 			pointInBytes++
@@ -509,12 +568,7 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_f64_copysign:
 			ansOps = append(ansOps, f64CopySign{})
 			pointInBytes += 1
-		
-		case Op_br:
-		case Op_br_if:
-		case Op_br_table:
-		case Op_return:
-		
+				
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

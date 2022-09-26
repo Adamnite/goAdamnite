@@ -38,7 +38,7 @@ func Test_parseString(t *testing.T) {
 func Test_parseBytes(t *testing.T) {
 	wasmMagic := []byte{0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00}
 	testBytes := [][]byte{
-		{},
+		wasmMagic,
 		append(wasmMagic, 0x42, 0x00),
 		append(wasmMagic, 0x42, 0x00, 0x42, 0x01),
 		append(wasmMagic, Op_if, Op_i64, Op_i64_const, 0xF0, Op_else, Op_i64_const, 0x0F, Op_end),
