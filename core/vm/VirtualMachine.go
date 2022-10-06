@@ -127,6 +127,13 @@ func newVirtualMachine(code []OperationCommon, storage Storage, config VMConfig)
 	machine.contractStorage = storage
 	machine.debugStack = false
 	machine.config = config
+
+	capacity := 20 * defaultPageSize
+	machine.vmMemory = make([]byte, capacity)
+	// Initialize empty memory.
+	for i := 0; i < capacity; i++ {
+		machine.vmMemory[i] = 0
+	}
 	return machine
 }
 
