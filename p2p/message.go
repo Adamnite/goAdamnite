@@ -11,12 +11,13 @@ import (
 
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/p2p/enode"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Msg struct {
-	Code       uint64
-	Size       uint32
+	Code uint64
+	Size uint32
+	// Payload    io.Reader
 	Payload    io.Reader
 	ReceivedAt time.Time
 
@@ -26,7 +27,8 @@ type Msg struct {
 }
 
 func (msg Msg) Decode(val interface{}) error {
-	s := rlp.NewStream(msg.Payload, uint64(msg.Size))
+	s := msgpack.NewDecoder(msg.Payload)
+	// s := rlp.NewStream(msg.Payload, uint64(msg.Size))
 	if err := s.Decode(val); err != nil {
 		return newPeerError(errInvalidMsg, "(code %x) (size %d) %v", msg.Code, msg.Size, err)
 	}
@@ -69,11 +71,14 @@ type MsgReadWriter interface {
 }
 
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
-	size, r, err := rlp.EncodeToReader(data)
+	encdata, err := msgpack.Marshal(data)
+	// size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
 		return err
 	}
-	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
+	size := len(encdata)
+
+	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: bytes.NewReader(encdata)})
 }
 
 func SendItems(w MsgWriter, msgcode uint64, elems ...interface{}) error {
@@ -192,7 +197,8 @@ func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 	if content == nil {
 		return msg.Discard()
 	}
-	contentEnc, err := rlp.EncodeToBytes(content)
+
+	contentEnc, err := msgpack.Marshal(content)
 	if err != nil {
 		panic("content encode error: " + err.Error())
 	}

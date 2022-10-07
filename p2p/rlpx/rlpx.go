@@ -21,6 +21,7 @@ import (
 	"github.com/adamnite/go-adamnite/crypto/ecies"
 	"github.com/adamnite/go-adamnite/rlp"
 	"github.com/golang/snappy"
+	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -171,7 +172,7 @@ func (c *Conn) Write(code uint64, data []byte) (uint32, error) {
 }
 
 func (h *handshakeState) writeFrame(conn io.Writer, code uint64, data []byte) error {
-	ptype, _ := rlp.EncodeToBytes(code)
+	ptype, _ := msgpack.Marshal(code)
 
 	// write header
 	headbuf := make([]byte, 32)
@@ -567,7 +568,7 @@ var padSpace = make([]byte, 300)
 
 func sealEIP8(msg interface{}, h *encHandshake) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := rlp.Encode(buf, msg); err != nil {
+	if err := msgpack.NewEncoder(buf).Encode(msg); err != nil {
 		return nil, err
 	}
 	// pad with random amount of data. the amount needs to be at least 100 bytes to make

@@ -5,7 +5,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Hash, error) {
@@ -54,7 +54,7 @@ func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[common.Hash][]
 }
 
 func WriteEpochNumber(db adamnitedb.AdamniteDBWriter, epochNum uint64) {
-	data, err := rlp.EncodeToBytes(epochNum)
+	data, err := msgpack.Marshal(epochNum)
 	if err != nil {
 		log15.Crit("Failed to encode epoch number", "err", err)
 	}
@@ -75,7 +75,8 @@ func ReadEpochNumber(db adamnitedb.AdamniteDBReader) uint64 {
 	}
 
 	var epochNum uint64
-	if err := rlp.DecodeBytes(data, &epochNum); err != nil {
+
+	if err := msgpack.Unmarshal(data, &epochNum); err != nil {
 		log15.Crit("Failed to decode epoch enc data", "err", err)
 	}
 
@@ -88,16 +89,17 @@ func WriteBlock(db adamnitedb.AdamniteDBWriter, block *types.Block) {
 }
 
 func WriteBody(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, body *types.Body) {
-	data, err := rlp.EncodeToBytes(body)
+
+	data, err := msgpack.Marshal(body)
 	if err != nil {
 		log15.Crit("Failed to encode body", "err", err)
 	}
-	WriteBodyRLP(db, hash, blockNum, data)
+	WriteBodyMsgPack(db, hash, blockNum, data)
 }
 
 // WriteBodyRLP stores an RLP encoded block body into the database.
-func WriteBodyRLP(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, rlp rlp.RawValue) {
-	if err := db.Insert(blockBodyKey(blockNum, hash), rlp); err != nil {
+func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, msgpack msgpack.RawMessage) {
+	if err := db.Insert(blockBodyKey(blockNum, hash), msgpack); err != nil {
 		log15.Crit("Failed to store block body", "err", err)
 	}
 }
@@ -110,7 +112,7 @@ func WriteHeader(db adamnitedb.AdamniteDBWriter, header *types.BlockHeader) {
 
 	WriteHeaderNumber(db, hash, number)
 
-	data, err := rlp.EncodeToBytes(header)
+	data, err := msgpack.Marshal(header)
 	if err != nil {
 		log15.Crit("Failed to encode header", "err", err)
 	}

@@ -15,7 +15,7 @@ import (
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/p2p/enode"
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // TODO concurrent WHOAREYOU tie-breaker
@@ -352,7 +352,7 @@ func (c *Codec) makeHandshakeAuth(toID enode.ID, addr string, challenge *Whoarey
 	// Add our record to response if it's newer than what remote side has.
 	ln := c.localnode.Node()
 	if challenge.RecordSeq < ln.Seq() {
-		auth.record, _ = rlp.EncodeToBytes(ln.Record())
+		auth.record, _ = msgpack.Marshal(ln.Record())
 	}
 
 	// Create session keys.
@@ -384,7 +384,7 @@ func (c *Codec) encryptMessage(s *session, p Packet, head *Header, headerData []
 	// Encode message plaintext.
 	c.msgbuf.Reset()
 	c.msgbuf.WriteByte(p.Kind())
-	if err := rlp.Encode(&c.msgbuf, p); err != nil {
+	if err := msgpack.NewEncoder(&c.msgbuf).Encode(p); err != nil {
 		return nil, err
 	}
 	messagePT := c.msgbuf.Bytes()
@@ -547,7 +547,7 @@ func (c *Codec) decodeHandshakeRecord(local *enode.Node, wantID enode.ID, remote
 	node := local
 	if len(remote) > 0 {
 		var record enr.Record
-		if err := rlp.DecodeBytes(remote, &record); err != nil {
+		if err := msgpack.Unmarshal(remote, &record); err != nil {
 			return nil, err
 		}
 		if local == nil || local.Seq() < record.Seq() {

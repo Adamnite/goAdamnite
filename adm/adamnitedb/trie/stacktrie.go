@@ -28,7 +28,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var ErrCommitDisabled = errors.New("no database for committing")
@@ -403,7 +403,7 @@ func (st *StackTrie) hash() {
 		h = newHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
-		if err := rlp.Encode(&h.tmp, nodes); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(nodes); err != nil {
 			panic(err)
 		}
 	case extNode:
@@ -424,7 +424,7 @@ func (st *StackTrie) hash() {
 			Key: hexToCompact(st.key),
 			Val: valuenode,
 		}
-		if err := rlp.Encode(&h.tmp, n); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(n); err != nil {
 			panic(err)
 		}
 		returnToPool(st.children[0])
@@ -436,7 +436,7 @@ func (st *StackTrie) hash() {
 		st.key = append(st.key, byte(16))
 		sz := hexToCompactInPlace(st.key)
 		n := [][]byte{st.key[:sz], st.val}
-		if err := rlp.Encode(&h.tmp, n); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(n); err != nil {
 			panic(err)
 		}
 	case emptyNode:

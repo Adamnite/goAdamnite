@@ -7,6 +7,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -25,7 +26,7 @@ func rlpHash(x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)
 	sha.Reset()
-	rlp.Encode(sha, x)
+	msgpack.NewEncoder(sha).Encode(x)
 	sha.Read(h[:])
 	return h
 }
@@ -37,7 +38,7 @@ func prefixedRlpHash(prefix byte, x interface{}) (h common.Hash) {
 	defer hasherPool.Put(sha)
 	sha.Reset()
 	sha.Write([]byte{prefix})
-	rlp.Encode(sha, x)
+	msgpack.NewEncoder(sha).Encode(x)
 	sha.Read(h[:])
 	return h
 }

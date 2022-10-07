@@ -15,7 +15,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/metrics"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -98,7 +98,7 @@ func (n rawFullNode) EncodeRLP(w io.Writer) error {
 			nodes[i] = nilValueNode
 		}
 	}
-	return rlp.Encode(w, nodes)
+	return msgpack.NewEncoder(w).Encode(nodes)
 }
 
 // rawShortNode represents only the useful data content of a short node, with the
@@ -140,7 +140,7 @@ func (n *cachedNode) rlp() []byte {
 	if node, ok := n.node.(rawNode); ok {
 		return node
 	}
-	blob, err := rlp.EncodeToBytes(n.node)
+	blob, err := msgpack.Marshal(n.node)
 	if err != nil {
 		panic(err)
 	}
