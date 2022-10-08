@@ -24,7 +24,7 @@ type VirtualMachine interface {
 	outputStack() string
 }
 
-type controlBlock struct {
+type ControlBlock struct {
 	code []OperationCommon // Can this []byte instead ?
 	startAt, elseAt, endAt uint64
 	op byte // Contains the value of the opcode that triggered this
@@ -32,20 +32,16 @@ type controlBlock struct {
 type Machine struct {
 	VirtualMachine
 	pointInCode     uint64
-	vmCode          []OperationCommon //opcodes are stored as
+	module 			Module // The module that will be executed inside the VM
+	vmCode          []OperationCommon
 	vmStack         []uint64
 	contractStorage Storage  //the storage of the smart contracts data.
 	vmMemory        []byte   //i believe the agreed on stack size was
 	locals          []uint64 //local vals that the VM code can call
 	debugStack      bool     //should it output the stack every operation
 	globals         []uint64
-	controlBlockStack []controlBlock // Represents the labels indexes at which br, br_if can jump to
+	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
 	
-	// Tables contents references to functions. This can be used to achieve dynamic function calling. 
-	// It will be used by the `call_inderect` opcode
-	// https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#webassembly_tables
-	table            []uint32
-	callStack       []Frame
 	config			VMConfig
 	gas             uint64 // The allocated gas for the code execution
 }
@@ -55,15 +51,6 @@ type VMConfig struct {
 	gasLimit                 uint64
 	returnOnGasLimitExceeded bool
 }
-
-// Frame represents a call frame.
-type Frame struct {
-	functionID   int // The function identifier
-	Code         []byte // the code
-	locals       []int64
-	ip           int
-}
-
 
 type MemoryType interface {
 	to_string() string

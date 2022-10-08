@@ -90,7 +90,7 @@ func (op opBr) doOp(m *Machine) {
 	label := m.popFromStack()
 	whereToGo := m.controlBlockStack[len(m.controlBlockStack) - int(label) - 1]
 	// Execute the code of the place whereToGo
-	// Note: Branching to a `block` is similar to `break`
+	// Note: Branching to a `block/if` is similar to `break`
 	// Note: Branching to a `loop` is similar to `continue`
 
 	for i := 0; uint64(i) < uint64(len(whereToGo.code)); {
@@ -128,7 +128,7 @@ type opBlock struct {
 }
 
 func (op opBlock) doOp(m *Machine) {
-	var controlBlockElem controlBlock
+	var controlBlockElem ControlBlock
 	controlBlockElem.code = op.code
 	controlBlockElem.startAt = op.startPoint
 	controlBlockElem.endAt = op.endPoint

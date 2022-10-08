@@ -7,11 +7,36 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"unicode/utf8"
 )
 
 type DataSegment struct {
 	offsetExpression *ConstantExpression
 	init             []byte
+}
+
+type ExternType = byte
+
+type Import struct {
+	Type ExternType
+	Module string
+	Name string
+	DescFunc Index
+	DescTable *Table
+	DescMem *Memory
+	DescGlobal *GlobalType
+}
+
+type Export struct {
+	Type ExternType
+	// Name is what the host refers to this definition as.
+	name string
+	// Index is the index of the definition to export, the index namespace is by Type
+	// Ex. If ExternTypeFunc, this is a position in the function index namespace.
+	index Index
+}
+type ElementSegment struct {
+
 }
 
 type FunctionType struct {
@@ -450,4 +475,132 @@ func decodeConstantExpression(r *bytes.Reader) (*ConstantExpression, error) {
 	}
 
 	return &ConstantExpression{opcode: Opcode(opcode), data: data}, nil
+}
+
+func ExternTypeName(et ExternType) string {
+	switch et {
+	case 0x00:
+		return "func"
+	case 0x01:
+		return "table"
+	case 0x02:
+		return "memory"
+	case 0x03:
+		return "global"
+	}
+	return fmt.Sprintf("%#x", et)
+}
+
+
+func decodeUTF8(r *bytes.Reader, contextFormat string, contextArgs ...interface{}) (string, uint32, error) {
+	size, sizeOfSize, err := DecodeUint32(r)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to read %s size: %w", fmt.Sprintf(contextFormat, contextArgs...), err)
+	}
+
+	buf := make([]byte, size)
+	if _, err = io.ReadFull(r, buf); err != nil {
+		return "", 0, fmt.Errorf("failed to read %s: %w", fmt.Sprintf(contextFormat, contextArgs...), err)
+	}
+
+	if !utf8.Valid(buf) {
+		return "", 0, fmt.Errorf("%s is not valid UTF-8", fmt.Sprintf(contextFormat, contextArgs...))
+	}
+
+	return string(buf), size + uint32(sizeOfSize), nil
+}
+
+
+func decodeImport(r *bytes.Reader, idx uint32) (i *Import, err error) {
+	i = &Import{}
+	if i.Module, _, err = decodeUTF8(r, "import module"); err != nil {
+		return nil, fmt.Errorf("import[%d] error decoding module: %w", idx, err)
+	}
+
+	if i.Name, _, err = decodeUTF8(r, "import name"); err != nil {
+		return nil, fmt.Errorf("import[%d] error decoding name: %w", idx, err)
+	}
+
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, fmt.Errorf("import[%d] error decoding type: %w", idx, err)
+	}
+	i.Type = b
+	switch i.Type {
+	case 0x00:
+		i.DescFunc, _, err = DecodeUint32(r)
+	case 0x01:
+		i.DescTable, err = decodeTable(r)
+	case 0x02:
+		i.DescMem, err = decodeMemory(r)
+	case 0x03:
+		i.DescGlobal, err = decodeGlobalType(r)
+	default:
+		err = fmt.Errorf("%w: invalid byte for importdesc", b)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("import[%d] %s[%s.%s]: %w", idx, ExternTypeName(i.Type), i.Module, i.Name, err)
+	}
+	return
+}
+
+func decodeMemory(r *bytes.Reader) (*Memory, error) {
+	min, maxP, err := decodeLimitsType(r)
+	if err != nil {
+		return nil, err
+	}
+
+	min, capacity, max := min, min, defaultPageSize
+	mem := &Memory{min: min, cap: capacity, max: uint32(max), isMaxEncoded: maxP != nil}
+
+	return mem, nil
+}
+
+func decodeGlobalType(r *bytes.Reader) (*GlobalType, error) {
+	vt, err := decodeValueTypes(r, 1)
+	if err != nil {
+		return nil, fmt.Errorf("read value type: %w", err)
+	}
+
+	ret := &GlobalType{
+		valType: vt[0],
+	}
+
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, fmt.Errorf("read mutablity: %w", err)
+	}
+
+	switch mut := b; mut {
+	case 0x00: // not mutable
+	case 0x01: // mutable
+		ret.mutable = true
+	default:
+		return nil, fmt.Errorf("%w for mutability: %#x != 0x00 or 0x01", errors.New("Invalid bytes"), mut)
+	}
+	return ret, nil
+}
+
+func decodeExport(r *bytes.Reader) (i *Export, err error) {
+	i = &Export{}
+
+	if i.name, _, err = decodeUTF8(r, "export name"); err != nil {
+		return nil, err
+	}
+
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, fmt.Errorf("error decoding export kind: %w", err)
+	}
+
+	i.Type = b
+	switch i.Type {
+	case 0x00, 0x01, 0x02, 0x03:
+		if i.index, _, err = DecodeUint32(r); err != nil {
+			return nil, fmt.Errorf("error decoding export index: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("%w: invalid byte for exportdesc", b)
+	}
+	return
 }

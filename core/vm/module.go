@@ -9,14 +9,18 @@ import (
 // See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/
 type Module struct {
 	typeSection []*FunctionType
-	// importSection []*Import
+	importSection []*Import
 	functionSection []Index
+	
+	// Tables contents references to functions. This can be used to achieve dynamic function calling. 
+	// It will be used by the `call_inderect` opcode
+	// https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#webassembly_tables
 	tableSection []*Table
 	memorySection *Memory
 	globalSection []*Global
-	// exportSection []*Export
+	exportSection []*Export
 	startSection *Index
-	// elementSection []*ElementSegment
+	elementSection []*ElementSegment
 	codeSection []*Code
 	dataSection []*DataSegment
 	dataCountSection *uint32
@@ -80,7 +84,19 @@ func decode(wasmBytes []byte) *Module {
 				m.typeSection = result
 
 			case sectionIDImport:
-				// Not implemented
+				vs, _, err := DecodeUint32(r)
+				if err != nil {
+					fmt.Errorf("get size of vector: %w", err)
+					panic(err)
+				}
+			
+				result := make([]*Import, vs)
+				for i := uint32(0); i < vs; i++ {
+					if result[i], err = decodeImport(r, i); err != nil {
+						panic(err)
+					}
+				}
+				m.importSection = result
 			
 			case sectionIDFunction:
 				vs, _, err := DecodeUint32(r)
@@ -150,8 +166,30 @@ func decode(wasmBytes []byte) *Module {
 				}
 				m.globalSection = result 
 			case sectionIDExport:
-				// Not implemented
+				vs, _, sizeErr := DecodeUint32(r)
+				if sizeErr != nil {
+					fmt.Errorf("get size of vector: %v", sizeErr)
+					print("Get size of vector")
+				}
 			
+				usedName := make(map[string]struct{}, vs)
+				exportSection := make([]*Export, 0, vs)
+				for i := Index(0); i < vs; i++ {
+					export, err := decodeExport(r)
+					if err != nil {
+						fmt.Errorf("read export: %w", err)
+						print(err)
+					}
+					if _, ok := usedName[export.name]; ok {
+						fmt.Errorf("export[%d] duplicates name %q", i, export.name)
+						print(err)
+					} else {
+						usedName[export.name] = struct{}{}
+					}
+					exportSection = append(exportSection, export)
+				}
+				m.exportSection = exportSection
+
 			case sectionIDStart:
 				if m.startSection != nil {
 					panic("multiple start sections are invalid")
@@ -247,8 +285,8 @@ func (m *Module) sectionElementCount(sectionID SectionID) uint32 { // element as
 			return 0
 		case sectionIDGlobal:
 			return uint32(len(m.globalSection))
-		// case sectionIDExport:
-		// 	return uint32(len(m.exportSection))
+		case sectionIDExport:
+			return uint32(len(m.exportSection))
 		case sectionIDStart:
 			if m.startSection != nil {
 				return 1
