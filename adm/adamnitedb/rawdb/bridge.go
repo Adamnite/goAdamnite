@@ -97,7 +97,6 @@ func WriteBody(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64
 	WriteBodyMsgPack(db, hash, blockNum, data)
 }
 
-// WriteBodyRLP stores an RLP encoded block body into the database.
 func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, msgpack msgpack.RawMessage) {
 	if err := db.Insert(blockBodyKey(blockNum, hash), msgpack); err != nil {
 		log15.Crit("Failed to store block body", "err", err)
@@ -123,7 +122,6 @@ func WriteHeader(db adamnitedb.AdamniteDBWriter, header *types.BlockHeader) {
 	}
 }
 
-// WriteHeaderNumber stores the hash->number mapping.
 func WriteHeaderNumber(db adamnitedb.AdamniteDBWriter, hash common.Hash, number uint64) {
 	key := headerNumberKey(hash)
 	enc := encodeBlockNumber(number)

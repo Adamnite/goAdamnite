@@ -69,7 +69,7 @@ func newObject(db *StateDB, addr common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:             db,
 		address:        addr,
-		addrHash:       crypto.Keccak256Hash(addr[:]),
+		addrHash:       crypto.Sha512(addr[:]),
 		data:           data,
 		dirtyStorage:   make(Storage),
 		originStorage:  make(Storage),
@@ -217,6 +217,6 @@ func (s *stateObject) setError(err error) {
 	}
 }
 
-func (s *stateObject) EncodeRLP(w io.Writer) error {
+func (s *stateObject) EncodeSerialization(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(s.data)
 }
