@@ -23,13 +23,13 @@ type Secp256k1 ecdsa.PublicKey
 
 func (v Secp256k1) ENRKey() string { return "secp256k1" }
 
-// EncodeRLP implements rlp.Encoder.
-func (v Secp256k1) EncodeRLP(w io.Writer) error {
+// EncodeSerialization implements Serialization.Encoder.
+func (v Secp256k1) EncodeSerialization(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(crypto.CompressPubkey((*ecdsa.PublicKey)(&v)))
 }
 
-// DecodeRLP implements rlp.Decoder.
-func (v *Secp256k1) DecodeRLP(s *msgpack.Decoder) error {
+// DecodeSerialization implements Serialization.Decoder.
+func (v *Secp256k1) DecodeSerialization(s *msgpack.Decoder) error {
 
 	buf, err := s.DecodeBytes()
 	if err != nil {

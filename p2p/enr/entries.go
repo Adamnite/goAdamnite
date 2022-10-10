@@ -8,11 +8,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// Entry is implemented by known node record entry types.
-//
-// To define a new entry that is to be included in a node record,
-// create a Go type that satisfies this interface. The type should
-// also implement rlp.Decoder if additional checks are needed on the value.
+
 type Entry interface {
 	ENRKey() string
 }
@@ -24,51 +20,41 @@ type generic struct {
 
 func (g generic) ENRKey() string { return g.key }
 
-func (g generic) EncodeRLP(w io.Writer) error {
+func (g generic) EncodeSerialization(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(g.value)
 }
 
-func (g *generic) DecodeRLP(s *msgpack.Decoder) error {
+func (g *generic) DecodeSerialization(s *msgpack.Decoder) error {
 	return s.Decode(g.value)
 }
 
-// WithEntry wraps any value with a key name. It can be used to set and load arbitrary values
-// in a record. The value v must be supported by rlp. To use WithEntry with Load, the value
-// must be a pointer.
+
 func WithEntry(k string, v interface{}) Entry {
 	return &generic{key: k, value: v}
 }
 
-// TCP is the "tcp" key, which holds the TCP port of the node.
+
 type TCP uint16
 
 func (v TCP) ENRKey() string { return "tcp" }
 
-// UDP is the "udp" key, which holds the IPv6-specific UDP port of the node.
 type TCP6 uint16
 
 func (v TCP6) ENRKey() string { return "tcp6" }
 
-// UDP is the "udp" key, which holds the UDP port of the node.
 type UDP uint16
 
 func (v UDP) ENRKey() string { return "udp" }
 
-// UDP is the "udp" key, which holds the IPv6-specific UDP port of the node.
 type UDP6 uint16
 
 func (v UDP6) ENRKey() string { return "udp6" }
 
-// ID is the "id" key, which holds the name of the identity scheme.
 type ID string
 
-const IDv4 = ID("v4") // the default identity scheme
+const IDv4 = ID("v4")
 
 func (v ID) ENRKey() string { return "id" }
-
-// IP is either the "ip" or "ip6" key, depending on the value.
-// Use this value to encode IP addresses that can be either v4 or v6.
-// To load an address from a record use the IPv4 or IPv6 types.
 type IP net.IP
 
 func (v IP) ENRKey() string {
@@ -77,9 +63,7 @@ func (v IP) ENRKey() string {
 	}
 	return "ip"
 }
-
-// EncodeRLP implements rlp.Encoder.
-func (v IP) EncodeRLP(w io.Writer) error {
+func (v IP) EncodeSerialization(w io.Writer) error {
 	if ip4 := net.IP(v).To4(); ip4 != nil {
 		return msgpack.NewEncoder(w).Encode(ip4)
 	}
@@ -89,8 +73,7 @@ func (v IP) EncodeRLP(w io.Writer) error {
 	return fmt.Errorf("invalid IP address: %v", net.IP(v))
 }
 
-// DecodeRLP implements rlp.Decoder.
-func (v *IP) DecodeRLP(s *msgpack.Decoder) error {
+func (v *IP) DecodeSerialization(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}
@@ -100,13 +83,11 @@ func (v *IP) DecodeRLP(s *msgpack.Decoder) error {
 	return nil
 }
 
-// IPv4 is the "ip" key, which holds the IP address of the node.
 type IPv4 net.IP
 
 func (v IPv4) ENRKey() string { return "ip" }
 
-// EncodeRLP implements rlp.Encoder.
-func (v IPv4) EncodeRLP(w io.Writer) error {
+func (v IPv4) EncodeSerialization(w io.Writer) error {
 	ip4 := net.IP(v).To4()
 	if ip4 == nil {
 		return fmt.Errorf("invalid IPv4 address: %v", net.IP(v))
@@ -114,8 +95,7 @@ func (v IPv4) EncodeRLP(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(ip4)
 }
 
-// DecodeRLP implements rlp.Decoder.
-func (v *IPv4) DecodeRLP(s *msgpack.Decoder) error {
+func (v *IPv4) DecodeSerialization(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}
@@ -125,13 +105,11 @@ func (v *IPv4) DecodeRLP(s *msgpack.Decoder) error {
 	return nil
 }
 
-// IPv6 is the "ip6" key, which holds the IP address of the node.
 type IPv6 net.IP
 
 func (v IPv6) ENRKey() string { return "ip6" }
 
-// EncodeRLP implements rlp.Encoder.
-func (v IPv6) EncodeRLP(w io.Writer) error {
+func (v IPv6) EncodeSerialization(w io.Writer) error {
 	ip6 := net.IP(v).To16()
 	if ip6 == nil {
 		return fmt.Errorf("invalid IPv6 address: %v", net.IP(v))
@@ -139,8 +117,7 @@ func (v IPv6) EncodeRLP(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(ip6)
 }
 
-// DecodeRLP implements rlp.Decoder.
-func (v *IPv6) DecodeRLP(s *msgpack.Decoder) error {
+func (v *IPv6) DecodeSerialization(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}
@@ -150,22 +127,17 @@ func (v *IPv6) DecodeRLP(s *msgpack.Decoder) error {
 	return nil
 }
 
-// KeyError is an error related to a key.
 type KeyError struct {
 	Key string
 	Err error
 }
 
-// Error implements error.
 func (err *KeyError) Error() string {
 	if err.Err == errNotFound {
 		return fmt.Sprintf("missing ENR key %q", err.Key)
 	}
 	return fmt.Sprintf("ENR key %q: %v", err.Key, err.Err)
 }
-
-// IsNotFound reports whether the given error means that a key/value pair is
-// missing from a record.
 func IsNotFound(err error) bool {
 	kerr, ok := err.(*KeyError)
 	return ok && kerr.Err == errNotFound

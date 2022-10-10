@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/adamnite/go-adamnite/Serialization"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -54,14 +54,14 @@ func (m SchemeMap) NodeAddr(r *Record) []byte {
 type Record struct {
 	seq       uint64 // sequence number
 	signature []byte // the signature
-	raw       []byte // RLP encoded record
+	raw       []byte // Serialization encoded record
 	pairs     []pair // sorted list of all key/value pairs
 }
 
 // pair is a key/value pair in a record.
 type pair struct {
 	k string
-	v rlp.RawValue
+	v Serialization.RawValue
 }
 
 // Seq returns the sequence number.
@@ -142,9 +142,9 @@ func (r *Record) Signature() []byte {
 	return cpy
 }
 
-// EncodeRLP implements rlp.Encoder. Encoding fails if
+// EncodeSerialization implements Serialization.Encoder. Encoding fails if
 // the record is unsigned.
-func (r Record) EncodeRLP(w io.Writer) error {
+func (r Record) EncodeSerialization(w io.Writer) error {
 	if r.signature == nil {
 		return errEncodeUnsigned
 	}
@@ -152,8 +152,8 @@ func (r Record) EncodeRLP(w io.Writer) error {
 	return err
 }
 
-// DecodeRLP implements rlp.Decoder. Decoding doesn't verify the signature.
-func (r *Record) DecodeRLP(s *msgpack.Decoder) error {
+// DecodeSerialization implements Serialization.Decoder. Decoding doesn't verify the signature.
+func (r *Record) DecodeSerialization(s *msgpack.Decoder) error {
 	dec, raw, err := decodeRecord(s)
 	if err != nil {
 		return err
@@ -172,19 +172,19 @@ func decodeRecord(s *msgpack.Decoder) (dec Record, raw []byte, err error) {
 		return dec, raw, errTooBig
 	}
 
-	// Decode the RLP container.
+	// Decode the Serialization container.
 	s = msgpack.NewDecoder(bytes.NewReader(raw))
 	if _, err := s.DecodeBytesLen(); err != nil {
 		return dec, raw, err
 	}
 	if err = s.Decode(&dec.signature); err != nil {
-		if err == rlp.EOL {
+		if err == Serialization.EOL {
 			err = errIncompleteList
 		}
 		return dec, raw, err
 	}
 	if err = s.Decode(&dec.seq); err != nil {
-		if err == rlp.EOL {
+		if err == Serialization.EOL {
 			err = errIncompleteList
 		}
 		return dec, raw, err
@@ -194,13 +194,13 @@ func decodeRecord(s *msgpack.Decoder) (dec Record, raw []byte, err error) {
 	for i := 0; ; i++ {
 		var kv pair
 		if err := s.Decode(&kv.k); err != nil {
-			if err == rlp.EOL {
+			if err == Serialization.EOL {
 				break
 			}
 			return dec, raw, err
 		}
 		if err := s.Decode(&kv.v); err != nil {
-			if err == rlp.EOL {
+			if err == Serialization.EOL {
 				return dec, raw, errIncompletePair
 			}
 			return dec, raw, err
