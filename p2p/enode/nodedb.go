@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adamnite/go-adamnite/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Keys in the node database.
@@ -224,7 +224,7 @@ func (db *DB) Node(id ID) *Node {
 
 func mustDecodeNode(id, data []byte) *Node {
 	node := new(Node)
-	if err := rlp.DecodeBytes(data, &node.r); err != nil {
+	if err := msgpack.Unmarshal(data, &node.r); err != nil {
 		panic(fmt.Errorf("p2p/enode: can't decode node %x in DB: %v", id, err))
 	}
 	// Restore node id cache.
@@ -237,7 +237,7 @@ func (db *DB) UpdateNode(node *Node) error {
 	if node.Seq() < db.NodeSeq(node.ID()) {
 		return nil
 	}
-	blob, err := rlp.EncodeToBytes(&node.r)
+	blob, err := msgpack.Marshal(&node.r)
 	if err != nil {
 		return err
 	}

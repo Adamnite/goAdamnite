@@ -15,7 +15,7 @@ import (
 	"github.com/adamnite/go-adamnite/metrics"
 	"github.com/adamnite/go-adamnite/p2p/enode"
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -294,7 +294,7 @@ func (p *Peer) handle(msg Msg) error {
 		var reason [1]DiscReason
 		// This is the last message. We don't need to discard or
 		// check errors because, the connection will be closed after it.
-		rlp.Decode(msg.Payload, &reason)
+		msgpack.NewDecoder(msg.Payload).Decode(&reason)
 		return reason[0]
 	case msg.Code < baseProtocolLength:
 		// ignore other base protocol messages

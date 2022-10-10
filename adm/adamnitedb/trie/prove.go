@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/memorydb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -63,7 +63,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb adamnitedb.AdamniteDBWr
 		if hash, ok := hn.(hashNode); ok || i == 0 {
 			// If the node's database encoding is a hash (or is the
 			// root node), it becomes a proof element.
-			enc, _ := rlp.EncodeToBytes(n)
+			enc, _ := msgpack.Marshal(n)
 			if !ok {
 				hash = hasher.hashData(enc)
 			}

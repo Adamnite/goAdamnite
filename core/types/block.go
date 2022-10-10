@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -99,19 +99,20 @@ type encodingBlock struct {
 }
 
 func (b *Block) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, encodingBlock{
+	return msgpack.NewEncoder(w).Encode(encodingBlock{
 		Header: b.header,
 		Txs:    b.transactionList,
 	})
 }
 
-func (b *Block) DecodeRLP(s *rlp.Stream) error {
+func (b *Block) DecodeRLP(s *msgpack.Decoder) error {
+
 	var eb encodingBlock
-	_, size, _ := s.Kind()
+	size, _ := s.DecodeBytesLen()
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
 	b.header, b.transactionList = eb.Header, eb.Txs
-	b.size.Store(common.StorageSize(rlp.ListSize(size)))
+	b.size.Store(common.StorageSize(size))
 	return nil
 }

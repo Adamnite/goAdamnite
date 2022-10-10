@@ -10,7 +10,6 @@ import (
 
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/rlp"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
@@ -152,7 +151,7 @@ func Sign(n *NodeInfo, privKey *ecdsa.PrivateKey, pubKey *ecdsa.PublicKey, infoT
 		cpy.pubKey = crypto.CompressPubkey(&privKey.PublicKey)
 
 		h := sha3.NewLegacyKeccak256()
-		rlp.Encode(h, cpy.ToRawElements())
+		msgpack.NewEncoder(h).Encode(cpy.ToRawElements())
 
 		sig, err := crypto.Sign(h.Sum(nil), privKey)
 		if err != nil {
@@ -192,7 +191,7 @@ func (n *NodeInfo) verify(sig []byte) error {
 	case TypeNil:
 	case TypeURLV1:
 		h := sha3.NewLegacyKeccak256()
-		rlp.Encode(h, n.ToRawElements())
+		msgpack.NewEncoder(h).Encode(n.ToRawElements())
 		if !crypto.VerifySignature(n.pubKey, h.Sum(nil), sig) {
 			return ErrInvalidSig
 		}

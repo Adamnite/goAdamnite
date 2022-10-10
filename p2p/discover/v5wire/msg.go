@@ -7,7 +7,7 @@ import (
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/p2p/enode"
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Packet is implemented by all message types.
@@ -158,7 +158,7 @@ func DecodeMessage(ptype byte, body []byte) (Packet, error) {
 	default:
 		return nil, fmt.Errorf("unknown packet type %d", ptype)
 	}
-	if err := rlp.DecodeBytes(body, dec); err != nil {
+	if err := msgpack.Unmarshal(body, dec); err != nil {
 		return nil, err
 	}
 	if dec.RequestID() != nil && len(dec.RequestID()) > 8 {

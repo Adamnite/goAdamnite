@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const SizeLimit = 300 // maximum encoded size of a node record in bytes
@@ -85,7 +86,7 @@ func (r *Record) SetSeq(s uint64) {
 func (r *Record) Load(e Entry) error {
 	i := sort.Search(len(r.pairs), func(i int) bool { return r.pairs[i].k >= e.ENRKey() })
 	if i < len(r.pairs) && r.pairs[i].k == e.ENRKey() {
-		if err := rlp.DecodeBytes(r.pairs[i].v, e); err != nil {
+		if err := msgpack.Unmarshal(r.pairs[i].v, e); err != nil {
 			return &KeyError{Key: e.ENRKey(), Err: err}
 		}
 		return nil
@@ -97,7 +98,7 @@ func (r *Record) Load(e Entry) error {
 // encoded. If the record is signed, Set increments the sequence number and invalidates
 // the sequence number.
 func (r *Record) Set(e Entry) {
-	blob, err := rlp.EncodeToBytes(e)
+	blob, err := msgpack.Marshal(e)
 	if err != nil {
 		panic(fmt.Errorf("enr: can't encode %s: %v", e.ENRKey(), err))
 	}
@@ -152,7 +153,7 @@ func (r Record) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP implements rlp.Decoder. Decoding doesn't verify the signature.
-func (r *Record) DecodeRLP(s *rlp.Stream) error {
+func (r *Record) DecodeRLP(s *msgpack.Decoder) error {
 	dec, raw, err := decodeRecord(s)
 	if err != nil {
 		return err
@@ -162,8 +163,8 @@ func (r *Record) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-func decodeRecord(s *rlp.Stream) (dec Record, raw []byte, err error) {
-	raw, err = s.Raw()
+func decodeRecord(s *msgpack.Decoder) (dec Record, raw []byte, err error) {
+	raw, err = s.DecodeRaw()
 	if err != nil {
 		return dec, raw, err
 	}
@@ -172,8 +173,8 @@ func decodeRecord(s *rlp.Stream) (dec Record, raw []byte, err error) {
 	}
 
 	// Decode the RLP container.
-	s = rlp.NewStream(bytes.NewReader(raw), 0)
-	if _, err := s.List(); err != nil {
+	s = msgpack.NewDecoder(bytes.NewReader(raw))
+	if _, err := s.DecodeBytesLen(); err != nil {
 		return dec, raw, err
 	}
 	if err = s.Decode(&dec.signature); err != nil {
@@ -215,7 +216,8 @@ func decodeRecord(s *rlp.Stream) (dec Record, raw []byte, err error) {
 		dec.pairs = append(dec.pairs, kv)
 		prevkey = kv.k
 	}
-	return dec, raw, s.ListEnd()
+
+	return dec, raw, err
 }
 
 // IdentityScheme returns the name of the identity scheme in the record.
@@ -274,7 +276,7 @@ func (r *Record) encode(sig []byte) (raw []byte, err error) {
 	list := make([]interface{}, 1, 2*len(r.pairs)+1)
 	list[0] = sig
 	list = r.AppendElements(list)
-	if raw, err = rlp.EncodeToBytes(list); err != nil {
+	if raw, err = msgpack.Marshal(list); err != nil {
 		return nil, err
 	}
 	if len(raw) > SizeLimit {

@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Entry is implemented by known node record entry types.
@@ -25,10 +25,10 @@ type generic struct {
 func (g generic) ENRKey() string { return g.key }
 
 func (g generic) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, g.value)
+	return msgpack.NewEncoder(w).Encode(g.value)
 }
 
-func (g *generic) DecodeRLP(s *rlp.Stream) error {
+func (g *generic) DecodeRLP(s *msgpack.Decoder) error {
 	return s.Decode(g.value)
 }
 
@@ -81,16 +81,16 @@ func (v IP) ENRKey() string {
 // EncodeRLP implements rlp.Encoder.
 func (v IP) EncodeRLP(w io.Writer) error {
 	if ip4 := net.IP(v).To4(); ip4 != nil {
-		return rlp.Encode(w, ip4)
+		return msgpack.NewEncoder(w).Encode(ip4)
 	}
 	if ip6 := net.IP(v).To16(); ip6 != nil {
-		return rlp.Encode(w, ip6)
+		return msgpack.NewEncoder(w).Encode(ip6)
 	}
 	return fmt.Errorf("invalid IP address: %v", net.IP(v))
 }
 
 // DecodeRLP implements rlp.Decoder.
-func (v *IP) DecodeRLP(s *rlp.Stream) error {
+func (v *IP) DecodeRLP(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}
@@ -111,11 +111,11 @@ func (v IPv4) EncodeRLP(w io.Writer) error {
 	if ip4 == nil {
 		return fmt.Errorf("invalid IPv4 address: %v", net.IP(v))
 	}
-	return rlp.Encode(w, ip4)
+	return msgpack.NewEncoder(w).Encode(ip4)
 }
 
 // DecodeRLP implements rlp.Decoder.
-func (v *IPv4) DecodeRLP(s *rlp.Stream) error {
+func (v *IPv4) DecodeRLP(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}
@@ -136,11 +136,11 @@ func (v IPv6) EncodeRLP(w io.Writer) error {
 	if ip6 == nil {
 		return fmt.Errorf("invalid IPv6 address: %v", net.IP(v))
 	}
-	return rlp.Encode(w, ip6)
+	return msgpack.NewEncoder(w).Encode(ip6)
 }
 
 // DecodeRLP implements rlp.Decoder.
-func (v *IPv6) DecodeRLP(s *rlp.Stream) error {
+func (v *IPv6) DecodeRLP(s *msgpack.Decoder) error {
 	if err := s.Decode((*net.IP)(v)); err != nil {
 		return err
 	}

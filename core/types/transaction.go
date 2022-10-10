@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -133,7 +133,7 @@ func (tx *Transaction) Size() common.StorageSize {
 		return size.(common.StorageSize)
 	}
 	c := writeCounter(0)
-	rlp.Encode(&c, &tx.InnerData)
+	msgpack.NewEncoder(&c).Encode(&tx.InnerData)
 	tx.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
 }
@@ -152,7 +152,7 @@ func (tx *Transaction) Hash() common.Hash {
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(byte(tx.Type()))
-	return rlp.Encode(w, tx.InnerData)
+	return msgpack.NewEncoder(w).Encode(tx.InnerData)
 }
 
 type TxByNonce Transactions

@@ -6,7 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var ValidSchemes = enr.SchemeMap{
@@ -25,12 +25,13 @@ func (v Secp256k1) ENRKey() string { return "secp256k1" }
 
 // EncodeRLP implements rlp.Encoder.
 func (v Secp256k1) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, crypto.CompressPubkey((*ecdsa.PublicKey)(&v)))
+	return msgpack.NewEncoder(w).Encode(crypto.CompressPubkey((*ecdsa.PublicKey)(&v)))
 }
 
 // DecodeRLP implements rlp.Decoder.
-func (v *Secp256k1) DecodeRLP(s *rlp.Stream) error {
-	buf, err := s.Bytes()
+func (v *Secp256k1) DecodeRLP(s *msgpack.Decoder) error {
+
+	buf, err := s.DecodeBytes()
 	if err != nil {
 		return err
 	}

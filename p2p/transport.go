@@ -12,7 +12,7 @@ import (
 	"github.com/adamnite/go-adamnite/common/bitutil"
 	"github.com/adamnite/go-adamnite/metrics"
 	"github.com/adamnite/go-adamnite/p2p/rlpx"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 const (
@@ -97,7 +97,7 @@ func (t *rlpxTransport) close(err error) {
 			if err := t.conn.SetWriteDeadline(deadline); err == nil {
 				// Connection supports write deadline.
 				t.wbuf.Reset()
-				rlp.Encode(&t.wbuf, []DiscReason{r})
+				msgpack.NewEncoder(&t.wbuf).Encode([]DiscReason{r})
 				t.conn.Write(discMsg, t.wbuf.Bytes())
 			}
 		}
@@ -144,7 +144,7 @@ func readProtocolHandshake(rw MsgReader) (*protoHandshake, error) {
 		// We can't return the reason directly, though, because it is echoed
 		// back otherwise. Wrap it in a string instead.
 		var reason [1]DiscReason
-		rlp.Decode(msg.Payload, &reason)
+		msgpack.NewDecoder(msg.Payload).Decode(&reason)
 		return nil, reason[0]
 	}
 	if msg.Code != handshakeMsg {

@@ -7,7 +7,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -164,7 +164,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	// for unmarshalling every time.
 	var account Account
 	root, err := s.trie.Commit(func(_ [][]byte, _ []byte, leaf []byte, parent common.Hash) error {
-		if err := rlp.DecodeBytes(leaf, &account); err != nil {
+		if err := msgpack.Unmarshal(leaf, &account); err != nil {
 			return nil
 		}
 		if account.Root != emptyRoot {
@@ -241,7 +241,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	}
 
 	data = new(Account)
-	if err := rlp.DecodeBytes(enc, data); err != nil {
+	if err := msgpack.Unmarshal(enc, data); err != nil {
 		log15.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
@@ -265,7 +265,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	// Encode the account and update the account trie
 	addr := obj.Address()
 
-	data, err := rlp.EncodeToBytes(obj)
+	data, err := msgpack.Marshal(obj)
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}

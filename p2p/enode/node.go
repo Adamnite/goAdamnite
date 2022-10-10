@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // ID is a unique identifier for each node
@@ -60,7 +60,7 @@ func Parse(validSchemes enr.IdentityScheme, input string) (*Node, error) {
 		return nil, err
 	}
 	var r enr.Record
-	if err := rlp.DecodeBytes(bin, &r); err != nil {
+	if err := msgpack.Unmarshal(bin, &r); err != nil {
 		return nil, err
 	}
 	return New(validSchemes, &r)
@@ -154,7 +154,7 @@ func (n *Node) String() string {
 	if isNewV4(n) {
 		return n.URLv4() // backwards-compatibility glue for NewV4 nodes
 	}
-	enc, _ := rlp.EncodeToBytes(&n.r) // always succeeds because record is valid
+	enc, _ := msgpack.Marshal(&n.r) // always succeeds because record is valid
 	b64 := base64.RawURLEncoding.EncodeToString(enc)
 	return "enr:" + b64
 }
