@@ -22,7 +22,7 @@ var encodeBufferPool = sync.Pool{
 }
 
 // rlpHash encodes x and hashes the encoded bytes.
-func rlpHash(x interface{}) (h common.Hash) {
+func SerializationHash(x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)
 	sha.Reset()
@@ -33,7 +33,7 @@ func rlpHash(x interface{}) (h common.Hash) {
 
 // prefixedRlpHash writes the prefix into the hasher before rlp-encoding x.
 // It's used for typed transactions.
-func prefixedRlpHash(prefix byte, x interface{}) (h common.Hash) {
+func prefixedSerializationHash(prefix byte, x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)
 	sha.Reset()
