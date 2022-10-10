@@ -39,7 +39,7 @@ type Transaction struct {
 func CreateTx(InnerData Transaction_Data) *Transaction {
 	transaction := new(Transaction)
 	transaction.Decode(InnerData.copy(), 0) //We will need to some functions for decoding and encoding data types
-	//This can be RLP or our own implementation.
+	//This can be Serialization or our own implementation.
 	return transaction
 }
 
@@ -144,7 +144,7 @@ func (tx *Transaction) Hash() common.Hash {
 	}
 
 	var h common.Hash
-	h = prefixedRlpHash(byte(tx.Type()), tx.InnerData)
+	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
 }

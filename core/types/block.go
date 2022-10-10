@@ -15,21 +15,20 @@ var (
 	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
-type BlockHeader struct {
-	ParentHash      common.Hash    `json:"parentHash" gencodec:"required"`  // The hash of the current block
-	Time            uint64         `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
-	Witness         common.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
-	WitnessRoot     common.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
-	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
-	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
-	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
-	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
-	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
+type Block_Header struct {
+	PreviousHash	common.Hash			`json:"PreviousHash" gencodec:"required"`
+	Witness			common.Address		`json:"Witness" gencodec:"required"`
+	NetFee			*big.Int					`json:"NetFee" gencodec:"required"`
+	Nonce			*big.Int						`json:"Nonce" gencodec:"required"`
+	TransactionRoot	common.Hash		`json:"TransactionRoot" gencodec:"required"`
+	Signature		[8]byte						`json:"Signature" gencodec:"required"`
+	Timestamp		uint64						`json:"Timestamp" gencodec:"required"`
+	Extra			[]byte							`json:"Extra" gencodec:"required"`
 }
 
 type Block struct {
 	header          *BlockHeader
-	transactionList Transactions
+	transaction_list Transactions
 
 	//cache values
 	hash atomic.Value
@@ -74,9 +73,9 @@ func NewBlock(header *BlockHeader, txs []*Transaction, hasher TrieHasher) *Block
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
-// RLP encoding.
+// Serialization encoding.
 func (h *BlockHeader) Hash() common.Hash {
-	return rlpHash(h)
+	return SerializationHash(h)
 }
 
 func (b *Block) Hash() common.Hash {
@@ -98,14 +97,14 @@ type encodingBlock struct {
 	Txs    []*Transaction
 }
 
-func (b *Block) EncodeRLP(w io.Writer) error {
+func (b *Block) EncodeSerialization(w io.Writer) error {
 	return msgpack.NewEncoder(w).Encode(encodingBlock{
 		Header: b.header,
 		Txs:    b.transactionList,
 	})
 }
 
-func (b *Block) DecodeRLP(s *msgpack.Decoder) error {
+func (b *Block) DecodeSerialization(s *msgpack.Decoder) error {
 
 	var eb encodingBlock
 	size, _ := s.DecodeBytesLen()
