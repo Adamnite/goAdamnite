@@ -1,4 +1,4 @@
-package rlp
+package serialization
 
 import (
 	"io"
@@ -19,7 +19,7 @@ func (w *encbuf) reset() {
 	w.lheads = w.lheads[:0]
 }
 
-// encbuf implements io.Writer so it can be passed it into EncodeRLP.
+// encbuf implements io.Writer so it can be passed it into Encodeserialization.
 func (w *encbuf) Write(b []byte) (int, error) {
 	w.str = append(w.str, b...)
 	return len(b), nil
