@@ -18,7 +18,7 @@ const (
 	ElectedCountWeight           = 10
 )
 
-// VRF is an Verfiable Random Function which calcuate the weight of the witness.
+// VRF is an Verifiable Random Function which calculate the weight of the witness.
 func VRF(stakingAmount float32, blockValidationPercent float32, voterCount float32, electedCount float32) float32 {
 	weight := (stakingAmount*StakingAmountWeight + blockValidationPercent*BlockValidationPercentWeight + voterCount*VoterCountWeight + electedCount*ElectedCountWeight) / (StakingAmountWeight + BlockValidationPercentWeight + VoterCountWeight + ElectedCountWeight)
 	return weight
@@ -134,7 +134,7 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain
 	return pool
 }
 
-func (cp *WitnessCandidatePool) GetWitneessPool() *WitnessPool {
+func (cp *WitnessCandidatePool) GetWitnessPool() *WitnessPool {
 	wp := &WitnessPool{
 		witnesses: cp.witnessCandidates,
 	}
