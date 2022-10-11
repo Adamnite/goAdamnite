@@ -160,8 +160,8 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 
 // shortnodeToHash creates a hashNode from a shortNode. The supplied shortnode
 // should have hex-type Key, which will be converted (without modification)
-// into compact form for RLP encoding.
-// If the rlp data is smaller than 32 bytes, `nil` is returned.
+// into compact form for serialization encoding.
+// If the serialization data is smaller than 32 bytes, `nil` is returned.
 func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	h.tmp.Reset()
 	if err := msgpack.GetEncoder().Encode(n); err != nil {
@@ -178,8 +178,8 @@ func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 // may contain nil values)
 func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
 	h.tmp.Reset()
-	// Generate the RLP encoding of the node
-	if err := n.EncodeRLP(&h.tmp); err != nil {
+	// Generate the serialization encoding of the node
+	if err := n.Encodeserialization(&h.tmp); err != nil {
 		panic("encode error: " + err.Error())
 	}
 
@@ -199,7 +199,7 @@ func (h *hasher) hashData(data []byte) hashNode {
 }
 
 // proofHash is used to construct trie proofs, and returns the 'collapsed'
-// node (for later RLP encoding) aswell as the hashed node -- unless the
+// node (for later serialization encoding) aswell as the hashed node -- unless the
 // node is smaller than 32 bytes, in which case it will be returned as is.
 // This method does not do anything on value- or hash-nodes.
 func (h *hasher) proofHash(original node) (collapsed, hashed node) {

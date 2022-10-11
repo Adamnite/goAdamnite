@@ -35,8 +35,8 @@ type (
 // unset children need to serialize correctly.
 var nilValueNode = valueNode(nil)
 
-// EncodeRLP encodes a full node into the consensus RLP format.
-func (n *fullNode) EncodeRLP(w io.Writer) error {
+// Encodeserialization encodes a full node into the consensus serialization format.
+func (n *fullNode) Encodeserialization(w io.Writer) error {
 	var nodes [17]node
 
 	for i, child := range &n.Children {
@@ -98,16 +98,16 @@ func mustDecodeNode(hash, buf []byte) node {
 	return n
 }
 
-// decodeNode parses the RLP encoding of a trie node.
+// decodeNode parses the serialization encoding of a trie node.
 func decodeNode(hash, buf []byte) (node, error) {
 	if len(buf) == 0 {
 		return nil, io.ErrUnexpectedEOF
 	}
-	elems, _, err := rlp.SplitList(buf)
+	elems, _, err := serialization.SplitList(buf)
 	if err != nil {
 		return nil, fmt.Errorf("decode error: %v", err)
 	}
-	switch c, _ := rlp.CountValues(elems); c {
+	switch c, _ := serialization.CountValues(elems); c {
 	case 2:
 		n, err := decodeShort(hash, elems)
 		return n, wrapError(err, "short")
@@ -120,7 +120,7 @@ func decodeNode(hash, buf []byte) (node, error) {
 }
 
 func decodeShort(hash, elems []byte) (node, error) {
-	kbuf, rest, err := rlp.SplitString(elems)
+	kbuf, rest, err := serialization.SplitString(elems)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func decodeShort(hash, elems []byte) (node, error) {
 	key := compactToHex(kbuf)
 	if hasTerm(key) {
 		// value node
-		val, _, err := rlp.SplitString(rest)
+		val, _, err := serialization.SplitString(rest)
 		if err != nil {
 			return nil, fmt.Errorf("invalid value node: %v", err)
 		}
@@ -150,7 +150,7 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 		}
 		n.Children[i], elems = cld, rest
 	}
-	val, _, err := rlp.SplitString(elems)
+	val, _, err := serialization.SplitString(elems)
 	if err != nil {
 		return n, err
 	}
@@ -163,12 +163,12 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 const hashLen = len(common.Hash{})
 
 func decodeRef(buf []byte) (node, []byte, error) {
-	kind, val, rest, err := rlp.Split(buf)
+	kind, val, rest, err := serialization.Split(buf)
 	if err != nil {
 		return nil, buf, err
 	}
 	switch {
-	case kind == rlp.List:
+	case kind == serialization.List:
 		// 'embedded' node reference. The encoding must be smaller
 		// than a hash in order to be valid.
 		if size := len(buf) - len(rest); size > hashLen {
@@ -177,13 +177,13 @@ func decodeRef(buf []byte) (node, []byte, error) {
 		}
 		n, err := decodeNode(nil, buf)
 		return n, rest, err
-	case kind == rlp.String && len(val) == 0:
+	case kind == serialization.String && len(val) == 0:
 		// empty node
 		return nil, rest, nil
-	case kind == rlp.String && len(val) == 32:
+	case kind == serialization.String && len(val) == 32:
 		return append(hashNode{}, val...), rest, nil
 	default:
-		return nil, nil, fmt.Errorf("invalid RLP string size %d (want 0 or 32)", len(val))
+		return nil, nil, fmt.Errorf("invalid serialization string size %d (want 0 or 32)", len(val))
 	}
 }
 

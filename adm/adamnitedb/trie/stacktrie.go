@@ -362,11 +362,11 @@ func (st *StackTrie) insert(key, value []byte) {
 
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
-// 1. The rlp-encoded value was >= 32 bytes:
+// 1. The serialization-encoded value was >= 32 bytes:
 //  - Then the 32-byte `hash` will be accessible in `st.val`.
 //  - And the 'st.type' will be 'hashedNode'
-// 2. The rlp-encoded value was < 32 bytes
-//  - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
+// 2. The serialization-encoded value was < 32 bytes
+//  - Then the <32 byte serialization-encoded value will be accessible in 'st.val'.
 //  - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method will also:
@@ -470,8 +470,8 @@ func (st *StackTrie) hash() {
 func (st *StackTrie) Hash() (h common.Hash) {
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's RLP isn't 32 bytes long, the node will not
-		// be hashed, and instead contain the  rlp-encoding of the
+		// If the node's serialization isn't 32 bytes long, the node will not
+		// be hashed, and instead contain the  serialization-encoding of the
 		// node. For the top level node, we need to force the hashing.
 		ret := make([]byte, 32)
 		h := newHasher(false)
@@ -497,8 +497,8 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 	}
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's RLP isn't 32 bytes long, the node will not
-		// be hashed (and committed), and instead contain the  rlp-encoding of the
+		// If the node's serialization isn't 32 bytes long, the node will not
+		// be hashed (and committed), and instead contain the  serialization-encoding of the
 		// node. For the top level node, we need to force the hashing+commit.
 		ret := make([]byte, 32)
 		h := newHasher(false)

@@ -164,7 +164,7 @@ func (d *dummyDerivableList) Len() int {
 	return d.len
 }
 
-func (d *dummyDerivableList) GetRlp(i int) []byte {
+func (d *dummyDerivableList) Getserialization(i int) []byte {
 	src := mrand.NewSource(int64(d.seed + i))
 	// max item size 256, at least 1 byte per item
 	size := 1 + src.Int63()&0x00FF
@@ -180,7 +180,7 @@ func printList(l types.DerivableList) {
 	fmt.Printf("list length: %d\n", l.Len())
 	fmt.Printf("{\n")
 	for i := 0; i < l.Len(); i++ {
-		v := l.GetRlp(i)
+		v := l.Getserialization(i)
 		fmt.Printf("\"0x%x\",\n", v)
 	}
 	fmt.Printf("},\n")
@@ -201,17 +201,17 @@ func TestFuzzDeriveSha(t *testing.T) {
 }
 
 type flatList struct {
-	rlpvals []string
+	serializationvals []string
 }
 
-func newFlatList(rlpvals []string) *flatList {
-	return &flatList{rlpvals}
+func newFlatList(serializationvals []string) *flatList {
+	return &flatList{serializationvals}
 }
 func (f *flatList) Len() int {
-	return len(f.rlpvals)
+	return len(f.serializationvals)
 }
-func (f *flatList) GetRlp(i int) []byte {
-	return hexutil.MustDecode(f.rlpvals[i])
+func (f *flatList) Getserialization(i int) []byte {
+	return hexutil.MustDecode(f.serializationvals[i])
 }
 
 // TestDerivableList contains testcases found via fuzzing

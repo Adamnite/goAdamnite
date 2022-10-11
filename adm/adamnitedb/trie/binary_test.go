@@ -27,7 +27,7 @@ import (
 	"github.com/adamnite/goAdamnite/common"
 	"github.com/adamnite/goAdamnite/core/rawdb"
 	"github.com/adamnite/goAdamnite/crypto"
-	"github.com/adamnite/goAdamnite/rlp"
+	"github.com/adamnite/goAdamnite/serialization"
 )
 
 var (
@@ -212,7 +212,7 @@ type simpleAccount struct {
 }
 
 func TestBinaryTrieReadOneLeaf(t *testing.T) {
-	payload, err := rlp.EncodeToBytes(aoe)
+	payload, err := serialization.EncodeToBytes(aoe)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
