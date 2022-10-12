@@ -27,7 +27,7 @@ type Block_Header struct {
 }
 
 type Block struct {
-	header          *BlockHeader
+	header          *Block_Header
 	transaction_list Transactions
 
 	//cache values
