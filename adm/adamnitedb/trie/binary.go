@@ -42,7 +42,7 @@ type store []storeSlot
 type hashType int
 
 const (
-	type Sha512 hashtype = iota
+	typeSha512 hashType = iota
 	typeBlake2b
 )
 
@@ -207,21 +207,13 @@ func (br *branch) Hash() []byte {
 
 func (br *branch) getHasher() *Hasher {
 	var hasher *Hasher
-	if br.hType == typeBlake2b {
-		hasher = newB2Hasher(false)
-	} else {
-		hasher = newHasher(false)
-	}
+	hasher = newHasher(false)
 	hasher.sha.Reset()
 	return hasher
 }
 
 func (br *branch) putHasher(hasher *Hasher) {
-	if br.hType == typeBlake2b {
-		returnHasherToB2Pool(hasher)
-	} else {
-		returnHasherToPool(hasher)
-	}
+	returnHasherToPool(hasher)
 }
 
 func (br *branch) hash(off int) []byte {
@@ -320,15 +312,6 @@ func NewBinaryTrie() *BinaryTrie {
 	}
 }
 
-// NewBinaryTrieWithBlake2b creates a binary trie using Blake2b for hashing.
-func NewBinaryTrieWithBlake2b() *BinaryTrie {
-	return &BinaryTrie{
-		root:     empty(struct{}{}),
-		store:    store(nil),
-		hashType: typeBlake2b,
-	}
-}
-
 // Hash returns the root hash of the binary trie, with the merkelization
 // rule described in EIP-3102.
 func (bt *BinaryTrie) Hash() []byte {
@@ -389,7 +372,7 @@ func (bt *BinaryTrie) resolveNode(childNode BinaryNode, bk binkey, off int) *bra
 		// The whole section of the store has to be
 		// hashed in order to produce the correct
 		// subtrie.
-		return bt.subTreeFromKey(bk[:off])
+		return bt.subTreeFromPath(bk[:off])
 	}
 
 	// Nothing to be done
