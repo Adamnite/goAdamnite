@@ -11,7 +11,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common/bitutil"
 	"github.com/adamnite/go-adamnite/metrics"
-	"github.com/adamnite/go-adamnite/p2p/rlpx"
+	"github.com/adamnite/go-adamnite/p2p/serializationx"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -31,11 +31,11 @@ const (
 type rlpxTransport struct {
 	rmu, wmu sync.Mutex
 	wbuf     bytes.Buffer
-	conn     *rlpx.Conn
+	conn     *serializationx.Conn
 }
 
 func newRLPX(conn net.Conn, dialDest *ecdsa.PublicKey) transport {
-	return &rlpxTransport{conn: rlpx.NewConn(conn, dialDest)}
+	return &rlpxTransport{conn: serializationx.NewConn(conn, dialDest)}
 }
 
 func (t *rlpxTransport) ReadMsg() (Msg, error) {

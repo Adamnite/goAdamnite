@@ -24,10 +24,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/adamnite/goAdamnite/common"
-	"github.com/adamnite/goAdamnite/core/rawdb"
-	"github.com/adamnite/goAdamnite/crypto"
-	"github.com/adamnite/goAdamnite/serialization"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/serialization"
 )
 
 var (
@@ -207,8 +207,8 @@ func TestBinaryTrieReadEmpty(t *testing.T) {
 }
 
 type simpleAccount struct {
-	Balance     *big.Int
-	Nonce       uint64
+	Balance *big.Int
+	Nonce   uint64
 }
 
 func TestBinaryTrieReadOneLeaf(t *testing.T) {

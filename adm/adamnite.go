@@ -5,14 +5,14 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/protocols/adampro"
 	"github.com/adamnite/go-adamnite/adm/validator"
+	"github.com/adamnite/go-adamnite/bargossip"
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
-	"github.com/adamnite/go-adamnite/p2p"
-	"github.com/adamnite/go-adamnite/p2p/enode"
 )
 
 // AdamniteImpl implements the Adamnite full node.
@@ -28,11 +28,11 @@ type AdamniteImpl struct {
 
 	eventMux *event.TypeMux
 
-	adamniteDialCandidates enode.Iterator
+	adamniteDialCandidates admnode.NodeIterator
 
 	chainDB adamnitedb.Database
 
-	p2pServer *p2p.Server
+	p2pServer *bargossip.Server
 
 	validator  *validator.Validator
 	witness    common.Address
@@ -101,7 +101,7 @@ func (adam *AdamniteImpl) StartConsensus() error {
 	return nil
 }
 
-func (adam *AdamniteImpl) Protocols() []p2p.Protocol {
+func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 	return adampro.MakeProtocols(adam.handler, adam.config.NetworkId, adam.adamniteDialCandidates)
 }
 
@@ -110,7 +110,7 @@ func (adam *AdamniteImpl) TxPool() *core.TxPool           { return adam.txPool }
 func (adam *AdamniteImpl) WitnessPool() *core.WitnessPool { return adam.witnessPool }
 
 func (adam *AdamniteImpl) Start() error {
-	adam.handler.Start(adam.p2pServer.MaxPeers)
+	adam.handler.Start(adam.p2pServer.MaxPendingConnections)
 	return nil
 }
 

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sort"
+	"syscall"
 )
 
 var lan4, lan6, special4, special6 IPNetList
@@ -245,4 +247,22 @@ func (s DistinctNetSet) String() string {
 	}
 	buf.WriteString("}")
 	return buf.String()
+}
+
+const _WSAEMSGSIZE = syscall.Errno(10040)
+
+func IsTemporaryError(err error) bool {
+	tempErr, ok := err.(interface {
+		Temporary() bool
+	})
+	return ok && tempErr.Temporary() || isPacketTooBig(err)
+}
+func isPacketTooBig(err error) bool {
+	if opErr, ok := err.(*net.OpError); ok {
+		if scErr, ok := opErr.Err.(*os.SyscallError); ok {
+			return scErr.Err == _WSAEMSGSIZE
+		}
+		return opErr.Err == _WSAEMSGSIZE
+	}
+	return false
 }

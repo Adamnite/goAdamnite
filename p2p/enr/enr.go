@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/adamnite/go-adamnite/Serialization"
+	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -61,7 +61,7 @@ type Record struct {
 // pair is a key/value pair in a record.
 type pair struct {
 	k string
-	v Serialization.RawValue
+	v serialization.RawValue
 }
 
 // Seq returns the sequence number.
@@ -178,13 +178,13 @@ func decodeRecord(s *msgpack.Decoder) (dec Record, raw []byte, err error) {
 		return dec, raw, err
 	}
 	if err = s.Decode(&dec.signature); err != nil {
-		if err == Serialization.EOL {
+		if err == serialization.EOL {
 			err = errIncompleteList
 		}
 		return dec, raw, err
 	}
 	if err = s.Decode(&dec.seq); err != nil {
-		if err == Serialization.EOL {
+		if err == serialization.EOL {
 			err = errIncompleteList
 		}
 		return dec, raw, err
@@ -194,13 +194,13 @@ func decodeRecord(s *msgpack.Decoder) (dec Record, raw []byte, err error) {
 	for i := 0; ; i++ {
 		var kv pair
 		if err := s.Decode(&kv.k); err != nil {
-			if err == Serialization.EOL {
+			if err == serialization.EOL {
 				break
 			}
 			return dec, raw, err
 		}
 		if err := s.Decode(&kv.v); err != nil {
-			if err == Serialization.EOL {
+			if err == serialization.EOL {
 				return dec, raw, errIncompletePair
 			}
 			return dec, raw, err

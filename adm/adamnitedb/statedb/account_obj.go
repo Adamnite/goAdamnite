@@ -69,7 +69,7 @@ func newObject(db *StateDB, addr common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:             db,
 		address:        addr,
-		addrHash:       crypto.Sha512(addr[:]),
+		addrHash:       crypto.Sha512Hash(addr[:]),
 		data:           data,
 		dirtyStorage:   make(Storage),
 		originStorage:  make(Storage),

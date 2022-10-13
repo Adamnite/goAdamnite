@@ -74,6 +74,15 @@ func Sha512(data ...[]byte) []byte {
 	return b
 }
 
+func Sha512Hash(data ...[]byte) (h common.Hash) {
+	d := newState()
+	for _, b := range data {
+		d.Write(b)
+	}
+	d.Sum(h[:])
+	return h
+}
+
 func NewRipemd160State() hash.Hash {
 	return ripemd160.New()
 }

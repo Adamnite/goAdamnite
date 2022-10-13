@@ -16,7 +16,7 @@ import (
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/p2p/enode"
 	"github.com/adamnite/go-adamnite/p2p/enr"
-	"github.com/adamnite/go-adamnite/p2p/rlpx"
+	"github.com/adamnite/go-adamnite/p2p/serializationx"
 )
 
 type testTransport struct {
@@ -27,7 +27,7 @@ type testTransport struct {
 
 func newTestTransport(rpub *ecdsa.PublicKey, fd net.Conn, dialDest *ecdsa.PublicKey) transport {
 	wrapped := newRLPX(fd, dialDest).(*rlpxTransport)
-	wrapped.conn.InitWithSecrets(rlpx.Secrets{
+	wrapped.conn.InitWithSecrets(serializationx.Secrets{
 		AES:        make([]byte, 16),
 		MAC:        make([]byte, 16),
 		EgressMAC:  sha256.New(),
