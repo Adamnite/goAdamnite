@@ -12,9 +12,7 @@ const (
 	defaultPageSize = 65536
 )
 
-var LE = binary.LittleEndian //an easier way to call little endian. I personally am not the biggest fan of LE,
-// however, it is the specified standard of WASM.
-// even though web applications traditionally used BE
+var LE = binary.LittleEndian
 type VirtualMachine interface {
 	//functions that will be fully implemented later
 	step()
@@ -106,14 +104,15 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func newVirtualMachine(code []OperationCommon, storage Storage, config VMConfig) *Machine {
+func newVirtualMachine(wasmBytes []byte, storage Storage, config VMConfig) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	// machine.vmCode = parseCodeToOpcodes(code)
-	machine.vmCode = code
+	// machine.vmCode = code
 	machine.contractStorage = storage
 	machine.debugStack = false
 	machine.config = config
+	machine.module = *decode(wasmBytes)
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity)

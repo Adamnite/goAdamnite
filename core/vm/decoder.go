@@ -246,7 +246,7 @@ func decodeLimitsType(r *bytes.Reader) (min uint32, max *uint32, err error) {
 }
 
 func decodeTable(r *bytes.Reader) (*Table, error) {
-	tableType, err := r.ReadByte()
+	_ , err := r.ReadByte()
 	if err != nil {
 		return nil, fmt.Errorf("read leading byte: %v", err)
 	}
@@ -257,7 +257,6 @@ func decodeTable(r *bytes.Reader) (*Table, error) {
 	}
 
 	// We do not validate the values of min and max for now
-	fmt.Print("Table type : ", tableType)
 	return &Table{min: min, max: max}, nil
 }
 

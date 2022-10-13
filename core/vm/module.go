@@ -57,12 +57,13 @@ func decode(wasmBytes []byte) *Module {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			fmt.Printf("read section id: %w", err)
+			panic(fmt.Errorf("read section id: %w", err))
 		}
 
 		sectionSize, _, err := DecodeUint32(r)
 		if err != nil {
-			fmt.Printf("get size of section %s: %v", sectionIDName(sectionID), err)
+			msg := fmt.Errorf("get size of section %s: %v", sectionIDName(sectionID), err)
+			panic(msg)
 		}
 		sectionContentStart := r.Len()
 
@@ -70,14 +71,14 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDType:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Printf("get size of vector: %w", err)
-					panic("Get size of vector")
+					msg := fmt.Errorf("get size of vector: %w", err)
+					panic(msg)
 				}
 			
 				result := make([]*FunctionType, vs)
 				for i := uint32(0); i < vs; i++ {
 					if result[i], err = decodeFunctionType(r); err != nil {
-						fmt.Printf("read %d-th type: %v", i, err)
+						panic(fmt.Errorf("read %d-th type: %v", i, err))
 					}
 				}
 
@@ -86,8 +87,7 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDImport:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Errorf("get size of vector: %w", err)
-					panic(err)
+					panic(fmt.Errorf("get size of vector: %w", err))
 				}
 			
 				result := make([]*Import, vs)
@@ -101,15 +101,13 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDFunction:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Printf("get size of vector: %w", err)
-					panic("Get size of vector")
+					panic(fmt.Errorf("get size of vector: %w", err))
 				}
 			
 				result := make([]uint32, vs)
 				for i := uint32(0); i < vs; i++ {
 					if result[i], _, err = DecodeUint32(r); err != nil {
-						fmt.Printf("get type index: %w", err)
-						panic("Get type index")
+						panic(fmt.Errorf("get type index: %w", err))
 					}
 				}
 				m.functionSection = result
@@ -117,8 +115,7 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDTable:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Printf("error reading size")
-					panic("Error reading size")
+					panic(fmt.Errorf("error reading size %w", err))
 				}
 
 				ret := make([]*Table, vs)
@@ -134,11 +131,10 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDMemory:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Printf("error reading size")
+					panic("error reading size")
 				}
 				if vs > 1 {
-					fmt.Printf("at most one memory allowed in module, but read %d", vs)
-					panic("at most one memory allowed in module")
+					panic(fmt.Sprintf("at most one memory allowed in module, but read %d", vs))
 				}
 			
 				min, maxP, err := decodeLimitsType(r)
@@ -153,23 +149,21 @@ func decode(wasmBytes []byte) *Module {
 			case sectionIDGlobal:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Printf("get size of vector: %w", err)
-					panic(err)
+					panic(fmt.Errorf("get size of vector: %w", err))
 				}
 			
 				result := make([]*Global, vs)
 				for i := uint32(0); i < vs; i++ {
 					if result[i], err = decodeGlobal(r); err != nil {
-						fmt.Printf("global[%d]: %w", i, err)
-						panic(err)
+						panic(fmt.Errorf("global[%d]: %w", i, err))
 					}
 				}
-				m.globalSection = result 
+				m.globalSection = result
+
 			case sectionIDExport:
 				vs, _, sizeErr := DecodeUint32(r)
 				if sizeErr != nil {
-					fmt.Errorf("get size of vector: %v", sizeErr)
-					print("Get size of vector")
+					panic(fmt.Errorf("get size of vector: %v", sizeErr))
 				}
 			
 				usedName := make(map[string]struct{}, vs)
@@ -177,12 +171,11 @@ func decode(wasmBytes []byte) *Module {
 				for i := Index(0); i < vs; i++ {
 					export, err := decodeExport(r)
 					if err != nil {
-						fmt.Errorf("read export: %w", err)
-						print(err)
+						panic(fmt.Errorf("read export: %s", err))
 					}
+
 					if _, ok := usedName[export.name]; ok {
-						fmt.Errorf("export[%d] duplicates name %q", i, export.name)
-						print(err)
+						panic(fmt.Errorf("export[%d] duplicates name %q", i, export.name))
 					} else {
 						usedName[export.name] = struct{}{}
 					}
@@ -196,41 +189,37 @@ func decode(wasmBytes []byte) *Module {
 				}
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Errorf("get function index: %w", err)
-					panic(err)
+					panic(fmt.Errorf("get function index: %w", err))
 				}
 				m.startSection = &vs
 			
 			case sectionIDElement:
 				// m.elementSection, err = decodeElementSection(r)
 				// Not implemented
+				panic("SECTION ID ELEMENT FOUND")
 			case sectionIDCode:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Errorf("get size of vector: %w", err)
-					panic(err)
+					panic(fmt.Errorf("get size of vector: %w", err))
 				}
 			
 				result := make([]*Code, vs)
 				for i := uint32(0); i < vs; i++ {
 					if result[i], err = decodeCode(r); err != nil {
-						fmt.Errorf("read %d-th code segment: %v", i, err)
-						panic(err)
+						panic(fmt.Errorf("read %d-th code segment: %v", i, err))
 					}
 				}
 				m.codeSection = result
 			case sectionIDData:
 				vs, _, err := DecodeUint32(r)
 				if err != nil {
-					fmt.Errorf("get size of vector: %w", err)
-					panic(err)
+					panic(fmt.Errorf("get size of vector: %s", err))
 				}
 			
 				result := make([]*DataSegment, vs)
 				for i := uint32(0); i < vs; i++ {
 					if result[i], err = decodeDataSegment(r); err != nil {
-						fmt.Errorf("read data segment: %w", err)
-						panic(err)
+						panic(fmt.Sprintf("read data segment: %s", err))
 					}
 				}
 
@@ -247,17 +236,18 @@ func decode(wasmBytes []byte) *Module {
 
 			if err == nil && int(sectionSize) != readBytes {
 				err = fmt.Errorf("invalid section length: expected to be %d but got %d", sectionSize, readBytes)
+				panic(err)
 			}
 	
 			if err != nil {
-				fmt.Printf("section %s: %v", sectionIDName(sectionID), err)
+				panic(fmt.Errorf("section %s: %v", sectionIDName(sectionID), err))
 			}
 		}
 	}
 
 	functionCount, codeCount := m.sectionElementCount(sectionIDFunction), m.sectionElementCount(sectionIDCode)
 	if functionCount != codeCount {
-		fmt.Printf("function and code section have inconsistent lengths: %d != %d", functionCount, codeCount)
+		panic(fmt.Sprintf("function and code section have inconsistent lengths: %d != %d", functionCount, codeCount))
 	}
 
 	return m
@@ -272,8 +262,8 @@ func (m *Module) sectionElementCount(sectionID SectionID) uint32 { // element as
 		// 	return 0
 		case sectionIDType:
 			return uint32(len(m.typeSection))
-		// case sectionIDImport:
-		// 	return uint32(len(m.importSection))
+		case sectionIDImport:
+			return uint32(len(m.importSection))
 		case sectionIDFunction:
 			return uint32(len(m.functionSection))
 		case sectionIDTable:
@@ -292,8 +282,8 @@ func (m *Module) sectionElementCount(sectionID SectionID) uint32 { // element as
 				return 1
 			}
 			return 0
-		// case sectionIDElement:
-		// 	return uint32(len(m.elementSection))
+		case sectionIDElement:
+			return uint32(len(m.elementSection))
 		case sectionIDCode:
 			return uint32(len(m.codeSection))
 		case sectionIDData:
@@ -301,4 +291,5 @@ func (m *Module) sectionElementCount(sectionID SectionID) uint32 { // element as
 		default:
 			panic(fmt.Errorf("BUG: unknown section: %d", sectionID))
 	}
+	return 0
 }
