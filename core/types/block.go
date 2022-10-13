@@ -15,19 +15,19 @@ var (
 	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
-type Block_Header struct {
+type BlockHeader struct {
 	PreviousHash	common.Hash			`json:"PreviousHash" gencodec:"required"`
 	Witness			common.Address		`json:"Witness" gencodec:"required"`
-	NetFee			*big.Int					`json:"NetFee" gencodec:"required"`
-	Nonce			*big.Int						`json:"Nonce" gencodec:"required"`
-	TransactionRoot	common.Hash		`json:"TransactionRoot" gencodec:"required"`
-	Signature		[8]byte						`json:"Signature" gencodec:"required"`
-	Timestamp		uint64						`json:"Timestamp" gencodec:"required"`
-	Extra			[]byte							`json:"Extra" gencodec:"required"`
+	NetFee			*big.Int	        `json:"NetFee" gencodec:"required"`
+	Nonce			*big.Int		`json:"Nonce" gencodec:"required"`
+	TransactionRoot	common.Hash		        `json:"TransactionRoot" gencodec:"required"`
+	Signature		[8]byte			`json:"Signature" gencodec:"required"`
+	Timestamp		uint64			`json:"Timestamp" gencodec:"required"`
+	Extra			[]byte		        `json:"Extra" gencodec:"required"`
 }
 
 type Block struct {
-	header          *Block_Header
+	header          *BlockHeader
 	transaction_list Transactions
 
 	//cache values
