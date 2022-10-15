@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -39,7 +39,7 @@ type Transaction struct {
 func CreateTx(InnerData Transaction_Data) *Transaction {
 	transaction := new(Transaction)
 	transaction.Decode(InnerData.copy(), 0) //We will need to some functions for decoding and encoding data types
-	//This can be RLP or our own implementation.
+	//This can be Serialization or our own implementation.
 	return transaction
 }
 
@@ -133,7 +133,7 @@ func (tx *Transaction) Size() common.StorageSize {
 		return size.(common.StorageSize)
 	}
 	c := writeCounter(0)
-	rlp.Encode(&c, &tx.InnerData)
+	msgpack.NewEncoder(&c).Encode(&tx.InnerData)
 	tx.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
 }
@@ -144,7 +144,7 @@ func (tx *Transaction) Hash() common.Hash {
 	}
 
 	var h common.Hash
-	h = prefixedRlpHash(byte(tx.Type()), tx.InnerData)
+	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
 }
@@ -152,7 +152,7 @@ func (tx *Transaction) Hash() common.Hash {
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(byte(tx.Type()))
-	return rlp.Encode(w, tx.InnerData)
+	return msgpack.NewEncoder(w).Encode(tx.InnerData)
 }
 
 type TxByNonce Transactions

@@ -15,7 +15,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/metrics"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -68,27 +68,27 @@ type Database struct {
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
-// nodes and already encoded RLP binary blobs (while at the same time store them
+// nodes and already encoded serialization binary blobs (while at the same time store them
 // in the same cache fields).
 type rawNode []byte
 
 func (n rawNode) cache() (hashNode, bool)   { panic("this should never end up in a live trie") }
 func (n rawNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
-func (n rawNode) EncodeRLP(w io.Writer) error {
+func (n rawNode) Encodeserialization(w io.Writer) error {
 	_, err := w.Write(n)
 	return err
 }
 
 // rawFullNode represents only the useful data content of a full node, with the
 // caches and flags stripped out to minimize its data storage. This type honors
-// the same RLP encoding as the original parent.
+// the same serialization encoding as the original parent.
 type rawFullNode [17]node
 
 func (n rawFullNode) cache() (hashNode, bool)   { panic("this should never end up in a live trie") }
 func (n rawFullNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
-func (n rawFullNode) EncodeRLP(w io.Writer) error {
+func (n rawFullNode) Encodeserialization(w io.Writer) error {
 	var nodes [17]node
 
 	for i, child := range n {
@@ -98,12 +98,12 @@ func (n rawFullNode) EncodeRLP(w io.Writer) error {
 			nodes[i] = nilValueNode
 		}
 	}
-	return rlp.Encode(w, nodes)
+	return msgpack.NewEncoder(w).Encode(nodes)
 }
 
 // rawShortNode represents only the useful data content of a short node, with the
 // caches and flags stripped out to minimize its data storage. This type honors
-// the same RLP encoding as the original parent.
+// the same serialization encoding as the original parent.
 type rawShortNode struct {
 	Key []byte
 	Val node
@@ -115,7 +115,7 @@ func (n rawShortNode) fstring(ind string) string { panic("this should never end 
 // cachedNode is all the information we know about a single cached trie node
 // in the memory database write layer.
 type cachedNode struct {
-	node node   // Cached collapsed trie node, or raw rlp data
+	node node   // Cached collapsed trie node, or raw serialization data
 	size uint16 // Byte size of the useful cached data
 
 	parents  uint32                 // Number of live nodes referencing this one
@@ -134,13 +134,13 @@ var cachedNodeSize = int(reflect.TypeOf(cachedNode{}).Size())
 // reference map.
 const cachedNodeChildrenSize = 48
 
-// rlp returns the raw rlp encoded blob of the cached trie node, either directly
+// serialization returns the raw serialization encoded blob of the cached trie node, either directly
 // from the cache, or by regenerating it from the collapsed node.
-func (n *cachedNode) rlp() []byte {
+func (n *cachedNode) serialization() []byte {
 	if node, ok := n.node.(rawNode); ok {
 		return node
 	}
-	blob, err := rlp.EncodeToBytes(n.node)
+	blob, err := msgpack.Marshal(n.node)
 	if err != nil {
 		panic(err)
 	}
@@ -148,7 +148,7 @@ func (n *cachedNode) rlp() []byte {
 }
 
 // obj returns the decoded and expanded trie node, either directly from the cache,
-// or by regenerating it from the rlp encoded blob.
+// or by regenerating it from the serialization encoded blob.
 func (n *cachedNode) obj(hash common.Hash) node {
 	if node, ok := n.node.(rawNode); ok {
 		return mustDecodeNode(hash[:], node)
@@ -402,7 +402,7 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 	if dirty != nil {
 		memcacheDirtyHitMeter.Mark(1)
 		memcacheDirtyReadMeter.Mark(int64(dirty.size))
-		return dirty.rlp(), nil
+		return dirty.serialization(), nil
 	}
 	memcacheDirtyMissMeter.Mark(1)
 
@@ -600,7 +600,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	for size > limit && oldest != (common.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
-		rawdb.WriteTrieNode(batch, oldest, node.rlp())
+		rawdb.WriteTrieNode(batch, oldest, node.serialization())
 
 		// If we exceeded the ideal batch size, commit and reset
 		if batch.ValueSize() >= adamnitedb.IdealBatchSize {
@@ -751,7 +751,7 @@ func (db *Database) commit(hash common.Hash, batch adamnitedb.Batch, uncacher *c
 		return err
 	}
 	// If we've reached an optimal batch size, commit and start over
-	rawdb.WriteTrieNode(batch, hash, node.rlp())
+	rawdb.WriteTrieNode(batch, hash, node.serialization())
 	if callback != nil {
 		callback(hash)
 	}
@@ -778,7 +778,7 @@ type cleaner struct {
 // removed from the dirty cache and moved into the clean cache. The reason behind
 // the two-phase commit is to ensure ensure data availability while moving from
 // memory to disk.
-func (c *cleaner) Insert(key []byte, rlp []byte) error {
+func (c *cleaner) Insert(key []byte, serialization []byte) error {
 	hash := common.BytesToHash(key)
 
 	// If the node does not exist, we're done on this path
@@ -806,8 +806,8 @@ func (c *cleaner) Insert(key []byte, rlp []byte) error {
 	}
 	// Move the flushed node into the clean cache to prevent insta-reloads
 	if c.db.cleans != nil {
-		c.db.cleans.Set(hash[:], rlp)
-		memcacheCleanWriteMeter.Mark(int64(len(rlp)))
+		c.db.cleans.Set(hash[:], serialization)
+		memcacheCleanWriteMeter.Mark(int64(len(serialization)))
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package rlp
+package serialization
 
 import (
 	"bufio"
@@ -17,39 +17,39 @@ import (
 
 // EOL is returned when the end of the current list
 // has been reached during streaming.
-var EOL = errors.New("rlp: end of list")
+var EOL = errors.New("serialization: end of list")
 
 var (
-	ErrExpectedString   = errors.New("rlp: expected String or Byte")
-	ErrExpectedList     = errors.New("rlp: expected List")
-	ErrCanonInt         = errors.New("rlp: non-canonical integer format")
-	ErrCanonSize        = errors.New("rlp: non-canonical size information")
-	ErrElemTooLarge     = errors.New("rlp: element is larger than containing list")
-	ErrValueTooLarge    = errors.New("rlp: value size exceeds available input length")
-	ErrMoreThanOneValue = errors.New("rlp: input contains more than one value")
+	ErrExpectedString   = errors.New("serialization: expected String or Byte")
+	ErrExpectedList     = errors.New("serialization: expected List")
+	ErrCanonInt         = errors.New("serialization: non-canonical integer format")
+	ErrCanonSize        = errors.New("serialization: non-canonical size information")
+	ErrElemTooLarge     = errors.New("serialization: element is larger than containing list")
+	ErrValueTooLarge    = errors.New("serialization: value size exceeds available input length")
+	ErrMoreThanOneValue = errors.New("serialization: input contains more than one value")
 
 	// internal errors
-	errNotInList     = errors.New("rlp: call of ListEnd outside of any list")
-	errNotAtEOL      = errors.New("rlp: call of ListEnd not positioned at EOL")
-	errUintOverflow  = errors.New("rlp: uint overflow")
-	errNoPointer     = errors.New("rlp: interface given to Decode must be a pointer")
-	errDecodeIntoNil = errors.New("rlp: pointer given to Decode must not be nil")
+	errNotInList     = errors.New("serialization: call of ListEnd outside of any list")
+	errNotAtEOL      = errors.New("serialization: call of ListEnd not positioned at EOL")
+	errUintOverflow  = errors.New("serialization: uint overflow")
+	errNoPointer     = errors.New("serialization: interface given to Decode must be a pointer")
+	errDecodeIntoNil = errors.New("serialization: pointer given to Decode must not be nil")
 
 	streamPool = sync.Pool{
 		New: func() interface{} { return new(Stream) },
 	}
 )
 
-// Decoder is implemented by types that require custom RLP decoding rules or need to decode
+// Decoder is implemented by types that require custom serialization decoding rules or need to decode
 // into private fields.
 //
-// The DecodeRLP method should read one value from the given Stream. It is not forbidden to
+// The Decodeserialization method should read one value from the given Stream. It is not forbidden to
 // read less or more, but it might be confusing.
 type Decoder interface {
-	DecodeRLP(*Stream) error
+	Decodeserialization(*Stream) error
 }
 
-// Decode parses RLP-encoded data from r and stores the result in the value pointed to by
+// Decode parses serialization-encoded data from r and stores the result in the value pointed to by
 // val. Please see package-level documentation for the decoding rules. Val must be a
 // non-nil pointer.
 //
@@ -67,7 +67,7 @@ func Decode(r io.Reader, val interface{}) error {
 	return stream.Decode(val)
 }
 
-// DecodeBytes parses RLP data from b into val. Please see package-level documentation for
+// DecodeBytes parses serialization data from b into val. Please see package-level documentation for
 // the decoding rules. The input must contain exactly one value and no trailing data.
 func DecodeBytes(b []byte, val interface{}) error {
 	r := bytes.NewReader(b)
@@ -99,7 +99,7 @@ func (err *decodeError) Error() string {
 			ctx += err.ctx[i]
 		}
 	}
-	return fmt.Sprintf("rlp: %s for %v%s", err.msg, err.typ, ctx)
+	return fmt.Sprintf("serialization: %s for %v%s", err.msg, err.typ, ctx)
 }
 
 func wrapStreamError(err error, typ reflect.Type) error {
@@ -158,7 +158,7 @@ func makeDecoder(typ reflect.Type, tags tags) (dec decoder, err error) {
 	case kind == reflect.Interface:
 		return decodeInterface, nil
 	default:
-		return nil, fmt.Errorf("rlp: type %v is not RLP-serializable", typ)
+		return nil, fmt.Errorf("serialization: type %v is not serialization-serializable", typ)
 	}
 }
 
@@ -461,7 +461,7 @@ var ifsliceType = reflect.TypeOf([]interface{}{})
 
 func decodeInterface(s *Stream, val reflect.Value) error {
 	if val.Type().NumMethod() != 0 {
-		return fmt.Errorf("rlp: type %v is not RLP-serializable", val.Type())
+		return fmt.Errorf("serialization: type %v is not serialization-serializable", val.Type())
 	}
 	kind, _, err := s.Kind()
 	if err != nil {
@@ -484,10 +484,10 @@ func decodeInterface(s *Stream, val reflect.Value) error {
 }
 
 func decodeDecoder(s *Stream, val reflect.Value) error {
-	return val.Addr().Interface().(Decoder).DecodeRLP(s)
+	return val.Addr().Interface().(Decoder).Decodeserialization(s)
 }
 
-// Kind represents the kind of value contained in an RLP stream.
+// Kind represents the kind of value contained in an serialization stream.
 type Kind int
 
 const (
@@ -580,8 +580,8 @@ func NewListStream(r io.Reader, len uint64) *Stream {
 	return s
 }
 
-// Bytes reads an RLP string and returns its contents as a byte slice.
-// If the input does not contain an RLP string, the returned
+// Bytes reads an serialization string and returns its contents as a byte slice.
+// If the input does not contain an serialization string, the returned
 // error will be ErrExpectedString.
 func (s *Stream) Bytes() ([]byte, error) {
 	kind, size, err := s.Kind()
@@ -606,7 +606,7 @@ func (s *Stream) Bytes() ([]byte, error) {
 	}
 }
 
-// Raw reads a raw encoded value including RLP type information.
+// Raw reads a raw encoded value including serialization type information.
 func (s *Stream) Raw() ([]byte, error) {
 	kind, size, err := s.Kind()
 	if err != nil {
@@ -631,8 +631,8 @@ func (s *Stream) Raw() ([]byte, error) {
 	return buf, nil
 }
 
-// Uint reads an RLP string of up to 8 bytes and returns its contents
-// as an unsigned integer. If the input does not contain an RLP string, the
+// Uint reads an serialization string of up to 8 bytes and returns its contents
+// as an unsigned integer. If the input does not contain an serialization string, the
 // returned error will be ErrExpectedString.
 func (s *Stream) Uint() (uint64, error) {
 	return s.uint(64)
@@ -671,8 +671,8 @@ func (s *Stream) uint(maxbits int) (uint64, error) {
 	}
 }
 
-// Bool reads an RLP string of up to 1 byte and returns its contents
-// as a boolean. If the input does not contain an RLP string, the
+// Bool reads an serialization string of up to 1 byte and returns its contents
+// as a boolean. If the input does not contain an serialization string, the
 // returned error will be ErrExpectedString.
 func (s *Stream) Bool() (bool, error) {
 	num, err := s.uint(8)
@@ -685,11 +685,11 @@ func (s *Stream) Bool() (bool, error) {
 	case 1:
 		return true, nil
 	default:
-		return false, fmt.Errorf("rlp: invalid boolean value: %d", num)
+		return false, fmt.Errorf("serialization: invalid boolean value: %d", num)
 	}
 }
 
-// List starts decoding an RLP list. If the input does not contain a
+// List starts decoding an serialization list. If the input does not contain a
 // list, the returned error will be ErrExpectedList. When the list's
 // end has been reached, any Stream operation will return EOL.
 func (s *Stream) List() (size uint64, err error) {
@@ -857,18 +857,18 @@ func (s *Stream) readKind() (kind Kind, size uint64, err error) {
 	switch {
 	case b < 0x80:
 		// For a single byte whose value is in the [0x00, 0x7F] range, that byte
-		// is its own RLP encoding.
+		// is its own serialization encoding.
 		s.byteval = b
 		return Byte, 0, nil
 	case b < 0xB8:
 		// Otherwise, if a string is 0-55 bytes long,
-		// the RLP encoding consists of a single byte with value 0x80 plus the
+		// the serialization encoding consists of a single byte with value 0x80 plus the
 		// length of the string followed by the string. The range of the first
 		// byte is thus [0x80, 0xB7].
 		return String, uint64(b - 0x80), nil
 	case b < 0xC0:
 		// If a string is more than 55 bytes long, the
-		// RLP encoding consists of a single byte with value 0xB7 plus the length
+		// serialization encoding consists of a single byte with value 0xB7 plus the length
 		// of the length of the string in binary form, followed by the length of
 		// the string, followed by the string. For example, a length-1024 string
 		// would be encoded as 0xB90400 followed by the string. The range of
@@ -881,16 +881,16 @@ func (s *Stream) readKind() (kind Kind, size uint64, err error) {
 	case b < 0xF8:
 		// If the total payload of a list
 		// (i.e. the combined length of all its items) is 0-55 bytes long, the
-		// RLP encoding consists of a single byte with value 0xC0 plus the length
-		// of the list followed by the concatenation of the RLP encodings of the
+		// serialization encoding consists of a single byte with value 0xC0 plus the length
+		// of the list followed by the concatenation of the serialization encodings of the
 		// items. The range of the first byte is thus [0xC0, 0xF7].
 		return List, uint64(b - 0xC0), nil
 	default:
 		// If the total payload of a list is more than 55 bytes long,
-		// the RLP encoding consists of a single byte with value 0xF7
+		// the serialization encoding consists of a single byte with value 0xF7
 		// plus the length of the length of the payload in binary
 		// form, followed by the length of the payload, followed by
-		// the concatenation of the RLP encodings of the items. The
+		// the concatenation of the serialization encodings of the items. The
 		// range of the first byte is thus [0xF8, 0xFF].
 		size, err = s.readUint(b - 0xF7)
 		if err == nil && size < 56 {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -21,7 +21,7 @@ type Iterator struct {
 
 // NewIterator creates a new key-value iterator from a node iterator.
 // Note that the value returned by the iterator is raw. If the content is encoded
-// (e.g. storage value is RLP-encoded), it's caller's duty to decode it.
+// (e.g. storage value is serialization-encoded), it's caller's duty to decode it.
 func NewIterator(it NodeIterator) *Iterator {
 	return &Iterator{
 		nodeIt: it,
@@ -193,7 +193,7 @@ func (it *nodeIterator) LeafProof() [][]byte {
 				// Gather nodes that end up as hash nodes (or the root)
 				node, hashed := hasher.proofHash(item.node)
 				if _, ok := hashed.(hashNode); ok || i == 0 {
-					enc, _ := rlp.EncodeToBytes(node)
+					enc, _ := msgpack.Marshal(node)
 					proofs = append(proofs, enc)
 				}
 			}

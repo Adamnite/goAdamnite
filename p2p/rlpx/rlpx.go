@@ -1,4 +1,4 @@
-package rlpx
+package Serializationx
 
 import (
 	"bytes"
@@ -19,12 +19,13 @@ import (
 
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/crypto/ecies"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/adamnite/go-adamnite/Serialization"
 	"github.com/golang/snappy"
+	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
 
-// Conn is an RLPx network connection. It wraps a low-level network connection. The
+// Conn is an Serializationx network connection. It wraps a low-level network connection. The
 // underlying connection should not be used for other activity when it is wrapped by Conn.
 //
 // Before sending messages, a handshake must be performed by calling the Handshake method.
@@ -87,7 +88,7 @@ func (c *Conn) Read() (code uint64, data []byte, wireSize int, err error) {
 	if err != nil {
 		return 0, nil, 0, err
 	}
-	code, data, err = rlp.SplitUint64(frame)
+	code, data, err = Serialization.SplitUint64(frame)
 	if err != nil {
 		return 0, nil, 0, fmt.Errorf("invalid message code: %v", err)
 	}
@@ -171,7 +172,7 @@ func (c *Conn) Write(code uint64, data []byte) (uint32, error) {
 }
 
 func (h *handshakeState) writeFrame(conn io.Writer, code uint64, data []byte) error {
-	ptype, _ := rlp.EncodeToBytes(code)
+	ptype, _ := msgpack.Marshal(code)
 
 	// write header
 	headbuf := make([]byte, 32)
@@ -330,7 +331,7 @@ type encHandshake struct {
 	remoteRandomPub      *ecies.PublicKey  // ecdhe-random-pubk
 }
 
-// RLPx v4 handshake auth (defined in EIP-8).
+// Serializationx v4 handshake auth (defined in EIP-8).
 type authMsgV4 struct {
 	gotPlain bool // whether read packet had plain format.
 
@@ -340,17 +341,17 @@ type authMsgV4 struct {
 	Version         uint
 
 	// Ignore additional fields (forward-compatibility)
-	Rest []rlp.RawValue `rlp:"tail"`
+	Rest []Serialization.RawValue `Serialization:"tail"`
 }
 
-// RLPx v4 handshake response (defined in EIP-8).
+// Serializationx v4 handshake response (defined in EIP-8).
 type authRespV4 struct {
 	RandomPubkey [pubLen]byte
 	Nonce        [shaLen]byte
 	Version      uint
 
 	// Ignore additional fields (forward-compatibility)
-	Rest []rlp.RawValue `rlp:"tail"`
+	Rest []Serialization.RawValue `Serialization:"tail"`
 }
 
 // receiverEncHandshake negotiates a session token on conn.
@@ -567,7 +568,7 @@ var padSpace = make([]byte, 300)
 
 func sealEIP8(msg interface{}, h *encHandshake) ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := rlp.Encode(buf, msg); err != nil {
+	if err := msgpack.NewEncoder(buf).Encode(msg); err != nil {
 		return nil, err
 	}
 	// pad with random amount of data. the amount needs to be at least 100 bytes to make
@@ -610,9 +611,9 @@ func readHandshakeMsg(msg plainDecoder, plainSize int, prv *ecdsa.PrivateKey, r 
 	if err != nil {
 		return buf, err
 	}
-	// Can't use rlp.DecodeBytes here because it rejects
+	// Can't use Serialization.DecodeBytes here because it rejects
 	// trailing data (forward-compatibility).
-	s := rlp.NewStream(bytes.NewReader(dec), 0)
+	s := Serialization.NewStream(bytes.NewReader(dec), 0)
 	return buf, s.Decode(msg)
 }
 

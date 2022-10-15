@@ -3,8 +3,8 @@ package trie
 import (
 	"sync"
 
-	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/adamnite/goAdamnite/crypto"
+	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -37,14 +37,39 @@ var hasherPool = sync.Pool{
 	},
 }
 
-func newHasher(parallel bool) *Hasher {
-	h := hasherPool.Get().(*Hasher)
+var hasherPoolB2 = sync.Pool{
+	New: func() interface{} {
+		b2, err := blake2b.New256(nil)
+		if err != nil {
+			panic(err)
+		}
+		return &hasher{
+			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
+			sha: b2.(crypto.KeccakState),
+		}
+	},
+}
+
+func newHasher(parallel bool) *hasher {
+	h := hasherPool.Get().(*hasher)
 	h.parallel = parallel
 	return h
 }
 
-func returnHasherToPool(h *Hasher) {
+func newB2Hasher(parallel bool) *hasher {
+	h := hasherPoolB2.Get().(*hasher)
+	h.parallel = parallel
+	return h
+}
+
+
+
+func returnHasherToPool(h *hasher) {
 	hasherPool.Put(h)
+}
+
+func returnHasherToB2Pool(h *hasher) {
+	hasherPoolB2.Put(h)
 }
 
 // hash collapses a node down into a hash node, also returning a copy of the
@@ -134,11 +159,11 @@ func (h *Hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 
 // shortnodeToHash creates a hashNode from a shortNode. The supplied shortnode
 // should have hex-type Key, which will be converted (without modification)
-// into compact form for RLP encoding.
-// If the rlp data is smaller than 32 bytes, `nil` is returned.
-func (h *Hasher) shortnodeToHash(n *shortNode, force bool) node {
+// into compact form for serialization encoding.
+// If the serialization data is smaller than 32 bytes, `nil` is returned.
+func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	h.tmp.Reset()
-	if err := rlp.Encode(&h.tmp, n); err != nil {
+	if err := msgpack.GetEncoder().Encode(n); err != nil {
 		panic("encode error: " + err.Error())
 	}
 
@@ -152,8 +177,8 @@ func (h *Hasher) shortnodeToHash(n *shortNode, force bool) node {
 // may contain nil values)
 func (h *Hasher) fullnodeToHash(n *fullNode, force bool) node {
 	h.tmp.Reset()
-	// Generate the RLP encoding of the node
-	if err := n.EncodeRLP(&h.tmp); err != nil {
+	// Generate the serialization encoding of the node
+	if err := n.Encodeserialization(&h.tmp); err != nil {
 		panic("encode error: " + err.Error())
 	}
 
@@ -173,7 +198,7 @@ func (h *Hasher) hashData(data []byte) hashNode {
 }
 
 // proofHash is used to construct trie proofs, and returns the 'collapsed'
-// node (for later RLP encoding) aswell as the hashed node -- unless the
+// node (for later serialization encoding) aswell as the hashed node -- unless the
 // node is smaller than 32 bytes, in which case it will be returned as is.
 // This method does not do anything on value- or hash-nodes.
 func (h *Hasher) proofHash(original node) (collapsed, hashed node) {

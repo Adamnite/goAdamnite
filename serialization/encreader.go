@@ -1,4 +1,4 @@
-package rlp
+package serialization
 
 import "io"
 

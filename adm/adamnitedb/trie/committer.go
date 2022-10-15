@@ -16,8 +16,8 @@ const leafChanSize = 200
 
 // leaf represents a trie leaf value
 type leaf struct {
-	size int         // size of the rlp data (estimate)
-	hash common.Hash // hash of rlp data
+	size int         // size of the serialization data (estimate)
+	hash common.Hash // hash of serialization data
 	node node        // the node to commit
 }
 
@@ -165,7 +165,7 @@ func (c *committer) store(n node, db *Database) node {
 		// not our target.
 		return n
 	} else {
-		// We have the hash already, estimate the RLP encoding-size of the node.
+		// We have the hash already, estimate the serialization encoding-size of the node.
 		// The size is used for mem tracking, does not need to be exact
 		size = estimateSize(n)
 	}
@@ -225,8 +225,8 @@ func (c *committer) makeHashNode(data []byte) hashNode {
 	return n
 }
 
-// estimateSize estimates the size of an rlp-encoded node, without actually
-// rlp-encoding it (zero allocs). This method has been experimentally tried, and with a trie
+// estimateSize estimates the size of an serialization-encoded node, without actually
+// serialization-encoding it (zero allocs). This method has been experimentally tried, and with a trie
 // with 1000 leafs, the only errors above 1% are on small shortnodes, where this
 // method overestimates by 2 or 3 bytes (e.g. 37 instead of 35)
 func estimateSize(n node) int {

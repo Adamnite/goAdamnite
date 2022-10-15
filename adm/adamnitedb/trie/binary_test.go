@@ -55,6 +55,7 @@ var aoe = simpleAccount{
 	// StorageRoot: emptyRoot,
 }
 
+
 func TestBinaryKeyCreation(t *testing.T) {
 	byteKey := []byte{0, 1, 2, 3}
 	binKey := newBinKey(byteKey)
@@ -208,19 +209,14 @@ type simpleAccount struct {
 }
 
 func TestBinaryTrieReadOneLeaf(t *testing.T) {
-	// payload, err := serialization.EncodeToBytes(aoe)
-	// payload := serialization.Serialize(aoe)
-	// h := sha3.NewLegacyKeccak256()
-	// msgpack.NewEncoder(h).Encode([]interface{aoe.Balance, aoe.Nonce})
 	payload, err := msgpack.Marshal(&aoe)
-	// payload := serialization.Serialize(aoe.Balance)
-	// payload := aoe.Balance.Bytes()
 
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	fmt.Println(aoe)
 	fmt.Println(payload)
+
 	trie := NewBinaryTrie()
 	trie.Update(testAddr0, payload)
 

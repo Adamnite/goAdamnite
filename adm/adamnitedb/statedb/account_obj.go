@@ -7,7 +7,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Storage map[common.Hash]common.Hash
@@ -69,7 +69,7 @@ func newObject(db *StateDB, addr common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:             db,
 		address:        addr,
-		addrHash:       crypto.Keccak256Hash(addr[:]),
+		addrHash:       crypto.Sha512(addr[:]),
 		data:           data,
 		dirtyStorage:   make(Storage),
 		originStorage:  make(Storage),
@@ -178,7 +178,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 			s.setError(tr.TryDelete(key[:]))
 		} else {
 			// Encoding []byte cannot fail, ok to ignore the error.
-			v, _ = rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
+			v, _ = msgpack.Marshal(common.TrimLeftZeroes(value[:]))
 			s.setError(tr.TryUpdate(key[:], v))
 		}
 		// ToDO: implement snapshot
@@ -217,6 +217,6 @@ func (s *stateObject) setError(err error) {
 	}
 }
 
-func (s *stateObject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, s.data)
+func (s *stateObject) EncodeSerialization(w io.Writer) error {
+	return msgpack.NewEncoder(w).Encode(s.data)
 }

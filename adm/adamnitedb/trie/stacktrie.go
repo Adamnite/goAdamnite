@@ -28,7 +28,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var ErrCommitDisabled = errors.New("no database for committing")
@@ -362,13 +362,12 @@ func (st *StackTrie) insert(key, value []byte) {
 
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
-// 1. The rlp-encoded value was >= 32 bytes:
-//   - Then the 32-byte `hash` will be accessible in `st.val`.
-//   - And the 'st.type' will be 'hashedNode'
-//
-// 2. The rlp-encoded value was < 32 bytes
-//   - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
-//   - And the 'st.type' will be 'hashedNode' AGAIN
+// 1. The serialization-encoded value was >= 32 bytes:
+//  - Then the 32-byte `hash` will be accessible in `st.val`.
+//  - And the 'st.type' will be 'hashedNode'
+// 2. The serialization-encoded value was < 32 bytes
+//  - Then the <32 byte serialization-encoded value will be accessible in 'st.val'.
+//  - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method will also:
 // set 'st.type' to hashedNode
@@ -404,7 +403,7 @@ func (st *StackTrie) hash() {
 		h = newHasher(false)
 		defer returnHasherToPool(h)
 		h.tmp.Reset()
-		if err := rlp.Encode(&h.tmp, nodes); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(nodes); err != nil {
 			panic(err)
 		}
 	case extNode:
@@ -425,7 +424,7 @@ func (st *StackTrie) hash() {
 			Key: hexToCompact(st.key),
 			Val: valuenode,
 		}
-		if err := rlp.Encode(&h.tmp, n); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(n); err != nil {
 			panic(err)
 		}
 		returnToPool(st.children[0])
@@ -437,7 +436,7 @@ func (st *StackTrie) hash() {
 		st.key = append(st.key, byte(16))
 		sz := hexToCompactInPlace(st.key)
 		n := [][]byte{st.key[:sz], st.val}
-		if err := rlp.Encode(&h.tmp, n); err != nil {
+		if err := msgpack.NewEncoder(&h.tmp).Encode(n); err != nil {
 			panic(err)
 		}
 	case emptyNode:
@@ -471,8 +470,8 @@ func (st *StackTrie) hash() {
 func (st *StackTrie) Hash() (h common.Hash) {
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's RLP isn't 32 bytes long, the node will not
-		// be hashed, and instead contain the  rlp-encoding of the
+		// If the node's serialization isn't 32 bytes long, the node will not
+		// be hashed, and instead contain the  serialization-encoding of the
 		// node. For the top level node, we need to force the hashing.
 		ret := make([]byte, 32)
 		h := newHasher(false)
@@ -498,8 +497,8 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 	}
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's RLP isn't 32 bytes long, the node will not
-		// be hashed (and committed), and instead contain the  rlp-encoding of the
+		// If the node's serialization isn't 32 bytes long, the node will not
+		// be hashed (and committed), and instead contain the  serialization-encoding of the
 		// node. For the top level node, we need to force the hashing+commit.
 		ret := make([]byte, 32)
 		h := newHasher(false)

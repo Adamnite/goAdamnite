@@ -2,13 +2,11 @@
 package types
 
 import (
-	"io"
 	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/rlp"
 )
 
 var (
@@ -35,8 +33,7 @@ type Block struct {
 	hash atomic.Value
 	size atomic.Value
 
-	ReceivedAt   time.Time
-	ReceivedFrom interface{}
+	ReceivedAt time.Time
 }
 
 type Body struct {
@@ -92,26 +89,3 @@ func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number)
 func (b *Block) Numberu64() uint64    { return b.header.Number.Uint64() }
 func (b *Block) Body() *Body          { return &Body{b.transactionList} }
 func (b *Block) Header() *BlockHeader { return CopyHeader(b.header) }
-
-type encodingBlock struct {
-	Header *BlockHeader
-	Txs    []*Transaction
-}
-
-func (b *Block) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, encodingBlock{
-		Header: b.header,
-		Txs:    b.transactionList,
-	})
-}
-
-func (b *Block) DecodeRLP(s *rlp.Stream) error {
-	var eb encodingBlock
-	_, size, _ := s.Kind()
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	b.header, b.transactionList = eb.Header, eb.Txs
-	b.size.Store(common.StorageSize(rlp.ListSize(size)))
-	return nil
-}

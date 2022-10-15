@@ -1,4 +1,4 @@
-package rlp
+package serialization
 
 import (
 	"fmt"
@@ -21,19 +21,19 @@ type typeinfo struct {
 
 // tags represents struct tags.
 type tags struct {
-	// rlp:"nil" controls whether empty input results in a nil pointer.
+	// serialization:"nil" controls whether empty input results in a nil pointer.
 	nilOK bool
 
 	// This controls whether nil pointers are encoded/decoded as empty strings
 	// or empty lists.
 	nilKind Kind
 
-	// rlp:"tail" controls whether this field swallows additional list
+	// serialization:"tail" controls whether this field swallows additional list
 	// elements. It can only be set for the last field, which must be
 	// of slice type.
 	tail bool
 
-	// rlp:"-" ignores fields.
+	// serialization:"-" ignores fields.
 	ignored bool
 }
 
@@ -126,13 +126,13 @@ type structTagError struct {
 }
 
 func (e structTagError) Error() string {
-	return fmt.Sprintf("rlp: invalid struct tag %q for %v.%s (%s)", e.tag, e.typ, e.field, e.err)
+	return fmt.Sprintf("serialization: invalid struct tag %q for %v.%s (%s)", e.tag, e.typ, e.field, e.err)
 }
 
 func parseStructTag(typ reflect.Type, fi, lastPublic int) (tags, error) {
 	f := typ.Field(fi)
 	var ts tags
-	for _, t := range strings.Split(f.Tag.Get("rlp"), ",") {
+	for _, t := range strings.Split(f.Tag.Get("serialization"), ",") {
 		switch t = strings.TrimSpace(t); t {
 		case "":
 		case "-":
@@ -159,7 +159,7 @@ func parseStructTag(typ reflect.Type, fi, lastPublic int) (tags, error) {
 				return ts, structTagError{typ, f.Name, t, "field type is not slice"}
 			}
 		default:
-			return ts, fmt.Errorf("rlp: unknown struct tag %q on %v.%s", t, typ, f.Name)
+			return ts, fmt.Errorf("serialization: unknown struct tag %q on %v.%s", t, typ, f.Name)
 		}
 	}
 	return ts, nil

@@ -1,4 +1,4 @@
-package rlp
+package serialization
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 var (
 	// Common encoded values.
-	// These are useful when implementing EncodeRLP.
+	// These are useful when implementing Encodeserialization.
 	EmptyString = []byte{0x80}
 	EmptyList   = []byte{0xC0}
 )
@@ -18,15 +18,15 @@ var (
 // Encoder is implemented by types that require custom
 // encoding rules or want to encode private fields.
 type Encoder interface {
-	// EncodeRLP should write the RLP(Recursive Length Prefix) encoding of its receiver to w.
+	// Encodeserialization should write the serialization(Recursive Length Prefix) encoding of its receiver to w.
 	// If the implementation is a pointer method, it may also be
 	// called for nil pointers.
 	//
-	// Implementations should generate valid RLP. The data written is
+	// Implementations should generate valid serialization. The data written is
 	// not verified at the moment, but a future version might. It is
 	// recommended to write only a single value but writing multiple
 	// values or no value at all is also permitted.
-	EncodeRLP(io.Writer) error
+	Encodeserialization(io.Writer) error
 }
 
 type listhead struct {
@@ -42,14 +42,14 @@ var encbufPool = sync.Pool{
 	},
 }
 
-// Encode writes the RLP encoding of val to w. Note that Encode may
+// Encode writes the serialization encoding of val to w. Note that Encode may
 // perform many small writes in some cases. Consider making w
 // buffered.
 //
 // Please see package-level documentation of encoding rules.
 func Encode(w io.Writer, val interface{}) error {
 	if outer, ok := w.(*encbuf); ok {
-		// Encode was called by some type's EncodeRLP.
+		// Encode was called by some type's Encodeserialization.
 		// Avoid copying by writing to the outer encbuf directly.
 		return outer.encode(val)
 	}
@@ -62,7 +62,7 @@ func Encode(w io.Writer, val interface{}) error {
 	return eb.toWriter(w)
 }
 
-// EncodeToBytes returns the RLP encoding of val.
+// EncodeToBytes returns the serialization encoding of val.
 // Please see package-level documentation for the encoding rules.
 func EncodeToBytes(val interface{}) ([]byte, error) {
 	eb := encbufPool.Get().(*encbuf)
@@ -74,7 +74,7 @@ func EncodeToBytes(val interface{}) ([]byte, error) {
 	return eb.toBytes(), nil
 }
 
-// EncodeToReader returns a reader from which the RLP encoding of val
+// EncodeToReader returns a reader from which the serialization encoding of val
 // can be read. The returned size is the total size of the encoded
 // data.
 //
@@ -121,7 +121,7 @@ func makeWriter(typ reflect.Type, ts tags) (writer, error) {
 	case kind == reflect.Interface:
 		return writeInterface, nil
 	default:
-		return nil, fmt.Errorf("rlp: type %v is not RLP-serializable", typ)
+		return nil, fmt.Errorf("serialization: type %v is not serialization-serializable", typ)
 	}
 }
 
@@ -163,7 +163,7 @@ const wordBytes = (32 << (uint64(^big.Word(0)) >> 63)) / 8
 
 func writeBigInt(i *big.Int, w *encbuf) error {
 	if i.Sign() == -1 {
-		return fmt.Errorf("rlp: cannot encode negative *big.Int")
+		return fmt.Errorf("serialization: cannot encode negative *big.Int")
 	}
 	bitlen := i.BitLen()
 	if bitlen <= 64 {
@@ -266,7 +266,7 @@ func writeString(val reflect.Value, w *encbuf) error {
 
 func writeInterface(val reflect.Value, w *encbuf) error {
 	if val.IsNil() {
-		// Write empty list. This is consistent with the previous RLP
+		// Write empty list. This is consistent with the previous serialization
 		// encoder that we had and should therefore avoid any
 		// problems.
 		w.str = append(w.str, 0xC0)
@@ -353,7 +353,7 @@ func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
 func makeEncoderWriter(typ reflect.Type) writer {
 	if typ.Implements(encoderInterface) {
 		return func(val reflect.Value, w *encbuf) error {
-			return val.Interface().(Encoder).EncodeRLP(w)
+			return val.Interface().(Encoder).Encodeserialization(w)
 		}
 	}
 	w := func(val reflect.Value, w *encbuf) error {
@@ -361,9 +361,9 @@ func makeEncoderWriter(typ reflect.Type) writer {
 			// package json simply doesn't call MarshalJSON for this case, but encodes the
 			// value as if it didn't implement the interface. We don't want to handle it that
 			// way.
-			return fmt.Errorf("rlp: unadressable value of type %v, EncodeRLP is pointer method", val.Type())
+			return fmt.Errorf("serialization: unadressable value of type %v, Encodeserialization is pointer method", val.Type())
 		}
-		return val.Addr().Interface().(Encoder).EncodeRLP(w)
+		return val.Addr().Interface().(Encoder).Encodeserialization(w)
 	}
 	return w
 }

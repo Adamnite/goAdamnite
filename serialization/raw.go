@@ -1,24 +1,24 @@
-package rlp
+package serialization
 
 import (
 	"io"
 	"reflect"
 )
 
-// RawValue represents an encoded RLP value and can be used to delay
-// RLP decoding or to precompute an encoding. Note that the decoder does
-// not verify whether the content of RawValues is valid RLP.
+// RawValue represents an encoded serialization value and can be used to delay
+// serialization decoding or to precompute an encoding. Note that the decoder does
+// not verify whether the content of RawValues is valid serialization.
 type RawValue []byte
 
 var rawValueType = reflect.TypeOf(RawValue{})
 
-// ListSize returns the encoded size of an RLP list with the given
+// ListSize returns the encoded size of an serialization list with the given
 // content size.
 func ListSize(contentSize uint64) uint64 {
 	return uint64(headsize(contentSize)) + contentSize
 }
 
-// Split returns the content of first RLP value and any
+// Split returns the content of first serialization value and any
 // bytes after the value as subslices of b.
 func Split(b []byte) (k Kind, content, rest []byte, err error) {
 	k, ts, cs, err := readKind(b)
@@ -28,7 +28,7 @@ func Split(b []byte) (k Kind, content, rest []byte, err error) {
 	return k, b[ts : ts+cs], b[ts+cs:], nil
 }
 
-// SplitString splits b into the content of an RLP string
+// SplitString splits b into the content of an serialization string
 // and any remaining bytes after the string.
 func SplitString(b []byte) (content, rest []byte, err error) {
 	k, content, rest, err := Split(b)
@@ -165,7 +165,7 @@ func readSize(b []byte, slen byte) (uint64, error) {
 	return s, nil
 }
 
-// AppendUint64 appends the RLP encoding of i to b, and returns the resulting slice.
+// AppendUint64 appends the serialization encoding of i to b, and returns the resulting slice.
 func AppendUint64(b []byte, i uint64) []byte {
 	if i == 0 {
 		return append(b, 0x80)
