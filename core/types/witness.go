@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/crypto"
 )
 
 type Witness interface {
@@ -21,13 +22,20 @@ type Witness interface {
 
 	// GetStakingAmount returns the total amount of staking for vote
 	GetStakingAmount() *big.Int
+
+	SetWeight(weight *big.Float)
+
+	GetWeight() *big.Float
+
+	GetPubKey() crypto.PublicKey
 }
 
 type WitnessImpl struct {
 	Address   common.Address
 	Voters    []Voter
 	Prove     []byte
-	WeightVRF []byte
+	WeightVRF *big.Float
+	PubKey    crypto.PublicKey
 }
 
 func (w *WitnessImpl) GetAddress() common.Address {
@@ -54,4 +62,15 @@ func (w *WitnessImpl) GetStakingAmount() *big.Int {
 	}
 
 	return totalStakingAmount
+}
+
+func (w *WitnessImpl) GetWeight() *big.Float {
+	return w.WeightVRF
+}
+
+func (w *WitnessImpl) SetWeight(weight *big.Float) {
+	w.WeightVRF = weight
+}
+func (w *WitnessImpl) GetPubKey() crypto.PublicKey {
+	return w.PubKey
 }

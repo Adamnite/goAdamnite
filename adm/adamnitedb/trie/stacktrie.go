@@ -70,7 +70,7 @@ func NewStackTrie(db adamnitedb.AdamniteDBWriter) *StackTrie {
 	}
 }
 
-// NewFromBinary initialises a serialized stacktrie with the given db.
+// NewFromBinary initializes a serialized stacktrie with the given db.
 func NewFromBinary(data []byte, db adamnitedb.AdamniteDBWriter) (*StackTrie, error) {
 	var st StackTrie
 	if err := st.UnmarshalBinary(data); err != nil {
@@ -380,7 +380,7 @@ func (st *StackTrie) hash() {
 	// The 'hasher' is taken from a pool, but we don't actually
 	// claim an instance until all children are done with their hashing,
 	// and we actually need one
-	var h *hasher
+	var h *Hasher
 
 	switch st.nodeType {
 	case branchNode:
@@ -484,7 +484,7 @@ func (st *StackTrie) Hash() (h common.Hash) {
 	return common.BytesToHash(st.val)
 }
 
-// Commit will firstly hash the entrie trie if it's still not hashed
+// Commit will firstly hash the entire trie if it's still not hashed
 // and then commit all nodes to the associated database. Actually most
 // of the trie nodes MAY have been committed already. The main purpose
 // here is to commit the root node.

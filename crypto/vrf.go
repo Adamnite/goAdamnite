@@ -45,8 +45,8 @@ func GenerateVRFKey(rnd io.Reader) (sk PrivateKey, err error) {
 }
 
 // Prove returns the vrf value and a proof.
-// Verify(m, vrf, proof) == true If the vrf value is the same as returned by Compute(m).
-func (sk PrivateKey) Prove(m []byte) (vrf, proof []byte) {
+// Verify(seed, vrf, proof) == true If the vrf value is the same as returned by Compute(seed).
+func (sk PrivateKey) Prove(seed []byte) (vrf, proof []byte) {
 	x, skhr := sk.expandSecret()
 
 	var (
@@ -55,7 +55,7 @@ func (sk PrivateKey) Prove(m []byte) (vrf, proof []byte) {
 		ii, gr, hr                             edwards25519.ExtendedGroupElement
 	)
 
-	h := hashToCurve(m)
+	h := hashToCurve(seed)
 
 	h.ToBytes(&hB)
 	edwards25519.GeScalarMult(&ii, x, h)
@@ -65,7 +65,7 @@ func (sk PrivateKey) Prove(m []byte) (vrf, proof []byte) {
 	hash := sha3.NewShake256()
 	hash.Write(skhr[:])
 	hash.Write(sk[32:]) // public key, as in ed25519
-	hash.Write(m)
+	hash.Write(seed)
 	hash.Read(rH[:])
 	hash.Reset()
 	edwards25519.ScReduce(&r, &rH)
@@ -76,14 +76,14 @@ func (sk PrivateKey) Prove(m []byte) (vrf, proof []byte) {
 	hr.ToBytes(&hrB)
 	gB = edwards25519.BaseBytes
 
-	// H2(g, h, g^x, h^x, g^r, h^r, m)
+	// H2(g, h, g^x, h^x, g^r, h^r, seed)
 	hash.Write(gB[:])
 	hash.Write(hB[:])
 	hash.Write(sk[32:]) // ed25519 public-key
 	hash.Write(hxB[:])
 	hash.Write(grB[:])
 	hash.Write(hrB[:])
-	hash.Write(m)
+	hash.Write(seed)
 	hash.Read(sH[:])
 	hash.Reset()
 	edwards25519.ScReduce(&s, &sH)
@@ -97,15 +97,15 @@ func (sk PrivateKey) Prove(m []byte) (vrf, proof []byte) {
 	copy(proof[64:96], hxB[:])
 
 	hash.Write(hxB[:])
-	hash.Write(m)
+	hash.Write(seed)
 	vrf = make([]byte, 32)
 	hash.Read(vrf[:])
 	return vrf, proof
 }
 
-// Verify returns true iff vrf=Compute(m) for the sk that
+// Verify returns true iff vrf=Compute(seed) for the sk that
 // corresponds to pk.
-func (pkBytes PublicKey) Verify(m, vrfBytes, proof []byte) bool {
+func (pkBytes PublicKey) Verify(seed, vrfBytes, proof []byte) bool {
 	if len(proof) != ProofSize || len(vrfBytes) != 32 || len(pkBytes) != PublicKeySize {
 		return false
 	}
@@ -118,7 +118,7 @@ func (pkBytes PublicKey) Verify(m, vrfBytes, proof []byte) bool {
 
 	hash := sha3.NewShake256()
 	hash.Write(hxB[:]) // const length
-	hash.Write(m)
+	hash.Write(seed)
 	var hCheck [32]byte
 	hash.Read(hCheck[:])
 	if !bytes.Equal(hCheck[:], vrf[:]) {
@@ -138,7 +138,7 @@ func (pkBytes PublicKey) Verify(m, vrfBytes, proof []byte) bool {
 	A.ToBytes(&ABytes)
 	gB = edwards25519.BaseBytes
 
-	h := hashToCurve(m) // h = H1(m)
+	h := hashToCurve(seed) // h = H1(seed)
 	h.ToBytes(&hB)
 	edwards25519.GeDoubleScalarMultVartime(&hmtP, &t, h, &[32]byte{})
 	edwards25519.GeDoubleScalarMultVartime(&iicP, &s, &ii, &[32]byte{})
@@ -148,14 +148,14 @@ func (pkBytes PublicKey) Verify(m, vrfBytes, proof []byte) bool {
 	B.ToBytes(&BBytes)
 
 	var sH [64]byte
-	// sRef = H2(g, h, g^x, v, g^t·G^s,H1(m)^t·v^s, m), with v=H1(m)^x=h^x
+	// sRef = H2(g, h, g^x, v, g^t·G^s,H1(seed)^t·v^s, seed), with v=H1(seed)^x=h^x
 	hash.Write(gB[:])
 	hash.Write(hB[:])
 	hash.Write(pkBytes)
 	hash.Write(hxB[:])
 	hash.Write(ABytes[:]) // const length (g^t*G^s)
-	hash.Write(BBytes[:]) // const length (H1(m)^t*v^s)
-	hash.Write(m)
+	hash.Write(BBytes[:]) // const length (H1(seed)^t*v^s)
+	hash.Write(seed)
 	hash.Read(sH[:])
 
 	edwards25519.ScReduce(&sRef, &sH)
@@ -181,10 +181,10 @@ func (sk PrivateKey) Public() (PublicKey, bool) {
 	return PublicKey(pk), ok
 }
 
-func hashToCurve(m []byte) *edwards25519.ExtendedGroupElement {
+func hashToCurve(seed []byte) *edwards25519.ExtendedGroupElement {
 	// H(n) = (f(h(n))^8)
 	var hmb [32]byte
-	sha3.ShakeSum256(hmb[:], m)
+	sha3.ShakeSum256(hmb[:], seed)
 	var hm edwards25519.ExtendedGroupElement
 	extra25519.HashToEdwards(&hm, &hmb)
 	edwards25519.GeDouble(&hm, &hm)
@@ -193,19 +193,19 @@ func hashToCurve(m []byte) *edwards25519.ExtendedGroupElement {
 	return &hm
 }
 
-// Compute generates the vrf value for the byte slice m using the
+// Compute generates the vrf value for the byte slice seed using the
 // underlying private key sk.
-func (sk PrivateKey) Compute(m []byte) []byte {
+func (sk PrivateKey) Compute(seed []byte) []byte {
 	x, _ := sk.expandSecret()
 	var ii edwards25519.ExtendedGroupElement
 	var iiB [32]byte
-	edwards25519.GeScalarMult(&ii, x, hashToCurve(m))
+	edwards25519.GeScalarMult(&ii, x, hashToCurve(seed))
 	ii.ToBytes(&iiB)
 
 	hash := sha3.NewShake256()
 	hash.Write(iiB[:]) // const length: Size
-	hash.Write(m)
-	var vrf [32]byte
-	hash.Read(vrf[:])
-	return vrf[:]
+	hash.Write(seed)
+	var vrValue [32]byte
+	hash.Read(vrValue[:])
+	return vrValue[:]
 }

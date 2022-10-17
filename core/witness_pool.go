@@ -1,13 +1,13 @@
 package core
 
 import (
-	cmath "math"
 	"math/big"
 	"sort"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
 )
 
@@ -18,10 +18,38 @@ const (
 	ElectedCountWeight           = 10
 )
 
-// VRF is an Verfiable Random Function which calcuate the weight of the witness.
-func VRF(stakingAmount float32, blockValidationPercent float32, voterCount float32, electedCount float32) float32 {
-	weight := (stakingAmount*StakingAmountWeight + blockValidationPercent*BlockValidationPercentWeight + voterCount*VoterCountWeight + electedCount*ElectedCountWeight) / (StakingAmountWeight + BlockValidationPercentWeight + VoterCountWeight + ElectedCountWeight)
-	return weight
+// const AccuracyMultiple = big.NewFloat(0).
+
+// VRF is an Verifiable Random Function which calculate the weight of the witness.
+func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {
+	bStakingAmount := big.NewFloat(stakingAmount)
+	bBlockValidationPercent := big.NewFloat(blockValidationPercent)
+	bVoterCount := big.NewFloat(voterCount)
+	bElectedCount := big.NewFloat(electedCount)
+
+	bWeightedAmount := big.NewFloat(0).Mul(bStakingAmount, big.NewFloat(StakingAmountWeight))
+	bWeightedBlockValidationPercent := big.NewFloat(0).Mul(bBlockValidationPercent, big.NewFloat(BlockValidationPercentWeight))
+	bWeightedVoterCount := big.NewFloat(0).Mul(bVoterCount, big.NewFloat(VoterCountWeight))
+	bWeightedElectedCount := big.NewFloat(0).Mul(bElectedCount, big.NewFloat(ElectedCountWeight))
+
+	bDenominator := big.NewFloat(0)
+	bDenominator.Add(bDenominator, big.NewFloat(StakingAmountWeight))
+	bDenominator.Add(bDenominator, big.NewFloat(BlockValidationPercentWeight))
+	bDenominator.Add(bDenominator, big.NewFloat(VoterCountWeight))
+	bDenominator.Add(bDenominator, big.NewFloat(ElectedCountWeight))
+
+	weightFloat := big.NewFloat(0)
+	weightFloat.Add(weightFloat, bWeightedAmount)
+	weightFloat.Add(weightFloat, bWeightedBlockValidationPercent)
+	weightFloat.Add(weightFloat, bWeightedVoterCount)
+	weightFloat.Add(weightFloat, bWeightedElectedCount)
+	// weightFloat :=
+	// 	(stakingAmount*StakingAmountWeight +
+	// blockValidationPercent*BlockValidationPercentWeight +
+	// voterCount*VoterCountWeight +
+	// electedCount*ElectedCountWeight) /
+	// 		(StakingAmountWeight + BlockValidationPercentWeight + VoterCountWeight + ElectedCountWeight)
+	return weightFloat
 }
 
 type WitnessConfig struct {
@@ -42,6 +70,11 @@ type WitnessCandidatePool struct {
 	chain       blockChain
 
 	witnessCandidates []types.Witness
+	// vrfWeights        []float32
+	vrfMaps map[string]types.Witness
+
+	selectedWitnesses []types.Witness
+	seed              []byte
 }
 
 type WitnessPool struct {
@@ -49,27 +82,45 @@ type WitnessPool struct {
 	blacklist []types.Witness
 }
 
-func (wp *WitnessCandidatePool) GetCandidates() []types.Witness {
-	witnessCount := wp.config.WitnessCount
-	trustedWitnessCount := witnessCount/3*2 + 1
+func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain blockChain, possibleWitnesses []types.Witness, seed []byte) *WitnessCandidatePool {
+	if possibleWitnesses == nil {
+		possibleWitnesses = make([]types.Witness, 0)
+	}
+	pool := &WitnessCandidatePool{
+		config:      config,
+		chainConfig: chainConfig,
+		chain:       chain,
+
+		witnessCandidates: possibleWitnesses,
+		vrfMaps:           make(map[string]types.Witness),
+		seed:              seed,
+	}
+
+	if chainConfig.ChainID == params.DemoChainConfig.ChainID {
+		genesis := DefaultDemoGenesisBlock()
+
+		for _, w := range genesis.WitnessList {
+			witness := &types.WitnessImpl{
+				Address: w.address,
+				Voters:  w.voters,
+			}
+			pool.witnessCandidates = append(pool.witnessCandidates, witness)
+		}
+	}
 
 	var (
 		maxStakingAmount          big.Int
 		maxBlockValidationPercent float32
 		maxVoterCount             int
 		maxElectedCount           uint64
-		vrfWeights                []float32
-		vrfMaps                   map[float32]types.Witness
-		witnesses                 []types.Witness
 	)
 
-	vrfMaps = make(map[float32]types.Witness)
 	maxStakingAmount = *big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
 	maxElectedCount = 0
 
-	for _, w := range wp.witnessCandidates {
+	for _, w := range pool.witnessCandidates {
 		if maxBlockValidationPercent < w.GetBlockValidationPercents() {
 			maxBlockValidationPercent = w.GetBlockValidationPercents()
 		}
@@ -87,54 +138,72 @@ func (wp *WitnessCandidatePool) GetCandidates() []types.Witness {
 		}
 	}
 
-	for _, w := range wp.witnessCandidates {
-		avgStakingAmount := math.GetPercent(w.GetStakingAmount(), &maxStakingAmount)
-		avgBlockValidationPercent := float32(w.GetBlockValidationPercents()) / float32(maxBlockValidationPercent)
-		avgVoterCount := float32(len(w.GetVoters())) / float32(maxVoterCount)
-		avgElectedCount := float32(w.GetElectedCount()) / float32(maxElectedCount)
-		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
-		vrfWeights = append(vrfWeights, weight)
-		vrfMaps[weight] = w
-	}
+	for _, w := range pool.witnessCandidates {
 
-	sort.Slice(vrfWeights[:], func(i, j int) bool {
-		return vrfWeights[i] > vrfWeights[j]
-	})
-
-	for i := 0; i < int(cmath.Min(float64(len(vrfWeights)), float64(trustedWitnessCount))); i++ {
-		witnesses = append(witnesses, vrfMaps[vrfWeights[i]])
-	}
-
-	// ToDo: We need to select witnesses randomly
-
-	return witnesses
-}
-
-func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain blockChain) *WitnessCandidatePool {
-	pool := &WitnessCandidatePool{
-		config:      config,
-		chainConfig: chainConfig,
-		chain:       chain,
-
-		witnessCandidates: make([]types.Witness, 0),
-	}
-
-	if chainConfig.ChainID == params.DemoChainConfig.ChainID {
-		genesis := DefaultDemoGenesisBlock()
-
-		for _, w := range genesis.WitnessList {
-			witness := &types.WitnessImpl{
-				Address: w.address,
-				Voters:  w.voters,
-			}
-			pool.witnessCandidates = append(pool.witnessCandidates, witness)
-		}
+		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
+		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
+		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
+		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
+		w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
+		pool.vrfMaps[string(w.GetPubKey())] = w
 	}
 
 	return pool
 }
+func (cp *WitnessCandidatePool) IsTrustedWitness(pubKey crypto.PublicKey, vrfValue []byte, proof []byte) bool {
+	//check that the value given is accurate
+	if !pubKey.Verify(cp.seed, vrfValue, proof) {
+		//if this causes a false return, assume malicious attempt.
+		return false
+	}
 
-func (cp *WitnessCandidatePool) GetWitneessPool() *WitnessPool {
+	//converts the bigFloat to an integer between 0-(2^256 - 1). Or a uInt256.
+	witnessTesting := cp.vrfMaps[string(pubKey)]
+	fWeight := witnessTesting.GetWeight()
+	exp := fWeight.MantExp(nil)
+	fWeight.SetMantExp(fWeight, 257-exp)
+	iWeight, _ := fWeight.Int(nil)
+
+	if iWeight.Cmp(big.NewInt(0)) != 0 { //iWeight == 0
+		iWeight.Sub(iWeight, big.NewInt(1)) //needs to subtract one so its always between
+	}
+
+	//convert the vrfValue to a big int between 0-(2^256 - 1).  Or a uInt256.
+	vrfIValue := new(big.Int)
+	vrfIValue.SetBytes(vrfValue)
+	if vrfIValue.Cmp(iWeight) == -1 { //vrfIValue<iWeight
+		//Check if there is actually space
+		betterFit, betterFitPoint := cp._IsBetterFit(witnessTesting)
+		if len(cp.selectedWitnesses) < int(cp.config.WitnessCount) {
+			cp.selectedWitnesses = append(cp.selectedWitnesses, witnessTesting)
+		} else if betterFit {
+			//see if they might just fit into the extra bit of space
+			cp.selectedWitnesses[betterFitPoint] = witnessTesting
+		} else {
+			return false
+		}
+
+		return true
+	}
+	return false
+}
+
+// returns true, and the index to replace if new witness is a better fit. If false, -1 is the index returned
+func (cp *WitnessCandidatePool) _IsBetterFit(newWit types.Witness) (bool, int) {
+	//sort everything to be from smallest value to lowest, then compare. So the smallest weight is still most likely
+	//to be replaced
+	sort.Slice(cp.selectedWitnesses[:], func(i, j int) bool {
+		return cp.selectedWitnesses[i].GetWeight().Cmp(cp.selectedWitnesses[j].GetWeight()) == -1
+	}) //orders the witnesses by their weight
+	//unsure if the witnesses will need to be ordered.
+	for i, witness := range cp.selectedWitnesses {
+		if witness.GetWeight().Cmp(newWit.GetWeight()) == -1 { //witness.weight < newWit.weight
+			return true, i
+		}
+	}
+	return false, -1
+}
+func (cp *WitnessCandidatePool) GetWitnessPool() *WitnessPool {
 	wp := &WitnessPool{
 		witnesses: cp.witnessCandidates,
 	}
