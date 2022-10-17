@@ -48,27 +48,16 @@ func (op growMemory) doOp(m *Machine) {
 	m.pointInCode++
 }
 
-type call struct {
-	hashToCall []byte
+type TeeLocal struct {
+	val uint64
 }
 
-func (op call) doOp(m *Machine) {
-	var newVM *Machine
-	if allZeros(op.hashToCall) {
-		newVM = newVirtualMachine(m.vmCode, m.contractStorage, m.config)
+func (op TeeLocal) doOp(m *Machine) {
+	v := m.popFromStack()
+	m.pushToStack(uint64(v))
+	m.pushToStack(uint64(v))
 
-	} else {
-		newVM = newVirtualMachine(getCode(op.hashToCall), m.contractStorage, m.config)
-	}
-	newVM.vmStack = m.vmStack
-	newVM.run()
-}
-
-func allZeros(arr []byte) bool {
-	for _, v := range arr {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
+	val := m.popFromStack()
+	m.locals[op.val] = val
+	m.pointInCode++
 }

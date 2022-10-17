@@ -8,8 +8,8 @@ import (
 type i32Sub struct{}
 
 func (op i32Sub) doOp(m *Machine) {
-	a := uint32(uint32(m.popFromStack()))
 	b := uint32(uint32(m.popFromStack()))
+	a := uint32(uint32(m.popFromStack()))
 	m.pushToStack(uint64(uint32(b - a)))
 	m.pointInCode++
 }

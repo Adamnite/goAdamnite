@@ -3,41 +3,12 @@ package vm
 import (
 	"encoding/hex"
 	"reflect"
-	"strings"
 )
-
-const wasmMagic = "0061736D01000000"
-
-var wasmMagicBytes = []byte{0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00}
-
-func parseString(opString string) []OperationCommon {
-	//sanitize the input of all possible special characters. Mostly used for tests
-	s := strings.ReplaceAll(opString, " ", "")
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\t", "")
-	if len(s) <= len(wasmMagic) {
-		s = wasmMagic + s
-	}
-	if s[0:16] != wasmMagic {
-		s = wasmMagic + s //if it doesn't have the wasm magic, add it
-	}
-
-	ansBytes, err := hex.DecodeString(s)
-	if err != nil {
-		println("error parsing string to bytes")
-		println(err.Error())
-		panic(err)
-	}
-	return parseBytes(ansBytes)
-}
 
 func parseBytes(bytes []byte) []OperationCommon {
 	ansOps := []OperationCommon{}
 	pointInBytes := 0
-	if bytes[1] == 0x61 { //TODO: have this check the whole WASM magic number
-		pointInBytes += 8
-	}
-	// println(hex.EncodeToString(bytes))
+
 	for pointInBytes < len(bytes) {
 		switch bytes[pointInBytes] {
 
@@ -283,7 +254,7 @@ func parseBytes(bytes []byte) []OperationCommon {
 			}
 
 			if !foundTerminator {
-				panic("Block type without an end statement")
+				panic("Block type without an end statement Op_if")
 			}
 			ansOps = append(ansOps, ifBlock)
 		case Op_else:
@@ -300,7 +271,7 @@ func parseBytes(bytes []byte) []OperationCommon {
 				}
 			}
 			if !foundTerminator {
-				panic("Block type without an end statement")
+				panic("Block type without an end statement Op_else")
 			}
 
 			ansOps = append(ansOps, elseBlock)
@@ -326,7 +297,7 @@ func parseBytes(bytes []byte) []OperationCommon {
 				}
 			}
 			if !foundTerminator {
-				panic("Block type without an end statement")
+				panic("Block type without an end statement Op_block")
 			}
 			block.code = ansOps[pointInBytes:block.endPoint]
 			ansOps = append(ansOps, block)
@@ -347,12 +318,15 @@ func parseBytes(bytes []byte) []OperationCommon {
 				}
 			}
 			if !foundTerminator {
-				panic("Block type without an end statement")
+				panic("Block type without an end statement Op_loop")
 			}
 			loopBlock.code = ansOps[pointInBytes:loopBlock.endPoint]
 			ansOps = append(ansOps, loopBlock)
 			pointInBytes += int(loopBlock.endPoint)
-
+		
+		case Op_get_local:
+			ansOps = append(ansOps, localGet{int64(bytes[pointInBytes+1])})
+			pointInBytes += 2
 		case Op_drop:
 			ansOps = append(ansOps, opDrop{})
 			pointInBytes++
@@ -366,10 +340,14 @@ func parseBytes(bytes []byte) []OperationCommon {
 			ansOps = append(ansOps, growMemory{})
 			pointInBytes += 1
 
-		case Op_call:
-			pointInBytes += 1
-			ansOps = append(ansOps, call{bytes[pointInBytes : pointInBytes+64]})
-			pointInBytes += 64
+		// case Op_call:
+		// 	pointInBytes += 1
+		// 	ansOps = append(ansOps, call{bytes[pointInBytes : pointInBytes+64]})
+		// 	pointInBytes += 64
+
+		case Op_tee_local:
+			ansOps = append(ansOps, TeeLocal{uint64(bytes[pointInBytes+1])})
+			pointInBytes += 2
 		
 		case Op_nop:
 			ansOps = append(ansOps, noOp{})
@@ -570,44 +548,44 @@ func parseBytes(bytes []byte) []OperationCommon {
 			pointInBytes += 1
 		
 		case Op_i32_load, Op_i64_load32_u:
-			ansOps = append(ansOps, i32Load{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Load{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		
 		case Op_i32_store, Op_i64_store32:
-			ansOps = append(ansOps, i32Store{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Store{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		
 		case Op_i64_load:
-			ansOps = append(ansOps, i64Load{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i64Load{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		case Op_i64_store:
-			ansOps = append(ansOps, i64Store{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i64Store{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		case Op_i32_load8_s, Op_i64_load8_s:
-			ansOps = append(ansOps, i32Load8s{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Load8s{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		case Op_i32_store8, Op_i64_store8:
-			ansOps = append(ansOps, i32Store8{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Store8{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		case Op_i32_load8_u, Op_i64_load8_u:
-			ansOps = append(ansOps, i32Load8u{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Load8u{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 		
 		case Op_i64_load32_s:
-			ansOps = append(ansOps, i64Load32s{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i64Load32s{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 
 		case Op_i32_load16_u, Op_i64_load16_u:
-			ansOps = append(ansOps, i32Load16u{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Load16u{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 
 		case Op_i64_load16_s, Op_i32_load16_s:
-			ansOps = append(ansOps, i64Load16s{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i64Load16s{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 
 		case Op_i32_store16, Op_i64_store16:
-			ansOps = append(ansOps, i32Store16{})
-			pointInBytes += 1
+			ansOps = append(ansOps, i32Store16{uint32(bytes[pointInBytes+1]), uint32(bytes[pointInBytes+2])})
+			pointInBytes += 3
 	
 		default:
 			print("skipping over byte at: ")

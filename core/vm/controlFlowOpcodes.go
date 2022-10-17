@@ -119,6 +119,7 @@ func (op opBrIf) doOp(m *Machine) {
 type opEnd struct {}
 
 func (op opEnd) doOp(m *Machine) {
+	m.pointInCode++
 }
 
 type opBlock struct {

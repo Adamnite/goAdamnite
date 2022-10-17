@@ -108,11 +108,11 @@ func newVirtualMachine(wasmBytes []byte, storage Storage, config VMConfig) *Mach
 	machine := new(Machine)
 	machine.pointInCode = 0
 	// machine.vmCode = parseCodeToOpcodes(code)
-	// machine.vmCode = code
 	machine.contractStorage = storage
 	machine.debugStack = false
 	machine.config = config
 	machine.module = *decode(wasmBytes)
+	machine.vmCode = parseBytes(machine.module.codeSection[0].body)
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity)
@@ -120,6 +120,9 @@ func newVirtualMachine(wasmBytes []byte, storage Storage, config VMConfig) *Mach
 	for i := 0; i < capacity; i++ {
 		machine.vmMemory[i] = 0
 	}
+
+	machine.locals = make([]uint64, len(machine.module.codeSection[0].localTypes))
+
 	return machine
 }
 
