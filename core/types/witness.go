@@ -15,7 +15,7 @@ type Witness interface {
 	GetVoters() []Voter
 
 	// GetBlockValidationPercents returns the percent of
-	GetBlockValidationPercents() float32
+	GetBlockValidationPercents() float64
 
 	// GetElectedCount returns the number of elected round
 	GetElectedCount() uint64
@@ -28,14 +28,18 @@ type Witness interface {
 	GetWeight() *big.Float
 
 	GetPubKey() crypto.PublicKey
+
+	BlockReviewed(bool)
 }
 
 type WitnessImpl struct {
-	Address   common.Address
-	Voters    []Voter
-	Prove     []byte
-	WeightVRF *big.Float
-	PubKey    crypto.PublicKey
+	Address        common.Address
+	Voters         []Voter
+	Prove          []byte
+	WeightVRF      *big.Float
+	PubKey         crypto.PublicKey
+	blocksReviewed uint64
+	blocksApproved uint64
 }
 
 func (w *WitnessImpl) GetAddress() common.Address {
@@ -46,8 +50,8 @@ func (w *WitnessImpl) GetVoters() []Voter {
 	return w.Voters
 }
 
-func (w *WitnessImpl) GetBlockValidationPercents() float32 {
-	return 0.9
+func (w *WitnessImpl) GetBlockValidationPercents() float64 {
+	return float64(w.blocksApproved) / float64(w.blocksReviewed)
 }
 
 func (w *WitnessImpl) GetElectedCount() uint64 {
@@ -73,4 +77,11 @@ func (w *WitnessImpl) SetWeight(weight *big.Float) {
 }
 func (w *WitnessImpl) GetPubKey() crypto.PublicKey {
 	return w.PubKey
+}
+
+func (w *WitnessImpl) BlockReviewed(successful bool) {
+	w.blocksReviewed++
+	if successful {
+		w.blocksApproved++
+	}
 }

@@ -110,7 +110,7 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain
 
 	var (
 		maxStakingAmount          big.Int
-		maxBlockValidationPercent float32
+		maxBlockValidationPercent float64
 		maxVoterCount             int
 		maxElectedCount           uint64
 	)
@@ -141,7 +141,7 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain
 	for _, w := range pool.witnessCandidates {
 
 		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
-		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
+		avgBlockValidationPercent := w.GetBlockValidationPercents() / maxBlockValidationPercent
 		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
 		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
 		w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
