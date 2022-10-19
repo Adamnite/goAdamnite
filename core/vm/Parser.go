@@ -2,12 +2,20 @@ package vm
 
 import (
 	"encoding/hex"
-	"reflect"
 )
 
-func parseBytes(bytes []byte) []OperationCommon {
+func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 	ansOps := []OperationCommon{}
 	pointInBytes := 0
+
+	// The first control here marks the beginning of the function
+	controlBlocks := []ControlBlock{ControlBlock{
+		startAt: 0,
+		op: 0x0,
+	}}
+
+	index := 0
+	blockIndex := 1
 
 	for pointInBytes < len(bytes) {
 		switch bytes[pointInBytes] {
@@ -229,109 +237,57 @@ func parseBytes(bytes []byte) []OperationCommon {
 		case Op_i64_rem_u:
 			ansOps = append(ansOps, i64Remu{})
 			pointInBytes += 1
-
-		case Op_if:
-			// Store the current position as the startpoint of the if block
-			ifBlock := opIf{uint64(pointInBytes), 0, 0, []OperationCommon{}, Op_if}
-			// Parse untill we find 0x0b (Op_end) or 0x05 (Op_else)
-			foundTerminator := false
-			for i := pointInBytes; i < len(ansOps); i++ {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
-					// If without else block
-					ifBlock.endPoint = uint64(i)
-					ifBlock.code = ansOps[pointInBytes:uint64(i)]
-					foundTerminator = true
-					break
-				}
-
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opElse{}) {
-					// If with else block
-					ifBlock.elsePoint = uint64(i)
-					ifBlock.code = ansOps[pointInBytes:uint64(i)]
-					foundTerminator = true
-					break
-				}
-			}
-
-			if !foundTerminator {
-				panic("Block type without an end statement Op_if")
-			}
-			ansOps = append(ansOps, ifBlock)
-		case Op_else:
-	
-			elseBlock := opElse{uint64(pointInBytes), 0, []OperationCommon{}}
-			// Parse untill we find 0x0b (Op_end)
-			foundTerminator := false
-			for i := pointInBytes; i < len(ansOps); i++ {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
-					elseBlock.endPoint = uint64(i)
-					elseBlock.code = ansOps[pointInBytes:uint64(i)]
-					foundTerminator = true
-					break
-				}
-			}
-			if !foundTerminator {
-				panic("Block type without an end statement Op_else")
-			}
-
-			ansOps = append(ansOps, elseBlock)
-		case Op_br:
-			ansOps = append(ansOps, opBr{})
-			pointInBytes += 1
-		case Op_br_if:
-			ansOps = append(ansOps, opBrIf{})
-		case Op_return:
-			// pops return value off the stack and returns from the current function.
-			ansOps = append(ansOps, opReturn{})
-		
+				
 		case Op_block:
-			// Store the current position as the startpoint of the block
-			block := opBlock{uint64(pointInBytes), 0, []OperationCommon{}}
-			// Parse untill we find 0x0b (Op_end)
-			foundTerminator := false
-			for i := pointInBytes; i < len(ansOps); i++ {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
-					block.endPoint = uint64(i)
-					foundTerminator = true
-					break
-				}
-			}
-			if !foundTerminator {
-				panic("Block type without an end statement Op_block")
-			}
-			block.code = ansOps[pointInBytes:block.endPoint]
-			ansOps = append(ansOps, block)
-			pointInBytes += int(block.endPoint)
-		case Op_end:
-			ansOps = append(ansOps, opEnd{})
-			pointInBytes += 1
-		case Op_loop:
-			// Store the current position as the startpoint of the block
-			loopBlock := opLoop{uint64(pointInBytes), 0, []OperationCommon{}}
-			// Parse untill we find 0x0b (Op_end)
-			foundTerminator := false
-			for i := pointInBytes; i < len(ansOps); i++ {
-				if reflect.TypeOf(ansOps[i]) == reflect.TypeOf(opEnd{}) {
-					loopBlock.endPoint = uint64(i)
-					foundTerminator = true
-					break
-				}
-			}
-			if !foundTerminator {
-				panic("Block type without an end statement Op_loop")
-			}
-			loopBlock.code = ansOps[pointInBytes:loopBlock.endPoint]
-			ansOps = append(ansOps, loopBlock)
-			pointInBytes += int(loopBlock.endPoint)
+			controlBlock := ControlBlock{}
+			// The next byte is be the block signature(aka blocktype) when it's 0x40 it means empty signature
+			controlBlock.signature = bytes[pointInBytes + 1]
+			controlBlock.op = Op_block
+			pointInBytes++
+
+			// Skip the blocktype
+			controlBlock.startAt = uint64(pointInBytes) + 1
+
+			pointInBytes++ 
+			ansOps = append(ansOps, Block{uint32(blockIndex)})
+			controlBlock.index = uint32(blockIndex)
+			controlBlocks = append(controlBlocks, controlBlock)
+			blockIndex++
+
+		case Op_br:
+			ansOps = append(ansOps, Br{})
+			pointInBytes++
 		
+		case Op_br_if:
+			ansOps = append(ansOps, BrIf{})
+			pointInBytes++
+		
+		case Op_if:
+			ansOps = append(ansOps, If{})
+			pointInBytes++
+
+		case Op_loop:
+			ansOps = append(ansOps, Loop{})
+			pointInBytes++
+		
+
+		case Op_end:
+			// Retrieve the block for which we found the end
+			block := &controlBlocks[len(controlBlocks) - index - 1]
+
+			ansOps = append(ansOps, End{block.index})
+			pointInBytes += 1
+
+			block.endAt = uint64(pointInBytes)
+			index++
+
 		case Op_get_local:
 			ansOps = append(ansOps, localGet{int64(bytes[pointInBytes+1])})
 			pointInBytes += 2
 		case Op_drop:
-			ansOps = append(ansOps, opDrop{})
+			ansOps = append(ansOps, Drop{})
 			pointInBytes++
 		case Op_select:
-			ansOps = append(ansOps, opSelect{})
 			pointInBytes++
 		case Op_current_memory:
 			ansOps = append(ansOps, currentMemory{})
@@ -350,10 +306,10 @@ func parseBytes(bytes []byte) []OperationCommon {
 			pointInBytes += 2
 		
 		case Op_nop:
-			ansOps = append(ansOps, noOp{})
+			ansOps = append(ansOps, NoOp{})
 			pointInBytes += 1
 		case Op_unreachable:
-			ansOps = append(ansOps, unReachable{})
+			ansOps = append(ansOps, UnReachable{})
 			pointInBytes += 1
 
 		case Op_i32_wrap_i64:
@@ -597,5 +553,5 @@ func parseBytes(bytes []byte) []OperationCommon {
 
 	}
 
-	return ansOps
+	return ansOps, controlBlocks
 }

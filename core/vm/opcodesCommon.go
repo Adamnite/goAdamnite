@@ -61,3 +61,9 @@ func (op TeeLocal) doOp(m *Machine) {
 	m.locals[op.val] = val
 	m.pointInCode++
 }
+
+type Drop struct {}
+
+func (op Drop) doOp(m *Machine) {
+	m.popFromStack()
+}
