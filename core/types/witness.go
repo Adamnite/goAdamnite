@@ -51,6 +51,9 @@ func (w *WitnessImpl) GetVoters() []Voter {
 }
 
 func (w *WitnessImpl) GetBlockValidationPercents() float64 {
+	if w.blocksReviewed == 0 {
+		return 0.5
+	}
 	return float64(w.blocksApproved) / float64(w.blocksReviewed)
 }
 
