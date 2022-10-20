@@ -6,7 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/rlp"
+	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
