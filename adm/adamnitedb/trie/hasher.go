@@ -44,30 +44,30 @@ var hasherPoolB2 = sync.Pool{
 		if err != nil {
 			panic(err)
 		}
-		return &hasher{
+		return &Hasher{
 			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
 			sha: b2.(crypto.KeccakState),
 		}
 	},
 }
 
-func newHasher(parallel bool) *hasher {
-	h := hasherPool.Get().(*hasher)
+func newHasher(parallel bool) *Hasher {
+	h := hasherPool.Get().(*Hasher)
 	h.parallel = parallel
 	return h
 }
 
-func newB2Hasher(parallel bool) *hasher {
-	h := hasherPoolB2.Get().(*hasher)
+func newB2Hasher(parallel bool) *Hasher {
+	h := hasherPoolB2.Get().(*Hasher)
 	h.parallel = parallel
 	return h
 }
 
-func returnHasherToPool(h *hasher) {
+func returnHasherToPool(h *Hasher) {
 	hasherPool.Put(h)
 }
 
-func returnHasherToB2Pool(h *hasher) {
+func returnHasherToB2Pool(h *Hasher) {
 	hasherPoolB2.Put(h)
 }
 
@@ -160,7 +160,7 @@ func (h *Hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 // should have hex-type Key, which will be converted (without modification)
 // into compact form for serialization encoding.
 // If the serialization data is smaller than 32 bytes, `nil` is returned.
-func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
+func (h *Hasher) shortnodeToHash(n *shortNode, force bool) node {
 	h.tmp.Reset()
 	if err := msgpack.GetEncoder().Encode(n); err != nil {
 		panic("encode error: " + err.Error())

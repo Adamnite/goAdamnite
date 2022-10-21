@@ -363,11 +363,12 @@ func (st *StackTrie) insert(key, value []byte) {
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
 // 1. The serialization-encoded value was >= 32 bytes:
-//  - Then the 32-byte `hash` will be accessible in `st.val`.
-//  - And the 'st.type' will be 'hashedNode'
+//   - Then the 32-byte `hash` will be accessible in `st.val`.
+//   - And the 'st.type' will be 'hashedNode'
+//
 // 2. The serialization-encoded value was < 32 bytes
-//  - Then the <32 byte serialization-encoded value will be accessible in 'st.val'.
-//  - And the 'st.type' will be 'hashedNode' AGAIN
+//   - Then the <32 byte serialization-encoded value will be accessible in 'st.val'.
+//   - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method will also:
 // set 'st.type' to hashedNode
@@ -440,7 +441,7 @@ func (st *StackTrie) hash() {
 			panic(err)
 		}
 	case emptyNode:
-		st.val = emptyRoot.Bytes()
+		st.val = emptyRoot
 		st.key = st.key[:0]
 		st.nodeType = hashedNode
 		return

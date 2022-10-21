@@ -10,6 +10,8 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error
+
 // leafChanSize is the size of the leafCh. It's a pretty arbitrary number, to allow
 // some parallelism but not incur too much memory overhead.
 const leafChanSize = 200

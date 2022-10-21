@@ -48,6 +48,9 @@ const (
 
 var blake2bEmptyRoot = common.FromHex("45b0cfc220ceec5b7c1c62c4d4193d38e4eba48e8815729ce75f9c0ab0e4c1c0")
 
+// TODO: THIS HASH IS WRONG AND JUST A PLACEHOLDER!!!
+var emptyRoot = common.FromHex("45b0cfc220ceec5b7c1c62c4d4193d38e4eba48e8815729ce75f9c0ab0e4c1c0")
+
 // BinaryTrie represents a multi-level binary trie.
 //
 // Nodes with only one child are compacted into a "prefix"
