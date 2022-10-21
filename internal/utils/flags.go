@@ -6,14 +6,15 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm"
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
+	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/fdutils"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
-	"github.com/adamnite/go-adamnite/p2p"
-	"github.com/adamnite/go-adamnite/p2p/enode"
-	"github.com/adamnite/go-adamnite/p2p/nat"
+
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/urfave/cli/v2"
 )
@@ -83,7 +84,7 @@ func setWitnessAddress(ctx *cli.Context, cfg *adamconfig.Config) {
 	cfg.Validator.WitnessAddress = common.HexToAddress(witnessAddr)
 }
 
-func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+func SetP2PConfig(ctx *cli.Context, cfg *bargossip.Config) {
 	setBootstrapNode(ctx, cfg)
 	setNAT(ctx, cfg)
 
@@ -92,17 +93,23 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 }
 
-func setBootstrapNode(ctx *cli.Context, cfg *p2p.Config) {
+func setBootstrapNode(ctx *cli.Context, cfg *bargossip.Config) {
 	urls := params.MainnetBootnodes
 
-	cfg.BootstrapNodes = make([]*enode.Node, 0, len(urls))
+	cfg.BootstrapNodes = make([]*admnode.GossipNode, 0, len(urls))
 	for _, url := range urls {
 		if url != "" {
-			node, err := enode.Parse(enode.ValidSchemes, url)
+			nodeInfo, err := admnode.ParseNodeURL(url)
 			if err != nil {
-				log15.Crit("Bootstrap URL invalid", "enode", url, "err", err)
+				log15.Crit("Bootstrap URL invalid", "admnode", url, "err", err)
 				continue
 			}
+
+			node, err := admnode.New(nodeInfo)
+			if err != nil {
+				log15.Crit("Bootstrap Node Info Invalid")
+			}
+
 			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)
 		}
 	}
@@ -160,7 +167,7 @@ func RegisterAdamniteSerivce(node *node.Node, cfg *adamconfig.Config) *adm.Adamn
 }
 
 // setNAT creates a port mapper from command line flags.
-func setNAT(ctx *cli.Context, cfg *p2p.Config) {
+func setNAT(ctx *cli.Context, cfg *bargossip.Config) {
 	if ctx.IsSet(NATFlag.Name) {
 		natif, err := nat.Parse(ctx.String(NATFlag.Name))
 		if err != nil {

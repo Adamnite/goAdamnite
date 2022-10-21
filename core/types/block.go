@@ -33,7 +33,8 @@ type Block struct {
 	hash atomic.Value
 	size atomic.Value
 
-	ReceivedAt time.Time
+	ReceivedAt   time.Time
+	ReceivedFrom interface{}
 }
 
 type Body struct {
@@ -73,7 +74,7 @@ func NewBlock(header *BlockHeader, txs []*Transaction, hasher TrieHasher) *Block
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *BlockHeader) Hash() common.Hash {
-	return rlpHash(h)
+	return serializationHash(h)
 }
 
 func (b *Block) Hash() common.Hash {

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
@@ -44,6 +45,13 @@ func newPeer(connection *wrapPeerConnection, log log15.Logger, protocols []SubPr
 	}
 
 	return peer
+}
+func (p *Peer) ID() admnode.NodeID {
+	return *p.peerConn.node.NodeInfo().GetNodeID()
+}
+
+func (p *Peer) Log() log15.Logger {
+	return p.log
 }
 
 // matchProtocols creates structures for matching named subprotocols.

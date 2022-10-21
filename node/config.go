@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"github.com/adamnite/go-adamnite/accounts/keystore"
+	"github.com/adamnite/go-adamnite/bargossip"
+	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/p2p"
-	"github.com/adamnite/go-adamnite/p2p/nat"
 )
 
 const (
@@ -29,17 +29,19 @@ type Config struct {
 	KeyStoreDir string `toml:",omitempty"`
 	IPCPath     string
 	Logger      log15.Logger `toml:",omitempty"`
-	P2P         p2p.Config
+	P2P         bargossip.Config
 }
 
 var DefaultConfig = Config{
 	Name:    "gnite",
 	IPCPath: "gnite.ipc",
 	DataDir: DefaultDataDir(),
-	P2P: p2p.Config{
-		MaxPeers:   50,
-		ListenAddr: ":30900",
-		NAT:        nat.Any(),
+	P2P: bargossip.Config{
+		MaxPendingConnections:  50,
+		MaxInboundConnections:  50,
+		MaxOutboundConnections: 50,
+		ListenAddr:             ":30900",
+		NAT:                    nat.Any(),
 	},
 }
 
@@ -47,10 +49,12 @@ var DefaultDemoConfig = Config{
 	Name:    "gnite-demo",
 	IPCPath: "gnite-demo.ipc",
 	DataDir: "",
-	P2P: p2p.Config{
-		MaxPeers:   50,
-		ListenAddr: ":30900",
-		NAT:        nat.Any(),
+	P2P: bargossip.Config{
+		MaxPendingConnections:  50,
+		MaxInboundConnections:  50,
+		MaxOutboundConnections: 50,
+		ListenAddr:             ":30900",
+		NAT:                    nat.Any(),
 	},
 }
 
@@ -162,8 +166,8 @@ func (c *Config) NodeName() string {
 
 // NodeKey retrieves the currently configured private key of the node
 func (c *Config) NodeKey() *ecdsa.PrivateKey {
-	if c.P2P.PrivateKey != nil {
-		return c.P2P.PrivateKey
+	if c.P2P.ServerPrvKey != nil {
+		return c.P2P.ServerPrvKey
 	}
 
 	if c.DataDir == "" {

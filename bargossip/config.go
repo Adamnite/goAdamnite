@@ -19,6 +19,7 @@ const (
 )
 
 type Config struct {
+	Name string `toml:",omitempty"`
 	// ServerPrvKey is the key to generate the PeerID
 	ServerPrvKey *ecdsa.PrivateKey
 

@@ -8,9 +8,9 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/p2p"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
@@ -26,7 +26,7 @@ type Node struct {
 	stop   chan struct{}
 
 	ipc    *ipcServer
-	server *p2p.Server
+	server *bargossip.Server
 
 	eventmux *event.TypeMux
 
@@ -63,7 +63,7 @@ func New(cfg *Config) (*Node, error) {
 		log:             cfg.Logger,
 		stop:            make(chan struct{}),
 		inprocHandler:   rpc.NewAdamniteRPCServer(),
-		server:          &p2p.Server{Config: cfg.P2P},
+		server:          &bargossip.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
 		eventmux:        new(event.TypeMux),
 	}
@@ -73,7 +73,7 @@ func New(cfg *Config) (*Node, error) {
 	node.ipc = newIPCServer(node.log, cfg.IPCEndpoint())
 
 	node.server.Config.Name = node.config.NodeName()
-	node.server.Config.PrivateKey = node.config.NodeKey()
+	node.server.Config.ServerPrvKey = node.config.NodeKey()
 	node.server.Config.Logger = node.log
 
 	if node.server.Config.NodeDatabase == "" {
@@ -228,14 +228,14 @@ func (n *Node) wrapDatabase(db adamnitedb.Database) adamnitedb.Database {
 	return wrapper
 }
 
-func (n *Node) Server() *p2p.Server {
+func (n *Node) Server() *bargossip.Server {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	return n.server
 }
 
-func (n *Node) RegistProtocols(protocols []p2p.Protocol) {
+func (n *Node) RegistProtocols(protocols []bargossip.SubProtocol) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -243,7 +243,7 @@ func (n *Node) RegistProtocols(protocols []p2p.Protocol) {
 		panic("cannot regist protocols on running or stopped node")
 	}
 
-	n.server.Protocols = append(n.server.Protocols, protocols...)
+	n.server.ChainProtocol = append(n.server.ChainProtocol, protocols...)
 }
 
 func (n *Node) RegistServices(serivce Service) {

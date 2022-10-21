@@ -24,11 +24,11 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/adamnite/goAdamnite/common"
-	"github.com/adamnite/goAdamnite/core/rawdb"
-	"github.com/adamnite/goAdamnite/adamnitedb"
-	"github.com/adamnite/goAdamnite/log"
-	"github.com/adamnite/goAdamnite/Serialization"
+	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/rawdb"
+	"github.com/adamnite/go-adamnite/adamnitedb"
+	"github.com/adamnite/go-adamnite/log15"
+	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 	lru "github.com/hashicorp/golang-lru"
 )

@@ -3,7 +3,8 @@ package trie
 import (
 	"sync"
 
-	"github.com/adamnite/goAdamnite/crypto"
+	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/crypto/blake2b"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
@@ -61,8 +62,6 @@ func newB2Hasher(parallel bool) *hasher {
 	h.parallel = parallel
 	return h
 }
-
-
 
 func returnHasherToPool(h *hasher) {
 	hasherPool.Put(h)

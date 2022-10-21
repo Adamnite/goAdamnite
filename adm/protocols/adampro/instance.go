@@ -3,9 +3,8 @@ package adampro
 import (
 	"fmt"
 
-	"github.com/adamnite/go-adamnite/p2p"
-	"github.com/adamnite/go-adamnite/p2p/enode"
-	"github.com/adamnite/go-adamnite/p2p/enr"
+	"github.com/adamnite/go-adamnite/bargossip"
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
 )
 
 type Handler func(peer *Peer) error
@@ -15,25 +14,21 @@ var admProtocolDemo = map[uint64]msgHandler{
 	NewBlockMsg: newBlockHandler,
 }
 
-func MakeProtocols(adamniteHandler AdamniteHandlerInterface, chainID uint64, dnsdisc enode.Iterator) []p2p.Protocol {
-	protocols := make([]p2p.Protocol, len(ProtocolVersions))
+func MakeProtocols(adamniteHandler AdamniteHandlerInterface, chainID uint64, dnsdisc admnode.NodeIterator) []bargossip.SubProtocol {
+	protocols := make([]bargossip.SubProtocol, len(ProtocolVersions))
 
 	for i, v := range ProtocolVersions {
-		protocols[i] = p2p.Protocol{
-			Name:    ProtocolName,
-			Version: v,
-			Length:  ProtocolLength[v],
-			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+		protocols[i] = bargossip.SubProtocol{
+			ProtocolID:         uint(i),
+			ProtocolCodeOffset: v,
+			ProtocolLength:     uint(ProtocolLength[v]),
+			Run: func(p *bargossip.Peer, rw bargossip.MsgReadWriter) error {
 				peer := NewPeer(v, p, rw, adamniteHandler.TxPool())
 				defer peer.Close()
 				return adamniteHandler.RunPeer(peer, func(peer *Peer) error {
 					return ProtocolMsgHandler(adamniteHandler, peer)
 				})
 			},
-			PeerInfo: func(id enode.ID) interface{} {
-				return nil
-			},
-			Attributes: []enr.Entry{},
 		}
 	}
 
