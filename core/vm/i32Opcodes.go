@@ -126,7 +126,10 @@ func (op i32Ne) doOp(m *Machine) {
 type i32Lts struct {}
 
 func (op i32Lts) doOp(m *Machine) {
-	if int32(m.popFromStack()) < int32(m.popFromStack()) {
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
+
+	if c1 < c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -137,7 +140,10 @@ func (op i32Lts) doOp(m *Machine) {
 type i32Ltu struct {}
 
 func (op i32Ltu) doOp(m *Machine) {
-	if uint32(m.popFromStack()) < uint32(m.popFromStack()) {
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	if c1 < c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -148,7 +154,10 @@ func (op i32Ltu) doOp(m *Machine) {
 type i32Gtu struct {}
 
 func (op i32Gtu) doOp(m *Machine) {
-	if uint32(m.popFromStack()) > uint32(m.popFromStack()) {
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	if c1 > c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -159,7 +168,10 @@ func (op i32Gtu) doOp(m *Machine) {
 type i32Geu struct {}
 
 func (op i32Geu) doOp(m *Machine) {
-	if uint32(m.popFromStack()) >= uint32(m.popFromStack()) {
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	if c1 >= c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -170,7 +182,10 @@ func (op i32Geu) doOp(m *Machine) {
 type i32Gts struct {}
 
 func (op i32Gts) doOp(m *Machine) {
-	if int32(m.popFromStack()) > int32(m.popFromStack()) {
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
+
+	if c1 > c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -181,7 +196,10 @@ func (op i32Gts) doOp(m *Machine) {
 type i32Ges struct {}
 
 func (op i32Ges) doOp(m *Machine) {
-	if int32(m.popFromStack()) >= int32(m.popFromStack()) {
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
+
+	if c1 >= c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -192,7 +210,10 @@ func (op i32Ges) doOp(m *Machine) {
 type i32Leu struct {}
 
 func (op i32Leu) doOp(m *Machine) {
-	if uint32(m.popFromStack()) <= uint32(m.popFromStack()) {
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	if c1 <= c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -203,7 +224,10 @@ func (op i32Leu) doOp(m *Machine) {
 type i32Les struct {}
 
 func (op i32Les) doOp(m *Machine) {
-	if int32(m.popFromStack()) <= int32(m.popFromStack()) {
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	if c1 <= c2 {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)

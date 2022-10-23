@@ -169,3 +169,51 @@ func Test_Br2(t *testing.T) {
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(30))
 }
+
+
+func Test_Loop(t *testing.T) {
+	// int testFunction() {
+	// 	int sum = 0;
+	// 	for(int i = 0; i < 10; ++i) {
+	// 	  sum += i;
+	// 	}
+	// 	return sum;
+	// }
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ad48080800001ce8080800001017f410028020441106b2200410036020c2000410036020802400340200028020841094a0d012000200028020c20002802086a36020c2000200028020841016a3602080c000b0b200028020c0b")	
+	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
+	vm.debugStack = true
+
+	expectedModuleCode := []byte{
+		0x41, 0x0, 
+		0x28, 0x2, 0x4, 
+		0x41, 0x10, 0x6b, 
+		0x22, 0x0, 0x41, 0x0, 
+		0x36, 0x2, 0xc, 
+		0x20, 0x0, 0x41, 0x0, 
+		0x36, 0x2, 0x8, 
+		0x2, 0x40, 
+		
+		0x3, 0x40, 
+		0x20, 0x0, 0x28, 
+		0x2, 0x8, 0x41, 
+		0x9, 0x4a, 
+		0xd, 0x1, 0x20, 
+		0x0, 0x20, 0x0, 
+		0x28, 0x2, 0xc, 
+		0x20, 0x0, 0x28, 
+		0x2, 0x8, 0x6a, 
+		0x36, 0x2, 0xc, 
+		0x20, 0x0, 0x20, 0x0, 
+		0x28, 0x2, 0x8, 
+		0x41, 0x1, 0x6a, 
+		0x36, 0x2, 0x8, 0xc, 
+		0x0, 0xb, 0xb, 
+		0x20, 0x0, 
+		0x28, 0x2, 0xc, 0xb,
+	}
+
+	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	vm.run()
+	fmt.Printf("vmStack: %v\n", vm.vmStack)
+	assert.Equal(t, vm.popFromStack(), uint64(45))
+}

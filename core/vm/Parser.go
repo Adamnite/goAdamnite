@@ -15,7 +15,6 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 	}}
 
 	index := 0
-	blockIndex := 1
 
 	for pointInBytes < len(bytes) {
 		switch bytes[pointInBytes] {
@@ -245,23 +244,17 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			controlBlock.op = Op_block
 			pointInBytes++
 
-			// Skip the blocktype
-			controlBlock.startAt = uint64(pointInBytes) + 1
-
-			pointInBytes++ 
-			ansOps = append(ansOps, Block{uint32(blockIndex)})
-			controlBlock.index = uint32(blockIndex)
+			controlBlock.startAt = uint64(len(ansOps))
 			controlBlocks = append(controlBlocks, controlBlock)
-			blockIndex++
+			ansOps = append(ansOps, Block{uint32(len(controlBlocks)) - 1})
+			pointInBytes++
 
 		case Op_br:
-			// We add one to every label index, because label 0 is reserved for function block start
-			ansOps = append(ansOps, Br{uint32(bytes[pointInBytes + 1]) + 1})
+			ansOps = append(ansOps, Br{uint32(bytes[pointInBytes + 1])})
 			pointInBytes += 2
 		
 		case Op_br_if:
-			// We add one to every label index, because label 0 is reserved for function block start
-			ansOps = append(ansOps, BrIf{uint32(bytes[pointInBytes + 1]) + 1})
+			ansOps = append(ansOps, BrIf{uint32(bytes[pointInBytes + 1])})
 			pointInBytes += 2
 		
 		case Op_if:
@@ -269,18 +262,26 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes++
 
 		case Op_loop:
-			ansOps = append(ansOps, Loop{})
+			controlBlock := ControlBlock{}
+			controlBlock.signature = bytes[pointInBytes + 1]
+			pointInBytes++
+
+			controlBlock.op = Op_loop
+			controlBlock.startAt = uint64(len(ansOps))
+
+			controlBlocks = append(controlBlocks, controlBlock)
+
+			ansOps = append(ansOps, Loop{uint32(len(controlBlocks)) - 1})
 			pointInBytes++
 		
-
 		case Op_end:
 			// Retrieve the block for which we found the end
 			block := &controlBlocks[len(controlBlocks) - index - 1]
 
-			ansOps = append(ansOps, End{block.index})
+			ansOps = append(ansOps, End{})
 			pointInBytes += 1
 
-			block.endAt = uint64(pointInBytes)
+			block.endAt = uint64(len(ansOps)) - 1
 			index++
 
 		case Op_get_local:

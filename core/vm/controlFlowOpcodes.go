@@ -1,6 +1,6 @@
 package vm
 type Block struct {
-	index uint32
+	index uint32 // The index of its controlblock inside the controlBlockStack
 }
 
 func (op Block) doOp(m *Machine) {
@@ -8,10 +8,9 @@ func (op Block) doOp(m *Machine) {
 	stackLength  := len(m.vmStack)
 
 	m.pointInCode++ // First skip this Block byte
-	controlBlock := m.controlBlockStack[op.index]
-	endOfThisBlock := End{controlBlock.index}
+	control := m.controlBlockStack[op.index]
 
-	for (m.vmCode[m.pointInCode] != endOfThisBlock) {
+	for (m.pointInCode != control.endAt) {
 		m.vmCode[m.pointInCode].doOp(m)
 	}
 
@@ -28,22 +27,20 @@ type Br struct {
 
 func (op Br) doOp(m *Machine) {
 
+	// An important note about the labels is that the innermost one has the index 0 and the outtermost one has the index N
+	// https://webassembly.github.io/spec/core/bikeshed/index.html#control-instructions%E2%91%A0
 	if (len(m.controlBlockStack) < int(op.index)) {
 		panic("Index where to branch out of range")
 	}
 
-	branch := m.controlBlockStack[op.index]
-	endOfThisBlock := End{op.index}
+	branch := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
 
 	if (branch.op == Op_block || branch.op == Op_if) {
 		// This means a break statement
-		// @TODO(sdmg15) Replace this loop later with m.pointInCode += branch.endAt
-		for (m.vmCode[m.pointInCode] != endOfThisBlock) {
-			m.pointInCode += 1
-		}
+		m.pointInCode = branch.endAt
 	} else if (branch.op == Op_loop) {
 		// This means a continue statement
-		m.pointInCode = branch.startAt
+		m.pointInCode = branch.startAt + 1 // +1 To skip the block byte
 	} else {
 		panic("Something went wrong while branching to index uint32(op.index)")
 	}
@@ -93,9 +90,9 @@ func (op Loop) doOp(m *Machine) {
 
 	m.pointInCode++ // First skip this Loop byte
 	controlBlock := m.controlBlockStack[op.index]
-	endOfThisBlock := End{controlBlock.index}
 
-	for (m.vmCode[m.pointInCode] != endOfThisBlock) {
+	// Once the pointInCode becomes bigger than the endAt then it means we branched to a block
+	for (m.pointInCode < controlBlock.endAt) {
 		m.vmCode[m.pointInCode].doOp(m)
 	}
 
