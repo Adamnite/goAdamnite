@@ -255,12 +255,14 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			blockIndex++
 
 		case Op_br:
-			ansOps = append(ansOps, Br{})
-			pointInBytes++
+			// We add one to every label index, because label 0 is reserved for function block start
+			ansOps = append(ansOps, Br{uint32(bytes[pointInBytes + 1]) + 1})
+			pointInBytes += 2
 		
 		case Op_br_if:
-			ansOps = append(ansOps, BrIf{})
-			pointInBytes++
+			// We add one to every label index, because label 0 is reserved for function block start
+			ansOps = append(ansOps, BrIf{uint32(bytes[pointInBytes + 1]) + 1})
+			pointInBytes += 2
 		
 		case Op_if:
 			ansOps = append(ansOps, If{})

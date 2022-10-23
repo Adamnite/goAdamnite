@@ -5,7 +5,7 @@ type Block struct {
 
 func (op Block) doOp(m *Machine) {
 	// Add some stack validation here
-	stackLength := len(m.vmStack)
+	stackLength  := len(m.vmStack)
 
 	m.pointInCode++ // First skip this Block byte
 	controlBlock := m.controlBlockStack[op.index]
@@ -13,31 +13,57 @@ func (op Block) doOp(m *Machine) {
 
 	for (m.vmCode[m.pointInCode] != endOfThisBlock) {
 		m.vmCode[m.pointInCode].doOp(m)
-		m.pointInCode++
 	}
 
 	finalStackLength := len(m.vmStack)
 
-	if stackLength < finalStackLength {
+	if finalStackLength < stackLength {
 		panic("Inconsistent stack after execution of Op_Block")
 	}
 }
 
-type Br struct {}
+type Br struct {
+	index uint32
+}
 
 func (op Br) doOp(m *Machine) {
 
+	if (len(m.controlBlockStack) < int(op.index)) {
+		panic("Index where to branch out of range")
+	}
+
+	branch := m.controlBlockStack[op.index]
+	endOfThisBlock := End{op.index}
+
+	if (branch.op == Op_block || branch.op == Op_if) {
+		// This means a break statement
+		// @TODO(sdmg15) Replace this loop later with m.pointInCode += branch.endAt
+		for (m.vmCode[m.pointInCode] != endOfThisBlock) {
+			m.pointInCode += 1
+		}
+	} else if (branch.op == Op_loop) {
+		// This means a continue statement
+		m.pointInCode = branch.startAt
+	} else {
+		panic("Something went wrong while branching to index uint32(op.index)")
+	}
 }
 
 type BrIf struct {
+	index uint32
 }
 
 func (op BrIf) doOp(m *Machine) {
+	if (len(m.controlBlockStack) < int(op.index)) {
+		panic("Index where to branch out of range")
+	}
+
 	condition := uint32(m.popFromStack())
 
-	if (condition == 1) {
-		Br{}.doOp(m)
+	if (condition != 0) {
+		Br{op.index}.doOp(m)
 	} else {
+		NoOp{}.doOp(m)
 	}
 }
 
@@ -59,10 +85,25 @@ func (op If) doOp(m *Machine) {
 }
 
 type Loop struct {
-
+	index uint32
 }
 
 func (op Loop) doOp(m *Machine) {
+	stackLength  := len(m.vmStack)
+
+	m.pointInCode++ // First skip this Loop byte
+	controlBlock := m.controlBlockStack[op.index]
+	endOfThisBlock := End{controlBlock.index}
+
+	for (m.vmCode[m.pointInCode] != endOfThisBlock) {
+		m.vmCode[m.pointInCode].doOp(m)
+	}
+
+	finalStackLength := len(m.vmStack)
+
+	if finalStackLength < stackLength {
+		panic("Inconsistent stack after execution of Op_Block")
+	}
 
 }
 

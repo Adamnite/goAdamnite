@@ -19,8 +19,7 @@ type localSet struct {
 }
 
 func (op localSet) doOp(m *Machine) {
-	//im not too clear why this would be called.
-	for len(m.locals) < int(op.point) {
+	for len(m.locals) <= int(op.point) {
 		m.locals = append(m.locals, uint64(0))
 	}
 	m.locals[op.point] = m.popFromStack()
@@ -56,14 +55,12 @@ func (op TeeLocal) doOp(m *Machine) {
 	v := m.popFromStack()
 	m.pushToStack(uint64(v))
 	m.pushToStack(uint64(v))
-
-	val := m.popFromStack()
-	m.locals[op.val] = val
-	m.pointInCode++
+	localSet{int64(op.val)}.doOp(m)
 }
 
 type Drop struct {}
 
 func (op Drop) doOp(m *Machine) {
 	m.popFromStack()
+	m.pointInCode++
 }
