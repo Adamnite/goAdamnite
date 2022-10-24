@@ -8,6 +8,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
+	"github.com/adamnite/go-adamnite/serialization
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
