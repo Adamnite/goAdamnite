@@ -3,10 +3,12 @@ package statedb
 import (
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
+
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -34,8 +36,8 @@ type StateDB struct {
 	stateObjects        map[common.Address]*stateObject
 	stateObjectsDirty   map[common.Address]struct{}
 	stateObjectsPending map[common.Address]struct{}
-
-	dbErr error
+	lock                sync.Mutex
+	dbErr               error
 }
 
 func New(root common.Hash, db Database) (*StateDB, error) {

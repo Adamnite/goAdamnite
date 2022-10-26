@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"container/heap"
 	"errors"
 	"math/big"
 	"sync/atomic"
@@ -167,4 +168,39 @@ func (tx *Transaction) ATEPriceCmp(other *Transaction) int {
 
 func (tx *Transaction) ATEPriceIntCmp(other *big.Int) int {
 	return tx.InnerData.ATE_price().Cmp(other)
+}
+
+type TxByPrice Transactions
+
+type TransactionsByPriceAndNonce struct {
+	txs    map[common.Address]Transactions //List of transaction records currently sorted by account
+	heads  TxByPrice                       // next transaction for each unique account (price heap)
+	signer Signer                          //The signer of the transaction set
+}
+
+//newTransactionByPriceAndOnce creates a retrieving
+// Sort the trades by price in a non-cash way.
+//
+// Note that the input map is re-owned, so the caller should no longer interact with
+//if after provided to the constructor.
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
+	//Initialize price-based heap with head transaction
+	heads := make(TxByPrice, 0, len(txs))
+	for from, accTxs := range txs {
+		heads = append(heads, accTxs[0])
+		// Make sure the sender address is from the signer
+		acc, _ := Sender(signer, accTxs[0])
+		txs[acc] = accTxs[1:]
+		if from != acc {
+			delete(txs, from)
+		}
+	}
+	heap.Init(&heads)
+
+	//Assemble and return the transaction set
+	return &TransactionsByPriceAndNonce{
+		txs:    txs,
+		heads:  heads,
+		signer: signer,
+	}
 }

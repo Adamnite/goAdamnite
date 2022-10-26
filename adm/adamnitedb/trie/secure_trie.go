@@ -39,7 +39,7 @@ func NewSecure(root common.Hash, db *Database) (*SecureTrie, error) {
 	if db == nil {
 		panic("trie.NewSecure called without a database")
 	}
-	trie, err := New(root, db)
+	trie, err := NewSecure(root, db)
 	if err != nil {
 		return nil, err
 	}

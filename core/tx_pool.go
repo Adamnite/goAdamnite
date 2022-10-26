@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sync"
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -31,9 +32,11 @@ type TxPool struct {
 	config      TxPoolConfig
 	chainConfig *params.ChainConfig
 	chain       blockChain
+	mu          sync.RWMutex
+	pending     map[common.Address]*txList
+	all         *txLookup
 
-	pending map[common.Address]*txList
-	all     *txLookup
+	locals *accountSet
 }
 
 type blockChain interface {
@@ -57,4 +60,22 @@ func NewTxPool(config TxPoolConfig, chainConfig *params.ChainConfig, chain block
 
 func (pool *TxPool) Get(txHash common.Hash) *types.Transaction {
 	return pool.all.Get(txHash)
+}
+
+func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	pending := make(map[common.Address]types.Transactions)
+	for addr, list := range pool.pending {
+		pending[addr] = list.Flatten()
+	}
+	return pending, nil
+}
+
+func (pool *TxPool) Locals() []common.Address {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	return pool.locals.flatten()
 }

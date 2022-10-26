@@ -45,7 +45,7 @@ func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engi
 	}
 
 	// demo logic
-	genesis := DefaultDemoGenesisBlock()
+	genesis := DefaultTestnetGenesisBlock()
 	block, err := genesis.Write(db)
 	if err != nil {
 		return nil, err
