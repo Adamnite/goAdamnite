@@ -10,7 +10,7 @@ func (op Block) doOp(m *Machine) {
 	m.pointInCode++ // First skip this Block byte
 	control := m.controlBlockStack[op.index]
 
-	for (m.pointInCode != control.endAt) {
+	for (m.pointInCode < control.endAt) {
 		m.vmCode[m.pointInCode].doOp(m)
 	}
 
@@ -65,20 +65,59 @@ func (op BrIf) doOp(m *Machine) {
 }
 
 type If struct {
-	controlBlock ControlBlock
+	index uint32 // The index of its controlblock inside the controlBlockStack
 }
 
 func (op If) doOp(m *Machine) {
-	condition := uint32(m.popFromStack())
+	stackLen := len(m.vmStack)
 
-	if (condition == 1) {
-		// continue the execution
-	} else {
-		if (op.controlBlock.elseAt != 0) {
-		} else {
-			m.pointInCode += op.controlBlock.endAt + 1
+	condition := uint32(m.popFromStack())
+	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
+
+	if (condition != 0) {
+		end := controlBlock.endAt
+
+		if (controlBlock.elseAt != 0) {
+			end = controlBlock.elseAt - 1 //
 		}
+
+		for (m.pointInCode != end) {
+			m.vmCode[m.pointInCode].doOp(m)
+		}
+
+		if (controlBlock.elseAt != 0) {
+			m.pointInCode = controlBlock.endAt
+		}
+
+	} else if (controlBlock.elseAt != 0) {
+		m.pointInCode = controlBlock.elseAt + 1 // + 1 to skip the block byte
+	} else {
+		m.pointInCode = controlBlock.endAt
 	}
+
+	if (len(m.vmStack) < stackLen) {
+		panic("Inconsistent stack after execution of Op_Else")
+	}
+
+}
+
+type Else struct {
+	index uint32 // The index of its controlblock inside the controlBlockStack should have the same value as the If one
+}
+
+func (op Else) doOp(m *Machine) {
+
+	stackLen := len(m.vmStack)
+	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
+
+	for (m.pointInCode != controlBlock.endAt) {
+		m.vmCode[m.pointInCode].doOp(m)
+	}
+
+	if (len(m.vmStack) < stackLen) {
+		panic("Inconsistent stack after execution of Op_Else")
+	}
+
 }
 
 type Loop struct {
@@ -122,4 +161,44 @@ type End struct {
 
 func (op End) doOp(m *Machine) {
 	m.pointInCode++
+}
+
+type Return struct {}
+
+func (op Return) doOp(m *Machine) {
+	// branch := m.controlBlockStack[0]
+
+	if (len(m.vmStack) > 0) {
+		res := m.popFromStack()
+
+		for len(m.vmStack) != 0 {
+			m.popFromStack()
+			m.pointInCode++
+		}
+		m.pushToStack(uint64(res))
+	} else {
+		m.pointInCode += uint64(len(m.vmCode) - 2) // -1 for range and -1 for staying at End{} of function
+	}
+}
+
+type Call struct {
+	funcIndex uint32
+}
+
+func (op Call) doOp(m *Machine) {
+
+	if int(op.funcIndex) >= len(m.module.typeSection[op.funcIndex].params) {
+		panic("invalid function index")
+	}
+	// Pop the required params from stack
+	params := m.module.typeSection[op.funcIndex].params
+	poppedParams := []uint64{}
+	for i := len(params) - 1; i != 0; {
+		poppedParams = append(poppedParams, m.popFromStack())
+	}
+}
+
+type CallIndirect struct {}
+
+func (op CallIndirect) doOp(m *Machine) {
 }

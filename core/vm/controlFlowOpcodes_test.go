@@ -217,3 +217,53 @@ func Test_Loop(t *testing.T) {
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(45))
 }
+
+func Test_If(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d010000000184808080000160000003828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000abd8080800001b78080800001017f410028020441106b220041e40036020c02404100450d002000200028020c410a6a36020c0f0b2000200028020c410f6a36020c0b")	
+	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
+	
+	expectedModuleCode := []byte{
+		0x41, 0x0, 0x28, 0x2, 0x4, 0x41, 0x10, 
+		0x6b, 0x22, 0x0, 0x41, 0xe4, 0x0, 0x36, 
+		0x2, 0xc, 0x2, 0x40, 0x41, 0x0, 0x45, 0xd, 
+		0x0, 0x20, 0x0, 0x20, 0x0, 0x28, 0x2, 0xc, 
+		0x41, 0xa, 0x6a, 0x36, 0x2, 0xc, 0xf, 0xb, 
+		0x20, 0x0, 0x20, 0x0, 0x28, 0x2, 0xc, 0x41, 
+		0xf, 0x6a, 0x36, 0x2, 0xc, 0xb,
+	}
+
+	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	vm.run()
+	res := LE.Uint32(vm.vmMemory[28 : 28 + 4])
+	assert.Equal(t, uint64(115), uint64(res))
+}
+
+func Test_Return(t *testing.T) {
+	// int testFunction() {
+	// 	int sum = 100;
+	// 	if (sum%2 == 0) {
+	// 	  sum += 15;
+	// 	} else {
+	// 	  sum+= 10;
+	// 	}
+	// 	return sum;
+	//   }
+	wasmBytes, _ := hex.DecodeString("0061736d010000000184808080000160000003828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000abd8080800001b78080800001017f410028020441106b220041e40036020c02404100450d002000200028020c410a6a36020c0f0b2000200028020c410f6a36020c0b")	
+	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
+	
+	expected := []byte{
+		0x41, 0x0, 0x28, 0x2, 0x4, 0x41, 0x10, 
+		0x6b, 0x22, 0x0, 0x41, 0xe4, 0x0, 0x36, 
+		0x2, 0xc, 0x2, 0x40, 0x41, 0x1, 0x45, 0xd, 
+		0x0, 0x20, 0x0, 0x20, 0x0, 0x28, 0x2, 0xc, 
+		0x41, 0xa, 0x6a, 0x36, 0x2, 0xc, 0xf, 0xb, 
+		0x20, 0x0, 0x20, 0x0, 0x28, 0x2, 0xc, 0x41, 
+		0xf, 0x6a, 0x36, 0x2, 0xc, 0xb,
+	}
+
+	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+
+	vm.run()
+	res := LE.Uint32(vm.vmMemory[28 : 28 + 4])
+	assert.Equal(t, uint64(110), uint64(res))
+}

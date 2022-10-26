@@ -2,7 +2,10 @@ package vm
 
 import (
 	"encoding/hex"
+	"bytes"
 )
+
+var reader = bytes.NewReader
 
 func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 	ansOps := []OperationCommon{}
@@ -20,8 +23,13 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		switch bytes[pointInBytes] {
 
 		case Op_i32_const:
-			ansOps = append(ansOps, i32Const{int32(bytes[pointInBytes+1])})
-			pointInBytes += 2
+			num, count, err := DecodeInt32(reader(bytes[pointInBytes+1:]))
+			if err != nil {
+				panic("Error parsing Op_i32_const value")
+			}
+			ansOps = append(ansOps, i32Const{int32(num)})
+			pointInBytes += int(count) + 1
+
 		case Op_i32_sub:
 			ansOps = append(ansOps, i32Sub{})
 			pointInBytes += 1
@@ -210,9 +218,14 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 1
 
 		case Op_i64_const:
-			var op = i64Const{int64(bytes[pointInBytes+1])}
-			ansOps = append(ansOps, op)
-			pointInBytes += 2
+			num, count, err := DecodeInt64(reader(bytes[pointInBytes+1:]))
+
+			if err != nil {
+				panic("Error parsing Op_i64_const value")
+			}
+			ansOps = append(ansOps, i64Const{int64(num)})
+			pointInBytes += int(count) + 1
+
 		case Op_i64_add:
 			ansOps = append(ansOps, i64Add{})
 			pointInBytes += 1
@@ -258,7 +271,25 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 2
 		
 		case Op_if:
-			ansOps = append(ansOps, If{})
+			controlBlock := ControlBlock{}
+			controlBlock.signature = bytes[pointInBytes + 1]
+			controlBlock.op = Op_if
+			pointInBytes++
+
+			controlBlock.startAt = uint64(len(ansOps))
+			controlBlocks = append(controlBlocks, controlBlock)
+			ansOps = append(ansOps, If{uint32(len(controlBlocks)) - 1})
+			pointInBytes++
+		
+		case Op_else:
+			ifblock := &controlBlocks[len(controlBlocks) - 1]
+
+			if (ifblock.op != Op_if) {
+				panic("Last control block element is not an if")
+			}
+
+			ifblock.elseAt = uint64(len(ansOps))
+			ansOps = append(ansOps, Else{ifblock.index})
 			pointInBytes++
 
 		case Op_loop:
@@ -283,7 +314,19 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			block.endAt = uint64(len(ansOps)) - 1
 			index++
+		
+		case Op_return:
+			ansOps = append(ansOps, Return{})
+			pointInBytes++
+		
+		case Op_call:
+			ansOps = append(ansOps, Call{uint32(bytes[pointInBytes + 1])})
+			pointInBytes++
 
+		case Op_call_indirect:
+			ansOps = append(ansOps, CallIndirect{})
+			pointInBytes++
+			
 		case Op_get_local:
 			ansOps = append(ansOps, localGet{int64(bytes[pointInBytes+1])})
 			pointInBytes += 2
