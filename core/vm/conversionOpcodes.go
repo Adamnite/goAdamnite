@@ -144,7 +144,7 @@ type f64Convertsi64 struct {}
 
 func (op f64Convertsi64) doOp(m *Machine) {
 	v := int64(m.popFromStack())
-	m.pushToStack(uint64(math.Float64bits(float64(v))))
+	m.pushToStack(uint64(float64(v)))
 	m.pointInCode++
 }
 

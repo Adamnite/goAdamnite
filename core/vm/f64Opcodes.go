@@ -42,8 +42,8 @@ func (op f64Ne) doOp(m *Machine) {
 type f64Lt struct {}
 
 func (op f64Lt) doOp(m *Machine) {
-	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
+	a := math.Float64frombits(uint64(m.popFromStack()))
 	
 	if a < b {
 		m.pushToStack(uint64(1))

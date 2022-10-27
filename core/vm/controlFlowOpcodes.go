@@ -69,11 +69,17 @@ type If struct {
 }
 
 func (op If) doOp(m *Machine) {
-	stackLen := len(m.vmStack)
-
+	// @TODO(sdmg15) Check if the top of the stack is the same type as signature in If/Else/End
 	condition := uint32(m.popFromStack())
-	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
 
+	stackLen := len(m.vmStack)
+	
+	controlBlock := m.controlBlockStack[int(op.index)]
+
+	if (controlBlock.op != Op_if) {
+		panic("Invalid Operand retrieved from stack - Op_If expected")
+	}
+	
 	if (condition != 0) {
 		end := controlBlock.endAt
 
@@ -96,7 +102,7 @@ func (op If) doOp(m *Machine) {
 	}
 
 	if (len(m.vmStack) < stackLen) {
-		panic("Inconsistent stack after execution of Op_Else")
+		panic("Inconsistent stack after execution of Op_If")
 	}
 
 }
@@ -108,7 +114,7 @@ type Else struct {
 func (op Else) doOp(m *Machine) {
 
 	stackLen := len(m.vmStack)
-	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
+	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - 1]
 
 	for (m.pointInCode != controlBlock.endAt) {
 		m.vmCode[m.pointInCode].doOp(m)
@@ -190,12 +196,19 @@ func (op Call) doOp(m *Machine) {
 	if int(op.funcIndex) >= len(m.module.typeSection[op.funcIndex].params) {
 		panic("invalid function index")
 	}
+
 	// Pop the required params from stack
 	params := m.module.typeSection[op.funcIndex].params
 	poppedParams := []uint64{}
-	for i := len(params) - 1; i != 0; {
+	for i := len(params); i != 0; i--{
 		poppedParams = append(poppedParams, m.popFromStack())
 	}
+	code := m.module.codeSection[op.funcIndex].body
+	
+	m = newVirtualMachine(code, m.contractStorage, m.config)
+	m.locals = poppedParams
+	m.run()
+
 }
 
 type CallIndirect struct {}

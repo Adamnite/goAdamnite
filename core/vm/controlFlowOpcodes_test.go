@@ -267,3 +267,68 @@ func Test_Return(t *testing.T) {
 	res := LE.Uint32(vm.vmMemory[28 : 28 + 4])
 	assert.Equal(t, uint64(110), uint64(res))
 }
+
+
+// func Test_Call(t *testing.T) {
+// 	// (module
+// 	// 	(func $fac (export "fac") (param f64) (result f64)
+// 	// 	  local.get 0
+// 	// 	  f64.const 1
+// 	// 	  f64.lt
+// 	// 	  if (result f64)
+// 	// 		f64.const 1
+// 	// 	  else
+// 	// 		local.get 0
+// 	// 		local.get 0
+// 	// 		f64.const 1
+// 	// 		f64.sub
+// 	// 		call $fac
+// 	// 		f64.mul
+// 	// 	  end))
+	  
+// 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160017c017c030201000707010366616300000a2e012c00200044000000000000f03f63047c44000000000000f03f052000200044000000000000f03fa11000a20b0b0012046e616d6501060100036661630203010000")
+// 	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
+
+// 	expected := []byte{
+// 		Op_get_local, 0x0, 
+// 		Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+// 		Op_f64_lt, 
+		
+// 		Op_if, Op_f64, 
+// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+// 		Op_else, 
+// 			Op_get_local, 0x0, 
+// 			Op_get_local, 0x0, 
+// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+// 			Op_f64_sub, 
+// 			Op_call, 0x0, 
+// 			Op_f64_mul, 
+// 		Op_end, 
+		
+// 		Op_end,
+// 	}
+	
+// 	assert.Equal(t, expected, vm.module.codeSection[0].body)
+// 	vm.locals = append(vm.locals, 5)
+// 	vm.run()
+// 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
+// }
+
+func Test_FuncFact(t *testing.T) {
+	// double fact() {
+	// 	int i = 4;
+	// 	long long n = 1;
+	// 	for (;i > 0; i--) {
+	// 	  n *= i;
+	// 	}
+	// 	return (double)n;
+	//   }
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017c0382808080000100048480808000017000000583808080000100010681808080000007958080800002066d656d6f72790200085f5a34666163747600000ad58080800001cf8080800001017f410028020441106b2200410436020c2000420137030002400340200028020c4101480d0120002000290300200034020c7e3703002000200028020c417f6a36020c0c000b0b2000290300b90b")
+	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
+
+	vm.run()
+	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
+	res := vm.popFromStack()
+	assert.Equal(t, res, uint64(24))
+}
+

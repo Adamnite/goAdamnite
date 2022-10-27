@@ -1,8 +1,9 @@
 package vm
 
 import (
-	"encoding/hex"
 	"bytes"
+	"encoding/hex"
+	"math"
 )
 
 var reader = bytes.NewReader
@@ -289,7 +290,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			}
 
 			ifblock.elseAt = uint64(len(ansOps))
-			ansOps = append(ansOps, Else{ifblock.index})
+			ansOps = append(ansOps, Else{uint32(ifblock.startAt)})
 			pointInBytes++
 
 		case Op_loop:
@@ -321,7 +322,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		
 		case Op_call:
 			ansOps = append(ansOps, Call{uint32(bytes[pointInBytes + 1])})
-			pointInBytes++
+			pointInBytes += 2
 
 		case Op_call_indirect:
 			ansOps = append(ansOps, CallIndirect{})
@@ -420,9 +421,9 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 1
 		
 		case Op_f32_const:
-			ansOps = append(ansOps, f32Const{float32(bytes[pointInBytes+1])})
-			pointInBytes += 2
-
+			num := LE.Uint32(bytes[pointInBytes+1: 4])
+			ansOps = append(ansOps, f32Const{math.Float32frombits(num)})
+			pointInBytes += 5
 		case Op_f32_eq:
 			ansOps = append(ansOps, f32Eq{})
 			pointInBytes +=1
@@ -485,8 +486,9 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 1
 		
 		case Op_f64_const:
-			ansOps = append(ansOps, f64Const{float64(bytes[pointInBytes+1])})
-			pointInBytes += 2
+			num := LE.Uint64(bytes[pointInBytes+1:])
+			ansOps = append(ansOps, f64Const{math.Float64frombits(num)})
+			pointInBytes += 9
 
 		case Op_f64_eq:
 			ansOps = append(ansOps, f64Eq{})
