@@ -8,9 +8,9 @@ import (
 type i32Sub struct{}
 
 func (op i32Sub) doOp(m *Machine) {
-	b := uint32(uint32(m.popFromStack()))
-	a := uint32(uint32(m.popFromStack()))
-	m.pushToStack(uint64(uint32(b - a)))
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+	m.pushToStack(uint64(uint32(c2 - c1)))
 	m.pointInCode++
 }
 
@@ -31,32 +31,41 @@ func (op i32Mul) doOp(m *Machine) {
 type i32Xor struct{}
 
 func (op i32Xor) doOp(m *Machine) {
-	m.pushToStack(uint64(uint32(uint32(m.popFromStack()) ^ uint32(m.popFromStack()))))
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+	
+	m.pushToStack(uint64(uint32(c1^c2)))
 	m.pointInCode++
 }
 
 type i32Or struct{}
 
 func (op i32Or) doOp(m *Machine) {
-	m.pushToStack(uint64(uint32(uint32(m.popFromStack()) | uint32(m.popFromStack()))))
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+	
+	m.pushToStack(uint64(uint32(c1 | c2)))
 	m.pointInCode++
 }
 
 type i32And struct{}
 
 func (op i32And) doOp(m *Machine) {
-	m.pushToStack(uint64(uint32(uint32(m.popFromStack()) & uint32(m.popFromStack()))))
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
+
+	m.pushToStack(uint64(uint32(c1 & c2)))
 	m.pointInCode++
 }
 
 type i32Remu struct{}
 
 func (op i32Remu) doOp(m *Machine) {
-	i1 := uint32(m.popFromStack())
-	i2 := uint32(m.popFromStack())
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
 
-	if i2 != 0 {
-		m.pushToStack(uint64(uint32(i1 % i2)))
+	if c2 != 0 {
+		m.pushToStack(uint64(uint32(c1 % c2)))
 	} else {
 		panic("Division by Zero")
 	}
@@ -67,11 +76,11 @@ func (op i32Remu) doOp(m *Machine) {
 type i32Divu struct{}
 
 func (op i32Divu) doOp(m *Machine) {
-	i1 := uint32(m.popFromStack())
-	i2 := uint32(m.popFromStack())
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
 
-	if i1 != 0 {
-		m.pushToStack(uint64(uint32(i1 / i2)))
+	if c2 != 0 {
+		m.pushToStack(uint64(uint32(c1 / c2)))
 	} else {
 		panic("Division by zero")
 	}
@@ -238,62 +247,62 @@ func (op i32Les) doOp(m *Machine) {
 type i32Shl struct {}
 
 func (op i32Shl) doOp(m *Machine) {
-	a := int32(m.popFromStack())
-	b := uint32(m.popFromStack())
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
 
-	m.pushToStack(uint64(uint32(a << (b % 32))))
+	m.pushToStack(uint64(uint32(c1 << (c2 % 32))))
 	m.pointInCode++;
 }
 
 type i32Shrs struct {}
 
 func (op i32Shrs) doOp(m *Machine) {
-	a := int32(m.popFromStack())
-	b := uint32(m.popFromStack())
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
 
-	m.pushToStack(uint64(int32(a >> (b % 32))))
+	m.pushToStack(uint64(int32(c1 >> (c2 % 32))))
 	m.pointInCode++;
 }
 
 type i32Shru struct {}
 
 func (op i32Shru) doOp(m *Machine) {
-	a := uint32(m.popFromStack())
-	b := uint32(m.popFromStack())
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
 
-	m.pushToStack(uint64(uint32(a >> (b % 32))))
+	m.pushToStack(uint64(uint32(c1 >> (c2 % 32))))
 	m.pointInCode++;
 }
 
 type i32Divs struct {}
 
 func (op i32Divs) doOp(m *Machine) {
-	a := int32(uint32(m.popFromStack()))
-	b := int32(uint32(m.popFromStack()))
+	c2 := int32(uint32(m.popFromStack()))
+	c1 := int32(uint32(m.popFromStack()))
 
-	if b == 0 {
+	if c2 == 0 {
 		panic("integer division by zero")
 	}
 
-	if a == math.MinInt32 && b == -1 {
+	if c1 == math.MinInt32 && c2 == -1 {
 		panic("signed integer overflow")
 	}
 
-	m.pushToStack(uint64(a/b))
+	m.pushToStack(uint64(c1/c2))
 	m.pointInCode++
 }
 
 type i32Rems struct {}
 
 func (op i32Rems) doOp(m *Machine) {
-	a := int32(m.popFromStack())
-	b := int32(m.popFromStack())
+	c2 := int32(m.popFromStack())
+	c1 := int32(m.popFromStack())
 
-	if b == 0 {
+	if c2 == 0 {
 		panic("integer division by zero")
 	}
 	
-	m.pushToStack(uint64(uint32(a % b)))
+	m.pushToStack(uint64(uint32(c1 % c2)))
 	m.pointInCode++
 }
 
@@ -325,10 +334,10 @@ func (op i32PopCnt) doOp(m *Machine) {
 type i32Rotl struct {}
 
 func (op i32Rotl) doOp(m *Machine) {
-	a := uint32(m.popFromStack())
-	b := uint32(m.popFromStack())
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
 
-	m.pushToStack(uint64(bits.RotateLeft32(a, int(b))))
+	m.pushToStack(uint64(bits.RotateLeft32(c1, int(c2))))
 	m.pointInCode++
 }
 
@@ -336,10 +345,10 @@ func (op i32Rotl) doOp(m *Machine) {
 type i32Rotr struct {}
 
 func (op i32Rotr) doOp(m *Machine) {
-	a := uint32(m.popFromStack())
-	b := uint32(m.popFromStack())
+	c2 := uint32(m.popFromStack())
+	c1 := uint32(m.popFromStack())
 
-	m.pushToStack(uint64(bits.RotateLeft32(a, -int(b))))
+	m.pushToStack(uint64(bits.RotateLeft32(c1, -int(c2))))
 	m.pointInCode++
 }
 

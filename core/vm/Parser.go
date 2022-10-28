@@ -264,12 +264,22 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes++
 
 		case Op_br:
-			ansOps = append(ansOps, Br{uint32(bytes[pointInBytes + 1])})
-			pointInBytes += 2
+			label, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+			if (err != nil) {
+				panic("Error occured while parsing label Op_br")
+			}
+			ansOps = append(ansOps, Br{label})
+			pointInBytes += int(count) + 1
 		
 		case Op_br_if:
-			ansOps = append(ansOps, BrIf{uint32(bytes[pointInBytes + 1])})
-			pointInBytes += 2
+			label, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+
+			if (err != nil) {
+				panic("Error occured while parsing label Op_brIf")
+			}
+
+			ansOps = append(ansOps, BrIf{label})
+			pointInBytes += int(count) + 1
 		
 		case Op_if:
 			controlBlock := ControlBlock{}
@@ -321,16 +331,28 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes++
 		
 		case Op_call:
-			ansOps = append(ansOps, Call{uint32(bytes[pointInBytes + 1])})
-			pointInBytes += 2
+			funcIndex, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+			
+			if (err != nil) {
+				panic("Error occured while parsing label Op_call")
+			}
+
+			ansOps = append(ansOps, Call{funcIndex})
+			pointInBytes += int(count) + 1
 
 		case Op_call_indirect:
 			ansOps = append(ansOps, CallIndirect{})
 			pointInBytes++
 			
 		case Op_get_local:
-			ansOps = append(ansOps, localGet{int64(bytes[pointInBytes+1])})
-			pointInBytes += 2
+			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+			
+			if (err != nil) {
+				panic("Error occured while parsing label Op_get_local")
+			}
+
+			ansOps = append(ansOps, localGet{int64(index)})
+			pointInBytes += int(count) + 1
 		case Op_drop:
 			ansOps = append(ansOps, Drop{})
 			pointInBytes++
