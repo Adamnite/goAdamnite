@@ -10,7 +10,7 @@ type i32Sub struct{}
 func (op i32Sub) doOp(m *Machine) {
 	c2 := uint32(m.popFromStack())
 	c1 := uint32(m.popFromStack())
-	m.pushToStack(uint64(uint32(c2 - c1)))
+	m.pushToStack(uint64(uint32(c1 - c2)))
 	m.pointInCode++
 }
 
