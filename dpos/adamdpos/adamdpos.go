@@ -1,10 +1,14 @@
 package adamdpos
 
 import "time"
+import "fmt"
+import "units"
 
 const (
-	AverageBlockDuration = time.Second * 8  // 8 seconds
-	MaxBlockDuration     = time.Second * 16 // 16 seconds
+	AverageBlockDuration = time.Second * 1  // 1 second
+	MaxBlockDuration     = time.Second * 10 // 10 seconds
+	BlockSize 	     = units.MegaByte * 5 // 5 megabytes is the block size limit
+	
 
 	EpochBlockCount = 162
 )
