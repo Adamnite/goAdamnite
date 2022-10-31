@@ -41,8 +41,8 @@ func (as AdamniteSigner) Sender(tx *Transaction) (common.Address, error) {
 }
 
 func (as AdamniteSigner) Hash(tx *Transaction) common.Hash {
-	bytes := crypto.Sha512(serialization.Serialize(tx.Nonce()))
-
+	serial := serialization.Serialize(tx.Nonce())
+	bytes := crypto.Sha512(serial)
 	hash := common.Hash{}
 	copy(hash[:], bytes)
 	return hash

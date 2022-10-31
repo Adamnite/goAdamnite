@@ -116,7 +116,11 @@ func Deserialize(byteArr []byte, t interface{}) (interface{}, int) {
 func Serialize(t interface{}) []byte {
 	buf := new(bytes.Buffer)
 	values := reflect.ValueOf(&t).Elem()
-	num := reflect.ValueOf(t).NumField()
+	foo := reflect.ValueOf(t) //just a temp value to check if it's 0 before getting the NumField
+	num := 0
+	if !foo.IsZero() { //this was throwing an error with transaction_signer_test.go, catching a 0 case seems appropriate
+		num = foo.NumField()
+	}
 	for i := 0; i < num; i++ {
 		value := values.Elem().Field(i)
 
