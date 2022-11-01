@@ -535,7 +535,7 @@ func decodeImport(r *bytes.Reader, idx uint32) (i *Import, err error) {
 	case 0x03:
 		i.DescGlobal, err = decodeGlobalType(r)
 	default:
-		err = fmt.Errorf("%w: invalid byte for importdesc", b)
+		err = fmt.Errorf("%v: invalid byte for importdesc", b)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("import[%d] %s[%s.%s]: %w", idx, ExternTypeName(i.Type), i.Module, i.Name, err)
@@ -599,7 +599,7 @@ func decodeExport(r *bytes.Reader) (i *Export, err error) {
 			return nil, fmt.Errorf("error decoding export index: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("%w: invalid byte for exportdesc", b)
+		return nil, fmt.Errorf("%v: invalid byte for exportdesc", b)
 	}
 	return
 }
