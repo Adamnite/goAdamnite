@@ -12,10 +12,10 @@ func Test_i32Store(t *testing.T) {
 
 	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
 	vm.debugStack = true
-	expectedModuleCode := []byte{
+	code := []byte{
 		Op_i32_const, 0x0,
-		Op_i32_load, 0x2, 0x4,
 		Op_i32_const, 0x10,
+		Op_i32_load, 0x2, 0x4,
 		Op_i32_sub,
 		Op_tee_local, 0x0,
 		Op_i32_const, 0x0,
@@ -26,12 +26,11 @@ func Test_i32Store(t *testing.T) {
 		Op_i32_const, 0xa,
 		Op_end,
 	}
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
-
+	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.run()
 	// Stored values in memory
-	stored1 := LE.Uint32(vm.vmMemory[0xc + 0x10 : 0xc + 0x10 + 4])
-	stored2 := LE.Uint32(vm.vmMemory[0x8 + 0x10 : 0xc + 0x10 + 4])
+	stored1 := LE.Uint32(vm.vmMemory[12 : 12 + 4])
+	stored2 := LE.Uint32(vm.vmMemory[0x8 : 0x8 + 4])
 	assert.Equal(t, uint64(0x0), uint64(stored1))
 	assert.Equal(t, uint64(0xa), uint64(stored2))
 
@@ -44,10 +43,10 @@ func Test_i32Store2(t *testing.T) {
 
 	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
 	vm.debugStack = true
-	expectedModuleCode := []byte{
+	code := []byte{
 		Op_i32_const, 0x0, 
-		Op_i32_load, 0x2, 0x4, 
 		Op_i32_const, 0x10, 
+		Op_i32_load, 0x2, 0x4, 
 		Op_i32_sub, 
 		Op_tee_local, 0x0, 
 		Op_i32_const, 0x0, 
@@ -61,13 +60,13 @@ func Test_i32Store2(t *testing.T) {
 		Op_i32_const, 0x19,
 		Op_end,
 	}
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 
 	vm.run()
 	// Stored values in memory
-	stored1 := LE.Uint32(vm.vmMemory[0xc + 0x10 : 0xc + 0x10 + 4])
-	stored2 := LE.Uint32(vm.vmMemory[0x8 + 0x10 : 0xc + 0x10 + 4])
-	stored3 := LE.Uint32(vm.vmMemory[0x4 + 0x10 : 0x4 + 0x10 + 4])
+	stored1 := LE.Uint32(vm.vmMemory[0xc : 0xc + 4])
+	stored2 := LE.Uint32(vm.vmMemory[0x8 : 0x8 + 4])
+	stored3 := LE.Uint32(vm.vmMemory[0x4 : 0x4 + 4])
 	assert.Equal(t, uint64(0x0), uint64(stored1))
 	assert.Equal(t, uint64(0xa), uint64(stored2))
 	assert.Equal(t, uint64(0x19), uint64(stored3))
@@ -81,10 +80,10 @@ func Test_i32Store3(t *testing.T) {
 
 	vm := newVirtualMachine(wasmBytes, Storage{}, VMConfig{})
 	vm.debugStack = true
-	expectedModuleCode := []byte{
+	code := []byte{
 		Op_i32_const, 0x0,
-		Op_i32_load, 0x2, 0x4,
 		Op_i32_const, 0x10,
+		Op_i32_load, 0x2, 0x4,
 		Op_i32_sub,
 		Op_i32_const, 0x4,
 		Op_i32_store, 0x2, 0x8,
@@ -92,9 +91,9 @@ func Test_i32Store3(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.run()
 	// Stored value in memory
-	r := LE.Uint32(vm.vmMemory[0x8+0x10 : 0x8+0x10+4])
+	r := LE.Uint32(vm.vmMemory[0x8 : 0x8 + 4])
 	assert.Equal(t, uint64(0x4), uint64(r))
 }
