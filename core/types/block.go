@@ -76,7 +76,7 @@ func NewBlock(header *BlockHeader, txs []*Transaction, hasher TrieHasher) *Block
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *BlockHeader) Hash() common.Hash {
-	return rlpHash(h)
+	return SerializationHash(h)
 }
 
 func (b *Block) Hash() common.Hash {

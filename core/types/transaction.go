@@ -144,7 +144,7 @@ func (tx *Transaction) Hash() common.Hash {
 	}
 
 	var h common.Hash
-	h = prefixedRlpHash(byte(tx.Type()), tx.InnerData)
+	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
 }
