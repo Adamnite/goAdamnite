@@ -49,7 +49,7 @@ func NewMintCntTrie(root common.Hash, db *trie.Database) (*trie.Trie, error) {
 	return trie.NewTrieWithPrefix(root, mintCntPrefix, db)
 }
 
-func NewDposContext(db *trie.Database) (*DposEnv, error) {
+func NewDposEnv(db *trie.Database) (*DposEnv, error) {
 	epochTrie, err := NewEpochTrie(common.Hash{}, db)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func NewDposContext(db *trie.Database) (*DposEnv, error) {
 	}, nil
 }
 
-func NewDposEnv(db *trie.Database, ctxProto *DposEnvProtocol) (*DposEnv, error) {
+func NewDposEnvFromProto(db *trie.Database, ctxProto *DposEnvProtocol) (*DposEnv, error) {
 	epochTrie, err := NewEpochTrie(ctxProto.EpochHash, db)
 	if err != nil {
 		return nil, err
@@ -147,29 +147,6 @@ func (d *DposEnv) RevertToSnapShot(snapshot *DposEnv) {
 	d.witnessCandidateTrie = snapshot.witnessCandidateTrie
 	d.voteTrie = snapshot.voteTrie
 	d.mintCntTrie = snapshot.mintCntTrie
-}
-
-func (d *DposEnv) FromProto(dcp *DposEnvProtocol) error {
-	var err error
-
-	d.epochTrie, err = NewEpochTrie(dcp.EpochHash, d.db)
-	if err != nil {
-		return err
-	}
-	d.witnessTrie, err = NewWitnessTrie(dcp.WitnessHash, d.db)
-	if err != nil {
-		return err
-	}
-	d.witnessCandidateTrie, err = NewWitnessCandidateTrie(dcp.WitnessCandidateHash, d.db)
-	if err != nil {
-		return err
-	}
-	d.voteTrie, err = NewVoteTrie(dcp.VoteHash, d.db)
-	if err != nil {
-		return err
-	}
-	d.mintCntTrie, err = NewMintCntTrie(dcp.MintCntHash, d.db)
-	return err
 }
 
 type DposEnvProtocol struct {
@@ -333,11 +310,11 @@ func (d *DposEnv) Commit() (*DposEnvProtocol, error) {
 	}
 	d.mintCntTrie.TryUpdate(mintCntRoot[:], d.mintCntTrie.Get(mintCntRoot[:]))
 
-	d.db.Commit(epochRoot, true)
-	d.db.Commit(witnessRoot, true)
-	d.db.Commit(candidateRoot, true)
-	d.db.Commit(voteRoot, true)
-	d.db.Commit(mintCntRoot, true)
+	d.db.Commit(epochRoot, true, nil)
+	d.db.Commit(witnessRoot, true, nil)
+	d.db.Commit(candidateRoot, true, nil)
+	d.db.Commit(voteRoot, true, nil)
+	d.db.Commit(mintCntRoot, true, nil)
 
 	return &DposEnvProtocol{
 		EpochHash:            epochRoot,

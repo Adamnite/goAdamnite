@@ -35,8 +35,8 @@ type (
 // unset children need to serialize correctly.
 var nilValueNode = valueNode(nil)
 
-// Encodeserialization encodes a full node into the consensus serialization format.
-func (n *fullNode) Encodeserialization(w io.Writer) error {
+// EncodeRLP encodes a full node into the consensus RLP format.
+func (n *fullNode) EncodeRLP(w io.Writer) error {
 	var nodes [17]node
 
 	for i, child := range &n.Children {
@@ -98,7 +98,7 @@ func mustDecodeNode(hash, buf []byte) node {
 	return n
 }
 
-// decodeNode parses the serialization encoding of a trie node.
+// decodeNode parses the RLP encoding of a trie node.
 func decodeNode(hash, buf []byte) (node, error) {
 	if len(buf) == 0 {
 		return nil, io.ErrUnexpectedEOF
@@ -183,7 +183,7 @@ func decodeRef(buf []byte) (node, []byte, error) {
 	case kind == serialization.String && len(val) == 32:
 		return append(hashNode{}, val...), rest, nil
 	default:
-		return nil, nil, fmt.Errorf("invalid serialization string size %d (want 0 or 32)", len(val))
+		return nil, nil, fmt.Errorf("invalid RLP string size %d (want 0 or 32)", len(val))
 	}
 }
 

@@ -1,19 +1,3 @@
-// Copyright 2020 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package trie
 
 import (
@@ -70,7 +54,7 @@ func NewStackTrie(db adamnitedb.AdamniteDBWriter) *StackTrie {
 	}
 }
 
-// NewFromBinary initializes a serialized stacktrie with the given db.
+// NewFromBinary initialises a serialized stacktrie with the given db.
 func NewFromBinary(data []byte, db adamnitedb.AdamniteDBWriter) (*StackTrie, error) {
 	var st StackTrie
 	if err := st.UnmarshalBinary(data); err != nil {
@@ -362,13 +346,12 @@ func (st *StackTrie) insert(key, value []byte) {
 
 // hash() hashes the node 'st' and converts it into 'hashedNode', if possible.
 // Possible outcomes:
-// 1. The serialization-encoded value was >= 32 bytes:
-//   - Then the 32-byte `hash` will be accessible in `st.val`.
-//   - And the 'st.type' will be 'hashedNode'
-//
-// 2. The serialization-encoded value was < 32 bytes
-//   - Then the <32 byte serialization-encoded value will be accessible in 'st.val'.
-//   - And the 'st.type' will be 'hashedNode' AGAIN
+// 1. The rlp-encoded value was >= 32 bytes:
+//  - Then the 32-byte `hash` will be accessible in `st.val`.
+//  - And the 'st.type' will be 'hashedNode'
+// 2. The rlp-encoded value was < 32 bytes
+//  - Then the <32 byte rlp-encoded value will be accessible in 'st.val'.
+//  - And the 'st.type' will be 'hashedNode' AGAIN
 //
 // This method will also:
 // set 'st.type' to hashedNode
@@ -381,7 +364,7 @@ func (st *StackTrie) hash() {
 	// The 'hasher' is taken from a pool, but we don't actually
 	// claim an instance until all children are done with their hashing,
 	// and we actually need one
-	var h *Hasher
+	var h *hasher
 
 	switch st.nodeType {
 	case branchNode:
@@ -441,7 +424,7 @@ func (st *StackTrie) hash() {
 			panic(err)
 		}
 	case emptyNode:
-		st.val = emptyRoot
+		st.val = emptyRoot.Bytes()
 		st.key = st.key[:0]
 		st.nodeType = hashedNode
 		return
@@ -471,8 +454,8 @@ func (st *StackTrie) hash() {
 func (st *StackTrie) Hash() (h common.Hash) {
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's serialization isn't 32 bytes long, the node will not
-		// be hashed, and instead contain the  serialization-encoding of the
+		// If the node's RLP isn't 32 bytes long, the node will not
+		// be hashed, and instead contain the  rlp-encoding of the
 		// node. For the top level node, we need to force the hashing.
 		ret := make([]byte, 32)
 		h := newHasher(false)
@@ -485,7 +468,7 @@ func (st *StackTrie) Hash() (h common.Hash) {
 	return common.BytesToHash(st.val)
 }
 
-// Commit will firstly hash the entire trie if it's still not hashed
+// Commit will firstly hash the entrie trie if it's still not hashed
 // and then commit all nodes to the associated database. Actually most
 // of the trie nodes MAY have been committed already. The main purpose
 // here is to commit the root node.
@@ -498,8 +481,8 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 	}
 	st.hash()
 	if len(st.val) != 32 {
-		// If the node's serialization isn't 32 bytes long, the node will not
-		// be hashed (and committed), and instead contain the  serialization-encoding of the
+		// If the node's RLP isn't 32 bytes long, the node will not
+		// be hashed (and committed), and instead contain the  rlp-encoding of the
 		// node. For the top level node, we need to force the hashing+commit.
 		ret := make([]byte, 32)
 		h := newHasher(false)

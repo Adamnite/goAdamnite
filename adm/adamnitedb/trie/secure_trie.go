@@ -18,7 +18,7 @@ import (
 //
 // SecureTrie is not safe for concurrent use.
 type SecureTrie struct {
-	trie             BinaryTrie
+	trie             Trie
 	hashKeyBuf       [common.HashLength]byte
 	secKeyCache      map[string][]byte
 	secKeyCacheOwner *SecureTrie // Pointer to self, replace the key cache on mismatch
@@ -39,7 +39,7 @@ func NewSecure(root common.Hash, db *Database) (*SecureTrie, error) {
 	if db == nil {
 		panic("trie.NewSecure called without a database")
 	}
-	trie, err := NewSecure(root, db)
+	trie, err := New(root, db)
 	if err != nil {
 		return nil, err
 	}

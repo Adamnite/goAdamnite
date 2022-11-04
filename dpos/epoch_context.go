@@ -16,7 +16,7 @@ import (
 
 type EpochContext struct {
 	TimeStamp int64
-	DposEnv   *types.DposEnv
+	DposEnv   DposEnv
 	statedb   *statedb.StateDB
 }
 

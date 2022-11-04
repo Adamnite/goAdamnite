@@ -119,7 +119,7 @@ func proceedIncentive(config *params.ChainConfig, state *statedb.StateDB, header
 
 }
 
-func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction, dposEnv *types.DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error) {
+func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction, dposEnv DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error) {
 	proceedIncentive(chain.Config(), state, header)
 
 	parent := chain.GetHeaderByHash(header.ParentHash)
@@ -156,7 +156,7 @@ func NextSlot(now int64, blockInterval uint64) int64 {
 func (adpos *AdamniteDPOS) GetRoundNumber() uint64 {
 	return 0
 }
-func updateMintCnt(parentBlockTime, currentBlockTime int64, witness common.Address, dposEnv *types.DposEnv) {
+func updateMintCnt(parentBlockTime, currentBlockTime int64, witness common.Address, dposEnv DposEnv) {
 	currentMintCntTrie := dposEnv.MintCntTrie()
 	currentEpoch := parentBlockTime / EpochBlockCount
 	currentEpochBytes := make([]byte, 8)

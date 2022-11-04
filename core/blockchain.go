@@ -56,10 +56,35 @@ func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engi
 	return bc, nil
 }
 
+func (bc *Blockchain) Config() *params.ChainConfig { return bc.chainConfig }
+
+func (bc *Blockchain) CurrentHeader() *types.BlockHeader {
+	return bc.CurrentBlock().Header()
+}
+
+func (bc *Blockchain) GetHeader(hash common.Hash, number uint64) *types.BlockHeader {
+	return nil
+}
+
+func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
+	return nil
+}
+
+func (bc *Blockchain) GetHeaderByNumber(number uint64) *types.BlockHeader {
+	return bc.blocks[number].Header()
+}
+
 func (bc *Blockchain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	return nil
 }
 
+func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
+	return nil
+}
+
+func (bc *Blockchain) GetBlockByNumber(number uint64) *types.Block {
+	return nil
+}
 func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
 	return nil, nil
 }

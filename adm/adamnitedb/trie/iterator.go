@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
-	"github.com/adamnite/go-adamnite/serialization" 
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -22,7 +21,7 @@ type Iterator struct {
 
 // NewIterator creates a new key-value iterator from a node iterator.
 // Note that the value returned by the iterator is raw. If the content is encoded
-// (e.g. storage value is serialization-encoded), it's caller's duty to decode it.
+// (e.g. storage value is RLP-encoded), it's caller's duty to decode it.
 func NewIterator(it NodeIterator) *Iterator {
 	return &Iterator{
 		nodeIt: it,

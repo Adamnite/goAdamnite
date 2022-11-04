@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/statedb"
 
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -273,7 +273,7 @@ func (w *dposWorker) makeCurrent(parent *types.Block, header *types.BlockHeader)
 
 	trieDB := state.Database().TrieDB()
 
-	dposEnv, err := types.FromProto(trieDB, parent.Header().DposEnv)
+	dposEnv, err := types.NewDposEnvFromProto(trieDB, parent.Header().DposEnv)
 	if err != nil {
 		return err
 	}

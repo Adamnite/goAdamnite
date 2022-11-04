@@ -5,7 +5,6 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
-	"github.com/adamnite/go-adamnite/rpc"
 )
 
 type ChainHeaderReader interface {
@@ -42,24 +41,19 @@ type Engine interface {
 	Witness(header *types.BlockHeader) (common.Address, error)
 
 	// VerifyHeader checks whether a header conforms to the consensus rules of the given engine.
-	VerifyHeader(header *types.BlockHeader, chain ChainHeaderReader) error
+	VerifyHeader(header *types.BlockHeader, chain ChainReader, blockInterval uint64) error
 
 	//Prepare according to Rules for a specific engine.
 	Prepare(chain ChainReader, header *types.BlockHeader) error
 
 	Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction,
-		dposEnv *types.DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error)
-
-	//API returns the RPC API provided by this consensus engine.
-	APIs(chain ChainReader) []rpc.API
-
+		dposEnv DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error)
+	// GetRoundNumber retrieves the number of current round.
+	GetRoundNumber() uint64
 	// Close terminates all background threads maintained by the engine.
 	Close() error
 }
 
 type DPOS interface {
 	Engine
-
-	// GetRoundNumber retrieves the number of current round.
-	GetRoundNumber() uint64
 }
