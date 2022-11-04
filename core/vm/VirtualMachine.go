@@ -6,13 +6,13 @@ import (
 	"strconv"
 )
 
-
 const (
 	// DefaultPageSize is the linear memory page size.
 	defaultPageSize = 65536
 )
 
 var LE = binary.LittleEndian
+
 type VirtualMachine interface {
 	//functions that will be fully implemented later
 	step()
@@ -23,29 +23,29 @@ type VirtualMachine interface {
 }
 
 type ControlBlock struct {
-	code []OperationCommon // Can this []byte instead ?
-	startAt uint64 
-	elseAt uint64
-	endAt uint64
-	op byte // Contains the value of the opcode that triggered this
+	code      []OperationCommon // Can this []byte instead ?
+	startAt   uint64
+	elseAt    uint64
+	endAt     uint64
+	op        byte // Contains the value of the opcode that triggered this
 	signature byte
-	index uint32
+	index     uint32
 }
 type Machine struct {
 	VirtualMachine
-	pointInCode     uint64
-	module 			Module // The module that will be executed inside the VM
-	vmCode          []OperationCommon
-	vmStack         []uint64
-	contractStorage Storage  //the storage of the smart contracts data.
-	vmMemory        []byte   //i believe the agreed on stack size was
-	locals          []uint64 //local vals that the VM code can call
-	debugStack      bool     //should it output the stack every operation
-	globals         []uint64
+	pointInCode       uint64
+	module            Module // The module that will be executed inside the VM
+	vmCode            []OperationCommon
+	vmStack           []uint64
+	contractStorage   []byte   //the storage of the smart contracts data.
+	vmMemory          []byte   //i believe the agreed on stack size was
+	locals            []uint64 //local vals that the VM code can call
+	debugStack        bool     //should it output the stack every operation
+	globals           []uint64
 	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
-	
-	config			VMConfig
-	gas             uint64 // The allocated gas for the code execution
+
+	config VMConfig
+	gas    uint64 // The allocated gas for the code execution
 }
 
 type VMConfig struct {
@@ -63,11 +63,6 @@ type Type_int64 struct {
 
 func (t Type_int64) to_string() string {
 	return fmt.Sprint(t.value)
-}
-
-type Storage struct {
-	// the storage type, handling some standard things.
-
 }
 
 func (m *Machine) step() {
@@ -108,7 +103,7 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func newVirtualMachine(wasmBytes []byte, storage Storage, config VMConfig) *Machine {
+func newVirtualMachine(wasmBytes []byte, storage []byte, config VMConfig) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage
