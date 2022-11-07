@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
+	"math"
+	"encoding/hex"
 )
 
 const (
@@ -138,4 +140,90 @@ func (m *Machine) pushToStack(n uint64) {
 		println("pushing to stack")
 	}
 	m.vmStack = append(m.vmStack, n)
+}
+
+
+// The caller of call2 has to init a new vm with the retrieved contract code from storage
+// Once the contract code is retrieved and parsed into the vm, the call2 function
+// Can be called with the bytes of the `inputData` field
+
+func (m *Machine) call2(callBytes string) {
+
+	// Structure: 0x[functionIndex][param1..][param2...][param3]
+	// Note: The callbytes is following the wasm encoding scheme.
+
+	bytes, err := hex.DecodeString(callBytes)
+
+	if err != nil {
+		panic("Unable to parse bytes for call2")
+	}
+
+	functionIdx, count, err := DecodeInt32(reader(bytes[0:]))
+
+	if err != nil {
+		panic("Error parsing function identifier for call2")
+	}
+	
+	if (int(functionIdx) > len(m.module.functionSection)) {
+		panic("Call2 - No function with such index exists")
+	}
+
+	var params []uint64
+	
+	for i := count; i < uint64(len(bytes)); i++ {
+
+		valTypeByte := bytes[i]
+		
+		switch (valTypeByte) {
+			case Op_i32_const:
+				paramValue, count, err := DecodeInt32(reader(bytes[i+1:]))
+
+				if (err != nil) {
+					panic("Call2 - Error parsing function params i32")
+				}
+
+				params = append(params, uint64(paramValue))
+				i += count
+
+			case Op_i64_const:
+				paramValue, count, err := DecodeInt64(reader(bytes[i+1:]))
+				params = append(params, uint64(paramValue))
+
+				if (err != nil) {
+					panic("Call2 - Error parsing function params i64")
+				}
+				i += count
+
+			case Op_f32_const:
+				num := LE.Uint32(bytes[i+1: 4])
+				math.Float32frombits(num)
+				params = append(params, uint64(num))
+				i += 5
+
+			case Op_f64_const:
+				num := LE.Uint64(bytes[i+1:])
+				math.Float64frombits(num)
+				params = append(params, num)
+				i += 9
+			default:
+				print("Parsed valtype %v", valTypeByte)
+				panic("No such type known")
+		}
+	}
+
+	targetFunction := m.module.functionSection[functionIdx]
+	funcSignature := *m.module.typeSection[targetFunction]
+	
+	expectedParamCount := len(funcSignature.params)
+	incomingParamCount := len(params)
+
+	if (expectedParamCount != incomingParamCount) {
+		panic("Call2 - Param counts mismatch")
+	}
+
+	// Maybe Check the types of each params if they matches signature?
+
+	m.locals = params
+	m.vmCode, m.controlBlockStack = parseBytes(m.module.codeSection[functionIdx].body)
+	m.run()
 }
