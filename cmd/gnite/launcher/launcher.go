@@ -27,7 +27,7 @@ var (
 		&utils.NATFlag,
 	}
 	witnessFlags = []cli.Flag{
-		&utils.WitnessFalg,
+		&utils.WitnessFlag,
 		&utils.WitnessAddressFlag,
 	}
 )
@@ -79,7 +79,7 @@ func adamniteMain(ctx *cli.Context) error {
 func startNode(ctx *cli.Context, node *node.Node, adamnite adm.AdamniteAPI) {
 	utils.StartNode(ctx, node)
 
-	if ctx.Bool(utils.WitnessFalg.Name) {
+	if ctx.Bool(utils.WitnessFlag.Name) {
 		if ctx.String(utils.WitnessAddressFlag.Name) == "" {
 			utils.Fatalf("Witness address was not set")
 		}

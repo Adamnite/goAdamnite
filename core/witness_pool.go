@@ -120,7 +120,7 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, chain
 	}
 
 	if chainConfig.ChainID == params.DemoChainConfig.ChainID {
-		genesis := DefaultDemoGenesisBlock()
+		genesis := DefaultTestnetGenesisBlock()
 
 		for _, w := range genesis.WitnessList {
 			witness := &types.WitnessImpl{

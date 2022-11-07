@@ -36,7 +36,7 @@ var (
 		Name:  "demo",
 		Usage: "Adamnite POC demo version",
 	}
-	WitnessFalg = cli.BoolFlag{
+	WitnessFlag = cli.BoolFlag{
 		Name:  "witness",
 		Usage: "Adamnite witness",
 	}
@@ -76,7 +76,7 @@ func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config
 
 func setWitnessAddress(ctx *cli.Context, cfg *adamconfig.Config) {
 	var witnessAddr string
-	if ctx.IsSet(WitnessFalg.Name) && ctx.IsSet(WitnessAddressFlag.Name) {
+	if ctx.IsSet(WitnessFlag.Name) && ctx.IsSet(WitnessAddressFlag.Name) {
 		witnessAddr = ctx.String(WitnessAddressFlag.Name)
 	}
 
