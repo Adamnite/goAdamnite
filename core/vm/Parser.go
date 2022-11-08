@@ -15,7 +15,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 	// The first control here marks the beginning of the function
 	controlBlocks := []ControlBlock{{
 		startAt: 0,
-		op: 0x0,
+		op:      0x0,
 	}}
 
 	index := 0
@@ -95,7 +95,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_i32_div_u:
 			ansOps = append(ansOps, i32Divu{})
-			pointInBytes += 1 
+			pointInBytes += 1
 
 		case Op_i32_eqz:
 			ansOps = append(ansOps, i32Eqz{})
@@ -124,7 +124,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i32_gt_u:
 			ansOps = append(ansOps, i32Gtu{})
 			pointInBytes += 1
-			
+
 		case Op_i32_le_s:
 			ansOps = append(ansOps, i32Les{})
 			pointInBytes += 1
@@ -141,7 +141,6 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			ansOps = append(ansOps, i32Eqz{})
 			pointInBytes += 1
 
-		
 		case Op_i64_eqz:
 			ansOps = append(ansOps, i64Eqz{})
 			pointInBytes += 1
@@ -167,7 +166,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i64_and:
 			ansOps = append(ansOps, i64And{})
 			pointInBytes += 1
-		
+
 		case Op_i64_lt_s:
 			ansOps = append(ansOps, i64Lts{})
 			pointInBytes += 1
@@ -175,11 +174,11 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i64_lt_u:
 			ansOps = append(ansOps, i64Ltu{})
 			pointInBytes += 1
-		
+
 		case Op_i64_gt_u:
 			ansOps = append(ansOps, i64Gtu{})
 			pointInBytes += 1
-		
+
 		case Op_i64_gt_s:
 			ansOps = append(ansOps, i64Gts{})
 			pointInBytes += 1
@@ -242,7 +241,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i64_div_u:
 			ansOps = append(ansOps, i64Divu{})
 			pointInBytes += 1
-		
+
 		case Op_i64_rem_s:
 			ansOps = append(ansOps, i64Rems{})
 			pointInBytes += 1
@@ -250,11 +249,11 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i64_rem_u:
 			ansOps = append(ansOps, i64Remu{})
 			pointInBytes += 1
-				
+
 		case Op_block:
 			controlBlock := ControlBlock{}
 			// The next byte is be the block signature(aka blocktype) when it's 0x40 it means empty signature
-			controlBlock.signature = bytes[pointInBytes + 1]
+			controlBlock.signature = bytes[pointInBytes+1]
 			controlBlock.op = Op_block
 			pointInBytes++
 
@@ -265,25 +264,25 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_br:
 			label, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
-			if (err != nil) {
+			if err != nil {
 				panic("Error occured while parsing label Op_br")
 			}
 			ansOps = append(ansOps, Br{label})
 			pointInBytes += int(count) + 1
-		
+
 		case Op_br_if:
 			label, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
 
-			if (err != nil) {
+			if err != nil {
 				panic("Error occured while parsing label Op_brIf")
 			}
 
 			ansOps = append(ansOps, BrIf{label})
 			pointInBytes += int(count) + 1
-		
+
 		case Op_if:
 			controlBlock := ControlBlock{}
-			controlBlock.signature = bytes[pointInBytes + 1]
+			controlBlock.signature = bytes[pointInBytes+1]
 			controlBlock.op = Op_if
 			pointInBytes++
 
@@ -291,11 +290,11 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			controlBlocks = append(controlBlocks, controlBlock)
 			ansOps = append(ansOps, If{uint32(len(controlBlocks)) - 1})
 			pointInBytes++
-		
-		case Op_else:
-			ifblock := &controlBlocks[len(controlBlocks) - 1]
 
-			if (ifblock.op != Op_if) {
+		case Op_else:
+			ifblock := &controlBlocks[len(controlBlocks)-1]
+
+			if ifblock.op != Op_if {
 				panic("Last control block element is not an if")
 			}
 
@@ -305,7 +304,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_loop:
 			controlBlock := ControlBlock{}
-			controlBlock.signature = bytes[pointInBytes + 1]
+			controlBlock.signature = bytes[pointInBytes+1]
 			pointInBytes++
 
 			controlBlock.op = Op_loop
@@ -315,26 +314,26 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			ansOps = append(ansOps, Loop{uint32(len(controlBlocks)) - 1})
 			pointInBytes++
-		
+
 		case Op_end:
 			// Retrieve the block for which we found the end
-			block := &controlBlocks[len(controlBlocks) - index - 1]
+			block := &controlBlocks[len(controlBlocks)-index-1]
 
 			ansOps = append(ansOps, End{})
 			pointInBytes += 1
 
 			block.endAt = uint64(len(ansOps)) - 1
 			index++
-		
+
 		case Op_return:
 			ansOps = append(ansOps, Return{})
 			pointInBytes++
-		
+
 		case Op_call:
 			funcIndex, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
-			
-			if (err != nil) {
-				panic("Error occured while parsing label Op_call")
+
+			if err != nil {
+				panic("Error occurred while parsing label Op_call")
 			}
 
 			ansOps = append(ansOps, Call{funcIndex})
@@ -343,15 +342,43 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_call_indirect:
 			ansOps = append(ansOps, CallIndirect{})
 			pointInBytes++
-			
+
 		case Op_get_local:
 			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
-			
-			if (err != nil) {
-				panic("Error occured while parsing label Op_get_local")
+
+			if err != nil {
+				panic("Error occurred while parsing label Op_get_local")
 			}
 
 			ansOps = append(ansOps, localGet{int64(index), GasQuickStep})
+			pointInBytes += int(count) + 1
+		case Op_set_local:
+			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+
+			if err != nil {
+				panic("Error occurred while parsing label Op_set_local")
+			}
+
+			ansOps = append(ansOps, localSet{int64(index)})
+			pointInBytes += int(count) + 1
+
+		case Op_get_table:
+			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+
+			if err != nil {
+				panic("Error occurred while parsing label Op_get_table")
+			}
+
+			ansOps = append(ansOps, TableGet{uint32(index)})
+			pointInBytes += int(count) + 1
+		case Op_set_table:
+			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
+
+			if err != nil {
+				panic("Error occurred while parsing label Op_set_table")
+			}
+
+			ansOps = append(ansOps, TableSet{uint32(index)})
 			pointInBytes += int(count) + 1
 		case Op_drop:
 			ansOps = append(ansOps, Drop{})
@@ -383,38 +410,38 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_i32_wrap_i64:
 			ansOps = append(ansOps, i32Wrapi64{})
-			pointInBytes += 1	
+			pointInBytes += 1
 		case Op_i32_trunc_s_f32, Op_i32_trunc_u_f32:
 			ansOps = append(ansOps, i32Truncsf32{})
 			pointInBytes += 1
 		case Op_i32_trunc_s_f64, Op_i32_trunc_u_f64:
-			ansOps = append(ansOps, i32Truncsf64{});
+			ansOps = append(ansOps, i32Truncsf64{})
 			pointInBytes += 1
-		
+
 		case Op_i64_extend_s_i32:
 			ansOps = append(ansOps, i64Extendsi32{})
 			pointInBytes += 1
-		
+
 		case Op_i64_trunc_s_f32, Op_i64_trunc_u_f32:
 			ansOps = append(ansOps, i64Truncsf32{})
 			pointInBytes += 1
-		
+
 		case Op_i64_trunc_s_f64, Op_i64_trunc_u_f64:
 			ansOps = append(ansOps, i64Truncsf64{})
 			pointInBytes += 1
-		
+
 		case Op_f32_convert_s_i32:
 			ansOps = append(ansOps, f32Convertsi32{})
 			pointInBytes += 1
-		
+
 		case Op_f32_convert_u_i32:
 			ansOps = append(ansOps, f32Convertui32{})
 			pointInBytes += 1
-		
+
 		case Op_i64_extend_u_i32:
 			ansOps = append(ansOps, i64Extendui32{})
 			pointInBytes += 1
-		
+
 		case Op_f32_convert_s_i64:
 			ansOps = append(ansOps, f32Convertsi64{})
 			pointInBytes += 1
@@ -422,7 +449,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_f32_convert_u_i64:
 			ansOps = append(ansOps, f32Convertui64{})
 			pointInBytes += 1
-		
+
 		case Op_f32_demote_f64:
 			ansOps = append(ansOps, f32Demotef64{})
 			pointInBytes += 1
@@ -441,29 +468,29 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_f64_promote_f32:
 			ansOps = append(ansOps, f64Promotef32{})
 			pointInBytes += 1
-		
+
 		case Op_f32_const:
-			num := LE.Uint32(bytes[pointInBytes+1: 4])
+			num := LE.Uint32(bytes[pointInBytes+1 : 4])
 			ansOps = append(ansOps, f32Const{math.Float32frombits(num)})
 			pointInBytes += 5
 		case Op_f32_eq:
 			ansOps = append(ansOps, f32Eq{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_ne:
 			ansOps = append(ansOps, f32Neq{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_lt:
 			ansOps = append(ansOps, f32Lt{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_gt:
 			ansOps = append(ansOps, f32Gt{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_le:
 			ansOps = append(ansOps, f32Le{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_ge:
 			ansOps = append(ansOps, f32Ge{})
-			pointInBytes +=1
+			pointInBytes += 1
 		case Op_f32_abs:
 			ansOps = append(ansOps, f32Abs{})
 			pointInBytes += 1
@@ -506,7 +533,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_f32_copysign:
 			ansOps = append(ansOps, f32CopySign{})
 			pointInBytes += 1
-		
+
 		case Op_f64_const:
 			num := LE.Uint64(bytes[pointInBytes+1:])
 			ansOps = append(ansOps, f64Const{math.Float64frombits(num)})
@@ -532,47 +559,47 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 1
 		case Op_f64_abs:
 			ansOps = append(ansOps, f64Abs{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_neg:
 			ansOps = append(ansOps, f64Neg{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_ceil:
 			ansOps = append(ansOps, f64Ceil{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_floor:
 			ansOps = append(ansOps, f64Floor{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_trunc:
 			ansOps = append(ansOps, f64Trunc{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_nearest:
 			ansOps = append(ansOps, f64Nearest{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_sqrt:
 			ansOps = append(ansOps, f64Sqrt{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_add:
 			ansOps = append(ansOps, f64Add{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_sub:
 			ansOps = append(ansOps, f64Sub{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_mul:
 			ansOps = append(ansOps, f64Mul{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_div:
 			ansOps = append(ansOps, f64Div{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_min:
 			ansOps = append(ansOps, f64Min{})
-			pointInBytes += 1 
-		case Op_f64_max     :
+			pointInBytes += 1
+		case Op_f64_max:
 			ansOps = append(ansOps, f64Max{})
-			pointInBytes += 1 
+			pointInBytes += 1
 		case Op_f64_copysign:
 			ansOps = append(ansOps, f64CopySign{})
 			pointInBytes += 1
-		
+
 		case Op_i32_load, Op_i64_load32_u:
 			ansOps = append(ansOps, i32Load{
 				align: uint32(bytes[pointInBytes+1]), 
@@ -580,7 +607,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				gas: GasQuickStep,
 			})
 			pointInBytes += 3
-		
+
 		case Op_i32_store, Op_i64_store32:
 			ansOps = append(ansOps, i32Store{
 				align: uint32(bytes[pointInBytes+1]), 
@@ -588,7 +615,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				gas: GasQuickStep,
 			})
 			pointInBytes += 3
-		
+
 		case Op_i64_load:
 			ansOps = append(ansOps, i64Load{
 				align: uint32(bytes[pointInBytes+1]), 
@@ -625,7 +652,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			})
 
 			pointInBytes += 3
-		
+
 		case Op_i64_load32_s:
 			ansOps = append(ansOps, i64Load32s{
 				align: uint32(bytes[pointInBytes+1]), 
@@ -661,7 +688,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			})
 
 			pointInBytes += 3
-	
+
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

@@ -31,10 +31,10 @@ type Virtualizer struct {
 type ContractData struct {
 	address string   //the address of the contract
 	methods []string //just store all the hashes of the functions it can run as strings
-	storage []byte   //all storage inside the contract is held as an array of bytes
+	storage []uint64 //all storage inside the contract is held as an array of bytes
 }
 
-func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []byte, error) {
+func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, error) {
 	//the index in the method list that you wish to call
 	//returns the stack, storage, and errors that may have occurred.
 

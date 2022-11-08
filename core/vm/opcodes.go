@@ -22,7 +22,7 @@ const (
 const (
 	Op_unreachable = 0x00 // done
 	Op_nop         = 0x01 // done
-	Op_block       = 0x02 
+	Op_block       = 0x02
 	Op_loop        = 0x03
 	Op_if          = 0x04 //
 	Op_else        = 0x05 //
@@ -57,31 +57,31 @@ const (
 
 // Memory-related operators
 const (
-	Op_i32_load       = 0x28 // done
-	Op_i64_load       = 0x29 // done
-	Op_f32_load       = 0x2a
-	Op_f64_load       = 0x2b
-	Op_i32_load8_s    = 0x2c // done
-	Op_i32_load8_u    = 0x2d // done
+	Op_i32_load    = 0x28 // done
+	Op_i64_load    = 0x29 // done
+	Op_f32_load    = 0x2a
+	Op_f64_load    = 0x2b
+	Op_i32_load8_s = 0x2c // done
+	Op_i32_load8_u = 0x2d // done
 
-	Op_i32_load16_s   = 0x2e // done
-	Op_i32_load16_u   = 0x2f // done
+	Op_i32_load16_s = 0x2e // done
+	Op_i32_load16_u = 0x2f // done
 
-	Op_i64_load8_s    = 0x30 // done
-	Op_i64_load8_u    = 0x31 // done 
-	Op_i64_load16_s   = 0x32 // done
-	Op_i64_load16_u   = 0x33 // done
-	Op_i64_load32_s   = 0x34 // done
-	Op_i64_load32_u   = 0x35 // done
-	Op_i32_store      = 0x36 // done
-	Op_i64_store      = 0x37 // done
-	Op_f32_store      = 0x38
-	Op_f64_store      = 0x39
-	Op_i32_store8     = 0x3a // done 
-	
-	Op_i32_store16    = 0x3b
-	Op_i64_store8     = 0x3c
-	Op_i64_store16    = 0x3d
+	Op_i64_load8_s  = 0x30 // done
+	Op_i64_load8_u  = 0x31 // done
+	Op_i64_load16_s = 0x32 // done
+	Op_i64_load16_u = 0x33 // done
+	Op_i64_load32_s = 0x34 // done
+	Op_i64_load32_u = 0x35 // done
+	Op_i32_store    = 0x36 // done
+	Op_i64_store    = 0x37 // done
+	Op_f32_store    = 0x38
+	Op_f64_store    = 0x39
+	Op_i32_store8   = 0x3a // done
+
+	Op_i32_store16 = 0x3b
+	Op_i64_store8  = 0x3c
+	Op_i64_store16 = 0x3d
 
 	Op_i64_store32    = 0x3e // done
 	Op_current_memory = 0x3f //
@@ -98,17 +98,17 @@ const (
 
 // Comparison operators
 const (
-	Op_i32_eqz  	   = 0x45 // done
-	Op_i32_eq          = 0x46 // done
-	Op_i32_ne          = 0x47 // done
-	Op_i32_lt_s        = 0x48 // done
-	Op_i32_lt_u        = 0x49 // done
-	Op_i32_gt_s        = 0x4a // done
-	Op_i32_gt_u        = 0x4b // done
-	Op_i32_le_s        = 0x4c // done
-	Op_i32_le_u        = 0x4d // done
-	Op_i32_ge_s        = 0x4e // done
-	Op_i32_ge_u        = 0x4f // done
+	Op_i32_eqz  = 0x45 // done
+	Op_i32_eq   = 0x46 // done
+	Op_i32_ne   = 0x47 // done
+	Op_i32_lt_s = 0x48 // done
+	Op_i32_lt_u = 0x49 // done
+	Op_i32_gt_s = 0x4a // done
+	Op_i32_gt_u = 0x4b // done
+	Op_i32_le_s = 0x4c // done
+	Op_i32_le_u = 0x4d // done
+	Op_i32_ge_s = 0x4e // done
+	Op_i32_ge_u = 0x4f // done
 
 	Op_i64_eqz  = 0x50 //
 	Op_i64_eq   = 0x51 //
@@ -123,7 +123,7 @@ const (
 	Op_i64_ge_u = 0x5a //
 
 	Op_f32_eq = 0x5b // done
-	Op_f32_ne = 0x5c // done 
+	Op_f32_ne = 0x5c // done
 	Op_f32_lt = 0x5d // done
 	Op_f32_gt = 0x5e // done
 	Op_f32_le = 0x5f // done
@@ -176,34 +176,34 @@ const (
 	Op_i64_shr_u    = 0x88 // done
 	Op_i64_rotl     = 0x89 // done
 	Op_i64_rotr     = 0x8a // done
-	Op_f32_abs      = 0x8b	// done
-	Op_f32_neg      = 0x8c	// done
-	Op_f32_ceil     = 0x8d	// done
-	Op_f32_floor    = 0x8e	// done
-	Op_f32_trunc    = 0x8f	// done
-	Op_f32_nearest  = 0x90	// done
-	Op_f32_sqrt     = 0x91	// done
-	Op_f32_add      = 0x92	// done
-	Op_f32_sub      = 0x93	// done
-	Op_f32_mul      = 0x94	// done
-	Op_f32_div      = 0x95	// done
-	Op_f32_min      = 0x96	// done
-	Op_f32_max      = 0x97	// done
-	Op_f32_copysign = 0x98  // done
-	Op_f64_abs      = 0x99  // done
-	Op_f64_neg      = 0x9a  // done
-	Op_f64_ceil     = 0x9b  // done
-	Op_f64_floor    = 0x9c  // done
-	Op_f64_trunc    = 0x9d  // done
-	Op_f64_nearest  = 0x9e  // done
-	Op_f64_sqrt     = 0x9f  // done
-	Op_f64_add      = 0xa0  // done
-	Op_f64_sub      = 0xa1  // done
-	Op_f64_mul      = 0xa2  // done
-	Op_f64_div      = 0xa3  // done
-	Op_f64_min      = 0xa4  // done
-	Op_f64_max      = 0xa5  // done
-	Op_f64_copysign = 0xa6  // done
+	Op_f32_abs      = 0x8b // done
+	Op_f32_neg      = 0x8c // done
+	Op_f32_ceil     = 0x8d // done
+	Op_f32_floor    = 0x8e // done
+	Op_f32_trunc    = 0x8f // done
+	Op_f32_nearest  = 0x90 // done
+	Op_f32_sqrt     = 0x91 // done
+	Op_f32_add      = 0x92 // done
+	Op_f32_sub      = 0x93 // done
+	Op_f32_mul      = 0x94 // done
+	Op_f32_div      = 0x95 // done
+	Op_f32_min      = 0x96 // done
+	Op_f32_max      = 0x97 // done
+	Op_f32_copysign = 0x98 // done
+	Op_f64_abs      = 0x99 // done
+	Op_f64_neg      = 0x9a // done
+	Op_f64_ceil     = 0x9b // done
+	Op_f64_floor    = 0x9c // done
+	Op_f64_trunc    = 0x9d // done
+	Op_f64_nearest  = 0x9e // done
+	Op_f64_sqrt     = 0x9f // done
+	Op_f64_add      = 0xa0 // done
+	Op_f64_sub      = 0xa1 // done
+	Op_f64_mul      = 0xa2 // done
+	Op_f64_div      = 0xa3 // done
+	Op_f64_min      = 0xa4 // done
+	Op_f64_max      = 0xa5 // done
+	Op_f64_copysign = 0xa6 // done
 )
 
 // Conversions
@@ -213,22 +213,22 @@ const (
 	Op_i32_trunc_u_f32   = 0xa9 // done
 	Op_i32_trunc_s_f64   = 0xaa // done
 	Op_i32_trunc_u_f64   = 0xab // done
-	Op_i64_extend_s_i32  = 0xac // done 
+	Op_i64_extend_s_i32  = 0xac // done
 	Op_i64_extend_u_i32  = 0xad // done
 	Op_i64_trunc_s_f32   = 0xae // done
 	Op_i64_trunc_u_f32   = 0xaf // done
 	Op_i64_trunc_s_f64   = 0xb0 // done
 	Op_i64_trunc_u_f64   = 0xb1 // done
 	Op_f32_convert_s_i32 = 0xb2 // done
-	Op_f32_convert_u_i32 = 0xb3 // done 
+	Op_f32_convert_u_i32 = 0xb3 // done
 	Op_f32_convert_s_i64 = 0xb4 // done
-	Op_f32_convert_u_i64 = 0xb5 // done 
+	Op_f32_convert_u_i64 = 0xb5 // done
 
 	Op_f32_demote_f64    = 0xb6 // done
-	Op_f64_convert_s_i32 = 0xb7 // done 
-	Op_f64_convert_u_i32 = 0xb8 // done 
-	Op_f64_convert_s_i64 = 0xb9 // done 
-	Op_f64_convert_u_i64 = 0xba // done 
+	Op_f64_convert_s_i32 = 0xb7 // done
+	Op_f64_convert_u_i32 = 0xb8 // done
+	Op_f64_convert_s_i64 = 0xb9 // done
+	Op_f64_convert_u_i64 = 0xba // done
 	Op_f64_promote_f32   = 0xbb // done
 )
 
@@ -244,7 +244,7 @@ const (
 
 // Fee and storage level operations
 const (
-	Op_value   = 0xd1
+	Op_value     = 0xd1
 	Op_gas_price = 0xd2
 	Op_code_size = 0xd3
 	Op_data_size = 0xd4

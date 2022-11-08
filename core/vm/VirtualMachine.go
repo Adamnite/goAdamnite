@@ -39,7 +39,7 @@ type Machine struct {
 	module            Module // The module that will be executed inside the VM
 	vmCode            []OperationCommon
 	vmStack           []uint64
-	contractStorage   []byte   //the storage of the smart contracts data.
+	contractStorage   []uint64 //the storage of the smart contracts data.
 	vmMemory          []byte   //i believe the agreed on stack size was
 	locals            []uint64 //local vals that the VM code can call
 	globals           []uint64
@@ -116,7 +116,7 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func newVirtualMachine(wasmBytes []byte, storage []byte, config *VMConfig, gas uint64) *Machine {
+func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage

@@ -18,12 +18,12 @@ type DataSegment struct {
 type ExternType = byte
 
 type Import struct {
-	Type ExternType
-	Module string
-	Name string
-	DescFunc Index
-	DescTable *Table
-	DescMem *Memory
+	Type       ExternType
+	Module     string
+	Name       string
+	DescFunc   Index
+	DescTable  *Table
+	DescMem    *Memory
 	DescGlobal *GlobalType
 }
 
@@ -36,7 +36,6 @@ type Export struct {
 	index Index
 }
 type ElementSegment struct {
-
 }
 
 type FunctionType struct {
@@ -62,13 +61,12 @@ type ValueType = byte
 type Index = uint32
 
 type Table struct {
-	min  uint32
-	max  *uint32
+	min     uint32
+	max     *uint32
 	refType RefType
 }
 
 type RefType = byte
-
 
 type Memory struct {
 	min, cap, max uint32
@@ -92,10 +90,9 @@ type ConstantExpression struct {
 }
 
 type Code struct {
-	body []byte
+	body       []byte
 	localTypes []ValueType
 }
-
 
 func sectionIDName(sectionID SectionID) string {
 	switch sectionID {
@@ -148,8 +145,6 @@ const (
 	maxVarintLen32 = 5
 	maxVarintLen64 = 10
 )
-
-
 
 var Magic = []byte{0x00, 0x61, 0x73, 0x6D}
 var version = []byte{0x01, 0x00, 0x00, 0x00}
@@ -213,7 +208,6 @@ func decodeFunctionType(r *bytes.Reader) (*FunctionType, error) {
 	return ret, nil
 }
 
-
 func decodeLimitsType(r *bytes.Reader) (min uint32, max *uint32, err error) {
 	var flag byte
 	if flag, err = r.ReadByte(); err != nil {
@@ -246,7 +240,7 @@ func decodeLimitsType(r *bytes.Reader) (min uint32, max *uint32, err error) {
 }
 
 func decodeTable(r *bytes.Reader) (*Table, error) {
-	_ , err := r.ReadByte()
+	_, err := r.ReadByte()
 	if err != nil {
 		return nil, fmt.Errorf("read leading byte: %v", err)
 	}
@@ -446,7 +440,7 @@ func decodeConstantExpression(r *bytes.Reader) (*ConstantExpression, error) {
 		_, _, err = DecodeInt64(r)
 	case Op_f32_const:
 		_, err = DecodeFloat32(r)
-	case  Op_f64_const:
+	case Op_f64_const:
 		_, err = DecodeFloat64(r)
 	case Op_get_global:
 		_, _, err = DecodeUint32(r)
@@ -490,7 +484,6 @@ func ExternTypeName(et ExternType) string {
 	return fmt.Sprintf("%#x", et)
 }
 
-
 func decodeUTF8(r *bytes.Reader, contextFormat string, contextArgs ...interface{}) (string, uint32, error) {
 	size, sizeOfSize, err := DecodeUint32(r)
 	if err != nil {
@@ -508,7 +501,6 @@ func decodeUTF8(r *bytes.Reader, contextFormat string, contextArgs ...interface{
 
 	return string(buf), size + uint32(sizeOfSize), nil
 }
-
 
 func decodeImport(r *bytes.Reader, idx uint32) (i *Import, err error) {
 	i = &Import{}
