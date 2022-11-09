@@ -30,32 +30,32 @@ func TestDecodeWithIf(t *testing.T) {
 	ansBytes, _ := hex.DecodeString(bytes)
 
 	expectedCodeSection := []byte{
-		Op_i32_const, 0x0, 
-		Op_i32_load, 0x2, 0x4, 
-		Op_i32_const, 0x10, 
-		Op_i32_sub, 
-		Op_tee_local, 0x1, 
-		Op_get_local, 0x0, 
-		Op_i32_store, 0x2, 0x8, 
-		Op_get_local, 0x1, 
-		Op_i32_const, 0x14, 
-		Op_i32_store, 0x2, 0x4, 
-		Op_block, 0x40, 
-		
-		Op_i32_const, 0x1,
-		Op_br_if, 
-		Op_unreachable, 
-		Op_get_local, 0x1, 
-		Op_get_local, 0x1, 
-		Op_i32_load, 0x2, 0x4, 
-		
-		Op_i32_const, 0x1, 
-		Op_i32_add, 
-		Op_i32_store, 0x2, 0x4, 
-		Op_end, 
+		Op_i32_const, 0x0,
+		Op_i32_load, 0x2, 0x4,
+		Op_i32_const, 0x10,
+		Op_i32_sub,
+		Op_tee_local, 0x1,
+		Op_get_local, 0x0,
+		Op_i32_store, 0x2, 0x8,
+		Op_get_local, 0x1,
+		Op_i32_const, 0x14,
+		Op_i32_store, 0x2, 0x4,
+		Op_block, 0x40,
 
-		Op_get_local, 0x1, 
-		Op_i32_load, 0x2, 0xc, 
+		Op_i32_const, 0x1,
+		Op_br_if,
+		Op_unreachable,
+		Op_get_local, 0x1,
+		Op_get_local, 0x1,
+		Op_i32_load, 0x2, 0x4,
+
+		Op_i32_const, 0x1,
+		Op_i32_add,
+		Op_i32_store, 0x2, 0x4,
+		Op_end,
+
+		Op_get_local, 0x1,
+		Op_i32_load, 0x2, 0xc,
 		Op_end}
 
 	res := decode(ansBytes)

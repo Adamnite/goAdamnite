@@ -2,10 +2,10 @@ package vm
 
 import (
 	"encoding/binary"
-	"fmt"
-	"strconv"
-	"math"
 	"encoding/hex"
+	"fmt"
+	"math"
+	"strconv"
 )
 
 const (
@@ -186,62 +186,71 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 		panic("Unable to parse bytes for call2")
 	}
 
-	if len(bytes) < 4 {
-		panic("Call2 - Invalid callbytes method identifier should be 4 bytes long")
+	functionIdx, count, err := DecodeInt32(reader(bytes[0:]))
+
+	if err != nil {
+		panic("Error parsing function identifier for call2")
+	}
+
+	if int(functionIdx) > len(m.module.functionSection) {
+		panic("Call2 - No function with such index exists")
 	}
 
 	funcIdentifier := bytes[:4]
 
 	funcTypes, funcCode, controlStack := getCode(funcIdentifier)
-	
+
 	var params []uint64
-	
-	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
+
+	for i := count; i < uint64(len(bytes)); i++ {
 
 		valTypeByte := bytes[i]
-		
-		switch (valTypeByte) {
-			case Op_i32_const:
-				paramValue, count, err := DecodeInt32(reader(bytes[i+1:]))
 
-				if (err != nil) {
-					panic("Call2 - Error parsing function params i32")
-				}
+		switch valTypeByte {
+		case Op_i32_const:
+			paramValue, count, err := DecodeInt32(reader(bytes[i+1:]))
 
-				params = append(params, uint64(paramValue))
-				i += count
+			if err != nil {
+				panic("Call2 - Error parsing function params i32")
+			}
 
-			case Op_i64_const:
-				paramValue, count, err := DecodeInt64(reader(bytes[i+1:]))
-				params = append(params, uint64(paramValue))
+			params = append(params, uint64(paramValue))
+			i += count
 
-				if (err != nil) {
-					panic("Call2 - Error parsing function params i64")
-				}
-				i += count
+		case Op_i64_const:
+			paramValue, count, err := DecodeInt64(reader(bytes[i+1:]))
+			params = append(params, uint64(paramValue))
 
-			case Op_f32_const:
-				num := LE.Uint32(bytes[i+1: 4])
-				math.Float32frombits(num)
-				params = append(params, uint64(num))
-				i += 5
+			if err != nil {
+				panic("Call2 - Error parsing function params i64")
+			}
+			i += count
 
-			case Op_f64_const:
-				num := LE.Uint64(bytes[i+1:])
-				math.Float64frombits(num)
-				params = append(params, num)
-				i += 9
-			default:
-				print("Parsed valtype %v", valTypeByte)
-				panic("No such type known")
+		case Op_f32_const:
+			num := LE.Uint32(bytes[i+1 : 4])
+			math.Float32frombits(num)
+			params = append(params, uint64(num))
+			i += 5
+
+		case Op_f64_const:
+			num := LE.Uint64(bytes[i+1:])
+			math.Float64frombits(num)
+			params = append(params, num)
+			i += 9
+		default:
+			print("Parsed valtype %v", valTypeByte)
+			panic("No such type known")
 		}
 	}
-	
-	expectedParamCount := len(funcTypes.params)
+
+	targetFunction := m.module.functionSection[functionIdx]
+	funcSignature := *m.module.typeSection[targetFunction]
+
+	expectedParamCount := len(funcSignature.params)
 	incomingParamCount := len(params)
 
-	if (expectedParamCount != incomingParamCount) {
-		panic("Call2 - Param count mismatch")
+	if expectedParamCount != incomingParamCount {
+		panic("Call2 - Param counts mismatch")
 	}
 
 	// Maybe Check the types of each params if they matches signature?

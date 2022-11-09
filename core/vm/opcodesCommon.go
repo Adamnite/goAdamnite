@@ -72,3 +72,21 @@ func (op Drop) doOp(m *Machine) {
 	m.useGas(op.gas)
 	m.pointInCode++
 }
+
+type GlobalSet struct {
+	pointInStorage uint32
+}
+
+func (op GlobalSet) doOp(m *Machine) {
+	m.pushToStack(m.contractStorage[op.pointInStorage])
+	m.pointInCode++
+}
+
+type GlobalGet struct {
+	pointInStorage uint32
+}
+
+func (op GlobalGet) doOp(m *Machine) {
+	m.contractStorage[op.pointInStorage] = m.popFromStack()
+	m.pointInCode++
+}
