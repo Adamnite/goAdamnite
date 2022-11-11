@@ -10,6 +10,7 @@ import (
 )
 
 func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Hash, error) {
+
 	data, _ := db.Get(blockHeaderHashKey(blockNum))
 
 	if len(data) == 0 {

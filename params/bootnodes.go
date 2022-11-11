@@ -1,5 +1,5 @@
 package params
 
 var MainnetBootnodes = []string{
-	"gnite://90be1f07759110172e6dd62722b2468b214a9e24814e6822b5904754bdbac22f57eb234b56581502eea88f8ff9d018fe1487be20cfa10fce1981a82a09af6386@192.168.112.109:3880", // bootnode-aws-adamnite-seed-01
+	"gnite://04fb0658b280d2226427f525e40a8da0abd4fcb9b3b03c671c737642d3ae5bb23ad9c87e270542b289feebe7fec94af4767fd1cc17d338221077c5b920a588aac2@127.0.0.1:0?udp=3880", // bootnode-aws-adamnite-seed-01
 }

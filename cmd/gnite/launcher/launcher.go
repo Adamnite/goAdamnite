@@ -85,6 +85,7 @@ func startNode(ctx *cli.Context, node *node.Node, adamnite adm.AdamniteAPI) {
 		}
 
 		adamniteImpl, ok := adamnite.(*adm.AdamniteImpl)
+
 		if !ok {
 			utils.Fatalf("Adamnite service not running: %v", errors.New("AdamniteImpl not created"))
 		}

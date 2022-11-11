@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/ripemd160"
 
@@ -239,7 +240,8 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
-	return common.BytesToAddress(Ripemd160Hash(Sha512(pubBytes[1:])))
+
+	return common.BytesToAddress([]byte(b58encode(Ripemd160Hash(Sha512(pubBytes[1:])))))
 }
 
 func ValidateSignatureValues(v byte, r, s *big.Int) bool {
@@ -257,9 +259,58 @@ func zeroBytes(bytes []byte) {
 
 // UnmarshalPubkey converts bytes to a secp256k1 public key.
 func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(S256(), pub)
+	x, y := elliptic.Unmarshal(Secp256k1(), pub)
 	if x == nil {
 		return nil, errInvalidPubkey
 	}
-	return &ecdsa.PublicKey{Curve: S256(), X: x, Y: y}, nil
+	return &ecdsa.PublicKey{Curve: Secp256k1(), X: x, Y: y}, nil
+}
+
+func b58encode(b []byte) (s string) {
+
+	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+	/* Convert big endian bytes to big int */
+	x := new(big.Int).SetBytes(b)
+
+	/* Initialize */
+	r := new(big.Int)
+	m := big.NewInt(58)
+	zero := big.NewInt(0)
+	s = ""
+
+	/* Convert big int to string */
+	for x.Cmp(zero) > 0 {
+		/* x, r = (x / 58, x % 58) */
+		x.QuoRem(x, m, r)
+		/* Prepend ASCII character */
+		s = string(NITE_BASE58_TABLE[r.Int64()]) + s
+	}
+
+	return s
+}
+
+func b58decode(s string) (b []byte, err error) {
+
+	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+	/* Initialize */
+	x := big.NewInt(0)
+	m := big.NewInt(58)
+
+	/* Convert string to big int */
+	for i := 0; i < len(s); i++ {
+		b58index := strings.IndexByte(NITE_BASE58_TABLE, s[i])
+		if b58index == -1 {
+			return nil, fmt.Errorf("Invalid base-58 character encountered: '%c', index %d.", s[i], i)
+		}
+		b58value := big.NewInt(int64(b58index))
+		x.Mul(x, m)
+		x.Add(x, b58value)
+	}
+
+	/* Convert big int to big endian bytes */
+	b = x.Bytes()
+
+	return b, nil
 }

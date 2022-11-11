@@ -50,6 +50,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	chainConfig, genesisHash, err := core.WriteGenesisBlockWithOverride(chainDB, config.Genesis)
 	if err != nil {
 		return nil, err
@@ -64,6 +65,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		dposEngine: adamconfig.CreateConsensusEngine(node, chainConfig, chainDB),
 		p2pServer:  node.Server(),
 		eventMux:   node.EventMux(),
+		witness:    config.Validator.WitnessAddress,
 	}
 
 	adamnite.blockchain, err = core.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine)

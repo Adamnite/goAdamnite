@@ -8,10 +8,10 @@ import (
 
 const (
 	// AddressLength is the expected length of Adamnite address
-	AddressLength = 20
+	AddressLength = 28
 
 	// HashLength is the expected length of the hash
-	HashLength = 32
+	HashLength = 48
 )
 
 type Address [AddressLength]byte
@@ -35,6 +35,10 @@ func HexToAddress(str string) Address {
 	return BytesToAddress(FromHex(str))
 }
 
+func StringToAddress(str string) Address {
+	return BytesToAddress([]byte(str))
+}
+
 func BytesToAddress(b []byte) Address {
 	var addr Address
 	addr.SetBytes(b)
@@ -55,7 +59,7 @@ func (a Address) Hex() string {
 
 // String implements fmt.Stringer.
 func (a Address) String() string {
-	return a.Hex()
+	return string(a[:])
 }
 
 func (h *Hash) SetBytes(b []byte) {

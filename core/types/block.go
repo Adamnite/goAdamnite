@@ -14,16 +14,16 @@ var (
 )
 
 type BlockHeader struct {
-	ParentHash      common.Hash    `json:"parentHash" gencodec:"required"`  // The hash of the current block
-	Time            uint64         `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
-	Witness         common.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
-	WitnessRoot     common.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
-	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
-	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
-	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
-	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
-	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
-
+	ParentHash      common.Hash     `json:"parentHash" gencodec:"required"`  // The hash of the current block
+	Time            uint64          `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
+	Witness         common.Address  `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
+	WitnessRoot     common.Hash     `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
+	Number          *big.Int        `json:"number" gencodec:"required"`      // The block number of the current block
+	Signature       common.Hash     `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
+	TransactionRoot common.Hash     `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
+	CurrentEpoch    uint64          `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
+	StateRoot       common.Hash     `json:"stateRoot" gencodec:"required"`   // A hash of the current state
+	DposEnv         DposEnvProtocol `json:"dposEnv"      gencodec:"required"`
 }
 
 type Block struct {

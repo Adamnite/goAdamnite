@@ -143,6 +143,7 @@ func storeNewKey(ks keyStore, rand io.Reader, auth string) (*Key, accounts.Accou
 }
 
 func keyFileName(keyAddr common.Address) string {
+
 	return fmt.Sprintf("ADAMNITE-%s", hex.EncodeToString(keyAddr[:]))
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -16,7 +17,9 @@ type GossipNode struct {
 
 // New wraps a node information.
 func New(nodeInfo *NodeInfo) (*GossipNode, error) {
-	if err := nodeInfo.Verify(); err != nil {
+	err := nodeInfo.Verify()
+	if err != nil {
+		log15.Error("error", nodeInfo)
 		return nil, err
 	}
 

@@ -172,6 +172,30 @@ func (tx *Transaction) ATEPriceIntCmp(other *big.Int) int {
 
 type TxByPrice Transactions
 
+func (s TxByPrice) Len() int { return len(s) }
+func (s TxByPrice) Less(i, j int) bool {
+	// If the prices are equal, use the time the transaction was first seen for
+	// deterministic sorting
+	cmp := s[i].ATEPrice().Cmp(s[j].ATEPrice())
+	if cmp == 0 {
+		return s[i].timestamp.Before(s[j].timestamp)
+	}
+	return cmp > 0
+}
+func (s TxByPrice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s *TxByPrice) Push(x interface{}) {
+	*s = append(*s, x.(*Transaction))
+}
+
+func (s *TxByPrice) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
+}
+
 type TransactionsByPriceAndNonce struct {
 	txs    map[common.Address]Transactions //List of transaction records currently sorted by account
 	heads  TxByPrice                       // next transaction for each unique account (price heap)
@@ -184,16 +208,16 @@ type TransactionsByPriceAndNonce struct {
 // Note that the input map is re-owned, so the caller should no longer interact with
 //if after provided to the constructor.
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
-	//Initialize price-based heap with head transaction
+	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
-		heads = append(heads, accTxs[0])
-		// Make sure the sender address is from the signer
-		acc, _ := Sender(signer, accTxs[0])
-		txs[acc] = accTxs[1:]
-		if from != acc {
+		// Ensure the sender address is from the signer
+		if acc, _ := Sender(signer, accTxs[0]); acc != from {
 			delete(txs, from)
+			continue
 		}
+		heads = append(heads, accTxs[0])
+		txs[from] = accTxs[1:]
 	}
 	heap.Init(&heads)
 
@@ -203,4 +227,12 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 		heads:  heads,
 		signer: signer,
 	}
+}
+
+// Peek returns the next transaction by price.
+func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
+	if len(t.heads) == 0 {
+		return nil
+	}
+	return t.heads[0]
 }

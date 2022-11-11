@@ -95,25 +95,25 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
 		Config: params.TestnetChainConfig,
 		Alloc: GenesisAlloc{
-			common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
-			common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
+			common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
+			common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
 		},
-		Witness: common.HexToAddress("0xada0000000000000000000000000000000000000"),
+		Witness: common.StringToAddress("24oB2iyytkPa91zz6w8ywLfbSC2N"),
 		WitnessList: []GenesisWitnessInfo{
 			{
-				address: common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
+				address: common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 				voters: []types.Voter{
 					{
-						Address:       common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
+						Address:       common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 					},
 				},
 			},
 			{
-				address: common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
+				address: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 				voters: []types.Voter{
 					{
-						Address:       common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
+						Address:       common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
 					},
 				},
@@ -165,7 +165,7 @@ func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*p
 
 	if (stored == common.Hash{}) { // There is no genesis
 		if genesis == nil {
-			log15.Info("Writing mainnet genesis block")
+			log15.Info("Writing testnet genesis block")
 			genesis = DefaultTestnetGenesisBlock()
 		} else {
 			log15.Info("Writing custom genesis block")

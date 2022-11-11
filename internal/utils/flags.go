@@ -107,7 +107,7 @@ func setBootstrapNode(ctx *cli.Context, cfg *bargossip.Config) {
 
 			node, err := admnode.New(nodeInfo)
 			if err != nil {
-				log15.Crit("Bootstrap Node Info Invalid")
+				log15.Crit(err.Error())
 			}
 
 			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)

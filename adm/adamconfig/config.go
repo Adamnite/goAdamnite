@@ -25,10 +25,10 @@ type Config struct {
 }
 
 var Defaults = Config{
-	NetworkId: 888,
-	TxPool:    core.DefaultTxPoolConfig,
-	Witness:   dpos.DefaultWitnessConfig,
-
+	NetworkId:       888,
+	TxPool:          core.DefaultTxPoolConfig,
+	Witness:         dpos.DefaultWitnessConfig,
+	Validator:       validator.DefaultConfig,
 	AdamniteDbCache: 512,
 }
 

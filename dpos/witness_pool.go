@@ -163,9 +163,9 @@ func (wp *WitnessCandidatePool) GetCandidates() []types.Witness {
 func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *WitnessCandidatePool {
 
 	pool := &WitnessCandidatePool{
-		config:      config,
-		chainConfig: chainConfig,
-
+		config:            config,
+		chainConfig:       chainConfig,
+		vrfMaps:           make(map[string]types.Witness, 0),
 		witnessCandidates: make([]types.Witness, 0),
 	}
 

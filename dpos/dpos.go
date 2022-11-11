@@ -1,16 +1,19 @@
 package dpos
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
 	"sync"
 
+	"github.com/adamnite/go-adamnite/accounts"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
 	"github.com/adamnite/go-adamnite/common"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/log15"
@@ -57,7 +60,17 @@ type AdamniteDPOS struct {
 	db        adamnitedb.Database
 	lock      sync.Mutex
 	closeOnce sync.Once
+
+	signer               common.Address
+	signFn               SignerFn
+	signatures           *lru.ARCCache
+	confirmedBlockHeader *types.BlockHeader
+
+	mu   sync.RWMutex
+	stop chan bool
 }
+
+type SignerFn func(accounts.Account, []byte) ([]byte, error)
 
 func New(config Config, db adamnitedb.Database) *AdamniteDPOS {
 	if config.Log == nil {
@@ -119,7 +132,7 @@ func proceedIncentive(config *params.ChainConfig, state *statedb.StateDB, header
 
 }
 
-func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction, dposEnv DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error) {
+func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction, dposEnv types.DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error) {
 	proceedIncentive(chain.Config(), state, header)
 
 	parent := chain.GetHeaderByHash(header.ParentHash)
@@ -142,7 +155,7 @@ func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader
 	}
 
 	updateMintCnt(int64(parent.Time), int64(header.Time), header.Witness, dposEnv)
-	header.DposEnv = dposEnv.ToProto()
+	header.DposEnv = *dposEnv.ToProto()
 	return types.NewBlock(header, txs, trie.NewStackTrie(nil)), nil
 }
 
@@ -156,7 +169,7 @@ func NextSlot(now int64, blockInterval uint64) int64 {
 func (adpos *AdamniteDPOS) GetRoundNumber() uint64 {
 	return 0
 }
-func updateMintCnt(parentBlockTime, currentBlockTime int64, witness common.Address, dposEnv DposEnv) {
+func updateMintCnt(parentBlockTime, currentBlockTime int64, witness common.Address, dposEnv types.DposEnv) {
 	currentMintCntTrie := dposEnv.MintCntTrie()
 	currentEpoch := parentBlockTime / EpochBlockCount
 	currentEpochBytes := make([]byte, 8)
@@ -182,4 +195,37 @@ func updateMintCnt(parentBlockTime, currentBlockTime int64, witness common.Addre
 	binary.BigEndian.PutUint64(newEpochBytes, uint64(newEpoch))
 	binary.BigEndian.PutUint64(newCntBytes, uint64(cnt))
 	dposEnv.MintCntTrie().TryUpdate(append(newEpochBytes, witness.Bytes()...), newCntBytes)
+}
+
+func (d *AdamniteDPOS) checkDeadline(lastBlock *types.Block, now int64, blockInterval uint64) error {
+	prevSlot := PrevSlot(now, blockInterval)
+	nextSlot := NextSlot(now, blockInterval)
+	if int64(lastBlock.Header().Time) >= nextSlot {
+		return ErrApplyNextBlock
+	}
+	//最后一个街区到了，或者时间到了
+	if int64(lastBlock.Header().Time) == prevSlot || nextSlot-now <= 1 {
+		return nil
+	}
+	return ErrWaitForPrevBlock
+}
+
+func (d *AdamniteDPOS) CheckValidator(lastBlock *types.Block, now int64, blockInterval uint64) error {
+	if err := d.checkDeadline(lastBlock, now, blockInterval); err != nil {
+		return err
+	}
+	//
+	dposEnv, err := types.NewDposEnvFromProto(trie.NewDatabase(d.db), &lastBlock.Header().DposEnv)
+	if err != nil {
+		return err
+	}
+	epochContext := &EpochContext{DposEnv: *dposEnv}
+	witness, err := epochContext.lookupWitness(now, blockInterval)
+	if err != nil {
+		return err
+	}
+	if (witness == common.Address{}) || bytes.Compare(witness.Bytes(), d.signer.Bytes()) != 0 {
+		return ErrMismatchSignerAndWitness
+	}
+	return nil
 }

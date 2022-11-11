@@ -26,6 +26,7 @@ type Config struct {
 }
 
 var DefaultDemoConfig = Config{}
+var DefaultConfig = Config{}
 
 func New(adamnite AdamniteImplInterface, config *Config, chainConfig *params.ChainConfig, dpos dpos.DPOS, mux *event.TypeMux) *Validator {
 	validator := &Validator{

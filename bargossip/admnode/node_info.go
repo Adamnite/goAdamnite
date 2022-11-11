@@ -2,14 +2,17 @@ package admnode
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
@@ -227,7 +230,7 @@ func (n *NodeInfo) GetNodeID() *NodeID {
 }
 
 func (n *NodeInfo) ToURL() string {
-	nodeid := fmt.Sprintf("%x", crypto.FromECDSAPub(n.GetPubKey())[1:])
+	nodeid := fmt.Sprintf("%x", crypto.FromECDSAPub(n.GetPubKey()))
 
 	nodeUrl := url.URL{Scheme: "gnite"}
 
@@ -245,6 +248,29 @@ func (n *NodeInfo) ToURL() string {
 }
 
 func ParseNodeURL(input string) (*NodeInfo, error) {
+	if strings.HasPrefix(input, "gnite://") {
+		tmpPubKeyByte, _ := hex.DecodeString(strings.Split(strings.Split(input, "gnite://")[1], "@")[0])
+		tmpPubKey, err := crypto.UnmarshalPubkey(tmpPubKeyByte)
+		if err != nil {
+			log15.Error(err.Error())
+		}
+
+		tcpVal, _ := strconv.ParseUint(strings.Split(strings.Split(input, ":")[1], "?")[0], 10, 32)
+		udpVal, _ := strconv.ParseUint(strings.Split(input, "udp=")[1], 10, 32)
+		nodeInfo := &NodeInfo{
+			version:   NodeInfoVersionV1,
+			netType:   NetTypeIPV4,
+			ip:        net.ParseIP(strings.Split(strings.Split(input, "@")[1], ":")[0]),
+			pubKey:    crypto.CompressPubkey(tmpPubKey),
+			tcp:       uint16(tcpVal),
+			udp:       uint16(udpVal),
+			infoType:  TypeCompatURLV1,
+			signature: []byte{},
+		}
+
+		return nodeInfo, nil
+
+	}
 	return nil, nil
 }
 
