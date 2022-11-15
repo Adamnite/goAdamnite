@@ -241,7 +241,7 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
 
-	return common.BytesToAddress([]byte(b58encode(Ripemd160Hash(Sha512(pubBytes[1:])))))
+	return common.BytesToAddress([]byte(B58encode(Ripemd160Hash(Sha512(pubBytes[1:])))))
 }
 
 func ValidateSignatureValues(v byte, r, s *big.Int) bool {
@@ -266,7 +266,7 @@ func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
 	return &ecdsa.PublicKey{Curve: Secp256k1(), X: x, Y: y}, nil
 }
 
-func b58encode(b []byte) (s string) {
+func B58encode(b []byte) (s string) {
 
 	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
@@ -290,7 +290,7 @@ func b58encode(b []byte) (s string) {
 	return s
 }
 
-func b58decode(s string) (b []byte, err error) {
+func B58decode(s string) (b []byte, err error) {
 
 	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
