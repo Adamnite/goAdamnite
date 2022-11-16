@@ -291,5 +291,5 @@ func (m *Module) sectionElementCount(sectionID SectionID) uint32 { // element as
 		default:
 			panic(fmt.Errorf("BUG: unknown section: %d", sectionID))
 	}
-	return 0
+	
 }

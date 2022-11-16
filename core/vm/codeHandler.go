@@ -1,10 +1,14 @@
 package vm
 
-func getCode(hash []byte) []OperationCommon {
-	// TODO: get the code from the API/local cache, and parse then return it.
-	if len(hash) != 64 {
-		return nil
-	}
+// This should return both the typeinfo about the function and the body/code
+// The mapping inside the storage should be something like [funcHash] => [ [typeinfo], [code]]
 
-	return []OperationCommon{}
+func getCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	// TODO: get the code from the API/local cache, and parse then return it.
+
+	funcType := FunctionType{}
+	retrievedCode := []byte{}
+	code, ctrlStack := parseBytes(retrievedCode)
+
+	return funcType, code, ctrlStack
 }

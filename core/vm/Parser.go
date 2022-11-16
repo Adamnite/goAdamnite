@@ -13,7 +13,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 	pointInBytes := 0
 
 	// The first control here marks the beginning of the function
-	controlBlocks := []ControlBlock{ControlBlock{
+	controlBlocks := []ControlBlock{{
 		startAt: 0,
 		op: 0x0,
 	}}

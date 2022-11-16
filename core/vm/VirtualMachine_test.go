@@ -30,16 +30,39 @@ func TestCall2(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001070160027f7f017f0304030000000a19030700200020016a0b0700200020016b0b0700200020016c0b0020046e616d650110030003616464010373756202036d756c020703000001000200")
 	vm := newVirtualMachine(wasmBytes, []byte{}, VMConfig{})
 
-	callCode := "01410a4102" // 0x01 = FuncIndex, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	// The hash passed here should be the function index
+	var getCodeMock = func (hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+		var index = 0
 
-	vm.call2(callCode)
+		if hash[0] == 0x1 {
+			index = 1
+		}
+
+		if hash[0] == 0x2 {
+			index = 2
+		}
+		
+		code, ctrlStack := parseBytes(vm.module.codeSection[index].body)
+		return *vm.module.typeSection[0], code, ctrlStack
+	}
+
+	callCode := "00ee919d410a4102" // 0x00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	vm.call2(callCode, getCodeMock)
+	assert.Equal(t, vm.popFromStack(), uint64(0xc))
+
+	vm.pointInCode = 0
+	callCode2 := "01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+
+	vm.call2(callCode2, getCodeMock)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x8))
 
+
 	vm.pointInCode = 0
-	callCode2 := "00410a4102" // 0x00 = FuncIndex, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode3 := "02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
-	vm.call2(callCode2)
+	vm.call2(callCode3, getCodeMock)
 
-	assert.Equal(t, vm.popFromStack(), uint64(0xc))
+	assert.Equal(t, vm.popFromStack(), uint64(0x14))
+
 }

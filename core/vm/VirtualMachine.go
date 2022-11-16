@@ -25,7 +25,7 @@ type VirtualMachine interface {
 }
 
 type ControlBlock struct {
-	code      []OperationCommon // Can this []byte instead ?
+	code      []OperationCommon
 	startAt   uint64
 	elseAt    uint64
 	endAt     uint64
@@ -143,13 +143,16 @@ func (m *Machine) pushToStack(n uint64) {
 }
 
 
-// The caller of call2 has to init a new vm with the retrieved contract code from storage
-// Once the contract code is retrieved and parsed into the vm, the call2 function
-// Can be called with the bytes of the `inputData` field
+// The caller of call2 has to pass in the function hash from the `inputData` field
+// The function identifier will be the first 4 bytes of the data and the remaining 
+// will be considered as function parameters
 
-func (m *Machine) call2(callBytes string) {
 
-	// Structure: 0x[functionIndex][param1..][param2...][param3]
+type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
+
+func (m *Machine) call2(callBytes string, getCode GetCode) {
+
+	// Structure: 0x[4 bytes func identifer][param1..][param2...][param3]
 	// Note: The callbytes is following the wasm encoding scheme.
 
 	bytes, err := hex.DecodeString(callBytes)
@@ -158,19 +161,17 @@ func (m *Machine) call2(callBytes string) {
 		panic("Unable to parse bytes for call2")
 	}
 
-	functionIdx, count, err := DecodeInt32(reader(bytes[0:]))
-
-	if err != nil {
-		panic("Error parsing function identifier for call2")
+	if len(bytes) < 4 {
+		panic("Call2 - Invalid callbytes method identifier should be 4 bytes long")
 	}
+
+	funcIdentifier := bytes[:4]
+
+	funcTypes, funcCode, controlStack := getCode(funcIdentifier)
 	
-	if (int(functionIdx) > len(m.module.functionSection)) {
-		panic("Call2 - No function with such index exists")
-	}
-
 	var params []uint64
 	
-	for i := count; i < uint64(len(bytes)); i++ {
+	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
 
 		valTypeByte := bytes[i]
 		
@@ -210,20 +211,17 @@ func (m *Machine) call2(callBytes string) {
 				panic("No such type known")
 		}
 	}
-
-	targetFunction := m.module.functionSection[functionIdx]
-	funcSignature := *m.module.typeSection[targetFunction]
 	
-	expectedParamCount := len(funcSignature.params)
+	expectedParamCount := len(funcTypes.params)
 	incomingParamCount := len(params)
 
 	if (expectedParamCount != incomingParamCount) {
-		panic("Call2 - Param counts mismatch")
+		panic("Call2 - Param count mismatch")
 	}
 
 	// Maybe Check the types of each params if they matches signature?
-
 	m.locals = params
-	m.vmCode, m.controlBlockStack = parseBytes(m.module.codeSection[functionIdx].body)
+	m.vmCode, m.controlBlockStack = funcCode, controlStack
+
 	m.run()
 }
