@@ -5,12 +5,12 @@ Thanks for offering to beta test the Adamnite Blockchain!
 # Running a node
 
 1. You should download the GoAdamnite Repository and run the following commands: cd goAdamnite/cmd/gnite
-2. You should run the file appropriate to your operating system: nite.exe is an executable for windows, while gnite is an executable for Linux distributions.
-3. Running nite -h will give you all of the commands you can run. Simply running the command gnite will allow them to run a node. This helps support the peer to peer network.
+2. You should run the file appropriate to your operating system: nite.exe is an executable for windows, while nite is an executable for Linux distributions.
+3. Running ./nite.exe (.\nite for Linux) will run a node to support the P2P network.
 4. Feel free to close this shell for now.
 
 # Accounts
-1. To create an account, first run the following command .\nite.exe --datadir account1 init test.json
+1. To create an account, first run the following command .\nite.exe (.\nite for Linux) --datadir account1 init test.json
 2. Then, run the account creation command: .\nite.exe (.\nite if you are on Linux) account new
 3. Be sure to enter a password, and to remember the password for future use. DM Arch2230#4689 with your public address on Discord to get some test NITE.
 4. Move the private key that was generated (it is likely stored in the AppStore directory) to the keystore directory in the account1 folder.
