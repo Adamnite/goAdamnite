@@ -14,7 +14,7 @@ Thanks for offering to beta test the Adamnite Blockchain!
 2. Then, run the account creation command: .\nite.exe (.\nite if you are on Linux) account new
 3. Be sure to enter a password, and to remember the password for future use. DM Arch2230#4689 with your public address on Discord to get some test NITE.
 4. Move the private key that was generated (it is likely stored in the AppStore directory) to the keystore directory in the account1 folder.
-4. Run the following command to unlock your acccount: .\nite.exe (.\nite if you are on Linux) --datadir accounnt1 --port 30312 --nat extip:"your IPV4 address"  --bootnodes 'gnite://c868aa9d1d79714d82b13baad504877ac7d0404999782f2b915b5588b9322de8ef137f2d225f34431985894f65ea5634332f178c32b51d23e09842e2d078bec9@38.17.51.24:0?discport=30301' --allow-insecure-unlock --unlock "your account's public address"
+4. Run the following command to unlock your acccount: .\nite.exe (.\nite if you are on Linux) --datadir account1 --port 30312 --nat extip:"your IPV4 address"  --bootnodes 'gnite://c868aa9d1d79714d82b13baad504877ac7d0404999782f2b915b5588b9322de8ef137f2d225f34431985894f65ea5634332f178c32b51d23e09842e2d078bec9@38.17.51.24:0?discport=30301' --allow-insecure-unlock --unlock "your account's public address"
 5. Keep this terminal open; you will need it to send transactions.
 
 # Sending transactions
