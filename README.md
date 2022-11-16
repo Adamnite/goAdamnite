@@ -20,7 +20,7 @@ Thanks for offering to beta test the Adamnite Blockchain!
 
 # Sending transactions
 1. First, make sure you are in the nite-test directory. The nite-test.exe file is an executable for Windows, while the nite-test file is for Linux distributions. Create a new shell for this purpose.
-2. To send a transaction, run the following command (keep in mind it is all one line): ```.\nite-test.exe (.\nite.test if you are on Linux) ```--sendaddr "the address you want to send coins to" --recaddr "your public address" --amount``` "the amount you want to send" ```--keyfile "the directory where you saved your keyfile in the account creation step --password "your password from the previous step"```
+2. To send a transaction, run the following command (keep in mind it is all one line): ```.\nite-test.exe (.\nite.test if you are on Linux) --sendaddr "the address you want to send coins to" --recaddr "your public address" --amount "the amount you want to send" --keyfile "the directory where you saved your keyfile in the account creation step --password "your password from the previous step"```
 3. Run nite -h for help and additional commands.
 
 
