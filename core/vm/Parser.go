@@ -359,7 +359,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_set_local")
 			}
 
-			ansOps = append(ansOps, localSet{int64(index)})
+			ansOps = append(ansOps, localSet{int64(index), GasQuickStep})
 			pointInBytes += int(count) + 1
 
 		case Op_get_global:

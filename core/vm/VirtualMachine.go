@@ -243,10 +243,7 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 		}
 	}
 
-	targetFunction := m.module.functionSection[functionIdx]
-	funcSignature := *m.module.typeSection[targetFunction]
-
-	expectedParamCount := len(funcSignature.params)
+	expectedParamCount := len(funcTypes.params)
 	incomingParamCount := len(params)
 
 	if expectedParamCount != incomingParamCount {
@@ -256,6 +253,5 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 	// Maybe Check the types of each params if they matches signature?
 	m.locals = params
 	m.vmCode, m.controlBlockStack = funcCode, controlStack
-
 	m.run()
 }
