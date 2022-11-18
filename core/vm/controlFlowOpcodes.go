@@ -205,7 +205,7 @@ func (op Call) doOp(m *Machine) {
 	}
 	code := m.module.codeSection[op.funcIndex].body
 	
-	m = newVirtualMachine(code, m.contractStorage, m.config)
+	m = newVirtualMachine(code, m.contractStorage, &m.config, 1000)
 	m.locals = poppedParams
 	m.run()
 

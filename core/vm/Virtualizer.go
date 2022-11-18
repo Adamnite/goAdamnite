@@ -46,7 +46,8 @@ func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []byte, er
 	vm := newVirtualMachine(
 		vmCode,
 		v.contractData.storage,
-		VMConfig{}) //config should be created/have defaults.
+		nil, 
+		1000) //config should be created/have defaults. @TODO update this with right Gas value
 	vm.locals = locals
 	vm.run()
 

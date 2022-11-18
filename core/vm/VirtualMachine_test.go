@@ -28,7 +28,7 @@ func TestCall2(t *testing.T) {
 	//   )
 		  
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001070160027f7f017f0304030000000a19030700200020016a0b0700200020016b0b0700200020016c0b0020046e616d650110030003616464010373756202036d756c020703000001000200")
-	vm := newVirtualMachine(wasmBytes, []byte{}, VMConfig{})
+	vm := newVirtualMachine(wasmBytes, []byte{}, nil, 1000)
 
 	// The hash passed here should be the function index
 	var getCodeMock = func (hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {

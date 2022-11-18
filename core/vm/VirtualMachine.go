@@ -42,7 +42,6 @@ type Machine struct {
 	contractStorage   []byte   //the storage of the smart contracts data.
 	vmMemory          []byte   //i believe the agreed on stack size was
 	locals            []uint64 //local vals that the VM code can call
-	debugStack        bool     //should it output the stack every operation
 	globals           []uint64
 	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
 
@@ -54,6 +53,17 @@ type VMConfig struct {
 	maxCallStackDepth        uint
 	gasLimit                 uint64
 	returnOnGasLimitExceeded bool
+	debugStack        		 bool // should it output the stack every operation
+	maxCodeSize				 uint32
+}
+
+func getDefaultConfig() VMConfig {
+	return VMConfig{
+		maxCallStackDepth: 1024, 
+		gasLimit: 30000, // 30000 ATE 
+		returnOnGasLimitExceeded: true,
+		debugStack: false,
+	}
 }
 
 type MemoryType interface {
@@ -71,7 +81,7 @@ func (m *Machine) step() {
 	if m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
 		op.doOp(m)
-		if m.debugStack {
+		if m.config.debugStack {
 			println(m.outputStack())
 		}
 	}
@@ -81,11 +91,12 @@ func (m *Machine) run() {
 	for m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
 		op.doOp(m)
-		if m.debugStack {
+		if m.config.debugStack {
 			println(m.outputStack())
 		}
 	}
 }
+
 func (m *Machine) outputStack() string {
 	ans := ""
 	for i, v := range m.vmStack {
@@ -105,15 +116,20 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func newVirtualMachine(wasmBytes []byte, storage []byte, config VMConfig) *Machine {
+func newVirtualMachine(wasmBytes []byte, storage []byte, config *VMConfig, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage
-	machine.debugStack = false
-	machine.config = config
 	machine.module = *decode(wasmBytes)
 	machine.vmCode, machine.controlBlockStack = parseBytes(machine.module.codeSection[0].body)
 	machine.locals = make([]uint64, len(machine.module.codeSection[0].localTypes))
+	machine.gas = gas
+
+	if config != nil {
+		machine.config = *config
+	} else {
+		machine.config = getDefaultConfig()
+	}
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity)
@@ -128,7 +144,7 @@ func newVirtualMachine(wasmBytes []byte, storage []byte, config VMConfig) *Machi
 func (m *Machine) popFromStack() uint64 {
 	var ans uint64
 
-	if m.debugStack {
+	if m.config.debugStack {
 		println("popping from stack")
 	}
 	ans, m.vmStack = m.vmStack[len(m.vmStack)-1], m.vmStack[:len(m.vmStack)-1]
@@ -136,10 +152,19 @@ func (m *Machine) popFromStack() uint64 {
 }
 func (m *Machine) pushToStack(n uint64) {
 
-	if m.debugStack {
+	if m.config.debugStack {
 		println("pushing to stack")
 	}
 	m.vmStack = append(m.vmStack, n)
+}
+
+// useGas attempts the use of gas and subtracts it and returns true on success
+func (m *Machine) useGas(gas uint64) (bool) {
+	if m.gas < gas {
+		return false
+	}
+	m.gas -= gas
+	return true
 }
 
 

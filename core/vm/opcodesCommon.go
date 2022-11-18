@@ -3,19 +3,21 @@ package vm
 type OperationCommon interface {
 	doOp(m *Machine)
 }
-type Operation struct{}
 
 type localGet struct {
 	point int64
+	gas uint64
 }
 
 func (op localGet) doOp(m *Machine) {
 	m.pushToStack(m.locals[op.point]) //pushes the local value at index to the stack
+	m.useGas(op.gas)
 	m.pointInCode++
 }
 
 type localSet struct {
 	point int64
+	gas uint64
 }
 
 func (op localSet) doOp(m *Machine) {
@@ -23,6 +25,7 @@ func (op localSet) doOp(m *Machine) {
 		m.locals = append(m.locals, uint64(0))
 	}
 	m.locals[op.point] = m.popFromStack()
+	m.useGas(op.gas)
 	m.pointInCode++
 }
 
@@ -49,18 +52,23 @@ func (op growMemory) doOp(m *Machine) {
 
 type TeeLocal struct {
 	val uint64
+	gas uint64
 }
 
 func (op TeeLocal) doOp(m *Machine) {
 	v := m.popFromStack()
 	m.pushToStack(uint64(v))
 	m.pushToStack(uint64(v))
-	localSet{int64(op.val)}.doOp(m)
+	localSet{int64(op.val), GasQuickStep}.doOp(m)
+	m.useGas(op.gas)
 }
 
-type Drop struct {}
+type Drop struct {
+	gas uint64
+}
 
 func (op Drop) doOp(m *Machine) {
 	m.popFromStack()
+	m.useGas(op.gas)
 	m.pointInCode++
 }
