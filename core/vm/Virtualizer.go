@@ -29,9 +29,9 @@ type Virtualizer struct {
 
 // type ContractInterface interface{}
 type ContractData struct {
-	address string   //the address of the contract
-	methods []string //just store all the hashes of the functions it can run as strings
-	storage []uint64 //all storage inside the contract is held as an array of bytes
+	Address string   //the Address of the contract
+	Methods []string //just store all the hashes of the functions it can run as strings
+	Storage []uint64 //all storage inside the contract is held as an array of bytes
 }
 
 func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, error) {
@@ -39,20 +39,20 @@ func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, 
 	//returns the stack, storage, and errors that may have occurred.
 
 	//TODO: check that all needed variables are established, and return the stack and storage of the vm
-	vmCode, err := getMethodCode(v.uri, v.contractData.methods[methodIndex])
+	vmCode, err := getMethodCode(v.uri, v.contractData.Methods[methodIndex])
 	if err != nil {
 		return nil, nil, err
 	}
 	vm := newVirtualMachine(
 		vmCode,
-		v.contractData.storage,
-		nil, 
+		v.contractData.Storage,
+		nil,
 		1000) //config should be created/have defaults. @TODO update this with right Gas value
 	vm.locals = locals
 	vm.run()
 
 	if v.config.saveStateChangeToContractData {
-		v.contractData.storage = vm.contractStorage
+		v.contractData.Storage = vm.contractStorage
 	}
 
 	return vm.vmStack, vm.contractStorage, nil
@@ -79,6 +79,7 @@ func newVirtualizerFromData(cdata ContractData, config *VirtualizerConfig) Virtu
 	}
 	return v
 }
+
 func (v *Virtualizer) setVirtualizerConfig(config *VirtualizerConfig) {
 	if config == nil { //set default config data
 		v.config = VirtualizerConfig{
@@ -87,6 +88,7 @@ func (v *Virtualizer) setVirtualizerConfig(config *VirtualizerConfig) {
 		v.config = *config
 	}
 }
+
 func getContractData(apiEndpoint string, contractAddress string) (*ContractData, error) {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
@@ -97,13 +99,14 @@ func getContractData(apiEndpoint string, contractAddress string) (*ContractData,
 		fmt.Println(err)
 		return nil, err
 	}
+
 	byteResponse, err := ioutil.ReadAll(re.Body)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
 	//hopefully you know if things went wrong by here!
-	contractData := ContractData{}
+	var contractData ContractData
 	err = msgpack.Unmarshal(byteResponse, &contractData)
 	if err != nil {
 		fmt.Println(err)
@@ -130,6 +133,7 @@ func getMethodCode(apiEndpoint string, codeHash string) ([]byte, error) {
 	}
 	return byteResponse, nil
 }
+
 func uploadContract(apiEndpoint string, cdata ContractData) error {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
@@ -142,25 +146,13 @@ func uploadContract(apiEndpoint string, cdata ContractData) error {
 		fmt.Println(err)
 		return err
 	}
-	fmt.Println(cdata)
-	fmt.Println()
-	println("Packed data")
-	fmt.Println(packedData)
 
-	var testCdata ContractData
-	err = msgpack.Unmarshal(packedData, &testCdata)
-	fmt.Println(err)
-	fmt.Println(testCdata)
-
-	fmt.Println("bytes as reader")
-	fmt.Println(bytes.NewReader(packedData))
-	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.address, bytes.NewReader(packedData))
+	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address, bytes.NewReader(packedData))
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	// re.
-	// fmt.Println(re.)
+
 	ans, err := http.DefaultClient.Do(re)
 	if err != nil {
 		fmt.Println(err)
