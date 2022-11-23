@@ -9,5 +9,4 @@ type AdamniteImplInterface interface {
 	Blockchain() *core.Blockchain
 	TxPool() *core.TxPool
 	WitnessPool() *dpos.WitnessPool
-	WitnessCandidatePool() *dpos.WitnessCandidatePool
 }

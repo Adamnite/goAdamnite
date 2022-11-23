@@ -17,5 +17,6 @@ var (
 )
 
 type ChainConfig struct {
-	ChainID *big.Int `json:"chainId"`
+	ChainID     *big.Int `json:"chainId"`
+	NormalBlock *big.Int `json:"normalBlock,omitempty"`
 }

@@ -46,8 +46,7 @@ type Engine interface {
 	//Prepare according to Rules for a specific engine.
 	Prepare(chain ChainReader, header *types.BlockHeader) error
 
-	Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction,
-		dposEnv types.DposEnv, witnessCandidatePool WitnessCandidatePool) (*types.Block, error)
+	Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (*types.Block, error)
 	// GetRoundNumber retrieves the number of current round.
 	GetRoundNumber() uint64
 	// Close terminates all background threads maintained by the engine.

@@ -22,8 +22,7 @@ import (
 type environment struct {
 	signer types.Signer
 
-	state   *statedb.StateDB
-	dposEnv *types.DposEnv
+	state *statedb.StateDB
 
 	tcount int
 
@@ -128,25 +127,7 @@ func (w *dposWorker) pendingBlock() *types.Block {
 }
 
 func (w *dposWorker) mintBlock(now int64, blockInterval uint64) {
-	engine, ok := w.dposEngine.(*dpos.AdamniteDPOS)
-	if !ok {
-		log15.Error("Only the dpos engine was allowed")
-		return
-	}
-	//Check whether the current validator is the current node
-	err := engine.CheckValidator(w.chain.CurrentBlock(), now, blockInterval)
-	if err != nil {
-		switch err {
-		case dpos.ErrWaitForPrevBlock,
-			dpos.ErrApplyNextBlock,
-			dpos.ErrInvalidApplyBlockTime,
-			dpos.ErrInvalidWitness:
-			log15.Debug("Failed to stake the block, while ", "err", err)
-		default:
-			log15.Error("Failed to stake the block", "err", err)
-		}
-		return
-	}
+
 	w.createNewWork()
 
 }
@@ -360,11 +341,10 @@ func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, 
 func (w *dposWorker) commit(interval func(), start time.Time) error {
 
 	s := w.current.state
-	block, err := w.dposEngine.Finalize(w.chain, w.current.header, s, w.current.txs, *w.current.dposEnv, *w.adamnite.WitnessCandidatePool())
+	_, err := w.dposEngine.Finalize(w.chain, w.current.header, s, w.current.txs)
 	if err != nil {
 		return err
 	}
-	block.Header().DposEnv = w.current.header.DposEnv
 
 	w.updateSnapshot()
 
@@ -390,16 +370,12 @@ func (w *dposWorker) makeCurrent(parent *types.Block, header *types.BlockHeader)
 		return err
 	}
 
-	trieDB := state.Database().TrieDB()
-
-	dposEnv, err := types.NewDposEnvFromProto(trieDB, &(parent.Header().DposEnv))
 	if err != nil {
 		return err
 	}
 	env := &environment{
-		signer:  types.AdamniteSigner{},
-		state:   state,
-		dposEnv: dposEnv,
+		signer: types.AdamniteSigner{},
+		state:  state,
 
 		header: header,
 	}

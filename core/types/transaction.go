@@ -81,6 +81,10 @@ func NewTx(inner Transaction_Data) *Transaction {
 	return tx
 }
 
+func (tx *Transaction) To() *common.Address {
+	return tx.InnerData.to()
+}
+
 func (tx *Transaction) Decode(s Transaction_Data, _ int) {
 
 }

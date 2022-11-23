@@ -147,6 +147,14 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	}
 }
 
+// SubBalance subtracts amount from the account associated with addr.
+func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObj(addr)
+	if stateObject != nil {
+		stateObject.SubBalance(amount)
+	}
+}
+
 func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
@@ -383,4 +391,13 @@ func (s *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 	s.thash = thash
 	s.bhash = bhash
 	s.txIndex = ti
+}
+
+// Retrieve the balance from the given address or 0 if object not found
+func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Balance()
+	}
+	return common.Big0
 }

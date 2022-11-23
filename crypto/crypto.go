@@ -244,6 +244,11 @@ func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	return common.BytesToAddress([]byte(B58encode(Ripemd160Hash(Sha512(pubBytes[1:])))))
 }
 
+func PubkeyByteToAddress(p []byte) common.Address {
+
+	return common.BytesToAddress([]byte(B58encode(Ripemd160Hash(Sha512(p[1:])))))
+}
+
 func ValidateSignatureValues(v byte, r, s *big.Int) bool {
 	if r.Cmp(common.Big1) < 0 || s.Cmp(common.Big1) < 0 {
 		return false

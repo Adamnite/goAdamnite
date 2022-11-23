@@ -42,7 +42,7 @@ var DemoDefaults = Config{
 }
 
 func CreateConsensusEngine(node *node.Node, chainConfig *params.ChainConfig, db adamnitedb.Database) dpos.Engine {
-	engine := dpos.New(dpos.Config{}, db)
+	engine := dpos.New(chainConfig, db)
 
 	return engine
 }

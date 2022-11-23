@@ -14,6 +14,8 @@ type Witness interface {
 	// GetVoters returns the list of voters
 	GetVoters() []Voter
 
+	SetVoters(voters []Voter)
+
 	// GetBlockValidationPercents returns the percent of
 	GetBlockValidationPercents() float64
 
@@ -49,7 +51,9 @@ func (w *WitnessImpl) GetAddress() common.Address {
 func (w *WitnessImpl) GetVoters() []Voter {
 	return w.Voters
 }
-
+func (w *WitnessImpl) SetVoters(voters []Voter) {
+	w.Voters = voters
+}
 func (w *WitnessImpl) GetBlockValidationPercents() float64 {
 	if w.blocksReviewed == 0 {
 		return 0.5

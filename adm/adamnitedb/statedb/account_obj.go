@@ -110,6 +110,13 @@ func (s *stateObject) AddBalance(amount *big.Int) {
 	s.SetBalance(new(big.Int).Add(s.Balance(), amount))
 }
 
+func (s *stateObject) SubBalance(amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	s.SetBalance(new(big.Int).Sub(s.Balance(), amount))
+}
+
 func (s *stateObject) SetNonce(nonce uint64) {
 	s.setNonce(nonce)
 }

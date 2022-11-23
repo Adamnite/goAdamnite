@@ -19,10 +19,10 @@ import (
 type AdamniteImpl struct {
 	config *adamconfig.Config
 
-	blockchain           *core.Blockchain
-	txPool               *core.TxPool
-	witnessCandidatePool *dpos.WitnessCandidatePool
-	witnessPool          *dpos.WitnessPool
+	blockchain *core.Blockchain
+	txPool     *core.TxPool
+
+	witnessPool *dpos.WitnessPool
 
 	handler *handler
 
@@ -74,8 +74,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	}
 
 	adamnite.txPool = core.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
-	adamnite.witnessCandidatePool = dpos.NewWitnessPool(config.Witness, chainConfig)
-	adamnite.witnessPool = adamnite.witnessCandidatePool.GetWitnessPool()
+	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig, )
 
 	adamnite.handler, err = newHandler(&handlerParams{
 		Database: chainDB,
@@ -110,9 +109,7 @@ func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 func (adam *AdamniteImpl) Blockchain() *core.Blockchain   { return adam.blockchain }
 func (adam *AdamniteImpl) TxPool() *core.TxPool           { return adam.txPool }
 func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool { return adam.witnessPool }
-func (adam *AdamniteImpl) WitnessCandidatePool() *dpos.WitnessCandidatePool {
-	return adam.witnessCandidatePool
-}
+
 func (adam *AdamniteImpl) Start() error {
 	adam.handler.Start(adam.p2pServer.MaxPendingConnections)
 	return nil
