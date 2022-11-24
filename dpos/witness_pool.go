@@ -70,19 +70,19 @@ var DefaultDemoWitnessConfig = WitnessConfig{
 }
 
 var WitnessList = []WitnessInfo{{
-	address: common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
+	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 	voters: []types.Voter{
 		{
-			Address:       common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
+			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 		},
 	},
 },
 	{
-		address: common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
+		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 		voters: []types.Voter{
 			{
-				Address:       common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
+				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
 			},
 		},
@@ -105,7 +105,7 @@ type WitnessPool struct {
 	blacklist []types.Witness
 }
 
-func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *WitnessPool {
+func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *WitnessPool {
 
 	pool := &WitnessPool{
 		config:            config,
@@ -168,6 +168,73 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigca
 				w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
 				pool.vrfMaps[string(w.GetPubKey())] = w
 			}
+		}
+
+	}
+
+	return pool
+}
+
+func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *WitnessPool {
+
+	pool := &WitnessPool{
+		config:      config,
+		chainConfig: chainConfig,
+
+		vrfMaps:           make(map[string]types.Witness, 0),
+		witnessCandidates: make([]types.Witness, 0),
+
+		Votes: map[common.Address]*types.Voter{},
+	}
+
+	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
+
+		for _, w := range WitnessList {
+			witness := &types.WitnessImpl{
+				Address: w.address,
+				Voters:  w.voters,
+			}
+			pool.Witnesses = append(pool.Witnesses, witness)
+		}
+
+		var (
+			maxStakingAmount          big.Int
+			maxBlockValidationPercent float64
+			maxVoterCount             int
+			maxElectedCount           uint64
+		)
+
+		maxStakingAmount = *big.NewInt(0)
+		maxBlockValidationPercent = 0.0
+		maxVoterCount = 0
+		maxElectedCount = 0
+
+		for _, w := range pool.Witnesses {
+			if maxBlockValidationPercent < w.GetBlockValidationPercents() {
+				maxBlockValidationPercent = w.GetBlockValidationPercents()
+			}
+
+			if maxStakingAmount.Cmp(w.GetStakingAmount()) == -1 {
+				maxStakingAmount = *w.GetStakingAmount()
+			}
+
+			if maxVoterCount < len(w.GetVoters()) {
+				maxVoterCount = len(w.GetVoters())
+			}
+
+			if maxElectedCount < w.GetElectedCount() {
+				maxElectedCount = w.GetElectedCount()
+			}
+		}
+
+		for _, w := range pool.Witnesses {
+
+			avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
+			avgBlockValidationPercent := w.GetBlockValidationPercents() / maxBlockValidationPercent
+			avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
+			avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
+			w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
+			pool.vrfMaps[string(w.GetPubKey())] = w
 		}
 
 	}
@@ -331,7 +398,17 @@ func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
 
 func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
 	if prevWitnessAddr == nil {
+		if wp.Witnesses == nil || len(wp.Witnesses) == 0 {
+			for _, w := range WitnessList {
+				witness := &types.WitnessImpl{
+					Address: w.address,
+					Voters:  w.voters,
+				}
+				wp.Witnesses = append(wp.Witnesses, witness)
+			}
+		}
 		return wp.Witnesses[0].GetAddress()
+
 	}
 
 	for i, witness := range wp.Witnesses {

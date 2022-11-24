@@ -7,6 +7,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
 )
 
@@ -35,8 +36,9 @@ type TxPool struct {
 	mu          sync.RWMutex
 	pending     map[common.Address]*txList
 	all         *txLookup
-
-	locals *accountSet
+	scope       event.SubscriptionScope
+	locals      *accountSet
+	txFeed      event.Feed
 }
 
 type blockChain interface {
@@ -78,4 +80,8 @@ func (pool *TxPool) Locals() []common.Address {
 	defer pool.mu.Unlock()
 
 	return pool.locals.flatten()
+}
+
+func (pool *TxPool) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
+	return pool.scope.Track(pool.txFeed.Subscribe(ch))
 }

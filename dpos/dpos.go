@@ -141,7 +141,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 				tmpWitnesses := make([]types.Witness, 0)
 				dposData.Witnesses = tmpWitnesses
 
-				witnessPool = NewWitnessPool(DefaultWitnessConfig, adpos.config, adpos.signatures, number, hash, dposData.Witnesses)
+				witnessPool = NewRoundWitnessPool(DefaultWitnessConfig, adpos.config, adpos.signatures, number, hash, dposData.Witnesses)
 				if err := witnessPool.saveWitnessPool(adpos.db); err != nil {
 					return nil, err
 				}
@@ -245,7 +245,7 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 
 	number := header.Number.Uint64()
 
-	parent := chain.GetHeader(header.ParentHash, number-1)
+	parent := chain.GetHeaderByHash(header.ParentHash)
 	if parent == nil {
 		return ErrUnknownAncestor
 	}

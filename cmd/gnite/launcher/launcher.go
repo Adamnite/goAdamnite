@@ -19,9 +19,6 @@ var (
 
 	app = flags.NewApp(gitCommit, gitDate, "the go-adamnite command line interface")
 
-	demoFlags = []cli.Flag{
-		&utils.DemoFlag,
-	}
 	networkFlags = []cli.Flag{
 		&utils.NetworkIP,
 		&utils.NATFlag,
@@ -40,7 +37,6 @@ func init() {
 		&accountCommand,
 	}
 
-	app.Flags = append(app.Flags, demoFlags...)
 	app.Flags = append(app.Flags, networkFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, witnessFlags...)

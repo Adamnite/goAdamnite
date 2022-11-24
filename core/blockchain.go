@@ -1,10 +1,14 @@
 package core
 
 import (
+	"encoding/binary"
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/log15"
+	"github.com/vmihailenco/msgpack/v5"
+
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
@@ -14,6 +18,10 @@ import (
 
 const (
 	EpochDuration = 27 * 6
+)
+
+var (
+	headerPrefix = []byte("h")
 )
 
 type Blockchain struct {
@@ -33,8 +41,9 @@ type Blockchain struct {
 	// events
 	importBlockFeed event.Feed
 	scope           event.SubscriptionScope
-
-	chainlock sync.RWMutex
+	chainSideFeed   event.Feed
+	chainHeadFeed   event.Feed
+	chainlock       sync.RWMutex
 }
 
 func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engine dpos.DPOS) (*Blockchain, error) {
@@ -63,7 +72,28 @@ func (bc *Blockchain) CurrentHeader() *types.BlockHeader {
 }
 
 func (bc *Blockchain) GetHeader(hash common.Hash, number uint64) *types.BlockHeader {
-	return nil
+	data, _ := bc.db.Get(headerKey(number, hash))
+	if len(data) == 0 {
+		return nil
+	}
+
+	header := new(types.BlockHeader)
+	if err := msgpack.Unmarshal(data, header); err != nil {
+		log15.Error("Invalid")
+	}
+
+	return header
+
+}
+
+func headerKey(number uint64, hash common.Hash) []byte {
+	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+}
+
+func encodeBlockNumber(number uint64) []byte {
+	enc := make([]byte, 8)
+	binary.BigEndian.PutUint64(enc, number)
+	return enc
 }
 
 func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
@@ -119,4 +149,12 @@ func (bc *Blockchain) AddImportedBlock(block *types.Block) error {
 
 func (bc *Blockchain) SubscribeImportBlockEvent(ch chan<- ImportBlockEvent) event.Subscription {
 	return bc.scope.Track(bc.importBlockFeed.Subscribe(ch))
+}
+
+func (bc *Blockchain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+}
+
+func (bc *Blockchain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
+	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
 }

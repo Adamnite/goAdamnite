@@ -8,7 +8,8 @@ var (
 	}
 
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(889),
+		ChainID:     big.NewInt(889),
+		NormalBlock: big.NewInt(12345),
 	}
 
 	DemoChainConfig = &ChainConfig{

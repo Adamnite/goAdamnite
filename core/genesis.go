@@ -122,37 +122,6 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	}
 }
 
-func DefaultDemoGenesisBlock() *Genesis {
-	return &Genesis{
-		Config: params.DemoChainConfig,
-		Alloc: GenesisAlloc{
-			common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
-			common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
-		},
-		Witness: common.HexToAddress("0xada0000000000000000000000000000000000000"),
-		WitnessList: []GenesisWitnessInfo{
-			{
-				address: common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
-				voters: []types.Voter{
-					{
-						Address:       common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
-						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
-					},
-				},
-			},
-			{
-				address: common.HexToAddress("0x5117dd7283175dfd686757784de62197bd2179a2"),
-				voters: []types.Voter{
-					{
-						Address:       common.HexToAddress("0x5d8124bb42734acb442b6992c73ecad2651612cd"),
-						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
-					},
-				},
-			},
-		},
-	}
-}
-
 func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		return nil, common.Hash{}, errors.New("genesis has no chain configuration")

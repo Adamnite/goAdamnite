@@ -74,7 +74,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	}
 
 	adamnite.txPool = core.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
-	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig, )
+	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig)
 
 	adamnite.handler, err = newHandler(&handlerParams{
 		Database: chainDB,

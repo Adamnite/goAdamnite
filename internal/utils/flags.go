@@ -66,8 +66,7 @@ func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config
 		cfg.Genesis = core.DefaultGenesisBlock()
 	case ctx.Bool(TestnetFlag.Name):
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
-	case ctx.Bool(DemoFlag.Name):
-		cfg.Genesis = core.DefaultDemoGenesisBlock()
+
 	}
 
 	cfg.AdamniteDbHandles = MakeAdamniteDatabaseHandles()
