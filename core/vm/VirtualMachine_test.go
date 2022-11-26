@@ -62,6 +62,4 @@ func TestCall2(t *testing.T) {
 	vm.call2(callCode3, getCodeMock)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x14))
-
-	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 }

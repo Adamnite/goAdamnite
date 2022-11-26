@@ -4,16 +4,21 @@ import "math"
 
 type f64Const struct {
 	val float64
+	gas uint64
 }
 
-func (op f64Const) doOp(m *Machine) {
+func (op f64Const) doOp(m *Machine) error {
 	m.pushToStack(uint64(float64(op.val)))
 	m.pointInCode++
+	return nil
 }
 
-type f64Eq struct {}
+type f64Eq struct{
+	gas uint64
 
-func (op f64Eq) doOp(m *Machine) {
+}
+
+func (op f64Eq) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
 
@@ -23,263 +28,340 @@ func (op f64Eq) doOp(m *Machine) {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Ne struct {}
+type f64Ne struct{
+	gas uint64
 
-func (op f64Ne) doOp(m *Machine) {
+}
+
+func (op f64Ne) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if a != b {
 		m.pushToStack(uint64(1))
 	} else {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Lt struct {}
+type f64Lt struct{
+	gas uint64
 
-func (op f64Lt) doOp(m *Machine) {
+}
+
+func (op f64Lt) doOp(m *Machine) error {
 	b := math.Float64frombits(uint64(m.popFromStack()))
 	a := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if a < b {
 		m.pushToStack(uint64(1))
 	} else {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Gt struct {}
+type f64Gt struct{
+	gas uint64
 
-func (op f64Gt) doOp(m *Machine) {
+}
+
+func (op f64Gt) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if a > b {
 		m.pushToStack(uint64(1))
 	} else {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Ge struct {}
+type f64Ge struct{
+	gas uint64
 
-func (op f64Ge) doOp(m *Machine) {
+}
+
+func (op f64Ge) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if a >= b {
 		m.pushToStack(uint64(1))
 	} else {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Le struct {}
+type f64Le struct{
+	gas uint64
 
-func (op f64Le) doOp(m *Machine) {
+}
+
+func (op f64Le) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if a <= b {
 		m.pushToStack(uint64(1))
 	} else {
 		m.pushToStack(uint64(0))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Abs struct {}
+type f64Abs struct{
+	gas uint64
 
-func (op f64Abs) doOp(m *Machine) {
+}
+
+func (op f64Abs) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Abs(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Neg struct {}
+type f64Neg struct{
+	gas uint64
 
-func (op f64Neg) doOp(m *Machine) {
+}
+
+func (op f64Neg) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := -val; c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Ceil struct {}
+type f64Ceil struct{
+	gas uint64
 
-func (op f64Ceil) doOp(m *Machine) {
+}
+
+func (op f64Ceil) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Ceil(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Floor struct {}
+type f64Floor struct{
+	gas uint64
 
-func (op f64Floor) doOp(m *Machine) {
+}
+
+func (op f64Floor) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Floor(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Trunc struct {}
+type f64Trunc struct{
+	gas uint64
 
-func (op f64Trunc) doOp(m *Machine) {
+}
+
+func (op f64Trunc) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Trunc(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Nearest struct {}
+type f64Nearest struct{
+	gas uint64
 
-func (op f64Nearest) doOp(m *Machine) {
+}
+
+func (op f64Nearest) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.RoundToEven(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Sqrt struct {}
+type f64Sqrt struct{
+	gas uint64
 
-func (op f64Sqrt) doOp(m *Machine) {
+}
+
+func (op f64Sqrt) doOp(m *Machine) error {
 	val := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Sqrt(val); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Add struct {}
+type f64Add struct{
+	gas uint64
 
-func (op f64Add) doOp(m *Machine) {
+}
+
+func (op f64Add) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := a + b; c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Sub struct {}
+type f64Sub struct{
+	gas uint64
 
-func (op f64Sub) doOp(m *Machine) {
+}
+
+func (op f64Sub) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := a - b; c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Mul struct {}
+type f64Mul struct{
+	gas uint64
 
-func (op f64Mul) doOp(m *Machine) {
+}
+
+func (op f64Mul) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := a * b; c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Div struct {}
+type f64Div struct{
+	gas uint64
 
-func (op f64Div) doOp(m *Machine) {
+}
+
+func (op f64Div) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := a / b; c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Min struct {}
+type f64Min struct{
+	gas uint64
 
-func (op f64Min) doOp(m *Machine) {
+}
+
+func (op f64Min) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Min(a, b); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64Max struct {}
+type f64Max struct{
+	gas uint64
 
-func (op f64Max) doOp(m *Machine) {
+}
+
+func (op f64Max) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Max(a, b); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }
 
-type f64CopySign struct {}
+type f64CopySign struct{
+	gas uint64
 
-func (op f64CopySign) doOp(m *Machine) {
+}
+
+func (op f64CopySign) doOp(m *Machine) error {
 	a := math.Float64frombits(uint64(m.popFromStack()))
 	b := math.Float64frombits(uint64(m.popFromStack()))
-	
+
 	if c := math.Copysign(a, b); c != c {
 		m.pushToStack(uint64(0x7FF8000000000001))
 	} else {
 		m.pushToStack(uint64(math.Float64bits(c)))
 	}
 	m.pointInCode++
+	return nil
 }

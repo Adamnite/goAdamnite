@@ -1,9 +1,10 @@
 package vm
 type Block struct {
 	index uint32 // The index of its controlblock inside the controlBlockStack
+	gas uint64
 }
 
-func (op Block) doOp(m *Machine) {
+func (op Block) doOp(m *Machine) error {
 	// Add some stack validation here
 	stackLength  := len(m.vmStack)
 
@@ -17,15 +18,21 @@ func (op Block) doOp(m *Machine) {
 	finalStackLength := len(m.vmStack)
 
 	if finalStackLength < stackLength {
-		panic("Inconsistent stack after execution of Op_Block")
+		return ErrStackConsistency
 	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type Br struct {
 	index uint32
+	gas uint64
 }
 
-func (op Br) doOp(m *Machine) {
+func (op Br) doOp(m *Machine) error {
 
 	// An important note about the labels is that the innermost one has the index 0 and the outtermost one has the index N
 	// https://webassembly.github.io/spec/core/bikeshed/index.html#control-instructions%E2%91%A0
@@ -42,15 +49,21 @@ func (op Br) doOp(m *Machine) {
 		// This means a continue statement
 		m.pointInCode = branch.startAt + 1 // +1 To skip the block byte
 	} else {
-		panic("Something went wrong while branching to index uint32(op.index)")
+		return ErrInvalidBr
 	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type BrIf struct {
 	index uint32
+	gas uint64
 }
 
-func (op BrIf) doOp(m *Machine) {
+func (op BrIf) doOp(m *Machine) error {
 	if (len(m.controlBlockStack) < int(op.index)) {
 		panic("Index where to branch out of range")
 	}
@@ -58,17 +71,23 @@ func (op BrIf) doOp(m *Machine) {
 	condition := uint32(m.popFromStack())
 
 	if (condition != 0) {
-		Br{op.index}.doOp(m)
+		Br{op.index, GasQuickStep}.doOp(m)
 	} else {
 		NoOp{}.doOp(m)
 	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type If struct {
 	index uint32 // The index of its controlblock inside the controlBlockStack
+	gas uint64
 }
 
-func (op If) doOp(m *Machine) {
+func (op If) doOp(m *Machine) error {
 	// @TODO(sdmg15) Check if the top of the stack is the same type as signature in If/Else/End
 	condition := uint32(m.popFromStack())
 
@@ -77,7 +96,7 @@ func (op If) doOp(m *Machine) {
 	controlBlock := m.controlBlockStack[int(op.index)]
 
 	if (controlBlock.op != Op_if) {
-		panic("Invalid Operand retrieved from stack - Op_If expected")
+		return ErrIfTopElementOfStack
 	}
 	
 	if (condition != 0) {
@@ -102,16 +121,22 @@ func (op If) doOp(m *Machine) {
 	}
 
 	if (len(m.vmStack) < stackLen) {
-		panic("Inconsistent stack after execution of Op_If")
+		return ErrStackConsistency
 	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 
 }
 
 type Else struct {
 	index uint32 // The index of its controlblock inside the controlBlockStack should have the same value as the If one
+	gas uint64
 }
 
-func (op Else) doOp(m *Machine) {
+func (op Else) doOp(m *Machine) error {
 
 	stackLen := len(m.vmStack)
 	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - 1]
@@ -121,16 +146,21 @@ func (op Else) doOp(m *Machine) {
 	}
 
 	if (len(m.vmStack) < stackLen) {
-		panic("Inconsistent stack after execution of Op_Else")
+		return ErrStackConsistency
 	}
 
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type Loop struct {
 	index uint32
+	gas uint64
 }
 
-func (op Loop) doOp(m *Machine) {
+func (op Loop) doOp(m *Machine) error {
 	stackLength  := len(m.vmStack)
 
 	m.pointInCode++ // First skip this Loop byte
@@ -147,31 +177,40 @@ func (op Loop) doOp(m *Machine) {
 		panic("Inconsistent stack after execution of Op_Block")
 	}
 
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type NoOp struct {}
 
-func (op NoOp) doOp(m *Machine) {
+func (op NoOp) doOp(m *Machine) error {
 	m.pointInCode++
+	return nil
 }
 
 type UnReachable struct {}
 
-func (op UnReachable) doOp(m *Machine) {
+func (op UnReachable) doOp(m *Machine) error {
 	m.pointInCode++
+	return nil
 }
 
 type End struct {
 	index uint32
 }
 
-func (op End) doOp(m *Machine) {
+func (op End) doOp(m *Machine) error {
 	m.pointInCode++
+	return nil
 }
 
-type Return struct {}
+type Return struct {
+	gas uint64
+}
 
-func (op Return) doOp(m *Machine) {
+func (op Return) doOp(m *Machine) error {
 	// branch := m.controlBlockStack[0]
 
 	if (len(m.vmStack) > 0) {
@@ -185,13 +224,18 @@ func (op Return) doOp(m *Machine) {
 	} else {
 		m.pointInCode += uint64(len(m.vmCode) - 2) // -1 for range and -1 for staying at End{} of function
 	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type Call struct {
 	funcIndex uint32
 }
 
-func (op Call) doOp(m *Machine) {
+func (op Call) doOp(m *Machine) error {
 
 	if int(op.funcIndex) >= len(m.module.typeSection[op.funcIndex].params) {
 		panic("invalid function index")
@@ -205,13 +249,14 @@ func (op Call) doOp(m *Machine) {
 	}
 	code := m.module.codeSection[op.funcIndex].body
 	
-	m = newVirtualMachine(code, m.contractStorage, &m.config, 1000)
+	m = newVirtualMachine(code, m.contractStorage, &m.config, m.gas)
 	m.locals = poppedParams
 	m.run()
-
+	return nil
 }
 
 type CallIndirect struct {}
 
-func (op CallIndirect) doOp(m *Machine) {
+func (op CallIndirect) doOp(m *Machine) error {
+	return nil
 }

@@ -84,8 +84,6 @@ func Test_MultiBlock(t *testing.T) {
 		Op_end,
 
 		Op_nop,
-
-		Op_end,
 		Op_end,
 	}
 

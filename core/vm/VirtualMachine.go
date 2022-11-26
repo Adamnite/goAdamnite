@@ -18,7 +18,7 @@ var LE = binary.LittleEndian
 type VirtualMachine interface {
 	//functions that will be fully implemented later
 	step()
-	run()
+	run() (error)
 
 	do()
 	outputStack() string
@@ -87,14 +87,19 @@ func (m *Machine) step() {
 	}
 }
 
-func (m *Machine) run() {
+func (m *Machine) run() error {
 	for m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
-		op.doOp(m)
+		err := op.doOp(m)
 		if m.config.debugStack {
 			println(m.outputStack())
 		}
+
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (m *Machine) outputStack() string {
@@ -186,7 +191,7 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 		panic("Unable to parse bytes for call2")
 	}
 
-	functionIdx, count, err := DecodeInt32(reader(bytes[0:]))
+	functionIdx, _, err := DecodeInt32(reader(bytes[0:]))
 
 	if err != nil {
 		panic("Error parsing function identifier for call2")
@@ -202,7 +207,7 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 
 	var params []uint64
 
-	for i := count; i < uint64(len(bytes)); i++ {
+	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
 
 		valTypeByte := bytes[i]
 

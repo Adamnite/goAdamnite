@@ -223,7 +223,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			if err != nil {
 				panic("Error parsing Op_i64_const value")
 			}
-			ansOps = append(ansOps, i64Const{int64(num)})
+			ansOps = append(ansOps, i64Const{int64(num), GasQuickStep})
 			pointInBytes += int(count) + 1
 
 		case Op_i64_add:
@@ -259,7 +259,10 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			controlBlock.startAt = uint64(len(ansOps))
 			controlBlocks = append(controlBlocks, controlBlock)
-			ansOps = append(ansOps, Block{uint32(len(controlBlocks)) - 1})
+			ansOps = append(ansOps, Block{
+				index: uint32(len(controlBlocks)) - 1, 
+				gas: GasQuickStep,
+			})
 			pointInBytes++
 
 		case Op_br:
@@ -267,7 +270,10 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			if err != nil {
 				panic("Error occured while parsing label Op_br")
 			}
-			ansOps = append(ansOps, Br{label})
+			ansOps = append(ansOps, Br{
+				index: label, 
+				gas: GasQuickStep,
+			})
 			pointInBytes += int(count) + 1
 
 		case Op_br_if:
@@ -277,7 +283,10 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occured while parsing label Op_brIf")
 			}
 
-			ansOps = append(ansOps, BrIf{label})
+			ansOps = append(ansOps, BrIf{
+				index: label,
+				gas: GasQuickStep,
+			})
 			pointInBytes += int(count) + 1
 
 		case Op_if:
@@ -288,7 +297,10 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			controlBlock.startAt = uint64(len(ansOps))
 			controlBlocks = append(controlBlocks, controlBlock)
-			ansOps = append(ansOps, If{uint32(len(controlBlocks)) - 1})
+			ansOps = append(ansOps, If{
+				index: uint32(len(controlBlocks)) - 1, 
+				gas: GasQuickStep,
+			})
 			pointInBytes++
 
 		case Op_else:
@@ -299,7 +311,10 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			}
 
 			ifblock.elseAt = uint64(len(ansOps))
-			ansOps = append(ansOps, Else{uint32(ifblock.startAt)})
+			ansOps = append(ansOps, Else{
+				index: uint32(ifblock.startAt), 
+				gas: GasQuickStep,
+			})
 			pointInBytes++
 
 		case Op_loop:
@@ -312,7 +327,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			controlBlocks = append(controlBlocks, controlBlock)
 
-			ansOps = append(ansOps, Loop{uint32(len(controlBlocks)) - 1})
+			ansOps = append(ansOps, Loop{uint32(len(controlBlocks)) - 1, GasQuickStep})
 			pointInBytes++
 
 		case Op_end:
@@ -369,7 +384,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_get_global")
 			}
 
-			ansOps = append(ansOps, GlobalGet{uint32(index)})
+			ansOps = append(ansOps, GlobalGet{uint32(index), GasQuickStep})
 			pointInBytes += int(count) + 1
 		case Op_set_global:
 			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
@@ -378,7 +393,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_set_global")
 			}
 
-			ansOps = append(ansOps, GlobalSet{uint32(index)})
+			ansOps = append(ansOps, GlobalSet{uint32(index), GasQuickStep})
 			pointInBytes += int(count) + 1
 		case Op_drop:
 			ansOps = append(ansOps, Drop{})
@@ -471,133 +486,133 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_f32_const:
 			num := LE.Uint32(bytes[pointInBytes+1 : 4])
-			ansOps = append(ansOps, f32Const{math.Float32frombits(num)})
+			ansOps = append(ansOps, f32Const{math.Float32frombits(num), GasQuickStep})
 			pointInBytes += 5
 		case Op_f32_eq:
-			ansOps = append(ansOps, f32Eq{})
+			ansOps = append(ansOps, f32Eq{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_ne:
-			ansOps = append(ansOps, f32Neq{})
+			ansOps = append(ansOps, f32Neq{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_lt:
-			ansOps = append(ansOps, f32Lt{})
+			ansOps = append(ansOps, f32Lt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_gt:
-			ansOps = append(ansOps, f32Gt{})
+			ansOps = append(ansOps, f32Gt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_le:
-			ansOps = append(ansOps, f32Le{})
+			ansOps = append(ansOps, f32Le{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_ge:
-			ansOps = append(ansOps, f32Ge{})
+			ansOps = append(ansOps, f32Ge{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_abs:
-			ansOps = append(ansOps, f32Abs{})
+			ansOps = append(ansOps, f32Abs{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_neg:
-			ansOps = append(ansOps, f32Neg{})
+			ansOps = append(ansOps, f32Neg{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_ceil:
-			ansOps = append(ansOps, f32Ceil{})
+			ansOps = append(ansOps, f32Ceil{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_floor:
-			ansOps = append(ansOps, f32Floor{})
+			ansOps = append(ansOps, f32Floor{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_trunc:
-			ansOps = append(ansOps, f32Trunc{})
+			ansOps = append(ansOps, f32Trunc{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_nearest:
-			ansOps = append(ansOps, f32Nearest{})
+			ansOps = append(ansOps, f32Nearest{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_sqrt:
-			ansOps = append(ansOps, f32Sqrt{})
+			ansOps = append(ansOps, f32Sqrt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_add:
-			ansOps = append(ansOps, f32Add{})
+			ansOps = append(ansOps, f32Add{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_sub:
-			ansOps = append(ansOps, f32Sub{})
+			ansOps = append(ansOps, f32Sub{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_mul:
-			ansOps = append(ansOps, f32Mul{})
+			ansOps = append(ansOps, f32Mul{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_div:
-			ansOps = append(ansOps, f32Div{})
+			ansOps = append(ansOps, f32Div{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_min:
-			ansOps = append(ansOps, f32Min{})
+			ansOps = append(ansOps, f32Min{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_max:
-			ansOps = append(ansOps, f32Max{})
+			ansOps = append(ansOps, f32Max{GasQuickStep})
 			pointInBytes += 1
 		case Op_f32_copysign:
-			ansOps = append(ansOps, f32CopySign{})
+			ansOps = append(ansOps, f32CopySign{GasQuickStep})
 			pointInBytes += 1
 
 		case Op_f64_const:
 			num := LE.Uint64(bytes[pointInBytes+1:])
-			ansOps = append(ansOps, f64Const{math.Float64frombits(num)})
+			ansOps = append(ansOps, f64Const{math.Float64frombits(num), GasQuickStep})
 			pointInBytes += 9
 
 		case Op_f64_eq:
-			ansOps = append(ansOps, f64Eq{})
+			ansOps = append(ansOps, f64Eq{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_ne:
-			ansOps = append(ansOps, f64Ne{})
+			ansOps = append(ansOps, f64Ne{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_lt:
-			ansOps = append(ansOps, f64Lt{})
+			ansOps = append(ansOps, f64Lt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_gt:
-			ansOps = append(ansOps, f64Gt{})
+			ansOps = append(ansOps, f64Gt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_le:
-			ansOps = append(ansOps, f64Le{})
+			ansOps = append(ansOps, f64Le{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_ge:
-			ansOps = append(ansOps, f64Ge{})
+			ansOps = append(ansOps, f64Ge{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_abs:
-			ansOps = append(ansOps, f64Abs{})
+			ansOps = append(ansOps, f64Abs{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_neg:
-			ansOps = append(ansOps, f64Neg{})
+			ansOps = append(ansOps, f64Neg{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_ceil:
-			ansOps = append(ansOps, f64Ceil{})
+			ansOps = append(ansOps, f64Ceil{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_floor:
-			ansOps = append(ansOps, f64Floor{})
+			ansOps = append(ansOps, f64Floor{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_trunc:
-			ansOps = append(ansOps, f64Trunc{})
+			ansOps = append(ansOps, f64Trunc{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_nearest:
-			ansOps = append(ansOps, f64Nearest{})
+			ansOps = append(ansOps, f64Nearest{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_sqrt:
-			ansOps = append(ansOps, f64Sqrt{})
+			ansOps = append(ansOps, f64Sqrt{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_add:
-			ansOps = append(ansOps, f64Add{})
+			ansOps = append(ansOps, f64Add{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_sub:
-			ansOps = append(ansOps, f64Sub{})
+			ansOps = append(ansOps, f64Sub{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_mul:
-			ansOps = append(ansOps, f64Mul{})
+			ansOps = append(ansOps, f64Mul{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_div:
-			ansOps = append(ansOps, f64Div{})
+			ansOps = append(ansOps, f64Div{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_min:
-			ansOps = append(ansOps, f64Min{})
+			ansOps = append(ansOps, f64Min{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_max:
-			ansOps = append(ansOps, f64Max{})
+			ansOps = append(ansOps, f64Max{GasQuickStep})
 			pointInBytes += 1
 		case Op_f64_copysign:
-			ansOps = append(ansOps, f64CopySign{})
+			ansOps = append(ansOps, f64CopySign{GasQuickStep})
 			pointInBytes += 1
 
 		case Op_i32_load, Op_i64_load32_u:
