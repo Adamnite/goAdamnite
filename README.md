@@ -4,10 +4,8 @@ Thanks for offering to beta test the Adamnite Blockchain!
 
 # Running a node
 
-1. You should download the GoAdamnite Repository and run the following commands: cd goAdamnite/cmd/gnite
-2. You should run the file appropriate to your operating system: nite.exe is an executable for windows, while nite is an executable for Linux distributions.
-3. Running ./nite.exe (.\nite for Linux) will run a node to support the P2P network.
-4. Feel free to close this shell for now.
+1. You should download the GoAdamnite Repository and run the following commands: cd goAdamnite/{the platform you are using} (Please note that we support Windows, MacOs, and Ubuntu)
+2. You should then run .\gnite.exe (if you are on Windows), or .\gnite if you are on MacOs or Ubuntu
 
 # Accounts
 1. To create an account, first run the following command ```.\nite.exe (.\nite for Linux) --datadir account1 init test.json```
