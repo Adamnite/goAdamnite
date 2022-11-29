@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	blockInterval       = 16
+	blockInterval       = 1
 	EpochBlockCount     = 162
 	inmemorySignatures  = 4096
 	checkpointInterval  = 1024
