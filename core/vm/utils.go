@@ -1,0 +1,167 @@
+package vm
+
+import (
+	"bytes"
+	"encoding/hex"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/vmihailenco/msgpack/v5"
+)
+
+// API DB Spoofing
+type DBSpoofer struct {
+	storedFunctions map[string][]byte //hash=>functions
+}
+
+func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
+	ops, blocks := parseBytes(localCode)
+
+	mod := decode(localCode)
+	return *mod.typeSection[0], ops, blocks
+}
+
+func (spoof *DBSpoofer) addSpoofedCode(hash string, codeBytes []byte) {
+	spoof.storedFunctions[hash] = codeBytes
+}
+
+//GENERALLY USEFUL
+
+func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
+	return spoof.storedFunctions[hash], nil
+}
+
+func contractsEqual(a ContractData, b ContractData) bool {
+	if a.Address != b.Address {
+		return false
+	}
+	for i := range a.Methods {
+		if a.Methods[i] != b.Methods[i] {
+			return false
+		}
+	}
+	for i := range a.Storage {
+		if a.Storage[i] != b.Storage[i] {
+			return false
+		}
+	}
+	return true
+}
+
+//GETTER
+
+func getMethodCode(apiEndpoint string, codeHash string) ([]byte, error) {
+	ApiString := apiEndpoint
+	if ApiString[len(ApiString)-1:] == "/" {
+		ApiString = ApiString[:len(ApiString)-1]
+	}
+	re, err := http.Get(apiEndpoint + "/code/" + codeHash)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	byteResponse, err := ioutil.ReadAll(re.Body)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return byteResponse, nil
+}
+
+func getContractData(apiEndpoint string, contractAddress string) (*ContractData, error) {
+	contractApiString := apiEndpoint
+	if contractApiString[len(contractApiString)-1:] == "/" {
+		contractApiString = contractApiString[:len(contractApiString)-1]
+	}
+	re, err := http.Get(contractApiString + "/contract/" + contractAddress)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	byteResponse, err := ioutil.ReadAll(re.Body)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	//hopefully you know if things went wrong by here!
+	var contractData ContractData
+	err = msgpack.Unmarshal(byteResponse, &contractData)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return &contractData, nil
+}
+
+//UPLOADER
+
+func uploadMethodString(apiEndpoint string, code string) ([]byte, error) {
+	//takes the string format of the code and returns the hash, and any errors
+	byteFormat, err := hex.DecodeString(code)
+	if err != nil {
+		return nil, err
+	}
+	return uploadMethod(apiEndpoint, byteFormat)
+}
+
+func uploadMethod(apiEndpoint string, code []byte) ([]byte, error) {
+	//takes the code as an array of bytes and returns the hash, and any errors
+	contractApiString := apiEndpoint
+	if contractApiString[len(contractApiString)-1:] == "/" {
+		contractApiString = contractApiString[:len(contractApiString)-1]
+	}
+
+	re, err := http.NewRequest("PUT", contractApiString+"/uploadCode", bytes.NewReader(code))
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	ans, err := http.DefaultClient.Do(re)
+	if err != nil {
+		return nil, err
+	}
+	byteResponse, err := ioutil.ReadAll(ans.Body)
+	if err != nil {
+		return nil, err
+	}
+	hashInBytes, err := hex.DecodeString(string(byteResponse))
+	if err != nil {
+		return nil, err
+	}
+	return hashInBytes, nil
+}
+
+func uploadContract(apiEndpoint string, cdata ContractData) error {
+	contractApiString := apiEndpoint
+	if contractApiString[len(contractApiString)-1:] == "/" {
+		contractApiString = contractApiString[:len(contractApiString)-1]
+	}
+
+	packedData, err := msgpack.Marshal(&cdata)
+	if err != nil {
+		fmt.Println("AHHHH")
+		fmt.Println(err)
+		return err
+	}
+
+	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address, bytes.NewReader(packedData))
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	ans, err := http.DefaultClient.Do(re)
+	if err != nil {
+		return err
+	}
+	if ans.StatusCode != 200 {
+		return fmt.Errorf("Host rejected the upload process with reason " + ans.Status)
+	}
+	return nil
+
+}

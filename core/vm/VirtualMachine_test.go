@@ -44,22 +44,23 @@ func TestCall2(t *testing.T) {
 		code, ctrlStack := parseBytes(vm.module.codeSection[index].body)
 		return *vm.module.typeSection[0], code, ctrlStack
 	}
+	vm.config.codeGetter = getCodeMock
 
-	callCode := "00ee919d410a4102" // 0x00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
-	vm.call2(callCode, getCodeMock)
+	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102" // 0x00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	vm.call2(callCode)
 	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 
 	vm.pointInCode = 0
-	callCode2 := "01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
-	vm.call2(callCode2, getCodeMock)
+	vm.call2(callCode2)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x8))
 
 	vm.pointInCode = 0
-	callCode3 := "02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode3 := "02ee919d02ee919d02ee919d02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
-	vm.call2(callCode3, getCodeMock)
+	vm.call2(callCode3)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x14))
 }

@@ -55,6 +55,7 @@ type VMConfig struct {
 	returnOnGasLimitExceeded bool
 	debugStack               bool // should it output the stack every operation
 	maxCodeSize              uint32
+	codeGetter               GetCode
 }
 
 func getDefaultConfig() VMConfig {
@@ -63,6 +64,7 @@ func getDefaultConfig() VMConfig {
 		gasLimit:                 30000, // 30000 ATE
 		returnOnGasLimitExceeded: true,
 		debugStack:               false,
+		codeGetter:               defaultCodeGetter,
 	}
 }
 
@@ -178,9 +180,13 @@ func (m *Machine) useGas(gas uint64) bool {
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
 
-func (m *Machine) call2(callBytes string, getCode GetCode) {
+func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	panic(fmt.Errorf("virtual machine does not have a code getter setup"))
+}
 
-	// Structure: 0x[4 bytes func identifer][param1..][param2...][param3]
+func (m *Machine) call2(callBytes string) {
+
+	// Structure: 0x[16 bytes func identifer][param1..][param2...][param3]
 	// Note: The callbytes is following the wasm encoding scheme.
 
 	bytes, err := hex.DecodeString(callBytes)
@@ -189,19 +195,19 @@ func (m *Machine) call2(callBytes string, getCode GetCode) {
 		panic("Unable to parse bytes for call2")
 	}
 
-	functionIdx, _, err := DecodeInt32(reader(bytes[0:]))
+	// functionIdx, _, err := DecodeInt32(reader(bytes[0:]))
 
-	if err != nil {
-		panic("Error parsing function identifier for call2")
-	}
+	// if err != nil {
+	// 	panic("Error parsing function identifier for call2")
+	// }
 
-	if int(functionIdx) > len(m.module.functionSection) {
-		panic("Call2 - No function with such index exists")
-	}
+	// if int(functionIdx) > len(m.module.functionSection) {
+	// 	panic("Call2 - No function with such index exists")
+	// }
 
-	funcIdentifier := bytes[:4]
+	funcIdentifier := bytes[:16]
 
-	funcTypes, funcCode, controlStack := getCode(funcIdentifier)
+	funcTypes, funcCode, controlStack := m.config.codeGetter(funcIdentifier)
 
 	var params []uint64
 

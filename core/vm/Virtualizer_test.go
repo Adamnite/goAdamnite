@@ -9,9 +9,17 @@ import (
 )
 
 var (
-	apiEndpoint        = "http://0.0.0.0:5001/"
-	addTwoFunctionCode = "0061736d0100000001070160027f7f017f03020100070a010661646454776f00000a09010700200020016a0b000a046e616d650203010000"
-	addTwoFunctionHash = "372a47e1d5575acbcff5250366b9abadf73fba0ff1eb3927747ebbf6b7ffe23325c53c0c7281aae31d80703c9d3f75b5e41aaf4cc82985f306b81d882c72995b"
+	apiEndpoint            = "http://0.0.0.0:5001/"
+	addTwoFunctionCode     = "0061736d0100000001070160027f7f017f03020100070a010661646454776f00000a09010700200020016a0b000a046e616d650203010000"
+	addTwoFunctionBytes, _ = hex.DecodeString(addTwoFunctionCode)
+	// addTwoFunctionHash     = hex.EncodeToString(crypto.MD5.New().Sum(addTwoFunctionBytes))
+	// .New().Write(addTwoFunctionBytes)
+	addTwoFunctionHash = "cee781f77fd0297aae7e71ae0a5d23ba"
+	testContract       = ContractData{
+		Address: "1",
+		Methods: []string{addTwoFunctionHash},
+		Storage: []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+	}
 )
 
 func TestBasics(t *testing.T) {
@@ -24,18 +32,31 @@ func TestBasics(t *testing.T) {
 	}
 	fmt.Println(stackOut)
 	assert.Equal(t, stackOut, []uint64{3})
+}
 
+func TestSpoofedDB(t *testing.T) {
+	spoofed := DBSpoofer{make(map[string][]byte)}
+	spoofed.addSpoofedCode(addTwoFunctionHash, addTwoFunctionBytes)
+
+	v := newVirtualizerFromData(testContract, &VirtualizerConfig{true, spoofed.GetCode, spoofed.GetCodeBytes})
+	stack, _, err := v.run(0, []uint64{5, 6})
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+	}
+	assert.Equal(t, stack, []uint64{11})
+
+	stack, _, err = v.run(0, []uint64{0xFF, 0x01})
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+	}
+	assert.Equal(t, stack, []uint64{0x100})
 }
 
 func TestUploadingContract(t *testing.T) {
 	//this is returning a pass even with the api offline???
-
-	cdata := ContractData{
-		Address: "1",
-		Methods: []string{addTwoFunctionHash},
-		Storage: []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-	}
-	err := uploadContract(apiEndpoint, cdata)
+	err := uploadContract(apiEndpoint, testContract)
 	if err != nil {
 		fmt.Println("FAILED")
 		fmt.Println(err)
@@ -44,19 +65,21 @@ func TestUploadingContract(t *testing.T) {
 }
 
 func TestGettingContract(t *testing.T) {
-	cdata, err := getContractData(apiEndpoint, "1")
+	cdata, err := getContractData(apiEndpoint, testContract.Address)
 	if err != nil {
 		fmt.Println(err)
 		t.Fail()
 	}
-	// fmt.Println("Contract retrieved is ")
-	// fmt.Println(*cdata)
-	if cdata.Address != "1" {
+	if !contractsEqual(*cdata, testContract) {
 		t.Fail()
 	}
+	// fmt.Println("Contract retrieved is ")
+	// fmt.Println(*cdata)
+
 }
 
 func TestUploadingCode(t *testing.T) {
+	fmt.Println(addTwoFunctionHash)
 	hash, err := uploadMethodString(apiEndpoint, addTwoFunctionCode)
 	if err != nil {
 		fmt.Println(err)
