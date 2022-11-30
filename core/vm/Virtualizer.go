@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -49,6 +50,7 @@ func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, 
 		nil,
 		1000) //config should be created/have defaults. @TODO update this with right Gas value
 	vm.locals = locals
+	vm.vmCode, vm.controlBlockStack = parseBytes(*&decode(vmCode).codeSection[0].body)
 	vm.run()
 
 	if v.config.saveStateChangeToContractData {
@@ -114,6 +116,41 @@ func getContractData(apiEndpoint string, contractAddress string) (*ContractData,
 	}
 	return &contractData, nil
 }
+func uploadMethodString(apiEndpoint string, code string) ([]byte, error) {
+	//takes the string format of the code and returns the hash, and any errors
+	byteFormat, err := hex.DecodeString(code)
+	if err != nil {
+		return nil, err
+	}
+	return uploadMethod(apiEndpoint, byteFormat)
+}
+func uploadMethod(apiEndpoint string, code []byte) ([]byte, error) {
+	//takes the code as an array of bytes and returns the hash, and any errors
+	contractApiString := apiEndpoint
+	if contractApiString[len(contractApiString)-1:] == "/" {
+		contractApiString = contractApiString[:len(contractApiString)-1]
+	}
+
+	re, err := http.NewRequest("PUT", contractApiString+"/uploadCode", bytes.NewReader(code))
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	ans, err := http.DefaultClient.Do(re)
+	if err != nil {
+		return nil, err
+	}
+	byteResponse, err := ioutil.ReadAll(ans.Body)
+	if err != nil {
+		return nil, err
+	}
+	hashInBytes, err := hex.DecodeString(string(byteResponse))
+	if err != nil {
+		return nil, err
+	}
+	return hashInBytes, nil
+}
 
 func getMethodCode(apiEndpoint string, codeHash string) ([]byte, error) {
 	ApiString := apiEndpoint
@@ -155,9 +192,10 @@ func uploadContract(apiEndpoint string, cdata ContractData) error {
 
 	ans, err := http.DefaultClient.Do(re)
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println(ans)
 		return err
+	}
+	if ans.StatusCode != 200 {
+		return fmt.Errorf("Host rejected the upload process with reason " + ans.Status)
 	}
 	return nil
 

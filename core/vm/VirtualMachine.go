@@ -18,7 +18,7 @@ var LE = binary.LittleEndian
 type VirtualMachine interface {
 	//functions that will be fully implemented later
 	step()
-	run() (error)
+	run() error
 
 	do()
 	outputStack() string
@@ -53,16 +53,16 @@ type VMConfig struct {
 	maxCallStackDepth        uint
 	gasLimit                 uint64
 	returnOnGasLimitExceeded bool
-	debugStack        		 bool // should it output the stack every operation
-	maxCodeSize				 uint32
+	debugStack               bool // should it output the stack every operation
+	maxCodeSize              uint32
 }
 
 func getDefaultConfig() VMConfig {
 	return VMConfig{
-		maxCallStackDepth: 1024, 
-		gasLimit: 30000, // 30000 ATE 
+		maxCallStackDepth:        1024,
+		gasLimit:                 30000, // 30000 ATE
 		returnOnGasLimitExceeded: true,
-		debugStack: false,
+		debugStack:               false,
 	}
 }
 
@@ -164,7 +164,7 @@ func (m *Machine) pushToStack(n uint64) {
 }
 
 // useGas attempts the use of gas and subtracts it and returns true on success
-func (m *Machine) useGas(gas uint64) (bool) {
+func (m *Machine) useGas(gas uint64) bool {
 	if m.gas < gas {
 		return false
 	}
@@ -172,11 +172,9 @@ func (m *Machine) useGas(gas uint64) (bool) {
 	return true
 }
 
-
 // The caller of call2 has to pass in the function hash from the `inputData` field
-// The function identifier will be the first 4 bytes of the data and the remaining 
+// The function identifier will be the first 4 bytes of the data and the remaining
 // will be considered as function parameters
-
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
 
