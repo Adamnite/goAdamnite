@@ -27,10 +27,57 @@ func (spoof *DBSpoofer) addSpoofedCode(hash string, codeBytes []byte) {
 	spoof.storedFunctions[hash] = codeBytes
 }
 
-//GENERALLY USEFUL
-
 func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
 	return spoof.storedFunctions[hash], nil
+}
+
+type BCSpoofer struct {
+	contractAddress []byte
+	contractBalance []byte
+	callerAddress   []byte
+	callerBalance   []byte
+	callBlockTime   []byte
+}
+
+func (s BCSpoofer) getAddress() []byte {
+	return s.contractAddress
+}
+func (s BCSpoofer) getBalance() []byte {
+	return s.contractBalance
+}
+func (s BCSpoofer) getCallerAddress() []byte {
+	return s.callerAddress
+}
+func (s BCSpoofer) getCallerBalance() []byte {
+	return s.callerBalance
+}
+func (s BCSpoofer) getBlockTimestamp() []byte {
+	return s.callBlockTime
+}
+
+//GENERALLY USEFUL
+
+func addressToInts(address []byte) []uint64 {
+	//if an empty address is returned, it should take the same amount of space as a full one.
+	//converts and address to an array of uint64s, that way it can be pushed to the stack with more ease
+	ans := []uint64{0, 0, 0}
+	for len(address) <= 24 { //192 bits
+		address = append(address, 0)
+	}
+	ans[0] = LE.Uint64(address[:8]) //yes, this could be a loop, but its more annoying that way.
+	address = address[8:]
+	ans[1] = LE.Uint64(address[:8])
+	address = address[8:]
+	ans[2] = LE.Uint64(address[:8])
+	return ans
+}
+func uintsArrayToAddress(input []uint64) []byte {
+	ans := []byte{}
+	ans = LE.AppendUint64(ans, input[0])
+	ans = LE.AppendUint64(ans, input[1])
+	ans = LE.AppendUint64(ans, input[2])
+	ans = ans[:20]
+	return ans
 }
 
 func contractsEqual(a ContractData, b ContractData) bool {

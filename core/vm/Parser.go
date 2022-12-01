@@ -260,8 +260,8 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			controlBlock.startAt = uint64(len(ansOps))
 			controlBlocks = append(controlBlocks, controlBlock)
 			ansOps = append(ansOps, Block{
-				index: uint32(len(controlBlocks)) - 1, 
-				gas: GasQuickStep,
+				index: uint32(len(controlBlocks)) - 1,
+				gas:   GasQuickStep,
 			})
 			pointInBytes++
 
@@ -271,8 +271,8 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occured while parsing label Op_br")
 			}
 			ansOps = append(ansOps, Br{
-				index: label, 
-				gas: GasQuickStep,
+				index: label,
+				gas:   GasQuickStep,
 			})
 			pointInBytes += int(count) + 1
 
@@ -285,7 +285,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			ansOps = append(ansOps, BrIf{
 				index: label,
-				gas: GasQuickStep,
+				gas:   GasQuickStep,
 			})
 			pointInBytes += int(count) + 1
 
@@ -298,8 +298,8 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			controlBlock.startAt = uint64(len(ansOps))
 			controlBlocks = append(controlBlocks, controlBlock)
 			ansOps = append(ansOps, If{
-				index: uint32(len(controlBlocks)) - 1, 
-				gas: GasQuickStep,
+				index: uint32(len(controlBlocks)) - 1,
+				gas:   GasQuickStep,
 			})
 			pointInBytes++
 
@@ -312,8 +312,8 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 			ifblock.elseAt = uint64(len(ansOps))
 			ansOps = append(ansOps, Else{
-				index: uint32(ifblock.startAt), 
-				gas: GasQuickStep,
+				index: uint32(ifblock.startAt),
+				gas:   GasQuickStep,
 			})
 			pointInBytes++
 
@@ -415,7 +415,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_tee_local:
 			ansOps = append(ansOps, TeeLocal{uint64(bytes[pointInBytes+1]), GasQuickStep})
 			pointInBytes += 2
-		
+
 		case Op_nop:
 			ansOps = append(ansOps, NoOp{})
 			pointInBytes += 1
@@ -617,93 +617,96 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 
 		case Op_i32_load, Op_i64_load32_u:
 			ansOps = append(ansOps, i32Load{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 
 		case Op_i32_store, Op_i64_store32:
 			ansOps = append(ansOps, i32Store{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 
 		case Op_i64_load:
 			ansOps = append(ansOps, i64Load{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 		case Op_i64_store:
 			ansOps = append(ansOps, i64Store{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 		case Op_i32_load8_s, Op_i64_load8_s:
 			ansOps = append(ansOps, i32Load8s{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 		case Op_i32_store8, Op_i64_store8:
 			ansOps = append(ansOps, i32Store8{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 			pointInBytes += 3
 		case Op_i32_load8_u, Op_i64_load8_u:
 			ansOps = append(ansOps, i32Load8u{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 
 			pointInBytes += 3
 
 		case Op_i64_load32_s:
 			ansOps = append(ansOps, i64Load32s{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 
 			pointInBytes += 3
 
 		case Op_i32_load16_u, Op_i64_load16_u:
 			ansOps = append(ansOps, i32Load16u{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 
 			pointInBytes += 3
 
 		case Op_i64_load16_s, Op_i32_load16_s:
 			ansOps = append(ansOps, i64Load16s{
-				align: uint32(bytes[pointInBytes+1]), 
-				offset: uint32(bytes[pointInBytes+2]), 
-				gas: GasQuickStep,
+				align:  uint32(bytes[pointInBytes+1]),
+				offset: uint32(bytes[pointInBytes+2]),
+				gas:    GasQuickStep,
 			})
 
 			pointInBytes += 3
 
 		case Op_i32_store16, Op_i64_store16:
 			ansOps = append(ansOps, i32Store16{
-				align: uint32(bytes[pointInBytes+1]), 
+				align:  uint32(bytes[pointInBytes+1]),
 				offset: uint32(bytes[pointInBytes+2]),
-				gas: GasQuickStep,
+				gas:    GasQuickStep,
 			})
 
 			pointInBytes += 3
 
+		case Op_address:
+			ansOps = append(ansOps, opAddress{GasQuickStep})
+			pointInBytes++
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

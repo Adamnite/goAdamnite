@@ -13,7 +13,6 @@ var (
 	addTwoFunctionCode     = "0061736d0100000001070160027f7f017f03020100070a010661646454776f00000a09010700200020016a0b000a046e616d650203010000"
 	addTwoFunctionBytes, _ = hex.DecodeString(addTwoFunctionCode)
 	// addTwoFunctionHash     = hex.EncodeToString(crypto.MD5.New().Sum(addTwoFunctionBytes))
-	// .New().Write(addTwoFunctionBytes)
 	addTwoFunctionHash = "cee781f77fd0297aae7e71ae0a5d23ba"
 	testContract       = ContractData{
 		Address: "1",

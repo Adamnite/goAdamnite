@@ -39,14 +39,13 @@ type Machine struct {
 	module            Module // The module that will be executed inside the VM
 	vmCode            []OperationCommon
 	vmStack           []uint64
-	contractStorage   []uint64 //the storage of the smart contracts data.
-	vmMemory          []byte   //i believe the agreed on stack size was
-	locals            []uint64 //local vals that the VM code can call
-	globals           []uint64
+	contractStorage   []uint64       //the storage of the smart contracts data.
+	vmMemory          []byte         //i believe the agreed on stack size was
+	locals            []uint64       //local vals that the VM code can call
 	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
-
-	config VMConfig
-	gas    uint64 // The allocated gas for the code execution
+	chainHandler      ChainDataHandler
+	config            VMConfig
+	gas               uint64 // The allocated gas for the code execution
 }
 
 type VMConfig struct {
