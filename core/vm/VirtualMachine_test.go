@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,4 +64,21 @@ func TestCall2(t *testing.T) {
 	vm.call2(callCode3)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x14))
+}
+
+func TestDataSection(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200047465737400000a8a808080000184808080000041100b0b9280808000010041100b0c48656c6c6f20576f726c6400")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	module := *decode(wasmBytes)
+
+	offset := module.dataSection[0].offsetExpression.data[0]
+	size := len(module.dataSection[0].init) 
+
+	// Read the data from data section
+	
+	s := string(vm.vmMemory[offset: size + int(offset)])
+	
+	fmt.Printf("s: %v\n", s)
+	assert.Equal(t, "Hello World\x00", s)
 }

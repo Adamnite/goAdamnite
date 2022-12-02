@@ -13,7 +13,7 @@ type Module struct {
 	functionSection []Index
 
 	// Tables contents references to functions. This can be used to achieve dynamic function calling.
-	// It will be used by the `call_inderect` opcode
+	// It will be used by the `call_indirect` opcode
 	// https://developer.mozilla.org/en-US/docs/WebAssembly/Understanding_the_text_format#webassembly_tables
 	tableSection     []*Table
 	memorySection    *Memory
@@ -67,6 +67,11 @@ func decode(wasmBytes []byte) *Module {
 		sectionContentStart := r.Len()
 
 		switch sectionID {
+		
+		case sectionIDCustom:
+			buf := make([]byte, sectionSize)
+			io.ReadFull(r, buf)
+
 		case sectionIDType:
 			vs, _, err := DecodeUint32(r)
 			if err != nil {

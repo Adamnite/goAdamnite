@@ -122,6 +122,26 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
+func initMemoryWithDataSection(module* Module, vm *Machine) {
+
+	dataSegmentSize := uint32(len(module.dataSection))
+
+	if module.dataCountSection != nil {
+		dataSegmentSize = *module.dataCountSection
+	}
+
+	for i := uint32(0); i < uint32(dataSegmentSize); i++ {
+		offset := module.dataSection[i].offsetExpression.data[i]
+		size := len(module.dataSection[i].init)
+
+		p := 0
+		for j := uint32(offset); j < uint32(offset) + uint32(size); j++ {
+			vm.vmMemory[j] = module.dataSection[i].init[p]
+			p++
+		}
+	}
+}
+
 func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
@@ -140,6 +160,8 @@ func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
 
+	initMemoryWithDataSection(&machine.module, machine)
+	// Initialize memory with things inside the data section
 	return machine
 }
 
