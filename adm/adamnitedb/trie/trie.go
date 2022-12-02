@@ -25,6 +25,7 @@ type Trie struct {
 	db       *Database
 	root     node
 	unhashed int
+	prefix   []byte
 }
 
 // newFlag returns the cache flag value for a newly created node.
@@ -530,4 +531,38 @@ func (t *Trie) hashRoot() (node, node, error) {
 func (t *Trie) Reset() {
 	t.root = nil
 	t.unhashed = 0
+}
+
+func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, error) {
+	trie, err := New(root, db)
+	if err != nil {
+		return nil, err
+	}
+	trie.prefix = prefix
+	return trie, nil
+}
+
+func (t *Trie) PrefixIterator(prefix []byte) NodeIterator {
+	if t.prefix != nil {
+		prefix = append(t.prefix, prefix...)
+	}
+	return newPrefixIterator(t, prefix)
+}
+
+type prefixIterator struct {
+	prefix       []byte
+	nodeIterator NodeIterator
+}
+
+func newPrefixIterator(trie *Trie, prefix []byte) NodeIterator {
+	if trie.Hash() == emptyState {
+		return new(prefixIterator).nodeIterator
+	}
+	//
+	nodeIt := newNodeIterator(trie, prefix)
+	prefix = keybytesToHex(prefix)
+	return (&prefixIterator{
+		nodeIterator: nodeIt,
+		prefix:       prefix[:len(prefix)-1],
+	}).nodeIterator
 }

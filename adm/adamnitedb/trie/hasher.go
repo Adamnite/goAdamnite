@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -138,9 +137,10 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 // If the rlp data is smaller than 32 bytes, `nil` is returned.
 func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
 	h.tmp.Reset()
-	if err := msgpack.GetEncoder().Encode(n); err != nil {
-		panic("encode error: " + err.Error())
-	}
+
+	// if err := msgpack.GetEncoder().Encode(n); err != nil {
+	// 	panic("encode error: " + err.Error())
+	// }
 
 	if len(h.tmp) < 32 && !force {
 		return n // Nodes smaller than 32 bytes are stored inside their parent

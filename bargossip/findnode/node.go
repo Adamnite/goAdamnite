@@ -46,11 +46,15 @@ func (ns *nodes) push(n *node, maxNodeCount int) {
 	index := sort.Search(len(ns.nodes), func(i int) bool {
 		return admnode.DistanceCmp(*ns.nodes[i].ID(), *n.ID(), ns.targetId) > 0
 	})
+	if index > 0 {
+		if index == len(ns.nodes)+1 {
+			ns.nodes = append(ns.nodes, n)
+		} else {
+			copy(ns.nodes[index+1:], ns.nodes[index:])
+			ns.nodes[index] = n
+		}
 
-	if index == len(ns.nodes)+1 {
-		ns.nodes = append(ns.nodes, n)
 	} else {
-		copy(ns.nodes[index+1:], ns.nodes[index:])
-		ns.nodes[index] = n
+		ns.nodes = append(ns.nodes, n)
 	}
 }

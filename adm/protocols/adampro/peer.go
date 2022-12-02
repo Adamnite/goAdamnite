@@ -3,9 +3,9 @@ package adampro
 import (
 	"sync"
 
+	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/p2p"
 
 	gset "github.com/deckarep/golang-set"
 	mapset "github.com/deckarep/golang-set"
@@ -20,8 +20,8 @@ const (
 
 type Peer struct {
 	id string
-	*p2p.Peer
-	rw      p2p.MsgReadWriter
+	*bargossip.Peer
+	rw      bargossip.MsgReadWriter
 	version uint
 
 	blockHead common.Hash // head block hash
@@ -39,7 +39,7 @@ type Peer struct {
 	lock      sync.RWMutex
 }
 
-func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Peer {
+func NewPeer(version uint, p *bargossip.Peer, rw bargossip.MsgReadWriter, txpool TxPool) *Peer {
 	peer := &Peer{
 		id:                  p.ID().String(),
 		Peer:                p,
@@ -101,7 +101,7 @@ func (p *Peer) SendNewBlock(block *types.Block) error {
 	}
 	p.knownBlocks.Add(block.Hash())
 
-	return p2p.Send(p.rw, NewBlockMsg, &NewBlockPacket{
+	return bargossip.Send(p.rw, NewBlockMsg, &NewBlockPacket{
 		Block: block,
 	})
 }

@@ -8,7 +8,8 @@ var (
 	}
 
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(889),
+		ChainID:     big.NewInt(889),
+		NormalBlock: big.NewInt(12345),
 	}
 
 	DemoChainConfig = &ChainConfig{
@@ -17,5 +18,6 @@ var (
 )
 
 type ChainConfig struct {
-	ChainID *big.Int `json:"chainId"`
+	ChainID     *big.Int `json:"chainId"`
+	NormalBlock *big.Int `json:"normalBlock,omitempty"`
 }

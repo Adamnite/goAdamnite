@@ -11,10 +11,10 @@ import (
 
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/metrics"
+
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -42,6 +42,12 @@ var (
 	memcacheCommitSizeMeter  = metrics.NewRegisteredMeter("trie/memcache/commit/size", nil)
 )
 
+// secureKeyPrefix is the database key prefix used to store trie node preimages.
+var secureKeyPrefix = []byte("secure-key-")
+
+// secureKeyLength is the length of the above prefix + 32byte hash.
+const secureKeyLength = 11 + 32
+
 type Database struct {
 	diskdb adamnitedb.Database
 
@@ -51,6 +57,7 @@ type Database struct {
 	newest  common.Hash                 // Newest tracked node, flush-list tail
 
 	preimages map[common.Hash][]byte // Preimages of nodes from the secure trie
+	seckeybuf [secureKeyLength]byte  // Ephemeral buffer for calculating preimage keys
 
 	gctime  time.Duration      // Time spent on garbage collection since last commit
 	gcnodes uint64             // Nodes garbage collected since last commit
@@ -384,7 +391,7 @@ func (db *Database) node(hash common.Hash) node {
 func (db *Database) Node(hash common.Hash) ([]byte, error) {
 	// It doesn't make sense to retrieve the metaroot
 	if hash == (common.Hash{}) {
-		return nil, errors.New("not found")
+		return nil, errors.New("not found trie ")
 	}
 	// Retrieve the node from the clean cache if available
 	if db.cleans != nil {
@@ -407,16 +414,15 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 	memcacheDirtyMissMeter.Mark(1)
 
 	// Content unavailable in memory, attempt to retrieve from disk
-	enc := rawdb.ReadTrieNode(db.diskdb, hash)
-	if len(enc) != 0 {
+	enc, err := db.diskdb.Get(hash[:])
+	if err == nil && enc != nil {
 		if db.cleans != nil {
 			db.cleans.Set(hash[:], enc)
 			memcacheCleanMissMeter.Mark(1)
 			memcacheCleanWriteMeter.Mark(int64(len(enc)))
 		}
-		return enc, nil
 	}
-	return nil, errors.New("not found")
+	return enc, err
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
@@ -434,7 +440,14 @@ func (db *Database) preimage(hash common.Hash) []byte {
 	if preimage != nil {
 		return preimage
 	}
-	return rawdb.ReadPreimage(db.diskdb, hash)
+	enc, _ := db.diskdb.Get(db.secureKey(hash[:]))
+	return enc
+}
+
+func (db *Database) secureKey(key []byte) []byte {
+	buf := append(db.seckeybuf[:0], secureKeyPrefix...)
+	buf = append(buf, key...)
+	return buf
 }
 
 // Nodes retrieves the hashes of all the nodes cached within the memory database.
@@ -583,10 +596,11 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	// leave for later to deduplicate writes.
 	flushPreimages := db.preimagesSize > 4*1024*1024
 	if flushPreimages {
-		if db.preimages == nil {
-			log15.Error("Attempted to write preimages whilst disabled")
-		} else {
-			rawdb.WritePreimages(batch, db.preimages)
+		for hash, preimage := range db.preimages {
+			if err := batch.Insert(db.secureKey(hash[:]), preimage); err != nil {
+				log15.Error("Failed to commit preimage from trie database", "err", err)
+				return err
+			}
 			if batch.ValueSize() > adamnitedb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
 					return err
@@ -600,8 +614,9 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	for size > limit && oldest != (common.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
-		rawdb.WriteTrieNode(batch, oldest, node.rlp())
-
+		if err := batch.Insert(oldest[:], node.rlp()); err != nil {
+			return err
+		}
 		// If we exceeded the ideal batch size, commit and reset
 		if batch.ValueSize() >= adamnitedb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
@@ -677,21 +692,25 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 	batch := db.diskdb.NewBatch()
 
 	// Move all of the accumulated preimages into a write batch
-	if db.preimages != nil {
-		rawdb.WritePreimages(batch, db.preimages)
+	for hash, preimage := range db.preimages {
+		if err := batch.Insert(db.secureKey(hash[:]), preimage); err != nil {
+			log15.Error("Failed to commit preimage from trie database", "err", err)
+			return err
+		}
+		// If the batch is too large, flush to disk
 		if batch.ValueSize() > adamnitedb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				return err
 			}
 			batch.Reset()
 		}
-		// Since we're going to replay trie node writes into the clean cache, flush out
-		// any batched pre-images before continuing.
-		if err := batch.Write(); err != nil {
-			return err
-		}
-		batch.Reset()
 	}
+	// Since we're going to replay trie node writes into the clean cache, flush out
+	// any batched pre-images before continuing.
+	if err := batch.Write(); err != nil {
+		return err
+	}
+	batch.Reset()
 	// Move the trie itself into the batch, flushing if enough data is accumulated
 	nodes, storage := len(db.dirties), db.dirtiesSize
 
@@ -750,10 +769,8 @@ func (db *Database) commit(hash common.Hash, batch adamnitedb.Batch, uncacher *c
 	if err != nil {
 		return err
 	}
-	// If we've reached an optimal batch size, commit and start over
-	rawdb.WriteTrieNode(batch, hash, node.rlp())
-	if callback != nil {
-		callback(hash)
+	if err := batch.Insert(hash[:], node.rlp()); err != nil {
+		return err
 	}
 	if batch.ValueSize() >= adamnitedb.IdealBatchSize {
 		if err := batch.Write(); err != nil {

@@ -5,34 +5,34 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/protocols/adampro"
 	"github.com/adamnite/go-adamnite/adm/validator"
+	"github.com/adamnite/go-adamnite/bargossip"
+	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
-	"github.com/adamnite/go-adamnite/p2p"
-	"github.com/adamnite/go-adamnite/p2p/enode"
 )
 
 // AdamniteImpl implements the Adamnite full node.
 type AdamniteImpl struct {
 	config *adamconfig.Config
 
-	blockchain           *core.Blockchain
-	txPool               *core.TxPool
-	witnessCandidatePool *core.WitnessCandidatePool
-	witnessPool          *core.WitnessPool
+	blockchain *core.Blockchain
+	txPool     *core.TxPool
+
+	witnessPool *dpos.WitnessPool
 
 	handler *handler
 
 	eventMux *event.TypeMux
 
-	adamniteDialCandidates enode.Iterator
+	adamniteDialCandidates admnode.NodeIterator
 
 	chainDB adamnitedb.Database
 
-	p2pServer *p2p.Server
+	p2pServer *bargossip.Server
 
 	validator  *validator.Validator
 	witness    common.Address
@@ -50,6 +50,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	chainConfig, genesisHash, err := core.WriteGenesisBlockWithOverride(chainDB, config.Genesis)
 	if err != nil {
 		return nil, err
@@ -64,6 +65,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		dposEngine: adamconfig.CreateConsensusEngine(node, chainConfig, chainDB),
 		p2pServer:  node.Server(),
 		eventMux:   node.EventMux(),
+		witness:    config.Validator.WitnessAddress,
 	}
 
 	adamnite.blockchain, err = core.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine)
@@ -72,8 +74,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	}
 
 	adamnite.txPool = core.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
-	adamnite.witnessCandidatePool = core.NewWitnessPool(config.Witness, chainConfig, adamnite.blockchain)
-	adamnite.witnessPool = adamnite.witnessCandidatePool.GetWitneessPool()
+	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig)
 
 	adamnite.handler, err = newHandler(&handlerParams{
 		Database: chainDB,
@@ -101,16 +102,16 @@ func (adam *AdamniteImpl) StartConsensus() error {
 	return nil
 }
 
-func (adam *AdamniteImpl) Protocols() []p2p.Protocol {
+func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 	return adampro.MakeProtocols(adam.handler, adam.config.NetworkId, adam.adamniteDialCandidates)
 }
 
 func (adam *AdamniteImpl) Blockchain() *core.Blockchain   { return adam.blockchain }
 func (adam *AdamniteImpl) TxPool() *core.TxPool           { return adam.txPool }
-func (adam *AdamniteImpl) WitnessPool() *core.WitnessPool { return adam.witnessPool }
+func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool { return adam.witnessPool }
 
 func (adam *AdamniteImpl) Start() error {
-	adam.handler.Start(adam.p2pServer.MaxPeers)
+	adam.handler.Start(adam.p2pServer.MaxPendingConnections)
 	return nil
 }
 

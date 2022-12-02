@@ -4,15 +4,15 @@ import (
 	"context"
 	"net"
 
+	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/p2p/netutil"
 )
 
 // ServeListener accepts connections on l, serving JSON-RPC on them.
 func (s *Server) ServeListener(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
-		if netutil.IsTemporaryError(err) {
+		if utils.IsTemporaryError(err) {
 			log15.Warn("RPC accept error", "err", err)
 			continue
 		} else if err != nil {

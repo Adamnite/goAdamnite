@@ -2,7 +2,7 @@ package serialization
 
 //This package, titled serialization, contains various code for formalizing the serialization process for
 //the Adamnite POC. It can help with data encoding and decoding for variable length quantities.
-//This package was orginally developed by Marcos Gomez (PiecePaper).
+//This package was originally developed by Marcos Gomez (PiecePaper).
 
 //This file contains code for serialization and deserialization, with support for
 //variable length quantities as well.

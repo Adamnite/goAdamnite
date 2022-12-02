@@ -55,7 +55,7 @@ func (h *handler) RunPeer(peer *adampro.Peer, handler adampro.Handler) error {
 	h.peerWG.Add(1)
 	defer h.peerWG.Done()
 
-	peer.Log().Debug("Adamnite peer connected", "name", peer.Name())
+	peer.Log().Debug("Adamnite peer connected", "name", peer.ID())
 
 	if err := h.peers.registerPeer(peer); err != nil {
 		peer.Log().Error("Adamnite peer reg failed", "err", err)

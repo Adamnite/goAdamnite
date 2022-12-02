@@ -65,7 +65,7 @@ func accountNew(ctx *cli.Context) error {
 	}
 
 	fmt.Printf("\nYour new key was generated\n\n")
-	fmt.Printf("Public address of the key:   %s\n", account.Address.Hex())
+	fmt.Printf("Public address of the key:   %s\n", account.Address.String())
 	fmt.Printf("Path of the secret key file: %s\n\n", account.URL.Path)
 	fmt.Printf("- You can share your public address with anyone. Others need it to interact with you.\n")
 	fmt.Printf("- You must NEVER share the secret key with anyone! The key controls access to your funds!\n")

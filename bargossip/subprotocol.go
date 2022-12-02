@@ -5,5 +5,5 @@ type SubProtocol struct {
 	ProtocolID         uint
 	ProtocolCodeOffset uint
 	ProtocolLength     uint
-	Run                func(peer *Peer, rw MsgReader) error
+	Run                func(peer *Peer, rw MsgReadWriter) error
 }

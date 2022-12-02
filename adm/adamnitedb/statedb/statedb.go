@@ -3,10 +3,13 @@ package statedb
 import (
 	"fmt"
 	"math/big"
+	"sort"
+	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
+
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -20,6 +23,11 @@ var (
 // It's the general query interface to retrieve
 // - Witnesses
 // - Accounts
+type revision struct {
+	id           int
+	journalIndex int
+}
+
 type StateDB struct {
 	db           Database
 	originalRoot common.Hash // The pre-state root, before any changes were made
@@ -29,13 +37,18 @@ type StateDB struct {
 	snapAccounts  map[common.Hash][]byte
 	snapWitnesses map[common.Hash][]byte
 
-	journal *journal
+	journal        *journal
+	validRevisions []revision
+	nextRevisionId int
 
 	stateObjects        map[common.Address]*stateObject
 	stateObjectsDirty   map[common.Address]struct{}
 	stateObjectsPending map[common.Address]struct{}
+	lock                sync.Mutex
+	dbErr               error
 
-	dbErr error
+	thash, bhash common.Hash
+	txIndex      int
 }
 
 func New(root common.Hash, db Database) (*StateDB, error) {
@@ -59,6 +72,67 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 	return stateDB, nil
 }
 
+func (s *StateDB) Copy() *StateDB {
+	// Copy all the basic fields, initialize the memory ones
+	state := &StateDB{
+		db:                  s.db,
+		trie:                s.db.CopyTrie(s.trie),
+		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
+		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
+		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
+		snapAccounts:        make(map[common.Hash][]byte),
+		snapWitnesses:       make(map[common.Hash][]byte),
+		journal:             newJournal(),
+	}
+	// Copy the dirty states, logs, and preimages
+	for addr := range s.journal.dirties {
+		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
+		// and in the Finalise-method, there is a case where an object is in the journal but not
+		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
+		// nil
+		if object, exist := s.stateObjects[addr]; exist {
+			// Even though the original object is dirty, we are not copying the journal,
+			// so we need to make sure that anyside effect the journal would have caused
+			// during a commit (or similar op) is already applied to the copy.
+			state.stateObjects[addr] = object.deepCopy(state)
+
+			state.stateObjectsDirty[addr] = struct{}{}   // Mark the copy dirty to force internal (code/state) commits
+			state.stateObjectsPending[addr] = struct{}{} // Mark the copy pending to force external (account) commits
+		}
+	}
+	// Above, we don't copy the actual journal. This means that if the copy is copied, the
+	// loop above will be a no-op, since the copy's journal is empty.
+	// Thus, here we iterate over stateObjects, to enable copies of copies
+	for addr := range s.stateObjectsPending {
+		if _, exist := state.stateObjects[addr]; !exist {
+			state.stateObjects[addr] = s.stateObjects[addr].deepCopy(state)
+		}
+		state.stateObjectsPending[addr] = struct{}{}
+	}
+	for addr := range s.stateObjectsDirty {
+		if _, exist := state.stateObjects[addr]; !exist {
+			state.stateObjects[addr] = s.stateObjects[addr].deepCopy(state)
+		}
+		state.stateObjectsDirty[addr] = struct{}{}
+	}
+
+	return state
+}
+
+func (s *stateObject) deepCopy(db *StateDB) *stateObject {
+	stateObject := newObject(db, s.address, s.data)
+	if s.trie != nil {
+		stateObject.trie = db.db.CopyTrie(s.trie)
+	}
+
+	stateObject.dirtyStorage = s.dirtyStorage.Copy()
+	stateObject.originStorage = s.originStorage.Copy()
+	stateObject.pendingStorage = s.pendingStorage.Copy()
+	stateObject.suicided = s.suicided
+	stateObject.deleted = s.deleted
+	return stateObject
+}
+
 func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
@@ -70,6 +144,14 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
 		stateObj.AddBalance(amount)
+	}
+}
+
+// SubBalance subtracts amount from the account associated with addr.
+func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObj(addr)
+	if stateObject != nil {
+		stateObject.SubBalance(amount)
 	}
 }
 
@@ -280,4 +362,42 @@ func (s *StateDB) setError(err error) {
 	if s.dbErr == nil {
 		s.dbErr = err
 	}
+}
+
+func (s *StateDB) Snapshot() int {
+	id := s.nextRevisionId
+	s.nextRevisionId++
+	s.validRevisions = append(s.validRevisions, revision{id, s.journal.length()})
+	return id
+}
+
+// RevertToSnapshot reverts all state changes made since the given revision.
+func (s *StateDB) RevertToSnapshot(revid int) {
+	// Find the snapshot in the stack of valid snapshots.
+	idx := sort.Search(len(s.validRevisions), func(i int) bool {
+		return s.validRevisions[i].id >= revid
+	})
+	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revid {
+		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
+	}
+	snapshot := s.validRevisions[idx].journalIndex
+
+	// Replay the journal to undo changes and remove invalidated snapshots
+	s.journal.revert(s, snapshot)
+	s.validRevisions = s.validRevisions[:idx]
+}
+
+func (s *StateDB) Prepare(thash, bhash common.Hash, ti int) {
+	s.thash = thash
+	s.bhash = bhash
+	s.txIndex = ti
+}
+
+// Retrieve the balance from the given address or 0 if object not found
+func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Balance()
+	}
+	return common.Big0
 }

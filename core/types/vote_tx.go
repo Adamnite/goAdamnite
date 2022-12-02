@@ -13,6 +13,7 @@ type VoteTransaction struct {
 	AtePrice  *big.Int       // wei per gas
 	AteMax    uint64         // gas limit
 	V, R, S   *big.Int       // signature value
+
 }
 
 func NewVoteTransaction(nonce uint64, candidate common.Address, atePrice *big.Int, ateMax uint64) *Transaction {

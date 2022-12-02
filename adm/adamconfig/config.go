@@ -3,8 +3,9 @@ package adamconfig
 import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/validator"
-	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/dpos"
+
+	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/params"
 )
@@ -14,7 +15,7 @@ type Config struct {
 	NetworkId uint64
 
 	TxPool  core.TxPoolConfig
-	Witness core.WitnessConfig
+	Witness dpos.WitnessConfig
 
 	Validator validator.Config
 
@@ -24,23 +25,24 @@ type Config struct {
 }
 
 var Defaults = Config{
-	NetworkId: 888,
-	TxPool:    core.DefaultTxPoolConfig,
-	Witness:   core.DefaultWitnessConfig,
-
+	NetworkId:       888,
+	TxPool:          core.DefaultTxPoolConfig,
+	Witness:         dpos.DefaultWitnessConfig,
+	Validator:       validator.DefaultConfig,
 	AdamniteDbCache: 512,
 }
 
 var DemoDefaults = Config{
 	NetworkId: 890,
 	TxPool:    core.DefaultTxPoolConfig,
-	Witness:   core.DefaultDemoWitnessConfig,
+	Witness:   dpos.DefaultDemoWitnessConfig,
 	Validator: validator.DefaultDemoConfig,
 
 	AdamniteDbCache: 512,
 }
 
-func CreateConsensusEngine(node *node.Node, chainConfig *params.ChainConfig, db adamnitedb.Database) dpos.DPOS {
-	engine := dpos.New(dpos.Config{})
+func CreateConsensusEngine(node *node.Node, chainConfig *params.ChainConfig, db adamnitedb.Database) dpos.Engine {
+	engine := dpos.New(chainConfig, db)
+
 	return engine
 }

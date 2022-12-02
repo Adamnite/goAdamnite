@@ -9,7 +9,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/admpacket"
-	"github.com/adamnite/go-adamnite/p2p/netutil"
+	"github.com/adamnite/go-adamnite/bargossip/utils"
 )
 
 // handleSYNPacket make an askHandshake packet and send it to the node so that establishs handshake channel.
@@ -70,7 +70,7 @@ seek:
 		// Apply some pre-checks to avoid sending invalid nodes.
 		for _, n := range bn {
 			// TODO livenessChecks > 1
-			if netutil.CheckRelayIP(fromAddr.IP, n.IP()) != nil {
+			if utils.CheckRelayIP(fromAddr.IP, n.IP()) != nil {
 				continue
 			}
 			nodes = append(nodes, n)

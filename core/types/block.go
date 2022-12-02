@@ -1,14 +1,12 @@
-//Package types contains the data structures that make up Adamnite's core protocol
+// Package types contains the data structures that make up Adamnite's core protocol
 package types
 
 import (
-	"io"
 	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -25,6 +23,7 @@ type BlockHeader struct {
 	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
 	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
 	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
+	Extra           []byte         `json:"extraData"        gencodec:"required"`
 }
 
 type Block struct {
@@ -76,7 +75,7 @@ func NewBlock(header *BlockHeader, txs []*Transaction, hasher TrieHasher) *Block
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *BlockHeader) Hash() common.Hash {
-	return SerializationHash(h)
+	return serializationHash(h)
 }
 
 func (b *Block) Hash() common.Hash {
@@ -92,27 +91,3 @@ func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number)
 func (b *Block) Numberu64() uint64    { return b.header.Number.Uint64() }
 func (b *Block) Body() *Body          { return &Body{b.transactionList} }
 func (b *Block) Header() *BlockHeader { return CopyHeader(b.header) }
-
-type encodingBlock struct {
-	Header *BlockHeader
-	Txs    []*Transaction
-}
-
-func (b *Block) EncodeRLP(w io.Writer) error {
-	return msgpack.NewEncoder(w).Encode(encodingBlock{
-		Header: b.header,
-		Txs:    b.transactionList,
-	})
-}
-
-func (b *Block) DecodeRLP(s *msgpack.Decoder) error {
-
-	var eb encodingBlock
-	size, _ := s.DecodeBytesLen()
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	b.header, b.transactionList = eb.Header, eb.Txs
-	b.size.Store(common.StorageSize(size))
-	return nil
-}

@@ -27,6 +27,7 @@ type Database interface {
 
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
+	CopyTrie(Trie) Trie
 }
 
 type Trie interface {
