@@ -234,12 +234,12 @@ const (
 
 // Environment Related Operations
 const (
-	Op_address        = 0xc1 //address of the contract
-	Op_balance        = 0xc2 //balance of the contract
-	Op_caller         = 0xc3 //address of the caller
-	Op_datasize       = 0xc4
-	Op_caller_balance = 0xc5 //balance of the caller
-	Op_timestamp      = 0xc6 //blocks timestamp
+	Op_address  = 0xc1 //address of the contract
+	Op_balance  = 0xc2 //balance of the address popped from stack (3 uint64) returns 2 uint64
+	Op_caller   = 0xc3 //address of the caller
+	Op_datasize = 0xc4
+	// Op_caller_balance = 0xc5 //balance just gets the balance of what calls
+	Op_timestamp = 0xc6 //blocks timestamp
 )
 
 // Fee and storage level operations

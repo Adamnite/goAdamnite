@@ -34,23 +34,33 @@ func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
 
 type BCSpoofer struct {
 	contractAddress []byte
-	contractBalance big.Int
+	balances        map[string]big.Int
 	callerAddress   []byte
-	callerBalance   big.Int
 	callBlockTime   []byte
+}
+
+func newBCSpoofer() BCSpoofer {
+	spoofer := BCSpoofer{}
+	spoofer.contractAddress = []byte{}
+	spoofer.balances = make(map[string]big.Int)
+	return spoofer
+}
+
+func (s BCSpoofer) setBalanceFromByteAddress(address []byte, balance big.Int) {
+	s.balances[hex.EncodeToString(address)] = balance
+}
+func (s BCSpoofer) setBalance(address string, balance big.Int) {
+	s.balances[address] = balance
 }
 
 func (s BCSpoofer) getAddress() []byte {
 	return s.contractAddress
 }
-func (s BCSpoofer) getBalance() big.Int {
-	return s.contractBalance
+func (s BCSpoofer) getBalance(address []byte) big.Int {
+	return s.balances[hex.EncodeToString(address)]
 }
 func (s BCSpoofer) getCallerAddress() []byte {
 	return s.callerAddress
-}
-func (s BCSpoofer) getCallerBalance() big.Int {
-	return s.callerBalance
 }
 func (s BCSpoofer) getBlockTimestamp() []byte {
 	return s.callBlockTime

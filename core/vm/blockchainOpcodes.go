@@ -6,9 +6,8 @@ import (
 
 type ChainDataHandler interface {
 	getAddress() []byte
-	getBalance() big.Int //1nite takes up 67 bits(ish), 2 uint64s get pushed to stack. (arbitrary limit. 2^128 is hopefully enough total storage of value)
+	getBalance([]byte) big.Int //1nite takes up 67 bits(ish), 2 uint64s get pushed to stack. (arbitrary limit. 2^128 is hopefully enough total storage of value)
 	getCallerAddress() []byte
-	getCallerBalance() big.Int
 	getBlockTimestamp() []byte
 }
 type opAddress struct {
@@ -37,8 +36,13 @@ type balance struct {
 }
 
 func (op balance) doOp(m *Machine) error {
-	//pushes balance as 3 uint64s to the stack.
-	balanceInts := balanceToArray(m.chainHandler.getBalance())
+	//pops address off stack (3 uint64s), pushes balance as 2 uint64s to the stack.
+	addressUints := make([]uint64, 3)
+	addressUints[2] = m.popFromStack() //needs to be added in reverse order...
+	addressUints[1] = m.popFromStack()
+	addressUints[0] = m.popFromStack()
+
+	balanceInts := balanceToArray(m.chainHandler.getBalance(uintsArrayToAddress(addressUints)))
 	for i := range balanceInts {
 		m.pushToStack(balanceInts[i])
 	}
