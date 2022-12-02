@@ -1,4 +1,4 @@
-//Package types contains the data structures that make up Adamnite's core protocol
+// Package types contains the data structures that make up Adamnite's core protocol
 package types
 
 import (
