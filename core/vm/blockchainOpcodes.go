@@ -1,14 +1,14 @@
 package vm
 
 import (
-	"fmt"
+	"math/big"
 )
 
 type ChainDataHandler interface {
 	getAddress() []byte
-	getBalance() []byte
+	getBalance() big.Int //1nite takes up 67 bits(ish), 2 uint64s get pushed to stack. (arbitrary limit. 2^128 is hopefully enough total storage of value)
 	getCallerAddress() []byte
-	getCallerBalance() []byte
+	getCallerBalance() big.Int
 	getBlockTimestamp() []byte
 }
 type opAddress struct {
@@ -37,10 +37,11 @@ type balance struct {
 }
 
 func (op balance) doOp(m *Machine) error {
-	balance := m.chainHandler.getBalance()
-	fmt.Println("YOU CANT ACTUALLY CHECK BALANCES LIKE THIS YET!!!")
-	fmt.Print("but, the balance passed is :")
-	fmt.Println(balance)
+	//pushes balance as 3 uint64s to the stack.
+	balanceInts := balanceToArray(m.chainHandler.getBalance())
+	for i := range balanceInts {
+		m.pushToStack(balanceInts[i])
+	}
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}

@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestOpAddress(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa280808000019c8080800001017f410028020441106b2200410036020c2000410a360208410a0b")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	vm.chainHandler = BCSpoofer{contractAddress: testAddress}
-	testCode := []byte{0xc1}
+	testCode := []byte{Op_address}
 	module := *decode(wasmBytes)
 	foo := module.codeSection[0].body
 	for i := range foo {
@@ -24,5 +25,26 @@ func TestOpAddress(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(testCode)
 	vm.step()
 	assert.Equal(t, testAddress, uintsArrayToAddress(vm.vmStack))
+	//yes, this is a horribly lazy way to test our custom opcodes, and i should write the functions correctly... Or at least use one that breaks things less...
+}
+
+func TestOpBalance(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa280808000019c8080800001017f410028020441106b2200410036020c2000410a360208410a0b")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	testBalance := big.NewInt(9000000000000000000)
+	testBalance.Mul(testBalance, big.NewInt(100))
+
+	// fmt.Println(big.NewInt(0).SetBytes(uintsArrayToAddress(addressToInts(testBalance.Bytes()))))
+	vm.chainHandler = BCSpoofer{contractBalance: *testBalance}
+	testCode := []byte{Op_balance}
+	module := *decode(wasmBytes)
+
+	foo := module.codeSection[0].body
+	for i := range foo {
+		testCode = append(testCode, foo[i])
+	}
+	vm.vmCode, vm.controlBlockStack = parseBytes(testCode)
+	vm.step()
+	assert.Equal(t, testBalance, arrayToBalance(vm.vmStack))
 	//yes, this is a horribly lazy way to test our custom opcodes, and i should write the functions correctly... Or at least use one that breaks things less...
 }

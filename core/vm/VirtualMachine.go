@@ -138,11 +138,7 @@ func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	}
 
 	capacity := 20 * defaultPageSize
-	machine.vmMemory = make([]byte, capacity)
-	// Initialize empty memory.
-	for i := 0; i < capacity; i++ {
-		machine.vmMemory[i] = 0
-	}
+	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
 
 	return machine
 }

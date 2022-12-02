@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -33,22 +34,22 @@ func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
 
 type BCSpoofer struct {
 	contractAddress []byte
-	contractBalance []byte
+	contractBalance big.Int
 	callerAddress   []byte
-	callerBalance   []byte
+	callerBalance   big.Int
 	callBlockTime   []byte
 }
 
 func (s BCSpoofer) getAddress() []byte {
 	return s.contractAddress
 }
-func (s BCSpoofer) getBalance() []byte {
+func (s BCSpoofer) getBalance() big.Int {
 	return s.contractBalance
 }
 func (s BCSpoofer) getCallerAddress() []byte {
 	return s.callerAddress
 }
-func (s BCSpoofer) getCallerBalance() []byte {
+func (s BCSpoofer) getCallerBalance() big.Int {
 	return s.callerBalance
 }
 func (s BCSpoofer) getBlockTimestamp() []byte {
@@ -78,6 +79,41 @@ func uintsArrayToAddress(input []uint64) []byte {
 	ans = LE.AppendUint64(ans, input[2])
 	ans = ans[:20]
 	return ans
+}
+func balanceToArray(input big.Int) []uint64 {
+	//takes a big int and returns an array of LE formatted uint64s
+	b := flipEndian(input.Bytes())
+
+	//b is now in little endian format
+	for len(b) < 16 { //add trailing 0s until it is certainly the correct size
+		b = append(b, 0)
+	}
+	leUints := []uint64{
+		LE.Uint64(b[0:8]),
+		LE.Uint64(b[8:16]),
+	}
+
+	return leUints
+}
+func arrayToBalance(input []uint64) *big.Int {
+	//big int uses big endian, so we need to convert back...
+
+	//first convert it to bytes array
+	leBytes := []byte{}
+	for x := range input {
+		leBytes = LE.AppendUint64(leBytes, input[x])
+	}
+	//then flip and convert to big int!
+	ans := big.NewInt(0).SetBytes(flipEndian(leBytes))
+	return ans
+}
+
+func flipEndian(b []byte) []byte {
+	//takes bytes of one endian type, then returns it in the other (flipped)
+	for i := 0; i < len(b)/2; i++ {
+		b[i], b[len(b)-i-1] = b[len(b)-i-1], b[i]
+	}
+	return b
 }
 
 func contractsEqual(a ContractData, b ContractData) bool {
