@@ -1,5 +1,39 @@
 package vm
 
+type currentMemory struct {
+	gas uint64
+}
+
+func (op currentMemory) doOp(m *Machine) error {
+	m.pushToStack(uint64(len(m.vmMemory))) //should be divided by 65536, or the page size constant.
+	//this division can be handled by >>16
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	m.pointInCode++
+	return nil
+}
+
+type growMemory struct {
+	gas uint64
+}
+
+func (op growMemory) doOp(m *Machine) error {
+	amount := m.popFromStack()
+	m.pushToStack(uint64(len(m.vmMemory))) //only should be pushed if it worked, but i don't see how this can't...
+	for i := 0; i < int(amount); i++ {     //amount should be multiplied by 65536, or the Page Size Constant.
+		// this constant value can be generated faster by <<16.
+		m.vmMemory = append(m.vmMemory, byte(0))
+	}
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	m.pointInCode++
+	return nil
+}
+
 type i32Load struct {
 	align  uint32
 	offset uint32
@@ -206,7 +240,7 @@ func (op i32Store16) doOp(m *Machine) error {
 	index := uint32(m.popFromStack())
 	ea := int(uint64(index) + uint64(op.offset))
 	LE.PutUint16(m.vmMemory[ea:ea+2], uint16(value))
-	
+
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}
