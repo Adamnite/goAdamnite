@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/hex"
 	"fmt"
+	// "golang.org/x/exp/slices"//uncomment if you want to see the imports break...
 )
 
 //the goal of the virtualizer is to make the VM more idiot proof. There should not be a way (without calling the virtualizer.vm)
@@ -95,18 +96,37 @@ func (v *Virtualizer) setVirtualizerConfig(config *VirtualizerConfig) {
 }
 
 func (v *Virtualizer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	hexHash := hex.EncodeToString(hash)
 	//the default code getter, uses the DB to get all functions.
-	codeBytes, err := getMethodCode(v.uri, hex.EncodeToString(hash))
+	code, err := getMethodCode(v.uri, hexHash)
 	if err != nil {
 		panic(err)
 	}
-	ops, blocks := parseBytes(codeBytes)
+	ops, blocks := parseBytes(code.CodeBytes)
 
-	mod := decode(codeBytes)
+	funcType := FunctionType{
+		params:  code.CodeParams,
+		results: code.CodeResults,
+		string:  hexHash,
+	}
+	// if slices.Contains(v.contractData.Methods, hexHash) {//uncomment if you want to see the imports break...
+	// 	panic(fmt.Errorf("attempt to call hash unaccepted by contract with hash:%v", hexHash))
+	// }
+	inHash := false
+	for i := 0; i < len(v.contractData.Methods) || inHash; i++ {
+		inHash = hexHash == v.contractData.Methods[i]
+	}
+	if !inHash {
+		panic(fmt.Errorf("attempt to call hash unaccepted by contract with hash:%v", hexHash))
+	}
 
-	return *mod.typeSection[0], ops, blocks
+	return funcType, ops, blocks
 }
 
 func (v *Virtualizer) GetCodeBytes(hash string) ([]byte, error) {
-	return getMethodCode(v.uri, hash)
+	code, err := getMethodCode(v.uri, hash)
+	if err != nil {
+		return nil, err
+	}
+	return code.CodeBytes, nil
 }

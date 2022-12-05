@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -11,25 +12,35 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+type CodeStored struct {
+	CodeParams  []ValueType
+	CodeResults []ValueType
+	CodeBytes   []byte
+}
+
 // API DB Spoofing
 type DBSpoofer struct {
-	storedFunctions map[string][]byte //hash=>functions
+	storedFunctions map[string]CodeStored //hash=>functions
 }
 
 func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
-	ops, blocks := parseBytes(localCode)
+	ops, blocks := parseBytes(localCode.CodeBytes)
 
-	mod := decode(localCode)
-	return *mod.typeSection[0], ops, blocks
+	funcType := FunctionType{
+		params:  localCode.CodeParams,
+		results: localCode.CodeResults,
+		string:  hex.EncodeToString(hash), //so you can lie better.
+	}
+	return funcType, ops, blocks
 }
 
-func (spoof *DBSpoofer) addSpoofedCode(hash string, codeBytes []byte) {
-	spoof.storedFunctions[hash] = codeBytes
+func (spoof *DBSpoofer) addSpoofedCode(hash string, funcCode CodeStored) {
+	spoof.storedFunctions[hash] = funcCode
 }
 
 func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
-	return spoof.storedFunctions[hash], nil
+	return spoof.storedFunctions[hash].CodeBytes, nil
 }
 
 type BCSpoofer struct {
@@ -145,7 +156,7 @@ func contractsEqual(a ContractData, b ContractData) bool {
 
 //GETTER
 
-func getMethodCode(apiEndpoint string, codeHash string) ([]byte, error) {
+func getMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 	ApiString := apiEndpoint
 	if ApiString[len(ApiString)-1:] == "/" {
 		ApiString = ApiString[:len(ApiString)-1]
@@ -161,7 +172,15 @@ func getMethodCode(apiEndpoint string, codeHash string) ([]byte, error) {
 		fmt.Println(err)
 		return nil, err
 	}
-	return byteResponse, nil
+
+	var code CodeStored
+	err = msgpack.Unmarshal(byteResponse, &code)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return &code, nil
 }
 
 func getContractData(apiEndpoint string, contractAddress string) (*ContractData, error) {
@@ -192,23 +211,19 @@ func getContractData(apiEndpoint string, contractAddress string) (*ContractData,
 
 //UPLOADER
 
-func uploadMethodString(apiEndpoint string, code string) ([]byte, error) {
-	//takes the string format of the code and returns the hash, and any errors
-	byteFormat, err := hex.DecodeString(code)
-	if err != nil {
-		return nil, err
-	}
-	return uploadMethod(apiEndpoint, byteFormat)
-}
-
-func uploadMethod(apiEndpoint string, code []byte) ([]byte, error) {
+func uploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	//takes the code as an array of bytes and returns the hash, and any errors
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
 		contractApiString = contractApiString[:len(contractApiString)-1]
 	}
+	packedData, err := msgpack.Marshal(&code)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 
-	re, err := http.NewRequest("PUT", contractApiString+"/uploadCode", bytes.NewReader(code))
+	re, err := http.NewRequest("PUT", contractApiString+"/uploadCode", bytes.NewReader(packedData))
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -222,6 +237,10 @@ func uploadMethod(apiEndpoint string, code []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("code upload response")
+	fmt.Println(hex.EncodeToString(byteResponse))
+	fmt.Println(byteResponse)
+	fmt.Println(string(byteResponse))
 	hashInBytes, err := hex.DecodeString(string(byteResponse))
 	if err != nil {
 		return nil, err
@@ -237,7 +256,6 @@ func uploadContract(apiEndpoint string, cdata ContractData) error {
 
 	packedData, err := msgpack.Marshal(&cdata)
 	if err != nil {
-		fmt.Println("AHHHH")
 		fmt.Println(err)
 		return err
 	}
@@ -257,4 +275,39 @@ func uploadContract(apiEndpoint string, cdata ContractData) error {
 	}
 	return nil
 
+}
+
+func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
+	functionsToUpload := []CodeStored{}
+	hashes := [][]byte{}
+	for x := range mod.typeSection {
+		code := CodeStored{
+			CodeParams:  mod.typeSection[x].params,
+			CodeResults: mod.typeSection[x].results,
+			CodeBytes:   mod.codeSection[x].body,
+		}
+		functionsToUpload = append(functionsToUpload, code)
+		newHash, err := uploadMethod(apiEndpoint, code)
+		if err != nil {
+			return nil, nil, err
+		}
+		localHash, err := code.hash()
+		if bytes.Equal(newHash, localHash) || err != nil {
+			fmt.Println(err)
+			return nil, nil, fmt.Errorf("hashes are not equal, or could not hash local copy. ERR: %w, server hash: %v, local hash: %v", err, newHash, localHash)
+		}
+		hashes = append(hashes, newHash)
+	}
+
+	return functionsToUpload, hashes, nil
+}
+
+func (code CodeStored) hash() ([]byte, error) {
+	packedData, err := msgpack.Marshal(&code)
+	if err != nil {
+		return nil, err
+	}
+	hasher := md5.New()
+	hasher.Write(packedData)
+	return hasher.Sum(nil), nil
 }

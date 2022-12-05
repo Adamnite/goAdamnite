@@ -67,7 +67,7 @@ func decode(wasmBytes []byte) *Module {
 		sectionContentStart := r.Len()
 
 		switch sectionID {
-		
+
 		case sectionIDCustom:
 			buf := make([]byte, sectionSize)
 			io.ReadFull(r, buf)
