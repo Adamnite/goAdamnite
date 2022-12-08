@@ -18,9 +18,16 @@ func (op Block) doOp(m *Machine) error {
 	control := m.controlBlockStack[op.index]
 
 	for (m.pointInCode < control.endAt) {
-		m.vmCode[m.pointInCode].doOp(m)
-		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+
+		if m.stopSignal {
 			return nil
+		}
+
+		op := m.vmCode[m.pointInCode]
+		op.doOp(m)
+
+		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+			m.stopSignal = true
 		}
 	}
 
@@ -160,11 +167,16 @@ func (op Else) doOp(m *Machine) error {
 	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - 1]
 
 	for (m.pointInCode != controlBlock.endAt) {
+
+		if m.stopSignal {
+			return nil
+		}
+
 		op := m.vmCode[m.pointInCode]
 		op.doOp(m)
 
 		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
-			return nil
+			m.stopSignal = true
 		}
 	}
 
@@ -191,9 +203,16 @@ func (op Loop) doOp(m *Machine) error {
 
 	// Once the pointInCode becomes bigger than the endAt then it means we branched to a block
 	for (m.pointInCode < controlBlock.endAt) {
-		m.vmCode[m.pointInCode].doOp(m)
-		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+
+		if m.stopSignal {
 			return nil
+		}
+
+		op := m.vmCode[m.pointInCode]
+		op.doOp(m)
+
+		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+			m.stopSignal = true
 		}
 	}
 
@@ -267,7 +286,7 @@ type Call struct {
 
 func (op Call) doOp(m *Machine) error {
 
-	if int(op.funcIndex) >= len(m.module.typeSection[op.funcIndex].params) {
+	if int(op.funcIndex) >= len(m.module.typeSection) {
 		return errors.New("invalid function index")
 	}
 

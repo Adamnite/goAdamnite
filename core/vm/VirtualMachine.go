@@ -47,6 +47,7 @@ type Machine struct {
 	config            VMConfig
 	gas               uint64 // The allocated gas for the code execution
 	callStack 		  []*Frame
+	stopSignal		  bool
 	currentFrame 	  int
 }
 
@@ -118,6 +119,10 @@ func (m *Machine) run() error {
 			oldFrameNum := m.currentFrame
 			op := currentFrame.Code[currentFrame.Ip]
 			err := op.doOp(m)
+
+			if m.stopSignal {
+				m.stopSignal = false
+			}
 			if m.config.debugStack {
 				println(m.outputStack())
 			}
