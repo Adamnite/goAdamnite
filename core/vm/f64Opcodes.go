@@ -55,8 +55,8 @@ type f64Lt struct{
 }
 
 func (op f64Lt) doOp(m *Machine) error {
-	b := math.Float64frombits(uint64(m.popFromStack()))
-	a := math.Float64frombits(uint64(m.popFromStack()))
+	b := uint64(m.popFromStack())
+	a := uint64(m.popFromStack())
 
 	if a < b {
 		m.pushToStack(uint64(1))
@@ -264,14 +264,10 @@ type f64Sub struct{
 }
 
 func (op f64Sub) doOp(m *Machine) error {
-	a := math.Float64frombits(uint64(m.popFromStack()))
-	b := math.Float64frombits(uint64(m.popFromStack()))
+	b := uint64(float64(m.popFromStack()))
+	a := uint64(float64(m.popFromStack()))
 
-	if c := a - b; c != c {
-		m.pushToStack(uint64(0x7FF8000000000001))
-	} else {
-		m.pushToStack(uint64(math.Float64bits(c)))
-	}
+	m.pushToStack(uint64(a-b))
 	m.pointInCode++
 	return nil
 }
@@ -282,14 +278,10 @@ type f64Mul struct{
 }
 
 func (op f64Mul) doOp(m *Machine) error {
-	a := math.Float64frombits(uint64(m.popFromStack()))
-	b := math.Float64frombits(uint64(m.popFromStack()))
+	a := uint64(m.popFromStack())
+	b := uint64(m.popFromStack())
 
-	if c := a * b; c != c {
-		m.pushToStack(uint64(0x7FF8000000000001))
-	} else {
-		m.pushToStack(uint64(math.Float64bits(c)))
-	}
+	m.pushToStack(uint64(a*b))
 	m.pointInCode++
 	return nil
 }

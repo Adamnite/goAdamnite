@@ -91,6 +91,9 @@ func Test_MultiBlock(t *testing.T) {
 
 	vm.vmCode = bytes
 	vm.controlBlockStack = cs
+
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	assert.Equal(t, len(vm.vmStack), 0)
 }
@@ -110,15 +113,15 @@ func Test_Br(t *testing.T) {
 		Op_i32_store, 0x2, 0xc,
 
 		Op_block, Op_empty,
-		Op_i32_const, 0x1,
-		Op_br_if, 0x0,
-		Op_get_local, 0x0,
-		Op_get_local, 0x0,
-		Op_i32_load, 0x2, 0xc,
-		Op_i32_const, 0x14,
-		Op_i32_add,
+			Op_i32_const, 0x1,
+			Op_br_if, 0x0,
+			Op_get_local, 0x0,
+			Op_get_local, 0x0,
+			Op_i32_load, 0x2, 0xc,
+			Op_i32_const, 0x14,
+			Op_i32_add,
 
-		Op_i32_store, 0x2, 0xc,
+			Op_i32_store, 0x2, 0xc,
 		Op_end,
 		Op_get_local, 0x0,
 		Op_i32_load, 0x2, 0xc,
@@ -126,6 +129,8 @@ func Test_Br(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0))
 }
@@ -167,6 +172,7 @@ func Test_Br2(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(30))
@@ -214,6 +220,8 @@ func Test_Loop(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(45))
@@ -256,6 +264,8 @@ func Test_If(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(115), uint64(res))
@@ -307,56 +317,59 @@ func Test_Return(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
 	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(110), uint64(res))
 }
 
-// func Test_Call(t *testing.T) {
-// 	// (module
-// 	// 	(func $fac (export "fac") (param f64) (result f64)
-// 	// 	  local.get 0
-// 	// 	  f64.const 1
-// 	// 	  f64.lt
-// 	// 	  if (result f64)
-// 	// 		f64.const 1
-// 	// 	  else
-// 	// 		local.get 0
-// 	// 		local.get 0
-// 	// 		f64.const 1
-// 	// 		f64.sub
-// 	// 		call $fac
-// 	// 		f64.mul
-// 	// 	  end))
+func Test_Call(t *testing.T) {
+	// (module
+	// 	(func $fac (export "fac") (param f64) (result f64)
+	// 	  local.get 0
+	// 	  f64.const 1
+	// 	  f64.lt
+	// 	  if (result f64)
+	// 		f64.const 1
+	// 	  else
+	// 		local.get 0
+	// 		local.get 0
+	// 		f64.const 1
+	// 		f64.sub
+	// 		call $fac
+	// 		f64.mul
+	// 	  end))
 
-// 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160017c017c030201000707010366616300000a2e012c00200044000000000000f03f63047c44000000000000f03f052000200044000000000000f03fa11000a20b0b0012046e616d6501060100036661630203010000")
-// 	vm := newVirtualMachine(wasmBytes, []byte{}, nil, 1000)
+	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160017c017c030201000707010366616300000a2e012c00200044000000000000f03f63047c44000000000000f03f052000200044000000000000f03fa11000a20b0b0012046e616d6501060100036661630203010000")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
-// 	expected := []byte{
-// 		Op_get_local, 0x0, 
-// 		Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 		Op_f64_lt, 
+	expected := []byte{
+		Op_get_local, 0x0, 
+		Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+		Op_f64_lt, 
 		
-// 		Op_if, Op_f64, 
-// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 		Op_else, 
-// 			Op_get_local, 0x0, 
-// 			Op_get_local, 0x0, 
-// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 			Op_f64_sub, 
-// 			Op_call, 0x0, 
-// 			Op_f64_mul, 
-// 		Op_end, 
+		Op_if, Op_f64, 
+			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+		Op_else, 
+			Op_get_local, 0x0, 
+			Op_get_local, 0x0, 
+			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+			Op_f64_sub, 
+			Op_call, 0x0,
+			Op_f64_mul, 
+		Op_end, 
 		
-// 		Op_end,
-// 	}
+		Op_end,
+	}
 
-// 	assert.Equal(t, expected, vm.module.codeSection[0].body)
-// 	vm.locals = append(vm.locals, 5)
-// 	vm.run()
-// 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
-// }
+	assert.Equal(t, expected, vm.module.codeSection[0].body)
+	vm.locals = append(vm.locals, 12)
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
+	assert.Equal(t, vm.popFromStack(), uint64(0x1c8cfc00))
+}
 
 func Test_FuncFact(t *testing.T) {
 	// double fact() {
@@ -383,9 +396,11 @@ func Test_FuncFact(t *testing.T) {
 		0x20, 0x0, 0x29, 0x3, 0x0, 0x20, 0x0, 0x34, 
 		0x2, 0xc, 0x7e, 0x37, 0x3, 0x0, 0x20, 0x0, 
 		0x20, 0x0, 0x28, 0x2, 0xc, 0x41, 0x7f, 0x6a, 0x36, 
-		0x2, 0xc, 0xc, 0x0, 0xb, 0xb, 0x20, 0x0, 0x29, 0x3, 0x0, 0xb9, 0xb}
+		0x2, 0xc, 0xc, 0x0, 0xb, 0xb, 0x20, 0x0, 0x29, 0x3, 0x0, 0xb9, 0xb,
+	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 	vm.run()
 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
 	res := vm.popFromStack()

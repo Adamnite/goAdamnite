@@ -46,6 +46,8 @@ type Machine struct {
 	chainHandler      ChainDataHandler
 	config            VMConfig
 	gas               uint64 // The allocated gas for the code execution
+	callStack 		  []*Frame
+	currentFrame 	  int
 }
 
 type VMConfig struct {
@@ -57,6 +59,16 @@ type VMConfig struct {
 	codeGetter               GetCode
 }
 
+type Frame struct {
+	Code         []OperationCommon
+	Regs         []int64
+	Locals       []uint64
+	Ip           uint64
+	ReturnReg    int
+	Continuation int64
+	CtrlStack 	 []ControlBlock
+}
+
 func getDefaultConfig() VMConfig {
 	return VMConfig{
 		maxCallStackDepth:        1024,
@@ -66,6 +78,7 @@ func getDefaultConfig() VMConfig {
 		codeGetter:               defaultCodeGetter,
 	}
 }
+
 
 type MemoryType interface {
 	to_string() string
@@ -89,16 +102,40 @@ func (m *Machine) step() {
 }
 
 func (m *Machine) run() error {
-	for m.pointInCode < uint64(len(m.vmCode)) {
-		op := m.vmCode[m.pointInCode]
-		err := op.doOp(m)
-		if m.config.debugStack {
-			println(m.outputStack())
+
+	for m.currentFrame >= 0 {
+		currentFrame := m.callStack[m.currentFrame]
+
+		if currentFrame.Continuation != -1 {
+			m.pointInCode = uint64(currentFrame.Continuation)
 		}
 
-		if err != nil {
-			return err
+		currentFrame.Ip = m.pointInCode
+		m.vmCode = currentFrame.Code
+		m.locals = currentFrame.Locals
+	
+		for uint64(currentFrame.Ip) < uint64(len(currentFrame.Code)) {
+			oldFrameNum := m.currentFrame
+			op := currentFrame.Code[currentFrame.Ip]
+			err := op.doOp(m)
+			if m.config.debugStack {
+				println(m.outputStack())
+			}
+
+			if err != nil {
+				return err
+			}
+			currentFrame.Ip++
+
+			// Activate the new frame
+			if m.currentFrame > oldFrameNum {
+				if m.currentFrame > int(m.config.maxCallStackDepth) {
+					return ErrDepth
+				}
+				currentFrame = m.callStack[m.currentFrame]
+			}
 		}
+		m.currentFrame--
 	}
 	return nil
 }
@@ -131,7 +168,7 @@ func initMemoryWithDataSection(module* Module, vm *Machine) {
 	}
 
 	for i := uint32(0); i < uint32(dataSegmentSize); i++ {
-		offset := module.dataSection[i].offsetExpression.data[i]
+		offset := module.dataSection[i].offsetExpression.data[0]
 		size := len(module.dataSection[i].init)
 
 		p := 0
@@ -147,8 +184,10 @@ func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	machine.pointInCode = 0
 	machine.contractStorage = storage
 	machine.module = *decode(wasmBytes)
+	// These delimited lines are left for compatibility purpose only should be removed
 	machine.vmCode, machine.controlBlockStack = parseBytes(machine.module.codeSection[0].body)
 	machine.locals = make([]uint64, len(machine.module.codeSection[0].localTypes))
+	//
 	machine.gas = gas
 
 	if config != nil {
@@ -156,6 +195,17 @@ func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	} else {
 		machine.config = getDefaultConfig()
 	}
+
+	// Push the main frame
+	machine.currentFrame = 0
+
+	mainFrame := new(Frame)
+	mainFrame.Ip = 0
+	mainFrame.Continuation = -1
+	mainFrame.Code = machine.vmCode
+	mainFrame.CtrlStack = machine.controlBlockStack
+	mainFrame.Locals = machine.locals
+	machine.callStack = append(machine.callStack, mainFrame)
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
@@ -279,5 +329,11 @@ func (m *Machine) call2(callBytes string) {
 	// Maybe Check the types of each params if they matches signature?
 	m.locals = params
 	m.vmCode, m.controlBlockStack = funcCode, controlStack
+
+	currentFrame := m.callStack[m.currentFrame]
+	currentFrame.Locals = m.locals
+	currentFrame.Code = m.vmCode
+	currentFrame.CtrlStack = m.controlBlockStack
+	
 	m.run()
 }

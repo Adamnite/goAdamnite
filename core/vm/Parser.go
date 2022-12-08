@@ -351,7 +351,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_call")
 			}
 
-			ansOps = append(ansOps, Call{funcIndex})
+			ansOps = append(ansOps, Call{funcIndex, GasFastStep})
 			pointInBytes += int(count) + 1
 
 		case Op_call_indirect:
