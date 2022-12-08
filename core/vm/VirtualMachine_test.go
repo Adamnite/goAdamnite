@@ -52,6 +52,8 @@ func TestCall2(t *testing.T) {
 	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 
 	vm.pointInCode = 0
+	vm.callStack[0].Ip = 0
+	vm.currentFrame = 0
 	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
 	vm.call2(callCode2)
@@ -59,6 +61,8 @@ func TestCall2(t *testing.T) {
 	assert.Equal(t, vm.popFromStack(), uint64(0x8))
 
 	vm.pointInCode = 0
+	vm.callStack[0].Ip = 0
+	vm.currentFrame = 0
 	callCode3 := "02ee919d02ee919d02ee919d02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
 	vm.call2(callCode3)
@@ -81,4 +85,44 @@ func TestDataSection(t *testing.T) {
 	
 	fmt.Printf("s: %v\n", s)
 	assert.Equal(t, "Hello World\x00", s)
+}
+
+func TestMultiDataSection(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa98080800001a38080800001017f410028020441106b2200410036020c2000411036020820004120360204410a0b0b9780808000020041100b0648656c6c6f000041200b06576f726c6400")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	module := *decode(wasmBytes)
+
+	offset := module.dataSection[0].offsetExpression.data[0]
+	size := len(module.dataSection[0].init) 
+
+
+	offset2 := module.dataSection[1].offsetExpression.data[0]
+	size2 := len(module.dataSection[1].init) 
+
+	// Read the data from data section
+	
+	s := string(vm.vmMemory[offset: size + int(offset)])
+	s += string(vm.vmMemory[offset2: size2 + int(offset2)])
+	
+	fmt.Printf("s: %v\n", s)
+	assert.Equal(t, "Hello\x00World\x00", s)
+}
+
+
+func TestA1(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d01000000010a0260027f7f017f600000030302000105030100020614037f01419088040b7f004180080b7f004188080b073705066d656d6f727902000367657400001648656c6c6f576f726c645f44656661756c7443544f52000105626c6f636b0301036d736703020a0c020700200120006a0b02000b0b1301004180080b0c0000000000000000040400000045046e616d65011e020003676574011648656c6c6f576f726c645f44656661756c7443544f52071201000f5f5f737461636b5f706f696e746572090a0100072e726f64617461")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	vm.locals = append(vm.locals, 5)
+	vm.locals = append(vm.locals, 5)
+
+	vm.callStack[0].Ip = 0
+	vm.callStack[0].Locals = vm.locals
+
+	vm.run()
+	
+	res := vm.popFromStack()
+
+	fmt.Printf("res: %v\n", res)
 }
