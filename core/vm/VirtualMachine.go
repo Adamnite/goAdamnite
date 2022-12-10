@@ -46,9 +46,9 @@ type Machine struct {
 	chainHandler      ChainDataHandler
 	config            VMConfig
 	gas               uint64 // The allocated gas for the code execution
-	callStack 		  []*Frame
-	stopSignal		  bool
-	currentFrame 	  int
+	callStack         []*Frame
+	stopSignal        bool
+	currentFrame      int
 }
 
 type VMConfig struct {
@@ -67,7 +67,7 @@ type Frame struct {
 	Ip           uint64
 	ReturnReg    int
 	Continuation int64
-	CtrlStack 	 []ControlBlock
+	CtrlStack    []ControlBlock
 }
 
 func getDefaultConfig() VMConfig {
@@ -79,7 +79,6 @@ func getDefaultConfig() VMConfig {
 		codeGetter:               defaultCodeGetter,
 	}
 }
-
 
 type MemoryType interface {
 	to_string() string
@@ -114,7 +113,7 @@ func (m *Machine) run() error {
 		currentFrame.Ip = m.pointInCode
 		m.vmCode = currentFrame.Code
 		m.locals = currentFrame.Locals
-	
+
 		for uint64(currentFrame.Ip) < uint64(len(currentFrame.Code)) {
 			oldFrameNum := m.currentFrame
 			op := currentFrame.Code[currentFrame.Ip]
@@ -164,7 +163,7 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
-func initMemoryWithDataSection(module* Module, vm *Machine) {
+func initMemoryWithDataSection(module *Module, vm *Machine) {
 
 	dataSegmentSize := uint32(len(module.dataSection))
 
@@ -177,7 +176,7 @@ func initMemoryWithDataSection(module* Module, vm *Machine) {
 		size := len(module.dataSection[i].init)
 
 		p := 0
-		for j := uint32(offset); j < uint32(offset) + uint32(size); j++ {
+		for j := uint32(offset); j < uint32(offset)+uint32(size); j++ {
 			vm.vmMemory[j] = module.dataSection[i].init[p]
 			p++
 		}
@@ -229,12 +228,26 @@ func (m *Machine) popFromStack() uint64 {
 	ans, m.vmStack = m.vmStack[len(m.vmStack)-1], m.vmStack[:len(m.vmStack)-1]
 	return ans
 }
-func (m *Machine) pushToStack(n uint64) {
+func (m *Machine) pushToStack(n interface{}) {
 
-	if m.config.debugStack {
-		println("pushing to stack")
+	switch v := n.(type) {
+	case uint64:
+		m.vmStack = append(m.vmStack, v)
+	case uint32:
+		m.vmStack = append(m.vmStack, uint64(v))
+	case float64:
+		m.vmStack = append(m.vmStack, math.Float64bits(v))
+	case float32:
+		m.vmStack = append(m.vmStack, uint64(math.Float32bits(v)))
+	case int:
+		m.vmStack = append(m.vmStack, uint64(v))
+	default:
+		fmt.Println(fmt.Errorf("unable to push type %T to stack, has value %v", n, v))
 	}
-	m.vmStack = append(m.vmStack, n)
+	if m.config.debugStack {
+		fmt.Printf("pushing to stack: %v\n", n)
+	}
+
 }
 
 // useGas attempts the use of gas and subtracts it and returns true on success
@@ -339,6 +352,51 @@ func (m *Machine) call2(callBytes string) {
 	currentFrame.Locals = m.locals
 	currentFrame.Code = m.vmCode
 	currentFrame.CtrlStack = m.controlBlockStack
-	
+
 	m.run()
+}
+
+func (m *Machine) reset() {
+	//resets the stack, locals, and point in code. Also resets back to main frame
+	m.locals = []uint64{}
+	m.pointInCode = 0
+	m.callStack[0].Ip = 0
+	m.currentFrame = 0
+	m.callStack[0].Code = m.vmCode
+	m.callStack[0].CtrlStack = m.controlBlockStack
+}
+
+func (m *Machine) addLocal(n interface{}) {
+	switch v := n.(type) {
+	case uint64:
+		m.locals = append(m.locals, v)
+	case uint32:
+		m.locals = append(m.locals, uint64(v))
+	case float64:
+		m.locals = append(m.locals, math.Float64bits(v))
+	case float32:
+		m.locals = append(m.locals, uint64(math.Float32bits(v)))
+	case []uint64:
+		for i := 0; i < len(v); i++ {
+			m.addLocal(v[i])
+		}
+	case []uint32:
+		for i := 0; i < len(v); i++ {
+			m.addLocal(v[i])
+		}
+	case []float64:
+		for i := 0; i < len(v); i++ {
+			m.addLocal(v[i])
+		}
+	case []float32:
+		for i := 0; i < len(v); i++ {
+			m.addLocal(v[i])
+		}
+
+	default:
+		fmt.Println(fmt.Errorf("unable to push type %T to locals, has value %v", n, v))
+	}
+	if m.config.debugStack {
+		fmt.Printf("pushed to locals: %v\n", n)
+	}
 }

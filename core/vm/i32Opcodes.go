@@ -12,7 +12,7 @@ type i32Sub struct {
 func (op i32Sub) doOp(m *Machine) error {
 	c2 := uint32(m.popFromStack())
 	c1 := uint32(m.popFromStack())
-	m.pushToStack(uint64(uint32(c1 - c2)))
+	m.pushToStack(c1 - c2)
 
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
@@ -27,7 +27,7 @@ type i32Add struct {
 }
 
 func (op i32Add) doOp(m *Machine) error {
-	m.pushToStack(uint64(uint32(uint32(m.popFromStack()) + uint32(m.popFromStack()))))
+	m.pushToStack(uint32(m.popFromStack()) + uint32(m.popFromStack()))
 
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
@@ -59,7 +59,7 @@ func (op i32Xor) doOp(m *Machine) error {
 	c2 := uint32(m.popFromStack())
 	c1 := uint32(m.popFromStack())
 
-	m.pushToStack(uint64(uint32(c1 ^ c2)))
+	m.pushToStack(c1 ^ c2)
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}
@@ -75,7 +75,7 @@ func (op i32Or) doOp(m *Machine) error {
 	c2 := uint32(m.popFromStack())
 	c1 := uint32(m.popFromStack())
 
-	m.pushToStack(uint64(uint32(c1 | c2)))
+	m.pushToStack(c1 | c2)
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}
