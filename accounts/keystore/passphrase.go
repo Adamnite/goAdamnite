@@ -43,6 +43,24 @@ func StoreKey(dir string, pwd string, scriptN int, scriptP int) (accounts.Accoun
 	return a, err
 }
 
+func GetKey(addr common.Address, filename string, pwd string) (*Key, error) {
+	keyjson, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := DecryptKey(keyjson, pwd)
+	if err != nil {
+		return nil, err
+	}
+
+	if key.Address != addr {
+		return nil, fmt.Errorf("key content mismatch: have account %x, want %x", key.Address, addr)
+	}
+
+	return key, nil
+}
+
 func (ks keyStorePassphrase) StoreKey(filename string, key *Key, pwd string) error {
 	keyjson, err := EncryptKey(key, pwd, ks.scryptN, ks.scryptP)
 	if err != nil {

@@ -29,7 +29,10 @@ require (
 
 )
 
-require github.com/btcsuite/btcutil v1.0.2 // indirect
+require (
+	github.com/btcsuite/btcutil v1.0.2 // indirect
+	github.com/denisbrodbeck/machineid v1.0.1 // indirect
+)
 
 require (
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
