@@ -196,12 +196,6 @@ func (ac *Client) BalanceAt(ctx context.Context, account common.Address, blockNu
 	return (*big.Int)(&result), err
 }
 
-func (ac *Client) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
-	var result hexutil.Bytes
-	err := ac.c.CallContext(ctx, &result, "adm_getStorageAt", account, key, toBlockNumArg(blockNumber))
-	return result, err
-}
-
 // CodeAt returns the contract code of the given account.
 // The block number can be nil, in which case the code is taken from the latest known block.
 func (ac *Client) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
@@ -216,13 +210,6 @@ func (ac *Client) PendingBalanceAt(ctx context.Context, account common.Address) 
 	return (*big.Int)(&result), err
 }
 
-// PendingStorageAt returns the value of key in the contract storage of the given account in the pending state.
-func (ac *Client) PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error) {
-	var result hexutil.Bytes
-	err := ac.c.CallContext(ctx, &result, "adm_getStorageAt", account, key, "pending")
-	return result, err
-}
-
 // PendingCodeAt returns the contract code of the given account in the pending state.
 func (ac *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
 	var result hexutil.Bytes
@@ -235,24 +222,6 @@ func (ac *Client) PendingTransactionCount(ctx context.Context) (uint, error) {
 	var num hexutil.Uint
 	err := ac.c.CallContext(ctx, &num, "adm_getBlockTransactionCountByNumber", "pending")
 	return uint(num), err
-}
-
-func (ac *Client) CallContract(ctx context.Context, msg adm.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	var hex hexutil.Bytes
-	err := ac.c.CallContext(ctx, &hex, "adm_call", toCallArg(msg), toBlockNumArg(blockNumber))
-	if err != nil {
-		return nil, err
-	}
-	return hex, nil
-}
-
-func (ac *Client) PendingCallContract(ctx context.Context, msg adm.CallMsg) ([]byte, error) {
-	var hex hexutil.Bytes
-	err := ac.c.CallContext(ctx, &hex, "adm_call", toCallArg(msg), "pending")
-	if err != nil {
-		return nil, err
-	}
-	return hex, nil
 }
 
 func (ac *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
