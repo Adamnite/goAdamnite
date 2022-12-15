@@ -188,8 +188,6 @@ func (ac *Client) NetworkID(ctx context.Context) (*big.Int, error) {
 	return version, nil
 }
 
-// BalanceAt returns the wei balance of the given account.
-// The block number can be nil, in which case the balance is taken from the latest known block.
 func (ac *Client) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
 	var result hexutil.Big
 	err := ac.c.CallContext(ctx, &result, "adm_getBalance", account, toBlockNumArg(blockNumber))
@@ -202,8 +200,6 @@ func (ac *Client) StorageAt(ctx context.Context, account common.Address, key com
 	return result, err
 }
 
-// CodeAt returns the contract code of the given account.
-// The block number can be nil, in which case the code is taken from the latest known block.
 func (ac *Client) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
 	var result hexutil.Bytes
 	err := ac.c.CallContext(ctx, &result, "adm_getCode", account, toBlockNumArg(blockNumber))
@@ -216,21 +212,18 @@ func (ac *Client) PendingBalanceAt(ctx context.Context, account common.Address) 
 	return (*big.Int)(&result), err
 }
 
-// PendingStorageAt returns the value of key in the contract storage of the given account in the pending state.
 func (ac *Client) PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error) {
 	var result hexutil.Bytes
 	err := ac.c.CallContext(ctx, &result, "adm_getStorageAt", account, key, "pending")
 	return result, err
 }
 
-// PendingCodeAt returns the contract code of the given account in the pending state.
 func (ac *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
 	var result hexutil.Bytes
 	err := ac.c.CallContext(ctx, &result, "adm_getCode", account, "pending")
 	return result, err
 }
 
-// PendingTransactionCount returns the total number of transactions in the pending state.
 func (ac *Client) PendingTransactionCount(ctx context.Context) (uint, error) {
 	var num hexutil.Uint
 	err := ac.c.CallContext(ctx, &num, "adm_getBlockTransactionCountByNumber", "pending")
@@ -274,10 +267,10 @@ func toCallArg(msg adm.CallMsg) interface{} {
 	if msg.Value != nil {
 		arg["value"] = (*hexutil.Big)(msg.Value)
 	}
-	if msg.Gas != 0 {
+	if msg.Ate != 0 {
 		arg["gas"] = hexutil.Uint64(msg.Gas)
 	}
-	if msg.GasPrice != nil {
+	if msg.AtePrice != nil {
 		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
 	}
 	return arg
