@@ -13,8 +13,17 @@ func TestAdamniteSigner(t *testing.T) {
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 
 	signer := AdamniteSigner{}
+	vote := NewVoteTransaction(
+		0,
+		common.HexToAddress("0x2d9487a9551db05414018c7fac9aed393f2fccda"),
+		new(big.Int),
+		1)
 
-	tx, err := SignTransaction(NewVoteTransaction(0, common.HexToAddress("0x2d9487a9551db05414018c7fac9aed393f2fccda"), new(big.Int), 0), signer, key)
+	tx, err := SignTransaction(
+		vote,   //the transaction
+		signer, //the signer
+		key)    //the signers private key
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,6 +34,6 @@ func TestAdamniteSigner(t *testing.T) {
 	}
 
 	if from != addr {
-		t.Errorf("exected from and addr to be equal. Got %x want %x", from, addr)
+		t.Errorf("executed from and addr to be equal. Got %x want %x", from, addr)
 	}
 }
