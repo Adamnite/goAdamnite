@@ -85,7 +85,7 @@ type BrIf struct {
 
 func (op BrIf) doOp(m *Machine) error {
 	if (len(m.controlBlockStack) < int(op.index)) {
-		panic("Index where to branch out of range")
+		return ErrInvalidBr
 	}
 
 	condition := uint32(m.popFromStack())
@@ -129,7 +129,16 @@ func (op If) doOp(m *Machine) error {
 
 		m.pointInCode++
 		for (m.pointInCode <= end) {
-			m.vmCode[m.pointInCode].doOp(m)
+			
+			if m.stopSignal {
+				return nil
+			}
+
+			op := m.vmCode[m.pointInCode]
+			op.doOp(m)
+			if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+				m.stopSignal = true
+			}
 		}
 
 		if (controlBlock.elseAt != 0) {
@@ -220,7 +229,7 @@ func (op Loop) doOp(m *Machine) error {
 	finalStackLength := len(m.vmStack)
 
 	if finalStackLength < stackLength {
-		panic("Inconsistent stack after execution of Op_Block")
+		return ErrStackConsistency
 	}
 
 	if !m.useGas(op.gas) {

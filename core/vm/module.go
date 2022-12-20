@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 )
@@ -25,6 +26,12 @@ type Module struct {
 	dataSection      []*DataSegment
 	dataCountSection *uint32
 	ID               ModuleID
+}
+
+func emptyModule() string {
+	magic := hex.Dump(Magic)
+	versionStr := hex.Dump(version)
+	return magic + versionStr
 }
 
 func decode(wasmBytes []byte) *Module {
