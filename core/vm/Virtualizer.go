@@ -3,6 +3,10 @@ package vm
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
+
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/common"
 	// "golang.org/x/exp/slices"//uncomment if you want to see the imports break...
 )
 
@@ -17,15 +21,17 @@ type VirtualizerConfig struct {
 	saveStateChangeToContractData bool
 	codeGetter                    GetCode
 	codeBytesGetter               GetCodeBytes
+	dbLink                        statedb.StateDB
 }
 
 type GetCodeBytes func(hash string) ([]byte, error)
 
 type Virtualizer struct {
 	// vm           Machine
-	uri          string
-	contractData ContractData
-	config       VirtualizerConfig
+	uri           string
+	contractData  ContractData
+	config        VirtualizerConfig
+	callerAddress []byte
 }
 
 // type ContractInterface interface{}
@@ -35,11 +41,12 @@ type ContractData struct {
 	Storage []uint64 //all storage inside the contract is held as an array of bytes
 }
 
-func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, error) {
+func (v Virtualizer) run(methodIndex int, locals []uint64, callerAddress []byte) ([]uint64, []uint64, error) {
 	//the index in the method list that you wish to call
 	//returns the stack, storage, and errors that may have occurred.
 
 	//TODO: check that all needed variables are established, and return the stack and storage of the vm
+	v.callerAddress = callerAddress
 	vmCode, err := v.config.codeBytesGetter(v.contractData.Methods[methodIndex])
 	if err != nil {
 		return nil, nil, err
@@ -50,7 +57,10 @@ func (v Virtualizer) run(methodIndex int, locals []uint64) ([]uint64, []uint64, 
 		nil,
 		1000) //config should be created/have defaults. @TODO update this with right Gas value
 	vm.locals = locals
-
+	vm.callStack[0].Locals = vm.locals
+	if vm.chainHandler != nil {
+		vm.chainHandler = v
+	}
 	vm.run()
 
 	if v.config.saveStateChangeToContractData {
@@ -129,4 +139,21 @@ func (v *Virtualizer) GetCodeBytes(hash string) ([]byte, error) {
 		return nil, err
 	}
 	return code.CodeBytes, nil
+}
+
+func (v Virtualizer) getBalance(address []byte) big.Int {
+	return *v.config.dbLink.GetBalance(common.BytesToAddress(address))
+}
+
+func (v Virtualizer) getAddress() []byte {
+	ans, _ := hex.DecodeString(v.contractData.Address)
+	return ans
+
+}
+func (v Virtualizer) getCallerAddress() []byte {
+	return v.callerAddress
+}
+func (v Virtualizer) getBlockTimestamp() []byte {
+	//TODO: actually get the time stamp
+	return []byte{}
 }

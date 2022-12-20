@@ -364,6 +364,8 @@ func (m *Machine) reset() {
 	m.currentFrame = 0
 	m.callStack[0].Code = m.vmCode
 	m.callStack[0].CtrlStack = m.controlBlockStack
+	m.callStack[0].Locals = m.locals
+	m.callStack = []*Frame{m.callStack[0]}
 }
 
 func (m *Machine) addLocal(n interface{}) {

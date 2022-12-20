@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,12 +23,15 @@ var (
 		Methods: []string{hex.EncodeToString(addTwoFunctionHash)},
 		Storage: []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	}
+	db            = rawdb.NewMemoryDB()
+	state, _      = statedb.New(common.Hash{}, statedb.NewDatabase(db))
+	callerAddress = []byte{0, 1, 2, 3, 4, 5}
 )
 
 func TestBasics(t *testing.T) {
 	v := newVirtualizerFromAPI(apiEndpoint, "1", nil)
 
-	stackOut, _, err := v.run(0, []uint64{1, 2})
+	stackOut, _, err := v.run(0, []uint64{1, 2}, callerAddress)
 	if err != nil {
 		fmt.Println(err)
 		t.Fail()
@@ -38,15 +44,15 @@ func TestSpoofedDB(t *testing.T) {
 	spoofed := DBSpoofer{make(map[string]CodeStored)}
 	spoofed.addSpoofedCode(hex.EncodeToString(addTwoFunctionHash), addTwoCodeStored)
 
-	v := newVirtualizerFromData(testContract, &VirtualizerConfig{true, spoofed.GetCode, spoofed.GetCodeBytes})
-	stack, _, err := v.run(0, []uint64{5, 6})
+	v := newVirtualizerFromData(testContract, &VirtualizerConfig{true, spoofed.GetCode, spoofed.GetCodeBytes, *state})
+	stack, _, err := v.run(0, []uint64{5, 6}, callerAddress)
 	if err != nil {
 		fmt.Println(err)
 		t.Fail()
 	}
 	assert.Equal(t, stack, []uint64{11})
 
-	stack, _, err = v.run(0, []uint64{0xFF, 0x01})
+	stack, _, err = v.run(0, []uint64{0xFF, 0x01}, callerAddress)
 	if err != nil {
 		fmt.Println(err)
 		t.Fail()

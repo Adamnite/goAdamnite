@@ -52,13 +52,13 @@ type f64Lt struct {
 }
 
 func (op f64Lt) doOp(m *Machine) error {
-	b := m.popFromStack()
-	a := m.popFromStack()
+	b := math.Float64frombits(m.popFromStack())
+	a := math.Float64frombits(m.popFromStack())
 
 	if a < b {
-		m.pushToStack(uint64(1))
+		m.pushToStack(1)
 	} else {
-		m.pushToStack(uint64(0))
+		m.pushToStack(0)
 	}
 	m.pointInCode++
 	return nil
@@ -73,9 +73,9 @@ func (op f64Gt) doOp(m *Machine) error {
 	b := math.Float64frombits(m.popFromStack())
 
 	if a > b {
-		m.pushToStack(uint64(1))
+		m.pushToStack(1)
 	} else {
-		m.pushToStack(uint64(0))
+		m.pushToStack(0)
 	}
 	m.pointInCode++
 	return nil

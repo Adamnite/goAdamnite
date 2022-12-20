@@ -3,6 +3,7 @@ package vm
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -188,7 +189,6 @@ func Test_Loop(t *testing.T) {
 	// }
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ad48080800001ce8080800001017f410028020441106b2200410036020c2000410036020802400340200028020841094a0d012000200028020c20002802086a36020c2000200028020841016a3602080c000b0b200028020c0b")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	
 
 	code := []byte{
 		0x41, 0x0, 
@@ -364,11 +364,42 @@ func Test_Call(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, vm.module.codeSection[0].body)
-	vm.locals = append(vm.locals, 12)
+	vm.addLocal(float64(5))
 	vm.callStack[0].Locals = vm.locals
 	vm.run()
 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
-	assert.Equal(t, vm.popFromStack(), uint64(0x1c8cfc00))
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.addLocal(float64(8))
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.addLocal(float64(12))
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.addLocal(float64(14))
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.addLocal(float64(25))
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(15511210043330985984000000))
+
+	//floating math only holds accurate to 27!
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.addLocal(float64(27))
+	vm.callStack[0].Locals = vm.locals
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(10888869450418352160768000000))
 }
 
 func Test_FuncFact(t *testing.T) {
@@ -407,7 +438,6 @@ func Test_FuncFact(t *testing.T) {
 	assert.Equal(t, res, uint64(24))
 }
 
-
 func Test_block(t *testing.T) {
 	// double fact() {
 	// 	int i = 4;
@@ -444,7 +474,7 @@ func Test_block(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	
+
 	vm.run()
 	assert.Equal(t, expected, vm.module.codeSection[1].body)
 	assert.Equal(t, vm.popFromStack(), uint64(150))
