@@ -23,6 +23,7 @@ type TxType int8
 
 const (
 	VOTE_TX TxType = iota
+	VOTE_POH_TX
 	NORMAL_TX
 	CONTRACT_TX
 )

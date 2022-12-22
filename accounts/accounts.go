@@ -48,4 +48,6 @@ type Wallet interface {
 
 	// SignTxWithPassphrase is identical to SignTx, but also takes a password
 	SignTxWithPassphrase(account Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error)
+
+	Verify(data []byte, sig []byte) (status bool, err error)
 }

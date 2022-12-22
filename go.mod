@@ -30,6 +30,7 @@ require (
 )
 
 require (
+	github.com/alitto/pond v1.8.2 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 )

@@ -24,6 +24,7 @@ type BlockHeader struct {
 	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
 	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
+	DBWitness       common.Address `json:"dbWitness" gencodec:"required"` // The address of the db witness that proposed the block
 }
 
 type Block struct {
