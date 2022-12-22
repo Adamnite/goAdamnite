@@ -5,12 +5,26 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
+
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/common"
 )
 
 const (
 	// DefaultPageSize is the linear memory page size.
 	defaultPageSize = 65536
+)
+
+type (
+	// CanTransferFunc is the signature of a transfer guard function
+	CanTransferFunc func(statedb.StateDB, common.Address, *big.Int) bool
+	// TransferFunc is the signature of a transfer function
+	TransferFunc func(statedb.StateDB, common.Address, common.Address, *big.Int)
+	// GetHashFunc returns the n'th block hash in the blockchain
+	// and is used by the BLOCKHASH EVM op code.
+	GetHashFunc func(uint64) common.Hash
 )
 
 var LE = binary.LittleEndian
@@ -49,6 +63,38 @@ type Machine struct {
 	callStack         []*Frame
 	stopSignal        bool
 	currentFrame      int
+	blockCtx		  BlockContext
+	txCtx			  TxContext
+	statedb    		  *statedb.StateDB
+}
+
+
+// BlockContext provides the EVM with auxiliary information. Once provided it shouldn't be modified. 
+type BlockContext struct {
+	// CanTransfer returns whether the account contains
+	// sufficient nite to transfer the value
+	CanTransfer CanTransferFunc
+	// Transfer transfers nite from one account to the other
+	Transfer TransferFunc
+	// GetHash returns the hash corresponding to n
+	GetHash GetHashFunc
+
+	// Block information
+	Coinbase    common.Address 
+	GasLimit    uint64
+	BlockNumber *big.Int
+	Time        *big.Int
+	Difficulty  *big.Int
+	BaseFee     *big.Int
+}
+
+
+// TxContext provides the EVM with information about a transaction.
+// All fields can change between transactions.
+type TxContext struct {
+	// Message information
+	Origin   common.Address
+	GasPrice *big.Int       
 }
 
 type VMConfig struct {
@@ -80,16 +126,6 @@ func getDefaultConfig() VMConfig {
 	}
 }
 
-type MemoryType interface {
-	to_string() string
-}
-type Type_int64 struct {
-	value int64
-}
-
-func (t Type_int64) to_string() string {
-	return fmt.Sprint(t.value)
-}
 
 func (m *Machine) step() {
 	if m.pointInCode < uint64(len(m.vmCode)) {
@@ -183,6 +219,54 @@ func initMemoryWithDataSection(module *Module, vm *Machine) {
 	}
 }
 
+func initVMState(machine *Machine) {
+	// Push the main frame
+	machine.currentFrame = 0
+	mainFrame := new(Frame)
+	mainFrame.Ip = 0
+	mainFrame.Continuation = -1
+	mainFrame.Code = machine.vmCode
+	mainFrame.CtrlStack = machine.controlBlockStack
+	mainFrame.Locals = machine.locals
+	machine.callStack = append(machine.callStack, mainFrame)
+
+	capacity := 20 * defaultPageSize
+	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
+	machine.locals = make([]uint64, 2)
+
+	// Initialize memory with things inside the data section
+	initMemoryWithDataSection(&machine.module, machine)
+}
+
+func newADVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, ch *ChainDataHandler, config* VMConfig) *Machine {
+	machine := new(Machine)
+	machine.statedb = statedb
+	machine.blockCtx = bc
+	machine.txCtx = txc
+	machine.chainHandler = *ch
+
+	if config != nil {
+		machine.config = *config
+	} else {
+		machine.config = getDefaultConfig()
+	}
+
+	return machine
+}
+
+
+func setCallCode(m* Machine, wasmBytes []byte, gas uint64) {
+	m.vmCode, m.controlBlockStack = parseBytes(wasmBytes)
+	m.gas = gas
+}
+
+func setCodeAndInit(m* Machine, wasmBytes []byte, gas uint64) {
+	m.vmCode, m.controlBlockStack = parseBytes(wasmBytes)
+	m.gas = gas
+	initVMState(m)
+}
+
+// This constructor is let for compatibility only and should be updated/removed
 func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
@@ -259,15 +343,14 @@ func (m *Machine) useGas(gas uint64) bool {
 	return true
 }
 
-// The caller of call2 has to pass in the function hash from the `inputData` field
-// The function identifier will be the first 4 bytes of the data and the remaining
-// will be considered as function parameters
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
 
 func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	panic(fmt.Errorf("virtual machine does not have a code getter setup"))
 }
+
+// Called when invoking specific function inside the contract
 
 func (m *Machine) call2(callBytes string) {
 
@@ -279,16 +362,6 @@ func (m *Machine) call2(callBytes string) {
 	if err != nil {
 		panic("Unable to parse bytes for call2")
 	}
-
-	// functionIdx, _, err := DecodeInt32(reader(bytes[0:]))
-
-	// if err != nil {
-	// 	panic("Error parsing function identifier for call2")
-	// }
-
-	// if int(functionIdx) > len(m.module.functionSection) {
-	// 	panic("Call2 - No function with such index exists")
-	// }
 
 	funcIdentifier := bytes[:16]
 

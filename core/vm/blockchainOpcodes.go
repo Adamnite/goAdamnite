@@ -53,3 +53,85 @@ func (op balance) doOp(m *Machine) error {
 	m.pointInCode++
 	return nil
 }
+
+type callerAddr struct {
+	gas uint64
+}
+
+func (op callerAddr) doOp(m* Machine) error {
+	m.pushToStack(m.chainHandler.getAddress())
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+
+	m.pointInCode++
+	return nil
+}
+
+type blocktimestamp struct {
+	gas uint64
+}
+
+func (op blocktimestamp) doOp(m *Machine) error {
+	m.pushToStack(m.blockCtx.Time) // Requires the right encoding
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+
+	m.pointInCode++
+	return nil
+}
+
+type dataSize struct {
+	gas uint64
+}
+
+func (op dataSize) doOp(m *Machine) error {
+}
+
+type valueOp struct {
+	gas uint64
+}
+
+func (op valueOp) doOp(m *Machine) error {
+
+}
+
+
+type gasPrice struct {
+	gas uint64
+}
+
+func (op gasPrice) doOp(m *Machine) error {
+
+}
+
+type codeSize struct {
+	gas uint64
+}
+
+func (op codeSize) doOp(m *Machine) error {
+}
+
+type getCode struct {
+	gas uint64
+}
+
+func (op getCode) doOp(m *Machine) error {
+}
+
+type copyCode struct {
+	gas uint64
+}
+
+func (op copyCode) doOp(m *Machine) error {
+}
+
+type getData struct {
+	gas uint64
+}
+
+func (op getData) doOp(m *Machine) error {
+}
+
