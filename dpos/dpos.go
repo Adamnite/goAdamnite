@@ -457,6 +457,10 @@ walk:
 			votes[sender] = vote
 			log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
+
+		case types.CONTRACT_TX:
+			state.SubBalance(sender, tx.Amount())
+			state.AddBalance(*tx.To(), tx.Amount())
 		default:
 			continue walk
 		}
