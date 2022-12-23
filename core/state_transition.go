@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
+	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for operation fee")
 )
 
 type StateTransition struct {
 	msg        Message
-	gas        uint64
-	gasPrice   *big.Int
+	ate        uint64
+	atePrice   *big.Int
 	initialGas uint64
 	value      *big.Int
 	data       []byte
@@ -29,8 +29,8 @@ type Message interface {
 	//FromFrontier() (common.Address, error)
 	To() *common.Address
 
-	GasPrice() *big.Int
-	Gas() uint64
+	AtePrice() *big.Int
+	Ate() uint64
 	Value() *big.Int
 
 	Nonce() uint64
@@ -82,13 +82,13 @@ func (st *StateTransition) buyGas() error {
 	return nil
 }
 
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
+func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bool, err error) {
 
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
 	contractCreation := msg.To() == nil
 
-	if err = st.useGas(gas); err != nil {
+	if err = st.useAte(gas); err != nil {
 		return nil, 0, false, err
 	}
 
@@ -100,7 +100,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = vm.Create(sender, st.data, st.gas, st.value)
+		ret, _, st.gas, vmerr = vm.Create(sender, st.data, st.ate, st.value)
 	} else {
 
 		// Increment the nonce for the next transaction
@@ -117,7 +117,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 
-	st.refundGas()
+	st.refundAte()
 
 	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
