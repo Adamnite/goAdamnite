@@ -16,7 +16,7 @@ type StateTransition struct {
 	msg        Message
 	ate        uint64
 	atePrice   *big.Int
-	initialGas uint64
+	initialAte uint64
 	value      *big.Int
 	data       []byte
 	state      vm.StateDB
@@ -42,7 +42,7 @@ func NewStateTransition(vm *vm.Machine, msg Message) *StateTransition {
 	return &StateTransition{
 		vm:       vm,
 		msg:      msg,
-		gasPrice: msg.GasPrice(),
+		atePrice: msg.AtePrice(),
 		value:    msg.Value(),
 		data:     msg.Data(),
 		state:    vm.StateDB,
@@ -70,14 +70,14 @@ func (st *StateTransition) useGas(amount uint64) error {
 	return nil
 }
 
-func (st *StateTransition) buyGas() error {
+func (st *StateTransition) buyAte() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
 	st.gas += st.msg.Gas()
 
-	st.initialGas = st.msg.Gas()
+	st.initialGas = st.msg.Ate()
 	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
@@ -88,7 +88,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 	sender := vm.AccountRef(msg.From())
 	contractCreation := msg.To() == nil
 
-	if err = st.useAte(gas); err != nil {
+	if err = st.useAte(ate); err != nil {
 		return nil, 0, false, err
 	}
 
@@ -119,19 +119,19 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 
 	st.refundAte()
 
-	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.ateUsed()), st.atePrice))
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 
-func (st *StateTransition) refundGas() {
+func (st *StateTransition) refundAte() {
 	// Apply refund counter, capped to half of the used gas.
 
-	refund := st.gasUsed() / 2
+	refund := st.ateUsed() / 2
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
 	}
-	st.gas += refund
+	st.ate += refund
 
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining)
@@ -140,5 +140,5 @@ func (st *StateTransition) refundGas() {
 
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
-	return st.initialGas - st.gas
+	return st.initialAte - st.ate
 }
