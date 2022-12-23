@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	StakingAmountWeight          = 15
-	BlockValidationPercentWeight = 20
-	VoterCountWeight             = 10
-	ElectedCountWeight           = 10
+	StakingAmountWeight          = 15 //%27.27...
+	BlockValidationPercentWeight = 20 //%49.09...
+	VoterCountWeight             = 10 //%18.18...
+	ElectedCountWeight           = 10 //%18.18...
 	prefixKeyOfDBWitnessPool     = "db-witnesspool-"
 	maxWitnessNumber             = 18
 )
