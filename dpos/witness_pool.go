@@ -10,6 +10,7 @@ import (
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/dpos/poh"
 	"github.com/adamnite/go-adamnite/params"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
@@ -454,7 +455,7 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 	for _, header := range headers {
 		number := header.Number.Uint64()
 
-		witness, err := ecrecover(header, witnesspool.sigcache)
+		witness, err := poh.Ecrecover(header, witnesspool.sigcache)
 		if err != nil {
 			return nil, err
 		}

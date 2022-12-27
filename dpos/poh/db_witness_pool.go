@@ -1,6 +1,8 @@
 package poh
 
 import (
+	"errors"
+	"io"
 	cmath "math"
 	"math/big"
 	"sort"
@@ -9,6 +11,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
@@ -21,6 +24,12 @@ const (
 	ElectedCountWeight           = 10 //%18.18...
 	prefixKeyOfDBWitnessPool     = "db-witnesspool-"
 	maxWitnessNumber             = 18
+
+	blockInterval       = 1
+	EpochBlockCount     = 162
+	inmemorySignatures  = 4096
+	checkpointInterval  = 1024
+	inmemoryWintessPool = 128
 )
 
 func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {
@@ -80,6 +89,30 @@ var WitnessList = []DBWitnessInfo{{
 			},
 		},
 	}}
+
+var (
+	// When a list of signers for a block is requested, errunknownblock is returned.
+	// This is not part of the local blockchain.
+	errUnknownBlock = errors.New("unknown block")
+
+	//If the timestamp of the block is lower than errInvalidTimestamp
+	//Timestamp of the previous block + minimum block period.
+	ErrInvalidTimestamp         = errors.New("invalid timestamp")
+	ErrWaitForPrevBlock         = errors.New("wait for last block arrived")
+	ErrApplyNextBlock           = errors.New("apply the next block")
+	ErrMismatchSignerAndWitness = errors.New("mismatch block signer and witness")
+	ErrInvalidWitness           = errors.New("invalid witness")
+	ErrInvalidApplyBlockTime    = errors.New("invalid time to apply the block")
+	ErrNilBlockHeader           = errors.New("nil block header returned")
+	ErrUnknownAncestor          = errors.New("unknown ancestor")
+	ErrInvalidVotingChain       = errors.New("invalid voting chain")
+)
+
+type PoHData struct {
+	Witnesses []types.Witness `json:"dbwitnesses"`
+
+	Votes map[common.Address]types.Voter `json:"dbvotes"`
+}
 
 type DBWitnessPool struct {
 	config      DBWitnessConfig
@@ -311,10 +344,161 @@ func GetDBWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db ada
 
 }
 
-func (wp *DBWitnessPool) saveWitnessPool(db adamnitedb.Database) error {
+func (wp *DBWitnessPool) SaveDBWitnessPool(db adamnitedb.Database) error {
 	blob, err := msgpack.Marshal(wp)
 	if err != nil {
 		return err
 	}
 	return db.Insert(append([]byte(prefixKeyOfDBWitnessPool), wp.Hash[:]...), blob)
+}
+
+func (wp *DBWitnessPool) IsVoted(voterAddr common.Address) bool {
+	return wp.Votes[voterAddr] != nil
+}
+func (wp *DBWitnessPool) copy() *DBWitnessPool {
+	cpy := &DBWitnessPool{
+		config:            wp.config,
+		sigcache:          wp.sigcache,
+		Number:            wp.Number,
+		Hash:              wp.Hash,
+		Witnesses:         wp.Witnesses,
+		Votes:             wp.Votes,
+		witnessCandidates: wp.witnessCandidates,
+	}
+	return cpy
+}
+
+func (wp *DBWitnessPool) DbWitnessPoolFromBlockHeader(headers []*types.BlockHeader) (*DBWitnessPool, error) {
+	if len(headers) == 0 {
+		return wp, nil
+	}
+	for i := 0; i < len(headers)-1; i++ {
+		if headers[i].Number.Uint64()+1 != headers[i+1].Number.Uint64() {
+			return nil, ErrInvalidVotingChain
+		}
+	}
+
+	if headers[0].Number.Uint64() != wp.Number+1 {
+		return nil, ErrInvalidVotingChain
+	}
+
+	witnesspool := wp.copy()
+	for _, header := range headers {
+		number := header.Number.Uint64()
+
+		witness, err := Ecrecover(header, witnesspool.sigcache)
+		if err != nil {
+			return nil, err
+		}
+		i := 0
+		for index, wp_witness := range wp.Witnesses {
+			println(index)
+			if wp_witness.GetAddress() == witness {
+				i++
+			}
+		}
+
+		if i == 0 {
+			return nil, ErrMismatchSignerAndWitness
+
+		}
+
+		pohData := PoHData{}
+		PohDataDecode(header.Extra, &pohData)
+		if number%EpochBlockCount == 0 {
+			if number > 0 {
+
+				witnesspool.Votes = make(map[common.Address]*types.Voter)
+				witnesspool.witnessCandidates = make([]types.Witness, 0)
+			}
+			witnesspool.Witnesses = pohData.Witnesses
+		}
+		votes := pohData.Votes
+		for sender, vote := range votes {
+
+			witnesspool.Votes[sender] = &types.Voter{
+				Address:       vote.Address,
+				StakingAmount: vote.StakingAmount,
+			}
+			count := 0
+			for _, wpCandidate := range witnesspool.witnessCandidates {
+				if wpCandidate.GetAddress() == vote.Address {
+					tmpVoters := append(wpCandidate.GetVoters(), types.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+					wpCandidate.SetVoters(tmpVoters)
+					count++
+				}
+			}
+
+			if count == 0 {
+				tmpVotes := make([]types.Voter, 0)
+				tmpVotes = append(tmpVotes, types.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+				tmpWitness := &types.WitnessImpl{
+					Address: sender,
+					Voters:  tmpVotes,
+				}
+				witnesspool.witnessCandidates = append(witnesspool.witnessCandidates, tmpWitness)
+			}
+
+		}
+
+	}
+
+	witnesspool.Number += uint64(len(headers))
+	witnesspool.Hash = headers[len(headers)-1].Hash()
+	return witnesspool, nil
+}
+
+func PohDataDecode(bytes []byte, data *PoHData) error {
+	return msgpack.Unmarshal(bytes, &data)
+}
+func PohDataEncode(poh PoHData) []byte {
+	bytes, _ := msgpack.Marshal(poh)
+	return bytes
+}
+func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (common.Address, error) {
+
+	// If the signature's already cached, return that
+	hash := header.Hash()
+	if address, known := sigcache.Get(hash); known {
+		return address.(common.Address), nil
+	}
+
+	signature := header.Extra
+
+	// Recover the public key and the Adamnite address
+	pubkey, err := crypto.Recover(SealHash(header).Bytes(), signature)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	signer := crypto.PubkeyByteToAddress(pubkey)
+
+	sigcache.Add(hash, signer)
+	return signer, nil
+}
+
+func SealHash(header *types.BlockHeader) (hash common.Hash) {
+	hasher := crypto.NewRipemd160State()
+	encodeSignHeader(hasher, header)
+	hasher.Sum(hash[:0])
+	return hash
+}
+
+func encodeSignHeader(w io.Writer, header *types.BlockHeader) {
+	err := msgpack.NewEncoder(w).Encode([]interface{}{
+		header.ParentHash,
+		header.Witness,
+		header.WitnessRoot,
+		header.CurrentEpoch,
+		header.Number,
+		header.Signature,
+		header.StateRoot,
+		header.Extra,
+		header.Time,
+		header.TransactionRoot,
+		header.DBWitness,
+	})
+	if err != nil {
+		panic("can't encode: " + err.Error())
+	}
 }
