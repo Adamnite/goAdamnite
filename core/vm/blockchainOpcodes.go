@@ -2,14 +2,10 @@ package vm
 
 import (
 	"math/big"
+
+	"github.com/adamnite/go-adamnite/common"
 )
 
-type ChainDataHandler interface {
-	getAddress() []byte
-	getBalance([]byte) big.Int //1nite takes up 67 bits(ish), 2 uint64s get pushed to stack. (arbitrary limit. 2^128 is hopefully enough total storage of value)
-	getCallerAddress() []byte
-	getBlockTimestamp() []byte
-}
 type opAddress struct {
 	gas uint64
 }
@@ -17,7 +13,7 @@ type opAddress struct {
 func (op opAddress) doOp(m *Machine) error {
 	//addresses are 160 bit, so we need to take the address of the contract, split it into 2 uint64s and a uint32
 	// addressBytes := m.chainHandler.getAddress()
-	addressBytes := m.chainHandler.getAddress()
+	addressBytes := m.contract.Address.Bytes()
 	addressInts := addressToInts(addressBytes)
 	m.pushToStack(addressInts[0])
 	m.pushToStack(addressInts[1])
@@ -42,7 +38,9 @@ func (op balance) doOp(m *Machine) error {
 	addressUints[1] = m.popFromStack()
 	addressUints[0] = m.popFromStack()
 
-	balanceInts := balanceToArray(m.chainHandler.getBalance(uintsArrayToAddress(addressUints)))
+	addr := uintsArrayToAddress(addressUints)
+	value := m.statedb.GetBalance(common.BytesToAddress(addr))
+	balanceInts := balanceToArray(*value)
 	for i := range balanceInts {
 		m.pushToStack(balanceInts[i])
 	}
@@ -59,7 +57,11 @@ type callerAddr struct {
 }
 
 func (op callerAddr) doOp(m* Machine) error {
-	m.pushToStack(m.chainHandler.getAddress())
+	addressBytes := m.contract.CallerAddress.Bytes()
+	addressInts := addressToInts(addressBytes)
+	m.pushToStack(addressInts[0])
+	m.pushToStack(addressInts[1])
+	m.pushToStack(addressInts[2])
 
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
@@ -74,7 +76,8 @@ type blocktimestamp struct {
 }
 
 func (op blocktimestamp) doOp(m *Machine) error {
-	m.pushToStack(m.blockCtx.Time) // Requires the right encoding
+	ts := EncodeUint64(uint64(m.blockCtx.Time.Int64()))
+	m.pushToStack(ts)
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}
@@ -88,6 +91,15 @@ type dataSize struct {
 }
 
 func (op dataSize) doOp(m *Machine) error {
+	size := uint64(len(m.contract.Input))
+
+	m.pushToStack(EncodeUint64(size))
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+
+	m.pointInCode++
+	return nil
 }
 
 type valueOp struct {
@@ -95,7 +107,13 @@ type valueOp struct {
 }
 
 func (op valueOp) doOp(m *Machine) error {
+	v := m.contract.Value
 
+	m.pushToStack(balanceToArray(*v))
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 
@@ -104,7 +122,14 @@ type gasPrice struct {
 }
 
 func (op gasPrice) doOp(m *Machine) error {
+	v := m.txCtx.GasPrice
 
+	m.pushToStack(balanceToArray(*v))
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+	return nil
 }
 
 type codeSize struct {
@@ -112,6 +137,7 @@ type codeSize struct {
 }
 
 func (op codeSize) doOp(m *Machine) error {
+	return nil
 }
 
 type getCode struct {
@@ -119,6 +145,7 @@ type getCode struct {
 }
 
 func (op getCode) doOp(m *Machine) error {
+	return nil
 }
 
 type copyCode struct {
@@ -126,6 +153,7 @@ type copyCode struct {
 }
 
 func (op copyCode) doOp(m *Machine) error {
+	return nil
 }
 
 type getData struct {
@@ -133,5 +161,13 @@ type getData struct {
 }
 
 func (op getData) doOp(m *Machine) error {
+	data := m.contract.Input
+	m.pushToStack(data)
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
+
+	m.pointInCode++
+	return nil
 }
 

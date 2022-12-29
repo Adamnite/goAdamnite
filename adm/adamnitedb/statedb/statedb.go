@@ -401,3 +401,24 @@ func (s *StateDB) GetBalance(addr common.Address) *big.Int {
 	}
 	return common.Big0
 }
+
+func (s *StateDB) GetNonce(addr common.Address) uint64 {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Nonce()
+	}
+	return 0
+}
+
+// Exist reports whether the given account exists in state.
+func (s *StateDB) Exist(addr common.Address) bool {
+	return s.getStateObject(addr) != nil
+}
+
+
+func (s *StateDB) CreateAccount(addr common.Address) {
+	newObj, prev := s.createStateObject(addr)
+	if prev != nil {
+		newObj.setBalance(prev.data.Balance)
+	}
+}

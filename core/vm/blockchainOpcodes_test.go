@@ -17,7 +17,6 @@ func TestOpAddress(t *testing.T) {
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	spoofer := newBCSpoofer()
 	spoofer.contractAddress = testAddress
-	vm.chainHandler = spoofer
 
 	testCode := []byte{Op_address}
 	module := *decode(wasmBytes)
@@ -41,7 +40,6 @@ func TestOpBalance(t *testing.T) {
 	spoofer := newBCSpoofer()
 	spoofer.contractAddress = testAddress
 	spoofer.setBalanceFromByteAddress(testAddress, *testBalance)
-	vm.chainHandler = spoofer
 
 	testCode := []byte{
 		Op_address,

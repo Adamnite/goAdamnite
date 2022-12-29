@@ -12,7 +12,8 @@ import (
 func Test_OpBlock(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ab28080800001ac8080800001017f410028020441106b2200410036020c024041010d002000200028020c41136c36020c0b200028020c0b")
 
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	_  = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	module := *decode(wasmBytes)
 
 	expectedModuleCode := []byte{
 		Op_i32_const, 0x0,
@@ -39,12 +40,13 @@ func Test_OpBlock(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 }
 
 func Test_SingleBlock(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160027f7f0003020100070a010661646454776f00000a0d010b000240410a410f6a1a0b0b000a046e616d650203010000")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	module := *decode(wasmBytes)
 	
 	expectedModuleCode := []byte{
 		Op_block, Op_empty,
@@ -56,7 +58,7 @@ func Test_SingleBlock(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 	vm.run()
 }
 
@@ -363,7 +365,8 @@ func Test_Call(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expected, vm.module.codeSection[0].body)
+	module := *decode(wasmBytes)
+	assert.Equal(t, expected, module.codeSection[0].body)
 	vm.addLocal(float64(5))
 	vm.callStack[0].Locals = vm.locals
 	vm.run()
@@ -475,7 +478,8 @@ func Test_block(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
+	module := *decode(wasmBytes)
 	vm.run()
-	assert.Equal(t, expected, vm.module.codeSection[1].body)
+	assert.Equal(t, expected, module.codeSection[1].body)
 	assert.Equal(t, vm.popFromStack(), uint64(150))
 }
