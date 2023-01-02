@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -14,129 +13,10 @@ import (
 	"github.com/adamnite/go-adamnite/params"
 )
 
-const (
-	// DefaultPageSize is the linear memory page size.
-	defaultPageSize = 65536
-)
-
-type (
-	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(*statedb.StateDB, common.Address, *big.Int) bool
-	// TransferFunc is the signature of a transfer function
-	TransferFunc func(*statedb.StateDB, common.Address, common.Address, *big.Int)
-	// GetHashFunc returns the n'th block hash in the blockchain
-	// and is used by the BLOCKHASH EVM op code.
-	GetHashFunc func(uint64) common.Hash
-)
-
-var LE = binary.LittleEndian
-
-type VirtualMachine interface {
-	//functions that will be fully implemented later
-	step()
-	run() error
-
-	do()
-	outputStack() string
-}
-
-type ControlBlock struct {
-	code      []OperationCommon
-	startAt   uint64
-	elseAt    uint64
-	endAt     uint64
-	op        byte // Contains the value of the opcode that triggered this
-	signature byte
-	index     uint32
-}
-type Machine struct {
-	VirtualMachine
-	pointInCode       uint64
-	contract		  Contract
-	vmCode            []OperationCommon
-	vmStack           []uint64
-	contractStorage   []uint64       //the storage of the smart contracts data.
-	vmMemory          []byte         //i believe the agreed on stack size was
-	locals            []uint64       //local vals that the VM code can call
-	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
-	config            VMConfig
-	gas               uint64 // The allocated gas for the code execution
-	callStack         []*Frame
-	stopSignal        bool
-	currentFrame      int
-	blockCtx		  BlockContext
-	txCtx			  TxContext
-	statedb    		  *statedb.StateDB
-	chainConfig 	  *params.ChainConfig
-}
-
-
-// BlockContext provides the EVM with auxiliary information. Once provided it shouldn't be modified. 
-type BlockContext struct {
-	// CanTransfer returns whether the account contains
-	// sufficient nite to transfer the value
-	CanTransfer CanTransferFunc
-	// Transfer transfers nite from one account to the other
-	Transfer TransferFunc
-	// GetHash returns the hash corresponding to n
-	GetHash GetHashFunc
-
-	// Block information
-	Coinbase    common.Address 
-	GasLimit    uint64
-	BlockNumber *big.Int
-	Time        *big.Int
-	Difficulty  *big.Int
-	BaseFee     *big.Int
-}
-
-
-// TxContext provides the EVM with information about a transaction.
-// All fields can change between transactions.
-type TxContext struct {
-	// Message information
-	Origin   common.Address
-	GasPrice *big.Int       
-}
-
-type VMConfig struct {
-	maxCallStackDepth        uint
-	gasLimit                 uint64
-	returnOnGasLimitExceeded bool
-	debugStack               bool // should it output the stack every operation
-	maxCodeSize              uint64
-	codeGetter               GetCode
-	codeBytesGetter          func(uri string, hash string) ([]byte, error)
-	uri						 string
-}
-
-type Frame struct {
-	Code         []OperationCommon
-	Regs         []int64
-	Locals       []uint64
-	Ip           uint64
-	ReturnReg    int
-	Continuation int64
-	CtrlStack    []ControlBlock
-}
-
-// Contract represents an adm contract in the state database. It contains
-// the contract methods, calling arguments.
-type Contract struct {
-	Address common.Address   //the Address of the contract
-	Value 	*big.Int
-	CallerAddress common.Address
-	Code 	[]CodeStored
-	Storage []uint64
-	Input   []byte // The bytes from `input` field of the transaction
-	Gas 	uint64
-}
-
 func NewContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
 }
-
 
 func GetCodeBytes2(uri string, hash string) ([]byte, error) {
 	code, err := getMethodCode(uri, hash)
@@ -146,7 +26,6 @@ func GetCodeBytes2(uri string, hash string) ([]byte, error) {
 	return code.CodeBytes, nil
 }
 
-
 func getDefaultConfig() VMConfig {
 	return VMConfig{
 		maxCallStackDepth:        1024,
@@ -154,11 +33,10 @@ func getDefaultConfig() VMConfig {
 		returnOnGasLimitExceeded: true,
 		debugStack:               false,
 		codeGetter:               defaultCodeGetter,
-		codeBytesGetter: 		  GetCodeBytes2,
-		uri:					  "https//default.uri",
+		codeBytesGetter:          GetCodeBytes2,
+		uri:                      "https//default.uri",
 	}
 }
-
 
 func (m *Machine) step() {
 	if m.pointInCode < uint64(len(m.vmCode)) {
@@ -271,7 +149,7 @@ func initVMState(machine *Machine) {
 	// initMemoryWithDataSection(&machine.module, machine)
 }
 
-func newVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config* VMConfig, chainConfig* params.ChainConfig) *Machine {
+func newVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
 	machine := new(Machine)
 	machine.statedb = statedb
 	machine.blockCtx = bc
@@ -287,13 +165,12 @@ func newVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config* VMC
 	return machine
 }
 
-
-func setCallCode(m* Machine, funcBodyBytes []byte, gas uint64) {
+func setCallCode(m *Machine, funcBodyBytes []byte, gas uint64) {
 	m.vmCode, m.controlBlockStack = parseBytes(funcBodyBytes)
 	m.gas = gas
 }
 
-func setCodeAndInit(m* Machine, funcBodyBytes []byte, gas uint64) {
+func setCodeAndInit(m *Machine, funcBodyBytes []byte, gas uint64) {
 	m.vmCode, m.controlBlockStack = parseBytes(funcBodyBytes)
 	m.gas = gas
 	initVMState(m)
@@ -375,7 +252,6 @@ func (m *Machine) useGas(gas uint64) bool {
 	m.gas -= gas
 	return true
 }
-
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
 
@@ -463,12 +339,11 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 	return m.run()
 }
 
-
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (m* Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
+func (m *Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if m.currentFrame > int(m.config.maxCallStackDepth) {
 		return nil, gas, ErrDepth
 	}
@@ -484,7 +359,7 @@ func (m* Machine) Call(caller common.Address, addr common.Address, input []byte,
 	snapshot := m.statedb.Snapshot()
 	m.blockCtx.Transfer(m.statedb, caller, addr, value)
 
-	// Retrieve the method code and execute it 
+	// Retrieve the method code and execute it
 	if len(input) == 0 {
 		return nil, gas, nil
 	}
@@ -504,7 +379,6 @@ func (m* Machine) Call(caller common.Address, addr common.Address, input []byte,
 	}
 	return nil, m.gas, err
 }
-
 
 func getModuleLen(module *Module) uint64 {
 	le := uint64(0)
@@ -531,7 +405,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	}
 
 	m.statedb.SetNonce(caller, nonce+1)
- 
+
 	// Ensure there's no existing contract already at the designated address
 	contractData, err := getContractData(m.config.uri, address.String())
 
@@ -539,7 +413,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 		return nil, address, gas, err
 	}
 
-	if m.statedb.GetNonce(address) != 0 || contractData.Address != "" {
+	if m.statedb.GetNonce(address) != 0 || contractData.Address.String() != "" {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 

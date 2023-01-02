@@ -137,12 +137,15 @@ func flipEndian(b []byte) []byte {
 	return b
 }
 
-func contractsEqual(a ContractData, b ContractData) bool {
+func contractsEqual(a Contract, b Contract) bool {
 	if a.Address != b.Address {
 		return false
 	}
-	for i := range a.Methods {
-		if a.Methods[i] != b.Methods[i] {
+
+	for i := range a.Code {
+		hashA, err := a.Code[i].hash()
+		hashB, errB := b.Code[i].hash()
+		if err != nil || errB != nil || !bytes.Equal(hashA, hashB) {
 			return false
 		}
 	}
@@ -183,7 +186,7 @@ func getMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 	return &code, nil
 }
 
-func getContractData(apiEndpoint string, contractAddress string) (*ContractData, error) {
+func getContractData(apiEndpoint string, contractAddress string) (*Contract, error) {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
 		contractApiString = contractApiString[:len(contractApiString)-1]
@@ -200,7 +203,7 @@ func getContractData(apiEndpoint string, contractAddress string) (*ContractData,
 		return nil, err
 	}
 	//hopefully you know if things went wrong by here!
-	var contractData ContractData
+	var contractData Contract
 	err = msgpack.Unmarshal(byteResponse, &contractData)
 	if err != nil {
 		fmt.Println(err)
@@ -248,7 +251,7 @@ func uploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	return hashInBytes, nil
 }
 
-func uploadContract(apiEndpoint string, cdata ContractData) error {
+func uploadContract(apiEndpoint string, cdata Contract) error {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
 		contractApiString = contractApiString[:len(contractApiString)-1]
@@ -260,7 +263,7 @@ func uploadContract(apiEndpoint string, cdata ContractData) error {
 		return err
 	}
 
-	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address, bytes.NewReader(packedData))
+	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address.String(), bytes.NewReader(packedData))
 	if err != nil {
 		fmt.Println(err)
 		return err

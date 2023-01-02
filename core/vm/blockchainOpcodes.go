@@ -1,8 +1,6 @@
 package vm
 
 import (
-	"math/big"
-
 	"github.com/adamnite/go-adamnite/common"
 )
 
@@ -56,7 +54,7 @@ type callerAddr struct {
 	gas uint64
 }
 
-func (op callerAddr) doOp(m* Machine) error {
+func (op callerAddr) doOp(m *Machine) error {
 	addressBytes := m.contract.CallerAddress.Bytes()
 	addressInts := addressToInts(addressBytes)
 	m.pushToStack(addressInts[0])
@@ -116,7 +114,6 @@ func (op valueOp) doOp(m *Machine) error {
 	return nil
 }
 
-
 type gasPrice struct {
 	gas uint64
 }
@@ -170,4 +167,3 @@ func (op getData) doOp(m *Machine) error {
 	m.pointInCode++
 	return nil
 }
-
