@@ -44,7 +44,7 @@ func (spoof *DBSpoofer) addSpoofedCode(hash string, funcCode CodeStored) {
 }
 func (spoof *DBSpoofer) addModuleToSpoofedCode(mod Module) (error, [][]byte) {
 	hashes := [][]byte{}
-	for x := range mod.typeSection {
+	for x := range mod.functionSection {
 		code := CodeStored{
 			CodeParams:  mod.typeSection[x].params,
 			CodeResults: mod.typeSection[x].results,

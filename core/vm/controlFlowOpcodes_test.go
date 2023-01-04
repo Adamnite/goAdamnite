@@ -4,8 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"math/big"
 	"testing"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -369,38 +371,72 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, expected, module.codeSection[0].body)
 	vm.addLocal(float64(5))
 	vm.callStack[0].Locals = vm.locals
+
+	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
+	var gas = big.NewInt(100)
+	contract := NewContract(callerAddr, gas, module.codeSection[0].body, 100)
+
+	contract.Code = []CodeStored{
+		CodeStored{
+			CodeParams: module.typeSection[0].params,
+			CodeResults: module.typeSection[0].results,
+			CodeBytes: module.codeSection[0].body,
+		},
+	}
+
+	vm.contract = *contract
+
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 	vm.run()
-	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
+
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
 	vm.addLocal(float64(8))
 	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
 	vm.run()
+
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
 	vm.addLocal(float64(12))
 	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
 	vm.run()
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
 	vm.addLocal(float64(14))
 	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
 	vm.run()
+
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
 	vm.addLocal(float64(25))
 	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
 	vm.run()
+
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(15511210043330985984000000))
 
 	//floating math only holds accurate to 27!
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
 	vm.addLocal(float64(27))
 	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
 	vm.run()
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(10888869450418352160768000000))
 }
