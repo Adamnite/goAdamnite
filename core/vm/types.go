@@ -28,8 +28,7 @@ type (
 )
 
 type VirtualMachine interface {
-	//functions that will be fully implemented later
-	step()
+	// step()
 	run() error
 
 	do()

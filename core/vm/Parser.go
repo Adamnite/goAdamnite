@@ -729,11 +729,11 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_get_code:
 			ansOps = append(ansOps, getCode{GasQuickStep})
 			pointInBytes++
-		
+
 		case Op_copy_code:
 			ansOps = append(ansOps, copyCode{GasQuickStep})
 			pointInBytes++
-	
+
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

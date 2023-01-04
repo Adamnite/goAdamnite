@@ -23,6 +23,10 @@ type DBSpoofer struct {
 	storedFunctions map[string]CodeStored //hash=>functions
 }
 
+func newDBSpoofer() DBSpoofer {
+	return DBSpoofer{map[string]CodeStored{}}
+}
+
 func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
 	ops, blocks := parseBytes(localCode.CodeBytes)
@@ -38,9 +42,36 @@ func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, [
 func (spoof *DBSpoofer) addSpoofedCode(hash string, funcCode CodeStored) {
 	spoof.storedFunctions[hash] = funcCode
 }
+func (spoof *DBSpoofer) addModuleToSpoofedCode(mod Module) (error, [][]byte) {
+	hashes := [][]byte{}
+	for x := range mod.typeSection {
+		code := CodeStored{
+			CodeParams:  mod.typeSection[x].params,
+			CodeResults: mod.typeSection[x].results,
+			CodeBytes:   mod.codeSection[x].body,
+		}
+		localHash, err := code.hash()
+
+		if err != nil {
+			return err, nil
+		}
+		spoof.addSpoofedCode(hex.EncodeToString(localHash), code)
+		hashes = append(hashes, localHash)
+	}
+	return nil, hashes
+}
 
 func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {
 	return spoof.storedFunctions[hash].CodeBytes, nil
+}
+
+func (spoof *DBSpoofer) getCode2CallName(hash string, inputs []uint64) string {
+	ansString := hash //function identifier
+	cs := spoof.storedFunctions[hash]
+	for i := 0; i < len(cs.CodeParams); i++ {
+		ansString += "42" + (hex.EncodeToString(LE.AppendUint64([]byte{}, inputs[i]))[2:])
+	} //TODO: write this properly to actually take the param type into account.
+	return ansString
 }
 
 type BCSpoofer struct {

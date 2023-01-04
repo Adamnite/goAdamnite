@@ -39,12 +39,11 @@ func getDefaultConfig() VMConfig {
 }
 
 func (m *Machine) step() {
+	//DANGER!!! Untested! No longer same as an individual run step!
 	if m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
 		op.doOp(m)
-		if m.config.debugStack {
-			println(m.outputStack())
-		}
+		m.debugOutputStack()
 	}
 }
 
@@ -69,9 +68,7 @@ func (m *Machine) run() error {
 			if m.stopSignal {
 				m.stopSignal = false
 			}
-			if m.config.debugStack {
-				println(m.outputStack())
-			}
+			m.debugOutputStack()
 
 			if err != nil {
 				return err
@@ -89,6 +86,13 @@ func (m *Machine) run() error {
 		m.currentFrame--
 	}
 	return nil
+}
+
+func (m *Machine) debugOutputStack() {
+	//removing repeated code with a function that outputs the stack if debug is set to True
+	if m.config.debugStack {
+		fmt.Println(m.outputStack())
+	}
 }
 
 func (m *Machine) outputStack() string {
@@ -260,15 +264,21 @@ func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlB
 }
 
 // Called when invoking specific function inside the contract
-func (m *Machine) call2(callBytes string, gas uint64) error {
-
-	// Structure: 0x[16 bytes func identifer][param1..][param2...][param3]
-	// Note: The callbytes is following the wasm encoding scheme.
-
-	bytes, err := hex.DecodeString(callBytes)
-
-	if err != nil {
-		panic("Unable to parse bytes for call2")
+func (m *Machine) call2(callBytes interface{}, gas uint64) error {
+	// Structure: 0x[16 bytes func identifier][param1..][param2...][param3]
+	// Note: The callbytes is following the wasm encoding scheme. can be passed as string or byte array
+	var bytes []byte
+	switch v := callBytes.(type) {
+	case string:
+		var err error
+		bytes, err = hex.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("unable to parse bytes from string for call2")
+		}
+	case []byte:
+		bytes = v
+	default:
+		return fmt.Errorf("unable to parse bytes from %v for call2", v)
 	}
 
 	funcIdentifier := bytes[:16]
@@ -276,7 +286,7 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 	funcTypes, funcCode, controlStack := m.config.codeGetter(funcIdentifier)
 
 	var params []uint64
-
+	//get the params from the bytes passed.
 	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
 
 		valTypeByte := bytes[i]
@@ -286,7 +296,7 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 			paramValue, count, err := DecodeInt32(reader(bytes[i+1:]))
 
 			if err != nil {
-				panic("Call2 - Error parsing function params i32")
+				return fmt.Errorf("call2 - Error parsing function params i32")
 			}
 
 			params = append(params, uint64(paramValue))
@@ -297,7 +307,7 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 			params = append(params, uint64(paramValue))
 
 			if err != nil {
-				panic("Call2 - Error parsing function params i64")
+				return fmt.Errorf("call2 - Error parsing function params i64")
 			}
 			i += count
 
@@ -313,8 +323,8 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 			params = append(params, num)
 			i += 9
 		default:
-			print("Parsed valtype %v", valTypeByte)
-			panic("No such type known")
+			println("Parsed valtype %v", valTypeByte)
+			return fmt.Errorf("parsed valtype %v, no such known type", valTypeByte)
 		}
 	}
 
@@ -326,8 +336,7 @@ func (m *Machine) call2(callBytes string, gas uint64) error {
 	}
 
 	// Maybe Check the types of each params if they matches signature?
-	callbytes, _ := hex.DecodeString(callBytes)
-	setCodeAndInit(m, callbytes, gas)
+	setCodeAndInit(m, bytes, gas)
 
 	m.locals = params
 	m.vmCode, m.controlBlockStack = funcCode, controlStack

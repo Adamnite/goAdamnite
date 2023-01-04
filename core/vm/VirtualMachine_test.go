@@ -47,14 +47,16 @@ func TestCall2(t *testing.T) {
 	}
 	vm.config.codeGetter = getCodeMock
 
-	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102" // 0x00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102"
+	// 00ee919d00ee919d00ee919d00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 	vm.call2(callCode, 10000)
 	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 
 	vm.pointInCode = 0
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
-	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102"
+	// 01ee919d01ee919d01ee919d01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
 	vm.call2(callCode2, 1000)
 
@@ -76,14 +78,13 @@ func TestDataSection(t *testing.T) {
 	module := *decode(wasmBytes)
 	initMemoryWithDataSection(&module, vm)
 
-
 	offset := module.dataSection[0].offsetExpression.data[0]
-	size := len(module.dataSection[0].init) 
+	size := len(module.dataSection[0].init)
 
 	// Read the data from data section
-	
-	s := string(vm.vmMemory[offset: size + int(offset)])
-	
+
+	s := string(vm.vmMemory[offset : size+int(offset)])
+
 	fmt.Printf("s: %v\n", s)
 	assert.Equal(t, "Hello World\x00", s)
 }
@@ -96,17 +97,16 @@ func TestMultiDataSection(t *testing.T) {
 	initMemoryWithDataSection(&module, vm)
 
 	offset := module.dataSection[0].offsetExpression.data[0]
-	size := len(module.dataSection[0].init) 
+	size := len(module.dataSection[0].init)
 
 	offset2 := module.dataSection[1].offsetExpression.data[0]
-	size2 := len(module.dataSection[1].init) 
+	size2 := len(module.dataSection[1].init)
 
 	// Read the data from data section
-	
-	s := string(vm.vmMemory[offset: size + int(offset)])
-	s += string(vm.vmMemory[offset2: size2 + int(offset2)])
-	
+
+	s := string(vm.vmMemory[offset : size+int(offset)])
+	s += string(vm.vmMemory[offset2 : size2+int(offset2)])
+
 	fmt.Printf("s: %v\n", s)
 	assert.Equal(t, "Hello\x00World\x00", s)
 }
-
