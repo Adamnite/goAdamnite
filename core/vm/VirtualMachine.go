@@ -336,7 +336,11 @@ func (m *Machine) call2(callBytes interface{}, gas uint64) error {
 	}
 
 	// Maybe Check the types of each params if they matches signature?
-	setCodeAndInit(m, bytes, gas)
+	//shouldn't this be using the function body???
+
+	// setCodeAndInit(m, bytes, gas)
+	m.gas = gas
+	initVMState(m)
 
 	m.locals = params
 	m.vmCode, m.controlBlockStack = funcCode, controlStack

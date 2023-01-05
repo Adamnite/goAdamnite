@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -42,7 +43,41 @@ func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, [
 func (spoof *DBSpoofer) addSpoofedCode(hash string, funcCode CodeStored) {
 	spoof.storedFunctions[hash] = funcCode
 }
-func (spoof *DBSpoofer) addModuleToSpoofedCode(mod Module) (error, [][]byte) {
+func (spoof *DBSpoofer) addModuleToSpoofedCode(input interface{}) (error, [][]byte) {
+	var mod Module
+	switch v := input.(type) {
+	case Module:
+		mod = v
+	case string:
+		hexBinary, _ := hex.DecodeString(v)
+		mod = *decode(hexBinary)
+	case []byte:
+		mod = *decode(v)
+	case []string:
+		hashes := [][]byte{}
+		for i := 0; i < len(v); i++ {
+			err, foo := spoof.addModuleToSpoofedCode(v[i])
+			if err != nil {
+				return err, nil
+			}
+			for i := 0; i < len(foo); i++ {
+				hashes = append(hashes, foo[i])
+			}
+		}
+		return nil, hashes
+	case [][]byte:
+		hashes := [][]byte{}
+		for i := 0; i < len(v); i++ {
+			err, foo := spoof.addModuleToSpoofedCode(v[i])
+			if err != nil {
+				return err, nil
+			}
+			for i := 0; i < len(foo); i++ {
+				hashes = append(hashes, foo[i])
+			}
+		}
+		return nil, hashes
+	}
 	hashes := [][]byte{}
 	for x := range mod.functionSection {
 		code := CodeStored{
@@ -110,27 +145,38 @@ func (s BCSpoofer) getBlockTimestamp() []byte {
 
 //GENERALLY USEFUL
 
-func addressToInts(address []byte) []uint64 {
+func addressToInts(address interface{}) []uint64 {
 	//if an empty address is returned, it should take the same amount of space as a full one.
 	//converts and address to an array of uint64s, that way it can be pushed to the stack with more ease
-	ans := []uint64{0, 0, 0}
-	for len(address) <= 24 { //192 bits
-		address = append(address, 0)
+	ans := []uint64{0, 0, 0, 0}
+	var addressBytes []byte
+	switch v := address.(type) {
+	case common.Address:
+		addressBytes = v.Bytes()
+	case []byte:
+		if len(v) != common.AddressLength { //224 bits
+			return addressToInts(common.BytesToAddress(v))
+		}
+		addressBytes = v
 	}
-	ans[0] = LE.Uint64(address[:8]) //yes, this could be a loop, but its more annoying that way.
-	address = address[8:]
-	ans[1] = LE.Uint64(address[:8])
-	address = address[8:]
-	ans[2] = LE.Uint64(address[:8])
+	for i := 0; i < 8-common.AddressLength%8; i++ {
+		//we've made sure that the address is the correct address length.
+		//Now, we need to make sure that it is divisible into uint64s.
+		addressBytes = append(addressBytes, 0)
+	}
+	for i := 0; len(addressBytes) >= 8; i++ {
+		ans[i] = LE.Uint64(addressBytes[:8])
+		addressBytes = addressBytes[8:]
+	}
+
 	return ans
 }
 func uintsArrayToAddress(input []uint64) []byte {
 	ans := []byte{}
-	ans = LE.AppendUint64(ans, input[0])
-	ans = LE.AppendUint64(ans, input[1])
-	ans = LE.AppendUint64(ans, input[2])
-	ans = ans[:20]
-	return ans
+	for i := 0; i < len(input); i++ {
+		ans = LE.AppendUint64(ans, input[i])
+	}
+	return ans[:common.AddressLength]
 }
 func balanceToArray(input big.Int) []uint64 {
 	//takes a big int and returns an array of LE formatted uint64s
@@ -314,7 +360,7 @@ func uploadContract(apiEndpoint string, cdata Contract) error {
 func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
 	functionsToUpload := []CodeStored{}
 	hashes := [][]byte{}
-	for x := range mod.typeSection {
+	for x := range mod.functionSection {
 		code := CodeStored{
 			CodeParams:  mod.typeSection[x].params,
 			CodeResults: mod.typeSection[x].results,

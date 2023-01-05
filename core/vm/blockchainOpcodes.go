@@ -9,13 +9,13 @@ type opAddress struct {
 }
 
 func (op opAddress) doOp(m *Machine) error {
-	//addresses are 160 bit, so we need to take the address of the contract, split it into 2 uint64s and a uint32
+	//addresses are 224 bit, so we need to take the address of the contract, split it into 3 uint64s
 	// addressBytes := m.chainHandler.getAddress()
 	addressBytes := m.contract.Address.Bytes()
 	addressInts := addressToInts(addressBytes)
-	m.pushToStack(addressInts[0])
-	m.pushToStack(addressInts[1])
-	m.pushToStack(addressInts[2])
+	for i := 0; i < len(addressInts); i++ {
+		m.pushToStack(addressInts[i])
+	}
 
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
@@ -30,9 +30,10 @@ type balance struct {
 }
 
 func (op balance) doOp(m *Machine) error {
-	//pops address off stack (3 uint64s), pushes balance as 2 uint64s to the stack.
-	addressUints := make([]uint64, 3)
-	addressUints[2] = m.popFromStack() //needs to be added in reverse order...
+	//pops address off stack (4 uint64s), pushes balance as 2 uint64s to the stack.
+	addressUints := make([]uint64, 4)
+	addressUints[3] = m.popFromStack() //needs to be added in reverse order...
+	addressUints[2] = m.popFromStack()
 	addressUints[1] = m.popFromStack()
 	addressUints[0] = m.popFromStack()
 
@@ -57,9 +58,9 @@ type callerAddr struct {
 func (op callerAddr) doOp(m *Machine) error {
 	addressBytes := m.contract.CallerAddress.Bytes()
 	addressInts := addressToInts(addressBytes)
-	m.pushToStack(addressInts[0])
-	m.pushToStack(addressInts[1])
-	m.pushToStack(addressInts[2])
+	for i := 0; i < len(addressInts); i++ {
+		m.pushToStack(addressInts[i])
+	}
 
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
