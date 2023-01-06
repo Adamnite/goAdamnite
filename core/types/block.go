@@ -45,7 +45,7 @@ type Body struct {
 
 //// TODO: Implement structure for creating a new block, create a new block with
 // header data, proper encoding of data, basic header checks (for example, check if the block number is too high),
-// decoding of data, and functions to retreive various header data and hashes.
+// decoding of data, and functions to retrieve various header data and hashes.
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.

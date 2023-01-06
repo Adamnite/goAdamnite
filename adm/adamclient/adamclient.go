@@ -204,20 +204,20 @@ func (ac *Client) CodeAt(ctx context.Context, account common.Address, blockNumbe
 	return result, err
 }
 
-// PendingCodeAt returns the contract code of the given account in the pending state.
 func (ac *Client) PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error) {
 	var result hexutil.Big
 	err := ac.c.CallContext(ctx, &result, "adm_getBalance", account, "pending")
 	return (*big.Int)(&result), err
 }
 
-// PendingTransactionCount returns the total number of transactions in the pending state.
+// PendingCodeAt returns the contract code of the given account in the pending state.
 func (ac *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
 	var result hexutil.Bytes
 	err := ac.c.CallContext(ctx, &result, "adm_getCode", account, "pending")
 	return result, err
 }
 
+// PendingTransactionCount returns the total number of transactions in the pending state.
 func (ac *Client) PendingTransactionCount(ctx context.Context) (uint, error) {
 	var num hexutil.Uint
 	err := ac.c.CallContext(ctx, &num, "adm_getBlockTransactionCountByNumber", "pending")

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/vm"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
@@ -62,22 +63,22 @@ func (st *StateTransition) to() common.Address {
 }
 
 func (st *StateTransition) useGas(amount uint64) error {
-	if st.gas < amount {
+	if st.ate < amount {
 		return vm.ErrOutOfGas
 	}
-	st.gas -= amount
+	st.ate -= amount
 
 	return nil
 }
 
 func (st *StateTransition) buyAte() error {
-	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
+	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Ate()), st.atePrice)
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
-	st.gas += st.msg.Gas()
+	st.ate += st.msg.Ate()
 
-	st.initialGas = st.msg.Ate()
+	st.initialAte = st.msg.Ate()
 	st.state.SubBalance(st.msg.From(), mgval)
 	return nil
 }
@@ -88,7 +89,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 	sender := vm.AccountRef(msg.From())
 	contractCreation := msg.To() == nil
 
-	if err = st.useAte(ate); err != nil {
+	if err = st.useGas(usedAte); err != nil {
 		return nil, 0, false, err
 	}
 
@@ -100,12 +101,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = vm.Create(sender, st.data, st.ate, st.value)
+		ret, _, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value)
 	} else {
 
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.gas, vmerr = vm.Call(sender, st.to(), st.data, st.gas, st.value)
+		ret, st.ate, vmerr = vm.Call(sender, st.to(), st.data, st.ate, st.value)
 	}
 	if vmerr != nil {
 		log15.Debug("VM returned with error", "err", vmerr)
@@ -119,7 +120,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 
 	st.refundAte()
 
-	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.ateUsed()), st.atePrice))
+	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.atePrice))
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
@@ -127,13 +128,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 func (st *StateTransition) refundAte() {
 	// Apply refund counter, capped to half of the used gas.
 
-	refund := st.ateUsed() / 2
+	refund := st.gasUsed() / 2
 	if refund > st.state.GetRefund() {
 		refund = st.state.GetRefund()
 	}
 	st.ate += refund
 
-	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
+	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.ate), st.atePrice)
 	st.state.AddBalance(st.msg.From(), remaining)
 
 }

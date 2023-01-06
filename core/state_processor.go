@@ -14,7 +14,7 @@ type StateProcessor struct {
 	engine dpos.AdamniteDPOS   // Consensus engine used for block rewards
 }
 
-// NewStateProcessor initialises a new StateProcessor.
+// NewStateProcessor initializes a new StateProcessor.
 func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.AdamniteDPOS) *StateProcessor {
 	return &StateProcessor{
 		config: config,
