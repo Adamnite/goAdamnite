@@ -41,27 +41,33 @@ func TestCall2(t *testing.T) {
 		if hash[0] == 0x2 {
 			index = 2
 		}
-
-		code, ctrlStack := parseBytes(vm.module.codeSection[index].body)
-		return *vm.module.typeSection[0], code, ctrlStack
+		module := *decode(wasmBytes)
+		code, ctrlStack := parseBytes(module.codeSection[index].body)
+		return *module.typeSection[0], code, ctrlStack
 	}
 	vm.config.codeGetter = getCodeMock
 
-	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102" // 0x00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
-	vm.call2(callCode)
+	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102"
+	// 00ee919d00ee919d00ee919d00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	vm.call2(callCode, 10000)
 	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 
 	vm.pointInCode = 0
-	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102" // 0x01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	vm.callStack[0].Ip = 0
+	vm.currentFrame = 0
+	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102"
+	// 01ee919d01ee919d01ee919d01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
-	vm.call2(callCode2)
+	vm.call2(callCode2, 1000)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x8))
 
 	vm.pointInCode = 0
+	vm.callStack[0].Ip = 0
+	vm.currentFrame = 0
 	callCode3 := "02ee919d02ee919d02ee919d02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
 
-	vm.call2(callCode3)
+	vm.call2(callCode3, 1000)
 
 	assert.Equal(t, vm.popFromStack(), uint64(0x14))
 }
@@ -69,16 +75,38 @@ func TestCall2(t *testing.T) {
 func TestDataSection(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200047465737400000a8a808080000184808080000041100b0b9280808000010041100b0c48656c6c6f20576f726c6400")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-
 	module := *decode(wasmBytes)
+	initMemoryWithDataSection(&module, vm)
 
 	offset := module.dataSection[0].offsetExpression.data[0]
-	size := len(module.dataSection[0].init) 
+	size := len(module.dataSection[0].init)
 
 	// Read the data from data section
-	
-	s := string(vm.vmMemory[offset: size + int(offset)])
-	
+
+	s := string(vm.vmMemory[offset : size+int(offset)])
+
 	fmt.Printf("s: %v\n", s)
 	assert.Equal(t, "Hello World\x00", s)
+}
+
+func TestMultiDataSection(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa98080800001a38080800001017f410028020441106b2200410036020c2000411036020820004120360204410a0b0b9780808000020041100b0648656c6c6f000041200b06576f726c6400")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	module := *decode(wasmBytes)
+	initMemoryWithDataSection(&module, vm)
+
+	offset := module.dataSection[0].offsetExpression.data[0]
+	size := len(module.dataSection[0].init)
+
+	offset2 := module.dataSection[1].offsetExpression.data[0]
+	size2 := len(module.dataSection[1].init)
+
+	// Read the data from data section
+
+	s := string(vm.vmMemory[offset : size+int(offset)])
+	s += string(vm.vmMemory[offset2 : size2+int(offset2)])
+
+	fmt.Printf("s: %v\n", s)
+	assert.Equal(t, "Hello\x00World\x00", s)
 }

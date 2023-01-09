@@ -1,4 +1,9 @@
 package vm
+
+import (
+	"errors"
+	"reflect"
+)
 type Block struct {
 	index uint32 // The index of its controlblock inside the controlBlockStack
 	gas uint64
@@ -7,14 +12,26 @@ type Block struct {
 func (op Block) doOp(m *Machine) error {
 	// Add some stack validation here
 	stackLength  := len(m.vmStack)
+	currentFrame := m.callStack[m.currentFrame]
 
 	m.pointInCode++ // First skip this Block byte
 	control := m.controlBlockStack[op.index]
 
 	for (m.pointInCode < control.endAt) {
-		m.vmCode[m.pointInCode].doOp(m)
+
+		if m.stopSignal {
+			return nil
+		}
+
+		op := m.vmCode[m.pointInCode]
+		op.doOp(m)
+
+		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+			m.stopSignal = true
+		}
 	}
 
+	currentFrame.Ip = m.pointInCode
 	finalStackLength := len(m.vmStack)
 
 	if finalStackLength < stackLength {
@@ -41,13 +58,16 @@ func (op Br) doOp(m *Machine) error {
 	}
 
 	branch := m.controlBlockStack[len(m.controlBlockStack) - int(op.index) - 1]
+	currentFrame := m.callStack[m.currentFrame]
 
 	if (branch.op == Op_block || branch.op == Op_if) {
 		// This means a break statement
 		m.pointInCode = branch.endAt
+		currentFrame.Ip = branch.endAt
 	} else if (branch.op == Op_loop) {
 		// This means a continue statement
 		m.pointInCode = branch.startAt + 1 // +1 To skip the block byte
+		currentFrame.Ip = branch.startAt
 	} else {
 		return ErrInvalidBr
 	}
@@ -65,7 +85,7 @@ type BrIf struct {
 
 func (op BrIf) doOp(m *Machine) error {
 	if (len(m.controlBlockStack) < int(op.index)) {
-		panic("Index where to branch out of range")
+		return ErrInvalidBr
 	}
 
 	condition := uint32(m.popFromStack())
@@ -89,6 +109,7 @@ type If struct {
 
 func (op If) doOp(m *Machine) error {
 	// @TODO(sdmg15) Check if the top of the stack is the same type as signature in If/Else/End
+	currentFrame := m.callStack[m.currentFrame]
 	condition := uint32(m.popFromStack())
 
 	stackLen := len(m.vmStack)
@@ -106,18 +127,31 @@ func (op If) doOp(m *Machine) error {
 			end = controlBlock.elseAt - 1 //
 		}
 
-		for (m.pointInCode != end) {
-			m.vmCode[m.pointInCode].doOp(m)
+		m.pointInCode++
+		for (m.pointInCode <= end) {
+			
+			if m.stopSignal {
+				return nil
+			}
+
+			op := m.vmCode[m.pointInCode]
+			op.doOp(m)
+			if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+				m.stopSignal = true
+			}
 		}
 
 		if (controlBlock.elseAt != 0) {
 			m.pointInCode = controlBlock.endAt
+			currentFrame.Ip = controlBlock.endAt
 		}
 
 	} else if (controlBlock.elseAt != 0) {
 		m.pointInCode = controlBlock.elseAt + 1 // + 1 to skip the block byte
+		currentFrame.Ip = controlBlock.elseAt
 	} else {
 		m.pointInCode = controlBlock.endAt
+		currentFrame.Ip = controlBlock.endAt
 	}
 
 	if (len(m.vmStack) < stackLen) {
@@ -142,7 +176,17 @@ func (op Else) doOp(m *Machine) error {
 	controlBlock := m.controlBlockStack[len(m.controlBlockStack) - 1]
 
 	for (m.pointInCode != controlBlock.endAt) {
-		m.vmCode[m.pointInCode].doOp(m)
+
+		if m.stopSignal {
+			return nil
+		}
+
+		op := m.vmCode[m.pointInCode]
+		op.doOp(m)
+
+		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+			m.stopSignal = true
+		}
 	}
 
 	if (len(m.vmStack) < stackLen) {
@@ -162,19 +206,30 @@ type Loop struct {
 
 func (op Loop) doOp(m *Machine) error {
 	stackLength  := len(m.vmStack)
-
+	currentFrame := m.callStack[m.currentFrame]
 	m.pointInCode++ // First skip this Loop byte
 	controlBlock := m.controlBlockStack[op.index]
 
 	// Once the pointInCode becomes bigger than the endAt then it means we branched to a block
 	for (m.pointInCode < controlBlock.endAt) {
-		m.vmCode[m.pointInCode].doOp(m)
+
+		if m.stopSignal {
+			return nil
+		}
+
+		op := m.vmCode[m.pointInCode]
+		op.doOp(m)
+
+		if reflect.TypeOf(op) == reflect.TypeOf(Call{}) {
+			m.stopSignal = true
+		}
 	}
 
+	currentFrame.Ip = controlBlock.endAt
 	finalStackLength := len(m.vmStack)
 
 	if finalStackLength < stackLength {
-		panic("Inconsistent stack after execution of Op_Block")
+		return ErrStackConsistency
 	}
 
 	if !m.useGas(op.gas) {
@@ -212,6 +267,7 @@ type Return struct {
 
 func (op Return) doOp(m *Machine) error {
 	// branch := m.controlBlockStack[0]
+	currentFrame := m.callStack[m.currentFrame]
 
 	if (len(m.vmStack) > 0) {
 		res := m.popFromStack()
@@ -225,6 +281,7 @@ func (op Return) doOp(m *Machine) error {
 		m.pointInCode += uint64(len(m.vmCode) - 2) // -1 for range and -1 for staying at End{} of function
 	}
 
+	currentFrame.Ip = m.pointInCode
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas
 	}
@@ -233,25 +290,41 @@ func (op Return) doOp(m *Machine) error {
 
 type Call struct {
 	funcIndex uint32
+	gas uint64
 }
 
 func (op Call) doOp(m *Machine) error {
 
-	if int(op.funcIndex) >= len(m.module.typeSection[op.funcIndex].params) {
-		panic("invalid function index")
+	if int(op.funcIndex) >= len(m.contract.Code) {
+		return errors.New("invalid function index")
 	}
 
 	// Pop the required params from stack
-	params := m.module.typeSection[op.funcIndex].params
+	params := m.contract.Code[op.funcIndex].CodeParams
 	poppedParams := []uint64{}
 	for i := len(params); i != 0; i--{
 		poppedParams = append(poppedParams, m.popFromStack())
 	}
-	code := m.module.codeSection[op.funcIndex].body
+
+	code, ctrlStack := parseBytes(m.contract.Code[op.funcIndex].CodeBytes)
+	m.callStack[m.currentFrame].Continuation = int64(m.pointInCode) + 1 // When this frame will finish it will load this pointInCode back?
+	// Activate the new frame
+	frame := new(Frame)
+	frame.Code = code
+	frame.CtrlStack = ctrlStack
+	frame.Locals = poppedParams
+	frame.Ip = 0
+
+	m.pointInCode = 0
+	m.vmCode = frame.Code
+	m.locals = frame.Locals
 	
-	m = newVirtualMachine(code, m.contractStorage, &m.config, m.gas)
-	m.locals = poppedParams
-	m.run()
+	m.callStack = append(m.callStack, frame)
+	m.currentFrame++
+
+	if !m.useGas(op.gas) {
+		return ErrOutOfGas
+	}
 	return nil
 }
 

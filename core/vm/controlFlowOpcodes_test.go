@@ -3,15 +3,19 @@ package vm
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_OpBlock(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ab28080800001ac8080800001017f410028020441106b2200410036020c024041010d002000200028020c41136c36020c0b200028020c0b")
 
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	_  = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	module := *decode(wasmBytes)
 
 	expectedModuleCode := []byte{
 		Op_i32_const, 0x0,
@@ -38,12 +42,13 @@ func Test_OpBlock(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 }
 
 func Test_SingleBlock(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160027f7f0003020100070a010661646454776f00000a0d010b000240410a410f6a1a0b0b000a046e616d650203010000")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	module := *decode(wasmBytes)
 	
 	expectedModuleCode := []byte{
 		Op_block, Op_empty,
@@ -55,7 +60,7 @@ func Test_SingleBlock(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 	vm.run()
 }
 
@@ -91,6 +96,9 @@ func Test_MultiBlock(t *testing.T) {
 
 	vm.vmCode = bytes
 	vm.controlBlockStack = cs
+
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	assert.Equal(t, len(vm.vmStack), 0)
 }
@@ -110,15 +118,15 @@ func Test_Br(t *testing.T) {
 		Op_i32_store, 0x2, 0xc,
 
 		Op_block, Op_empty,
-		Op_i32_const, 0x1,
-		Op_br_if, 0x0,
-		Op_get_local, 0x0,
-		Op_get_local, 0x0,
-		Op_i32_load, 0x2, 0xc,
-		Op_i32_const, 0x14,
-		Op_i32_add,
+			Op_i32_const, 0x1,
+			Op_br_if, 0x0,
+			Op_get_local, 0x0,
+			Op_get_local, 0x0,
+			Op_i32_load, 0x2, 0xc,
+			Op_i32_const, 0x14,
+			Op_i32_add,
 
-		Op_i32_store, 0x2, 0xc,
+			Op_i32_store, 0x2, 0xc,
 		Op_end,
 		Op_get_local, 0x0,
 		Op_i32_load, 0x2, 0xc,
@@ -126,6 +134,8 @@ func Test_Br(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0))
 }
@@ -167,6 +177,7 @@ func Test_Br2(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(30))
@@ -182,7 +193,6 @@ func Test_Loop(t *testing.T) {
 	// }
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ad48080800001ce8080800001017f410028020441106b2200410036020c2000410036020802400340200028020841094a0d012000200028020c20002802086a36020c2000200028020841016a3602080c000b0b200028020c0b")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	
 
 	code := []byte{
 		0x41, 0x0, 
@@ -214,6 +224,8 @@ func Test_Loop(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(45))
@@ -256,6 +268,8 @@ func Test_If(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
 	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(115), uint64(res))
@@ -307,56 +321,125 @@ func Test_Return(t *testing.T) {
 	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
 	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(110), uint64(res))
 }
 
-// func Test_Call(t *testing.T) {
-// 	// (module
-// 	// 	(func $fac (export "fac") (param f64) (result f64)
-// 	// 	  local.get 0
-// 	// 	  f64.const 1
-// 	// 	  f64.lt
-// 	// 	  if (result f64)
-// 	// 		f64.const 1
-// 	// 	  else
-// 	// 		local.get 0
-// 	// 		local.get 0
-// 	// 		f64.const 1
-// 	// 		f64.sub
-// 	// 		call $fac
-// 	// 		f64.mul
-// 	// 	  end))
+func Test_Call(t *testing.T) {
+	// (module
+	// 	(func $fac (export "fac") (param f64) (result f64)
+	// 	  local.get 0
+	// 	  f64.const 1
+	// 	  f64.lt
+	// 	  if (result f64)
+	// 		f64.const 1
+	// 	  else
+	// 		local.get 0
+	// 		local.get 0
+	// 		f64.const 1
+	// 		f64.sub
+	// 		call $fac
+	// 		f64.mul
+	// 	  end))
 
-// 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160017c017c030201000707010366616300000a2e012c00200044000000000000f03f63047c44000000000000f03f052000200044000000000000f03fa11000a20b0b0012046e616d6501060100036661630203010000")
-// 	vm := newVirtualMachine(wasmBytes, []byte{}, nil, 1000)
+	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160017c017c030201000707010366616300000a2e012c00200044000000000000f03f63047c44000000000000f03f052000200044000000000000f03fa11000a20b0b0012046e616d6501060100036661630203010000")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
-// 	expected := []byte{
-// 		Op_get_local, 0x0, 
-// 		Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 		Op_f64_lt, 
+	expected := []byte{
+		Op_get_local, 0x0, 
+		Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+		Op_f64_lt, 
 		
-// 		Op_if, Op_f64, 
-// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 		Op_else, 
-// 			Op_get_local, 0x0, 
-// 			Op_get_local, 0x0, 
-// 			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
-// 			Op_f64_sub, 
-// 			Op_call, 0x0, 
-// 			Op_f64_mul, 
-// 		Op_end, 
+		Op_if, Op_f64, 
+			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+		Op_else, 
+			Op_get_local, 0x0, 
+			Op_get_local, 0x0, 
+			Op_f64_const, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xf0, 0x3f, 
+			Op_f64_sub, 
+			Op_call, 0x0,
+			Op_f64_mul, 
+		Op_end, 
 		
-// 		Op_end,
-// 	}
+		Op_end,
+	}
 
-// 	assert.Equal(t, expected, vm.module.codeSection[0].body)
-// 	vm.locals = append(vm.locals, 5)
-// 	vm.run()
-// 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
-// }
+	module := *decode(wasmBytes)
+	assert.Equal(t, expected, module.codeSection[0].body)
+	vm.addLocal(float64(5))
+	vm.callStack[0].Locals = vm.locals
+
+	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
+	var gas = big.NewInt(100)
+	contract := NewContract(callerAddr, gas, module.codeSection[0].body, 100)
+
+	contract.Code = []CodeStored{
+		CodeStored{
+			CodeParams: module.typeSection[0].params,
+			CodeResults: module.typeSection[0].results,
+			CodeBytes: module.codeSection[0].body,
+		},
+	}
+
+	vm.contract = *contract
+
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+	vm.run()
+
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
+	vm.addLocal(float64(8))
+	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
+	vm.run()
+
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
+	vm.addLocal(float64(12))
+	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
+	vm.addLocal(float64(14))
+	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
+	vm.run()
+
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
+
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
+	vm.addLocal(float64(25))
+	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
+	vm.run()
+
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(15511210043330985984000000))
+
+	//floating math only holds accurate to 27!
+	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *contract
+	vm.addLocal(float64(27))
+	vm.callStack[0].Locals = vm.locals
+	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+
+	vm.run()
+	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(10888869450418352160768000000))
+}
 
 func Test_FuncFact(t *testing.T) {
 	// double fact() {
@@ -383,11 +466,56 @@ func Test_FuncFact(t *testing.T) {
 		0x20, 0x0, 0x29, 0x3, 0x0, 0x20, 0x0, 0x34, 
 		0x2, 0xc, 0x7e, 0x37, 0x3, 0x0, 0x20, 0x0, 
 		0x20, 0x0, 0x28, 0x2, 0xc, 0x41, 0x7f, 0x6a, 0x36, 
-		0x2, 0xc, 0xc, 0x0, 0xb, 0xb, 0x20, 0x0, 0x29, 0x3, 0x0, 0xb9, 0xb}
+		0x2, 0xc, 0xc, 0x0, 0xb, 0xb, 0x20, 0x0, 0x29, 0x3, 0x0, 0xb9, 0xb,
+	}
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 	vm.run()
 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
 	res := vm.popFromStack()
 	assert.Equal(t, res, uint64(24))
+}
+
+func Test_block(t *testing.T) {
+	// double fact() {
+	// 	int i = 4;
+	// 	long long n = 1;
+	// 	for (;i > 0; i--) {
+	// 	  n *= i;
+	// 	}
+	// 	return (double)n;
+	//   }
+	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070801046465657000010a7e0202000b7900027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f10004196010b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0016046e616d65010801000564756d6d7902050200000100")
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	expected := []byte{
+		0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 0x2, 0x7f, 
+		0x2, 0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 0x7f, 0x2, 
+		0x7f, 0x2, 0x7f, 0x10, 0x0, 0x41, 0x96, 0x1, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 
+		0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 
+		0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb, 0xb}
+
+	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+
+	module := *decode(wasmBytes)
+	vm.run()
+	assert.Equal(t, expected, module.codeSection[1].body)
+	assert.Equal(t, vm.popFromStack(), uint64(150))
 }

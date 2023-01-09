@@ -351,7 +351,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_call")
 			}
 
-			ansOps = append(ansOps, Call{funcIndex})
+			ansOps = append(ansOps, Call{funcIndex, GasFastStep})
 			pointInBytes += int(count) + 1
 
 		case Op_call_indirect:
@@ -710,6 +710,30 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_balance:
 			ansOps = append(ansOps, balance{GasQuickStep})
 			pointInBytes++
+
+		case Op_timestamp:
+			ansOps = append(ansOps, blocktimestamp{GasQuickStep})
+			pointInBytes++
+		case Op_value:
+			ansOps = append(ansOps, valueOp{GasQuickStep})
+			pointInBytes++
+		case Op_data_size:
+			ansOps = append(ansOps, dataSize{GasQuickStep})
+			pointInBytes++
+		case Op_caller:
+			ansOps = append(ansOps, callerAddr{GasQuickStep})
+			pointInBytes++
+		case Op_get_data:
+			ansOps = append(ansOps, getData{GasQuickStep})
+			pointInBytes++
+		case Op_get_code:
+			ansOps = append(ansOps, getCode{GasQuickStep})
+			pointInBytes++
+
+		case Op_copy_code:
+			ansOps = append(ansOps, copyCode{GasQuickStep})
+			pointInBytes++
+
 		default:
 			print("skipping over byte at: ")
 			println(pointInBytes)

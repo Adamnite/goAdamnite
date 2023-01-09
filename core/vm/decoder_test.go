@@ -98,9 +98,8 @@ func Test_decode2(t *testing.T) {
 
 func Test_i32StoreDecode(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa280808000019c8080800001017f410028020441106b2200410036020c2000410a360208410a0b")
-
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	
+	module := *decode(wasmBytes)
 	expectedModuleCode := []byte{
 		Op_i32_const, 0x0,
 		Op_i32_load, 0x2, 0x4,
@@ -115,14 +114,14 @@ func Test_i32StoreDecode(t *testing.T) {
 		Op_i32_const, 0xa,
 		Op_end,
 	}
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 }
 
 func Test_i32Store3Decode(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000a978080800001918080800000410028020441106b410436020800000b")
 
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-
+	module := *decode(wasmBytes)
 	expectedModuleCode := []byte{
 		Op_i32_const, 0x0,
 		Op_i32_load, 0x2, 0x4,
@@ -134,5 +133,5 @@ func Test_i32Store3Decode(t *testing.T) {
 		Op_end,
 	}
 
-	assert.Equal(t, expectedModuleCode, vm.module.codeSection[0].body)
+	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
 }
