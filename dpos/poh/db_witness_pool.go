@@ -1,6 +1,8 @@
-package dpos
+package poh
 
 import (
+	"errors"
+	"io"
 	cmath "math"
 	"math/big"
 	"sort"
@@ -10,24 +12,26 @@ import (
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/dpos/poh"
 	"github.com/adamnite/go-adamnite/params"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 const (
-	StakingAmountWeight          = 15
-	BlockValidationPercentWeight = 20
-	VoterCountWeight             = 10
-	ElectedCountWeight           = 10
-	prefixKeyOfWitnessPool       = "witnesspool-"
-	maxWitnessNumber             = 27
+	StakingAmountWeight          = 15 //%27.27...
+	BlockValidationPercentWeight = 20 //%49.09...
+	VoterCountWeight             = 10 //%18.18...
+	ElectedCountWeight           = 10 //%18.18...
+	prefixKeyOfDBWitnessPool     = "db-witnesspool-"
+	maxWitnessNumber             = 18
+
+	blockInterval       = 1
+	EpochBlockCount     = 162
+	inmemorySignatures  = 4096
+	checkpointInterval  = 1024
+	inmemoryWintessPool = 128
 )
 
-// const AccuracyMultiple = big.NewFloat(0).
-
-// VRF is an Verifiable Random Function which calculate the weight of the witness.
 func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {
 	bStakingAmount := big.NewFloat(stakingAmount)
 	bBlockValidationPercent := big.NewFloat(blockValidationPercent)
@@ -54,23 +58,20 @@ func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float
 	return weightFloat
 }
 
-type WitnessInfo struct {
+type DBWitnessInfo struct {
 	address common.Address
 	voters  []types.Voter
 }
-type WitnessConfig struct {
+
+type DBWitnessConfig struct {
 	WitnessCount uint32 // The total numbers of witness on top tier
 }
 
-var DefaultWitnessConfig = WitnessConfig{
-	WitnessCount: 27,
+var DefaultDBWitnessConfig = DBWitnessConfig{
+	WitnessCount: 18,
 }
 
-var DefaultDemoWitnessConfig = WitnessConfig{
-	WitnessCount: 3,
-}
-
-var WitnessList = []WitnessInfo{{
+var WitnessList = []DBWitnessInfo{{
 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 	voters: []types.Voter{
 		{
@@ -89,8 +90,32 @@ var WitnessList = []WitnessInfo{{
 		},
 	}}
 
-type WitnessPool struct {
-	config      WitnessConfig
+var (
+	// When a list of signers for a block is requested, errunknownblock is returned.
+	// This is not part of the local blockchain.
+	errUnknownBlock = errors.New("unknown block")
+
+	//If the timestamp of the block is lower than errInvalidTimestamp
+	//Timestamp of the previous block + minimum block period.
+	ErrInvalidTimestamp         = errors.New("invalid timestamp")
+	ErrWaitForPrevBlock         = errors.New("wait for last block arrived")
+	ErrApplyNextBlock           = errors.New("apply the next block")
+	ErrMismatchSignerAndWitness = errors.New("mismatch block signer and witness")
+	ErrInvalidWitness           = errors.New("invalid witness")
+	ErrInvalidApplyBlockTime    = errors.New("invalid time to apply the block")
+	ErrNilBlockHeader           = errors.New("nil block header returned")
+	ErrUnknownAncestor          = errors.New("unknown ancestor")
+	ErrInvalidVotingChain       = errors.New("invalid voting chain")
+)
+
+type PoHData struct {
+	Witnesses []types.Witness `json:"dbwitnesses"`
+
+	Votes map[common.Address]types.Voter `json:"dbvotes"`
+}
+
+type DBWitnessPool struct {
+	config      DBWitnessConfig
 	chainConfig *params.ChainConfig
 
 	witnessCandidates []types.Witness
@@ -103,12 +128,11 @@ type WitnessPool struct {
 	sigcache  *lru.ARCCache
 	Number    uint64
 	Hash      common.Hash
-	blacklist []types.Witness
 }
 
-func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *WitnessPool {
+func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *DBWitnessPool {
 
-	pool := &WitnessPool{
+	pool := &DBWitnessPool{
 		config:            config,
 		chainConfig:       chainConfig,
 		sigcache:          sigcache,
@@ -119,7 +143,6 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 		Witnesses:         witnesses,
 		Votes:             map[common.Address]*types.Voter{},
 	}
-
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 		if number == 0 {
 			for _, w := range WitnessList {
@@ -172,13 +195,12 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 		}
 
 	}
-
 	return pool
 }
 
-func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *WitnessPool {
+func NewDBWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig) *DBWitnessPool {
 
-	pool := &WitnessPool{
+	pool := &DBWitnessPool{
 		config:      config,
 		chainConfig: chainConfig,
 
@@ -187,7 +209,6 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 
 		Votes: map[common.Address]*types.Voter{},
 	}
-
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 
 		for _, w := range WitnessList {
@@ -239,11 +260,10 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 		}
 
 	}
-
 	return pool
 }
 
-func (wp *WitnessPool) CalcWitnesses() []types.Witness {
+func (wp *DBWitnessPool) CalcWitnesses() []types.Witness {
 	witnessCount := wp.config.WitnessCount
 	trustedWitnessCount := witnessCount/3*2 + 1
 
@@ -303,71 +323,18 @@ func (wp *WitnessPool) CalcWitnesses() []types.Witness {
 	return witnesses
 }
 
-func (cp *WitnessPool) SetWitnessCandidates(witnessCandidates []types.Witness) {
+func (cp *DBWitnessPool) SetWitnessCandidates(witnessCandidates []types.Witness) {
 
 	cp.witnessCandidates = witnessCandidates
 }
 
-func (cp *WitnessPool) IsTrustedWitness(pubKey crypto.PublicKey, vrfValue []byte, proof []byte) bool {
-	//check that the value given is accurate
-	if !pubKey.Verify(cp.seed, vrfValue, proof) {
-		//if this causes a false return, assume malicious attempt.
-		return false
-	}
+func GetDBWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash common.Hash) (*DBWitnessPool, error) {
 
-	//converts the bigFloat to an integer between 0-(2^256 - 1). Or a uInt256.
-	witnessTesting := cp.vrfMaps[string(pubKey)]
-	fWeight := witnessTesting.GetWeight()
-	exp := fWeight.MantExp(nil)
-	fWeight.SetMantExp(fWeight, 257-exp)
-	iWeight, _ := fWeight.Int(nil)
-
-	if iWeight.Cmp(big.NewInt(0)) != 0 { //iWeight == 0
-		iWeight.Sub(iWeight, big.NewInt(1)) //needs to subtract one so its always between
-	}
-
-	//convert the vrfValue to a big int between 0-(2^256 - 1).  Or a uInt256.
-	vrfIValue := new(big.Int)
-	vrfIValue.SetBytes(vrfValue)
-	if vrfIValue.Cmp(iWeight) == -1 { //vrfIValue<iWeight
-		//Check if there is actually space
-		betterFit, betterFitPoint := cp._IsBetterFit(witnessTesting)
-		if len(cp.Witnesses) < int(cp.config.WitnessCount) {
-			cp.Witnesses = append(cp.Witnesses, witnessTesting)
-		} else if betterFit {
-			//see if they might just fit into the extra bit of space
-			cp.Witnesses[betterFitPoint] = witnessTesting
-		} else {
-			return false
-		}
-
-		return true
-	}
-	return false
-}
-
-// returns true, and the index to replace if new witness is a better fit. If false, -1 is the index returned
-func (cp *WitnessPool) _IsBetterFit(newWit types.Witness) (bool, int) {
-	//sort everything to be from smallest value to lowest, then compare. So the smallest weight is still most likely
-	//to be replaced
-	sort.Slice(cp.Witnesses[:], func(i, j int) bool {
-		return cp.Witnesses[i].GetWeight().Cmp(cp.Witnesses[j].GetWeight()) == -1
-	}) //orders the witnesses by their weight
-	//unsure if the witnesses will need to be ordered.
-	for i, witness := range cp.Witnesses {
-		if witness.GetWeight().Cmp(newWit.GetWeight()) == -1 { //witness.weight < newWit.weight
-			return true, i
-		}
-	}
-	return false, -1
-}
-func GetWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash common.Hash) (*WitnessPool, error) {
-
-	blob, err := db.Get(append([]byte(prefixKeyOfWitnessPool), hash[:]...))
+	blob, err := db.Get(append([]byte(prefixKeyOfDBWitnessPool), hash[:]...))
 	if err != nil {
 		return nil, err
 	}
-	witnessPool := new(WitnessPool)
+	witnessPool := new(DBWitnessPool)
 	if err := msgpack.Unmarshal(blob, witnessPool); err != nil {
 		return nil, err
 	}
@@ -377,55 +344,19 @@ func GetWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamn
 
 }
 
-func (wp *WitnessPool) saveWitnessPool(db adamnitedb.Database) error {
+func (wp *DBWitnessPool) SaveDBWitnessPool(db adamnitedb.Database) error {
 	blob, err := msgpack.Marshal(wp)
 	if err != nil {
 		return err
 	}
-	return db.Insert(append([]byte(prefixKeyOfWitnessPool), wp.Hash[:]...), blob)
+	return db.Insert(append([]byte(prefixKeyOfDBWitnessPool), wp.Hash[:]...), blob)
 }
 
-func (wp *WitnessPool) isVoted(voterAddr common.Address) bool {
+func (wp *DBWitnessPool) IsVoted(voterAddr common.Address) bool {
 	return wp.Votes[voterAddr] != nil
 }
-
-func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
-	voteNum := big.NewInt(0)
-	if wp.Votes[addr] != nil {
-		voteNum.Set(wp.Votes[addr].StakingAmount)
-	}
-	return voteNum
-}
-
-func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
-	if prevWitnessAddr == nil {
-		if wp.Witnesses == nil || len(wp.Witnesses) == 0 {
-			for _, w := range WitnessList {
-				witness := &types.WitnessImpl{
-					Address: w.address,
-					Voters:  w.voters,
-				}
-				wp.Witnesses = append(wp.Witnesses, witness)
-			}
-		}
-		return wp.Witnesses[0].GetAddress()
-
-	}
-
-	for i, witness := range wp.Witnesses {
-		if witness.GetAddress() == *prevWitnessAddr {
-			if i >= len(wp.Witnesses)-1 {
-				return wp.Witnesses[0].GetAddress()
-			} else {
-				return wp.Witnesses[i+1].GetAddress()
-			}
-		}
-	}
-	return common.Address{}
-}
-
-func (wp *WitnessPool) copy() *WitnessPool {
-	cpy := &WitnessPool{
+func (wp *DBWitnessPool) copy() *DBWitnessPool {
+	cpy := &DBWitnessPool{
 		config:            wp.config,
 		sigcache:          wp.sigcache,
 		Number:            wp.Number,
@@ -437,7 +368,7 @@ func (wp *WitnessPool) copy() *WitnessPool {
 	return cpy
 }
 
-func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) (*WitnessPool, error) {
+func (wp *DBWitnessPool) DbWitnessPoolFromBlockHeader(headers []*types.BlockHeader) (*DBWitnessPool, error) {
 	if len(headers) == 0 {
 		return wp, nil
 	}
@@ -455,7 +386,7 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 	for _, header := range headers {
 		number := header.Number.Uint64()
 
-		witness, err := poh.Ecrecover(header, witnesspool.sigcache)
+		witness, err := Ecrecover(header, witnesspool.sigcache)
 		if err != nil {
 			return nil, err
 		}
@@ -472,17 +403,17 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 
 		}
 
-		dposData := DposData{}
-		DposDataDecode(header.Extra, &dposData)
+		pohData := PoHData{}
+		PohDataDecode(header.Extra, &pohData)
 		if number%EpochBlockCount == 0 {
 			if number > 0 {
 
 				witnesspool.Votes = make(map[common.Address]*types.Voter)
 				witnesspool.witnessCandidates = make([]types.Witness, 0)
 			}
-			witnesspool.Witnesses = dposData.Witnesses
+			witnesspool.Witnesses = pohData.Witnesses
 		}
-		votes := dposData.Votes
+		votes := pohData.Votes
 		for sender, vote := range votes {
 
 			witnesspool.Votes[sender] = &types.Voter{
@@ -515,4 +446,59 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 	witnesspool.Number += uint64(len(headers))
 	witnesspool.Hash = headers[len(headers)-1].Hash()
 	return witnesspool, nil
+}
+
+func PohDataDecode(bytes []byte, data *PoHData) error {
+	return msgpack.Unmarshal(bytes, &data)
+}
+func PohDataEncode(poh PoHData) []byte {
+	bytes, _ := msgpack.Marshal(poh)
+	return bytes
+}
+func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (common.Address, error) {
+
+	// If the signature's already cached, return that
+	hash := header.Hash()
+	if address, known := sigcache.Get(hash); known {
+		return address.(common.Address), nil
+	}
+
+	signature := header.Extra
+
+	// Recover the public key and the Adamnite address
+	pubkey, err := crypto.Recover(SealHash(header).Bytes(), signature)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	signer := crypto.PubkeyByteToAddress(pubkey)
+
+	sigcache.Add(hash, signer)
+	return signer, nil
+}
+
+func SealHash(header *types.BlockHeader) (hash common.Hash) {
+	hasher := crypto.NewRipemd160State()
+	encodeSignHeader(hasher, header)
+	hasher.Sum(hash[:0])
+	return hash
+}
+
+func encodeSignHeader(w io.Writer, header *types.BlockHeader) {
+	err := msgpack.NewEncoder(w).Encode([]interface{}{
+		header.ParentHash,
+		header.Witness,
+		header.WitnessRoot,
+		header.CurrentEpoch,
+		header.Number,
+		header.Signature,
+		header.StateRoot,
+		header.Extra,
+		header.Time,
+		header.TransactionRoot,
+		header.DBWitness,
+	})
+	if err != nil {
+		panic("can't encode: " + err.Error())
+	}
 }

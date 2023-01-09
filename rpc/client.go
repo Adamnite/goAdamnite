@@ -377,7 +377,7 @@ func (c *AdamniteClient) Notify(ctx context.Context, method string, args ...inte
 	return c.send(ctx, op, msg)
 }
 
-// ShhSubscribe registers a subscripion under the "shh" namespace.
+// ShhSubscribe registers a subscription under the "shh" namespace.
 // Deprecated: use Subscribe(ctx, "shh", ...).
 func (c *AdamniteClient) ShhSubscribe(ctx context.Context, channel interface{}, args ...interface{}) (*ClientSubscription, error) {
 	return c.Subscribe(ctx, "shh", channel, args...)

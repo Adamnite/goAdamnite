@@ -23,6 +23,7 @@ type TxType int8
 
 const (
 	VOTE_TX TxType = iota
+	VOTE_POH_TX
 	NORMAL_TX
 	CONTRACT_TX
 )
@@ -87,6 +88,33 @@ func (tx *Transaction) To() *common.Address {
 
 func (tx *Transaction) Decode(s Transaction_Data, _ int) {
 
+}
+
+type Message struct {
+	to         *common.Address
+	from       common.Address
+	nonce      uint64
+	amount     *big.Int
+	gasLimit   uint64
+	gasPrice   *big.Int
+	data       []byte
+	checkNonce bool
+}
+
+func (tx *Transaction) AsMessage(s Signer) (Message, error) {
+	msg := Message{
+		nonce: tx.InnerData.nonce(),
+
+		gasPrice:   tx.ATEPrice(),
+		to:         tx.InnerData.to(),
+		amount:     tx.InnerData.amount(),
+		data:       tx.InnerData.message(),
+		checkNonce: true,
+	}
+
+	var err error
+	msg.from, err = Sender(s, tx)
+	return msg, err
 }
 
 // setDecoded sets the inner transaction and size after decoding.

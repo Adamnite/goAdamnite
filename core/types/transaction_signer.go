@@ -8,6 +8,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/params"
 	"github.com/adamnite/go-adamnite/serialization"
 )
 
@@ -114,4 +115,11 @@ func Sender(signer Signer, tx *Transaction) (common.Address, error) {
 	}
 
 	return addr, nil
+}
+
+func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
+	var signer Signer
+
+	return signer
+
 }

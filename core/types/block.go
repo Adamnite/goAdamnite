@@ -24,6 +24,7 @@ type BlockHeader struct {
 	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
 	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
+	DBWitness       common.Address `json:"dbWitness" gencodec:"required"` // The address of the db witness that proposed the block
 }
 
 type Block struct {
@@ -44,7 +45,7 @@ type Body struct {
 
 //// TODO: Implement structure for creating a new block, create a new block with
 // header data, proper encoding of data, basic header checks (for example, check if the block number is too high),
-// decoding of data, and functions to retreive various header data and hashes.
+// decoding of data, and functions to retrieve various header data and hashes.
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
@@ -70,6 +71,10 @@ func NewBlock(header *BlockHeader, txs []*Transaction, hasher TrieHasher) *Block
 	}
 
 	return b
+}
+
+func NewBlockWithHeader(header *BlockHeader) *Block {
+	return &Block{header: CopyHeader(header)}
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
