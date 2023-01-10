@@ -153,10 +153,10 @@ func initVMState(machine *Machine) {
 	// initMemoryWithDataSection(&machine.module, machine)
 }
 
-func newVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
+func NewVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
 	machine := new(Machine)
-	machine.statedb = statedb
-	machine.blockCtx = bc
+	machine.Statedb = statedb
+	machine.BlockCtx = bc
 	machine.txCtx = txc
 	machine.chainConfig = chainConfig
 
@@ -361,16 +361,16 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 		return nil, gas, ErrDepth
 	}
 
-	if value.Sign() != 0 && !m.blockCtx.CanTransfer(m.statedb, caller, value) {
+	if value.Sign() != 0 && !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	if !m.statedb.Exist(addr) {
-		m.statedb.CreateAccount(addr)
+	if !m.Statedb.Exist(addr) {
+		m.Statedb.CreateAccount(addr)
 	}
 
-	snapshot := m.statedb.Snapshot()
-	m.blockCtx.Transfer(m.statedb, caller, addr, value)
+	snapshot := m.Statedb.Snapshot()
+	m.BlockCtx.Transfer(m.Statedb, caller, addr, value)
 
 	// Retrieve the method code and execute it
 	if len(input) == 0 {
@@ -380,10 +380,10 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 	contract := NewContract(caller, value, input, gas)
 	m.contract = *contract
 
-	err = m.call2(string(input), gas)
+	err = m.call2(input, gas)
 
 	if err != nil {
-		m.statedb.RevertToSnapshot(snapshot)
+		m.Statedb.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
 			m.gas = 0
 		}
@@ -407,17 +407,17 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 		return nil, common.Address{}, gas, ErrDepth
 	}
 
-	if !m.blockCtx.CanTransfer(m.statedb, caller, value) {
+	if !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	nonce := m.statedb.GetNonce(caller)
+	nonce := m.Statedb.GetNonce(caller)
 
 	if nonce+1 < nonce {
 		return nil, common.Address{}, gas, ErrNonceUintOverflow
 	}
 
-	m.statedb.SetNonce(caller, nonce+1)
+	m.Statedb.SetNonce(caller, nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
 	contractData, err := getContractData(m.config.uri, address.String())
@@ -426,17 +426,17 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 		return nil, address, gas, err
 	}
 
-	if m.statedb.GetNonce(address) != 0 || contractData.Address.String() != "" {
+	if m.Statedb.GetNonce(address) != 0 || contractData.Address.String() != "" {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 
 	// Create a new account on the state
-	snapshot := m.statedb.Snapshot()
-	m.statedb.CreateAccount(address)
+	snapshot := m.Statedb.Snapshot()
+	m.Statedb.CreateAccount(address)
 
-	m.blockCtx.Transfer(m.statedb, caller, address, value)
+	m.BlockCtx.Transfer(m.Statedb, caller, address, value)
 
-	// Initialise a new contract and set the code that is to be used by the EVM.
+	// Initialize a new contract and set the code that is to be used by the EVM.
 	contract := NewContract(caller, value, codeBytes, gas)
 	m.contract = *contract
 
@@ -445,7 +445,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 
 	// Check whether the max code size has been exceeded
 	if err == nil && modLen > m.config.maxCodeSize {
-		m.statedb.RevertToSnapshot(snapshot)
+		m.Statedb.RevertToSnapshot(snapshot)
 		return nil, address, 0, ErrMaxCodeSizeExceeded
 	}
 
@@ -455,7 +455,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	// @TODO update this with right creation price
 	createModuleGas := modLen * 2000
 	if createModuleGas > m.gas {
-		m.statedb.RevertToSnapshot(snapshot)
+		m.Statedb.RevertToSnapshot(snapshot)
 		return nil, address, m.gas, ErrCodeStoreOutOfGas
 	}
 
@@ -463,7 +463,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	_, _, err = uploadModuleFunctions(m.config.uri, module)
 
 	if err != nil {
-		m.statedb.RevertToSnapshot(snapshot)
+		m.Statedb.RevertToSnapshot(snapshot)
 		// Somehow revert the uploading here?
 	}
 
@@ -474,7 +474,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 // Create creates a new contract using code as deployment code.
 func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	addrBytes := caller.Bytes()
-	nonce := m.statedb.GetNonce(caller)
+	nonce := m.Statedb.GetNonce(caller)
 	addrBytes = append(addrBytes, byte(nonce))
 
 	contractAddr = crypto.PubkeyByteToAddress(addrBytes)

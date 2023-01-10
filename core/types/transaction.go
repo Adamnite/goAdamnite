@@ -101,6 +101,31 @@ type Message struct {
 	checkNonce bool
 }
 
+func (msg Message) From() common.Address {
+	return msg.from
+}
+func (msg Message) To() *common.Address {
+	return msg.to
+}
+func (msg Message) AtePrice() *big.Int {
+	return msg.gasPrice
+}
+func (msg Message) Ate() uint64 {
+	return msg.gasLimit
+}
+func (msg Message) Value() *big.Int {
+	return msg.amount
+}
+func (msg Message) Nonce() uint64 {
+	return msg.nonce
+}
+func (msg Message) CheckNonce() bool {
+	return msg.checkNonce
+}
+func (msg Message) Data() []byte {
+	return msg.data
+}
+
 func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 	msg := Message{
 		nonce: tx.InnerData.nonce(),
@@ -234,11 +259,11 @@ type TransactionsByPriceAndNonce struct {
 	signer Signer                          //The signer of the transaction set
 }
 
-//newTransactionByPriceAndOnce creates a retrieving
+// newTransactionByPriceAndOnce creates a retrieving
 // Sort the trades by price in a non-cash way.
 //
 // Note that the input map is re-owned, so the caller should no longer interact with
-//if after provided to the constructor.
+// if after provided to the constructor.
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))

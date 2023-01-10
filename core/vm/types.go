@@ -59,9 +59,9 @@ type Machine struct {
 	callStack         []*Frame
 	stopSignal        bool
 	currentFrame      int
-	blockCtx          BlockContext
+	BlockCtx          BlockContext
 	txCtx             TxContext
-	statedb           *statedb.StateDB
+	Statedb           *statedb.StateDB
 	chainConfig       *params.ChainConfig
 }
 
@@ -84,7 +84,7 @@ type BlockContext struct {
 	BaseFee     *big.Int
 }
 
-// TxContext provides the EVM with information about a transaction.
+// TxContext provides the AdamniteVM with information about a transaction.
 // All fields can change between transactions.
 type TxContext struct {
 	// Message information

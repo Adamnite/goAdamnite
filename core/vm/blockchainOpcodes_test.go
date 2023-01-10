@@ -79,7 +79,7 @@ func TestOpBalance(t *testing.T) {
 	state.AddBalance(common.BytesToAddress(testAddress), testBalance)
 	rootHash := state.IntermediateRoot(false)
 	state.Database().TrieDB().Commit(rootHash, false, nil)
-	vm.statedb = state
+	vm.Statedb = state
 
 	// fmt.Println(state.GetBalance(common.BytesToAddress(testAddress)))
 	fmt.Println(vm.call2(hashes[1]+"", 1000))

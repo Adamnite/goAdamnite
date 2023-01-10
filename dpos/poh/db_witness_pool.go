@@ -27,9 +27,9 @@ const (
 
 	blockInterval       = 1
 	EpochBlockCount     = 162
-	inmemorySignatures  = 4096
+	inMemorySignatures  = 4096
 	checkpointInterval  = 1024
-	inmemoryWintessPool = 128
+	inMemoryWitnessPool = 128
 )
 
 func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {

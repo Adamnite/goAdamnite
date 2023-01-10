@@ -1,9 +1,12 @@
 package core
 
 import (
+	"math/big"
+
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/core/vm"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
 )
@@ -23,7 +26,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.A
 	}
 }
 
-func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, cfg vm.Config) (uint64, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, cfg vm.VMConfig, gasPrice *big.Int) (uint64, error) {
 	var (
 		usedGas = new(uint64)
 		header  = block.Header()
@@ -32,7 +35,8 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Body().Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
+		//TODO: actually get the blockContext...
+		err := ApplyTransaction(p.config, p.bc, nil, gasPrice, statedb, header, tx, usedGas, cfg, vm.BlockContext{})
 		if err != nil {
 			return 0, err
 		}
@@ -44,18 +48,26 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	return *usedGas, nil
 }
 
-func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common.Address, gp *GasPool, statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config) error {
+func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common.Address, gp *big.Int,
+	statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, vmcfg vm.VMConfig, blockContext vm.BlockContext) error {
+
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return err
 	}
 
-	context := NewVMContext(msg, header, bc, author)
-	vmenv := vm.NewVM(context, statedb, config, cfg)
+	vmenv := vm.NewVM(
+		statedb,      //stateDB
+		blockContext, //blockContext
+		vm.TxContext{ //transaction context
+			Origin:   msg.From(),
+			GasPrice: gp},
+		&vmcfg, //vm config
+		config) //chain config
 	// Apply the transaction to the current state (included in the env)
-	_, gas, _, err := ApplyMessage(vmenv, msg, gp)
+	_, gas, _, err := ApplyMessage(vmenv, msg)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	*usedGas += gas

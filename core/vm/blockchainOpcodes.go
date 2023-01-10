@@ -38,7 +38,7 @@ func (op balance) doOp(m *Machine) error {
 	addressUints[0] = m.popFromStack()
 
 	addr := uintsArrayToAddress(addressUints)
-	value := m.statedb.GetBalance(common.BytesToAddress(addr))
+	value := m.Statedb.GetBalance(common.BytesToAddress(addr))
 	balanceInts := balanceToArray(*value)
 	for i := range balanceInts {
 		m.pushToStack(balanceInts[i])
@@ -75,7 +75,7 @@ type blocktimestamp struct {
 }
 
 func (op blocktimestamp) doOp(m *Machine) error {
-	ts := EncodeUint64(uint64(m.blockCtx.Time.Int64()))
+	ts := EncodeUint64(uint64(m.BlockCtx.Time.Int64()))
 	m.pushToStack(ts)
 	if !m.useGas(op.gas) {
 		return ErrOutOfGas

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core/vm"
+	virtMach "github.com/adamnite/go-adamnite/core/vm"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
@@ -20,8 +21,8 @@ type StateTransition struct {
 	initialAte uint64
 	value      *big.Int
 	data       []byte
-	state      vm.StateDB
-	vm         *vm.Machine
+	state      statedb.StateDB
+	vm         *virtMach.Machine
 }
 
 // Message represents a message sent to a contract.
@@ -39,18 +40,19 @@ type Message interface {
 	Data() []byte
 }
 
-func NewStateTransition(vm *vm.Machine, msg Message) *StateTransition {
+func NewStateTransition(vmVar *virtMach.Machine, msg Message) *StateTransition {
 	return &StateTransition{
-		vm:       vm,
+		vm:       vmVar,
 		msg:      msg,
 		atePrice: msg.AtePrice(),
 		value:    msg.Value(),
 		data:     msg.Data(),
-		state:    vm.StateDB,
+
+		state: *vmVar.Statedb,
 	}
 }
 
-func ApplyMessage(vm *vm.Machine, msg Message) ([]byte, uint64, bool, error) {
+func ApplyMessage(vm *virtMach.Machine, msg Message) ([]byte, uint64, bool, error) {
 	return NewStateTransition(vm, msg).TransitionDb()
 }
 
@@ -64,7 +66,7 @@ func (st *StateTransition) to() common.Address {
 
 func (st *StateTransition) useGas(amount uint64) error {
 	if st.ate < amount {
-		return vm.ErrOutOfGas
+		return virtMach.ErrOutOfGas
 	}
 	st.ate -= amount
 
@@ -86,7 +88,7 @@ func (st *StateTransition) buyAte() error {
 func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bool, err error) {
 
 	msg := st.msg
-	sender := vm.AccountRef(msg.From())
+	sender := msg.From()
 	contractCreation := msg.To() == nil
 
 	if err = st.useGas(usedAte); err != nil {
@@ -101,26 +103,31 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value)
+		ret, _, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value) //using sender would make the users address the contracts, would it not?
 	} else {
 
 		// Increment the nonce for the next transaction
-		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.ate, vmerr = vm.Call(sender, st.to(), st.data, st.ate, st.value)
+		st.state.SetNonce(msg.From(), st.state.GetNonce(sender)+1)
+		ret, st.ate, vmerr = vm.Call(
+			sender,   //caller address
+			st.to(),  //contract address
+			st.data,  //function hash followed by function params
+			st.ate,   //gas
+			st.value) //amount sent to contract
 	}
 	if vmerr != nil {
 		log15.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
-		if vmerr == vm.ErrInsufficientBalance {
+		if vmerr == virtMach.ErrInsufficientBalance {
 			return nil, 0, false, vmerr
 		}
 	}
 
 	st.refundAte()
 
-	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.atePrice))
+	st.state.AddBalance(st.vm.BlockCtx.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.atePrice))
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
@@ -129,9 +136,9 @@ func (st *StateTransition) refundAte() {
 	// Apply refund counter, capped to half of the used gas.
 
 	refund := st.gasUsed() / 2
-	if refund > st.state.GetRefund() {
-		refund = st.state.GetRefund()
-	}
+	// if refund > st.state.GetRefund() {
+	// 	refund = st.state.GetRefund()
+	// }
 	st.ate += refund
 
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.ate), st.atePrice)
