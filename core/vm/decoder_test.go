@@ -1,4 +1,4 @@
-package vm
+package VM
 
 import (
 	"encoding/hex"
@@ -98,7 +98,7 @@ func Test_decode2(t *testing.T) {
 
 func Test_i32StoreDecode(t *testing.T) {
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f0382808080000100048480808000017000000583808080000100010681808080000007918080800002066d656d6f72790200046d61696e00000aa280808000019c8080800001017f410028020441106b2200410036020c2000410a360208410a0b")
-	
+
 	module := *decode(wasmBytes)
 	expectedModuleCode := []byte{
 		Op_i32_const, 0x0,

@@ -1,4 +1,5 @@
-package vm
+package VM
+
 import (
 	"encoding/binary"
 	"io"

@@ -1,4 +1,4 @@
-package vm
+package VM
 
 type OperationCommon interface {
 	doOp(m *Machine) error

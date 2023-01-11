@@ -1,4 +1,4 @@
-package vm
+package VM
 
 import (
 	"github.com/adamnite/go-adamnite/common"
@@ -75,7 +75,7 @@ type blocktimestamp struct {
 }
 
 func (op blocktimestamp) doOp(m *Machine) error {
-	ts := m.blockCtx.Time.Uint64()
+	ts := m.BlockCtx.Time.Uint64()
 	m.pushToStack(ts)
 
 	if !m.useAte(op.gas) {
@@ -166,7 +166,7 @@ type getData struct {
 func (op getData) doOp(m *Machine) error {
 	data := m.contract.Input
 	m.pushToStack(data)
-	
+
 	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}

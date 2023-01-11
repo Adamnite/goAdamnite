@@ -1,4 +1,4 @@
-package vm
+package VM
 
 import (
 	"encoding/hex"
@@ -183,7 +183,7 @@ func Test_i32divu(t *testing.T) {
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
-	
+
 	defer func() {
 		if err := recover(); err != nil {
 			assert.Equal(t, err, "Division by zero")

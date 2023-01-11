@@ -1,4 +1,4 @@
-package vm
+package VM
 
 import (
 	"encoding/hex"
@@ -116,11 +116,11 @@ func TestOpBlocktimestamp(t *testing.T) {
 	blockts := big.NewInt(1673372829)
 	blockCtx := BlockContext{}
 	blockCtx.Time = blockts
-	vm.blockCtx = blockCtx
+	vm.BlockCtx = blockCtx
 	vm.call2(hashes[2]+"", 1000)
 	res := vm.popFromStack()
 	fmt.Printf("res: %v\n", res)
-	assert.Equal(t, blockts, 1673372829)
+	assert.Equal(t, blockts, big.NewInt(1673372829))
 }
 
 func TestOpDatasize(t *testing.T) {

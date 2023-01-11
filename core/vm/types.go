@@ -1,4 +1,4 @@
-package vm
+package VM
 
 //file for general VM types and constants.
 import (

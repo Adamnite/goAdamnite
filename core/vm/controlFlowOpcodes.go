@@ -1,4 +1,4 @@
-package vm
+package VM
 
 import (
 	"encoding/hex"

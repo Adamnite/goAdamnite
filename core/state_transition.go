@@ -6,7 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	virtMach "github.com/adamnite/go-adamnite/core/vm"
+	virtMach "github.com/adamnite/go-adamnite/core/VM"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
