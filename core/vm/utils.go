@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+// Contract represents an adm contract in the state database. It contains
+// the contract methods, calling arguments.
+type ContractData struct {
+	Address string   //the Address of the contract
+	Methods []string //just store all the hashes of the functions it can run as strings
+	Storage []uint64 //all storage inside the contract is held as an array of bytes
+}
 type CodeStored struct {
 	CodeParams  []ValueType
 	CodeResults []ValueType
@@ -234,154 +238,6 @@ func contractsEqual(a Contract, b Contract) bool {
 	return true
 }
 
-//GETTER
-
-func getMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
-	ApiString := apiEndpoint
-	if ApiString[len(ApiString)-1:] == "/" {
-		ApiString = ApiString[:len(ApiString)-1]
-	}
-	re, err := http.Get(apiEndpoint + "/code/" + codeHash)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	byteResponse, err := ioutil.ReadAll(re.Body)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	var code CodeStored
-	err = msgpack.Unmarshal(byteResponse, &code)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return &code, nil
-}
-
-func getContractData(apiEndpoint string, contractAddress string) (*Contract, error) {
-	contractApiString := apiEndpoint
-	if contractApiString[len(contractApiString)-1:] == "/" {
-		contractApiString = contractApiString[:len(contractApiString)-1]
-	}
-	re, err := http.Get(contractApiString + "/contract/" + contractAddress)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	byteResponse, err := ioutil.ReadAll(re.Body)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	//hopefully you know if things went wrong by here!
-	var contractData Contract
-	err = msgpack.Unmarshal(byteResponse, &contractData)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	return &contractData, nil
-}
-
-//UPLOADER
-
-func uploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
-	//takes the code as an array of bytes and returns the hash, and any errors
-	contractApiString := apiEndpoint
-	if contractApiString[len(contractApiString)-1:] == "/" {
-		contractApiString = contractApiString[:len(contractApiString)-1]
-	}
-	packedData, err := msgpack.Marshal(&code)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	re, err := http.NewRequest("PUT", contractApiString+"/uploadCode", bytes.NewReader(packedData))
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	ans, err := http.DefaultClient.Do(re)
-	if err != nil {
-		return nil, err
-	}
-	byteResponse, err := ioutil.ReadAll(ans.Body)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("code upload response")
-	fmt.Println(hex.EncodeToString(byteResponse))
-	fmt.Println(byteResponse)
-	fmt.Println(string(byteResponse))
-	hashInBytes, err := hex.DecodeString(string(byteResponse))
-	if err != nil {
-		return nil, err
-	}
-	return hashInBytes, nil
-}
-
-func uploadContract(apiEndpoint string, cdata Contract) error {
-	contractApiString := apiEndpoint
-	if contractApiString[len(contractApiString)-1:] == "/" {
-		contractApiString = contractApiString[:len(contractApiString)-1]
-	}
-
-	packedData, err := msgpack.Marshal(&cdata)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address.String(), bytes.NewReader(packedData))
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	ans, err := http.DefaultClient.Do(re)
-	if err != nil {
-		return err
-	}
-	if ans.StatusCode != 200 {
-		return fmt.Errorf("Host rejected the upload process with reason " + ans.Status)
-	}
-	return nil
-
-}
-
-func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
-	functionsToUpload := []CodeStored{}
-	hashes := [][]byte{}
-	for x := range mod.functionSection {
-		code := CodeStored{
-			CodeParams:  mod.typeSection[x].params,
-			CodeResults: mod.typeSection[x].results,
-			CodeBytes:   mod.codeSection[x].body,
-		}
-		functionsToUpload = append(functionsToUpload, code)
-		newHash, err := uploadMethod(apiEndpoint, code)
-		if err != nil {
-			return nil, nil, err
-		}
-		localHash, err := code.hash()
-		if bytes.Equal(newHash, localHash) || err != nil {
-			fmt.Println(err)
-			return nil, nil, fmt.Errorf("hashes are not equal, or could not hash local copy. ERR: %w, server hash: %v, local hash: %v", err, newHash, localHash)
-		}
-		hashes = append(hashes, newHash)
-	}
-
-	return functionsToUpload, hashes, nil
-}
-
 func (code CodeStored) hash() ([]byte, error) {
 	packedData, err := msgpack.Marshal(&code)
 	if err != nil {
@@ -390,4 +246,27 @@ func (code CodeStored) hash() ([]byte, error) {
 	hasher := md5.New()
 	hasher.Write(packedData)
 	return hasher.Sum(nil), nil
+}
+func contractDataToContract(cdata ContractData) *Contract {
+	con := Contract{
+		Address: common.HexToAddress(cdata.Address),
+		Storage: cdata.Storage,
+	}
+	for _, code := range cdata.Methods {
+		foo, _ := hex.DecodeString(code)
+		con.CodeHashes = append(con.CodeHashes, hex.EncodeToString(foo))
+	}
+	return &con
+}
+func contractToContractData(con Contract) ContractData {
+	cdata := ContractData{
+		Address: con.Address.Hex(),
+		Methods: []string{},
+		Storage: con.Storage,
+	}
+	for _, code := range con.Code {
+		foo, _ := code.hash()
+		cdata.Methods = append(cdata.Methods, hex.EncodeToString(foo))
+	}
+	return cdata
 }

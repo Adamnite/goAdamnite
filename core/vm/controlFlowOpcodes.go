@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"encoding/hex"
 	"errors"
 	"reflect"
 )
@@ -296,23 +297,25 @@ type Call struct {
 
 func (op Call) doOp(m *Machine) error {
 
-	if int(op.funcIndex) >= len(m.contract.Code) {
+	if int(op.funcIndex) >= len(m.contract.CodeHashes) {
 		return errors.New("invalid function index")
 	}
 
 	// Pop the required params from stack
-	params := m.contract.Code[op.funcIndex].CodeParams
+	hexEncodingOfHash, _ := hex.DecodeString((m.contract.CodeHashes[op.funcIndex]))
+	lFuncType, lOps, lControlBlocks := m.config.codeGetter(hexEncodingOfHash)
+
+	params := lFuncType.params
 	poppedParams := []uint64{}
 	for i := len(params); i != 0; i-- {
 		poppedParams = append(poppedParams, m.popFromStack())
 	}
 
-	code, ctrlStack := parseBytes(m.contract.Code[op.funcIndex].CodeBytes)
 	m.callStack[m.currentFrame].Continuation = int64(m.pointInCode) + 1 // When this frame will finish it will load this pointInCode back?
 	// Activate the new frame
 	frame := new(Frame)
-	frame.Code = code
-	frame.CtrlStack = ctrlStack
+	frame.Code = lOps
+	frame.CtrlStack = lControlBlocks
 	frame.Locals = poppedParams
 	frame.Ip = 0
 

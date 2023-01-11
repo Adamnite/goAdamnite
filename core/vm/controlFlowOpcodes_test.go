@@ -372,14 +372,17 @@ func Test_Call(t *testing.T) {
 	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
 	var gas = big.NewInt(100)
 	contract := NewContract(callerAddr, gas, module.codeSection[0].body, 100)
+	spoofer := newDBSpoofer()
 
-	contract.Code = []CodeStored{
-		CodeStored{
-			CodeParams:  module.typeSection[0].params,
-			CodeResults: module.typeSection[0].results,
-			CodeBytes:   module.codeSection[0].body,
-		},
+	localCodeStored := CodeStored{
+		CodeParams:  module.typeSection[0].params,
+		CodeResults: module.typeSection[0].results,
+		CodeBytes:   module.codeSection[0].body,
 	}
+	localCodeStoredHash, _ := localCodeStored.hash()
+	contract.CodeHashes = []string{hex.EncodeToString(localCodeStoredHash)}
+	spoofer.addSpoofedCode(hex.EncodeToString(localCodeStoredHash), localCodeStored)
+	vm.config.codeGetter = spoofer.GetCode
 
 	vm.contract = *contract
 
@@ -389,6 +392,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.config.codeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(8))
 	vm.callStack[0].Locals = vm.locals
@@ -399,6 +403,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.config.codeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(12))
 	vm.callStack[0].Locals = vm.locals
@@ -408,6 +413,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.config.codeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(14))
 	vm.callStack[0].Locals = vm.locals
@@ -418,6 +424,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.config.codeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(25))
 	vm.callStack[0].Locals = vm.locals
@@ -429,6 +436,7 @@ func Test_Call(t *testing.T) {
 
 	//floating math only holds accurate to 27!
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.config.codeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(27))
 	vm.callStack[0].Locals = vm.locals
