@@ -17,7 +17,7 @@ func (op opAddress) doOp(m *Machine) error {
 		m.pushToStack(addressInts[i])
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -43,7 +43,7 @@ func (op balance) doOp(m *Machine) error {
 	for i := range balanceInts {
 		m.pushToStack(balanceInts[i])
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -62,7 +62,7 @@ func (op callerAddr) doOp(m *Machine) error {
 		m.pushToStack(addressInts[i])
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -75,9 +75,10 @@ type blocktimestamp struct {
 }
 
 func (op blocktimestamp) doOp(m *Machine) error {
-	ts := EncodeUint64(uint64(m.BlockCtx.Time.Int64()))
+	ts := m.blockCtx.Time.Uint64()
 	m.pushToStack(ts)
-	if !m.useGas(op.gas) {
+
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -92,8 +93,9 @@ type dataSize struct {
 func (op dataSize) doOp(m *Machine) error {
 	size := uint64(len(m.contract.Input))
 
-	m.pushToStack(EncodeUint64(size))
-	if !m.useGas(op.gas) {
+	m.pushToStack(size)
+
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -107,9 +109,12 @@ type valueOp struct {
 
 func (op valueOp) doOp(m *Machine) error {
 	v := m.contract.Value
+	valueInts := balanceToArray(*v)
+	for i := range valueInts {
+		m.pushToStack(valueInts[i])
+	}
 
-	m.pushToStack(balanceToArray(*v))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	return nil
@@ -124,7 +129,7 @@ func (op gasPrice) doOp(m *Machine) error {
 
 	m.pushToStack(balanceToArray(*v))
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	return nil
@@ -161,10 +166,10 @@ type getData struct {
 func (op getData) doOp(m *Machine) error {
 	data := m.contract.Input
 	m.pushToStack(data)
-	if !m.useGas(op.gas) {
+	
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
-
 	m.pointInCode++
 	return nil
 }

@@ -248,8 +248,8 @@ func (m *Machine) pushToStack(n interface{}) {
 
 }
 
-// useGas attempts the use of gas and subtracts it and returns true on success
-func (m *Machine) useGas(gas uint64) bool {
+// useAte attempts the use of ate and subtracts it and returns true on success
+func (m *Machine) useAte(gas uint64) bool {
 	if m.gas < gas {
 		return false
 	}

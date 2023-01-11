@@ -8,7 +8,7 @@ func (op currentMemory) doOp(m *Machine) error {
 	m.pushToStack(uint64(len(m.vmMemory))) //should be divided by 65536, or the page size constant.
 	//this division can be handled by >>16
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -27,7 +27,7 @@ func (op growMemory) doOp(m *Machine) error {
 		m.vmMemory = append(m.vmMemory, byte(0))
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -51,7 +51,7 @@ func (op i32Load) doOp(m *Machine) error {
 
 	m.pushToStack(res)
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -65,6 +65,9 @@ type i32Store struct {
 	gas    uint64
 }
 
+// @TODO if the offset is greater than the prev
+// allocated one we compute the required ate cost for expansion
+
 func (op i32Store) doOp(m *Machine) error {
 	value := uint32(m.popFromStack())
 	index := uint32(m.popFromStack())
@@ -72,7 +75,7 @@ func (op i32Store) doOp(m *Machine) error {
 
 	LE.PutUint32(m.vmMemory[ea:ea+4], uint32(value))
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -92,7 +95,7 @@ func (op i64Load) doOp(m *Machine) error {
 	ea := int(index + uint64(op.offset))
 	value := (LE.Uint64(m.vmMemory[ea : ea+8]))
 	m.pushToStack(value)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -111,7 +114,7 @@ func (op i64Store) doOp(m *Machine) error {
 	index := uint32(m.popFromStack())
 	ea := int(uint64(index) + uint64(op.offset))
 	LE.PutUint64(m.vmMemory[ea:ea+8], uint64(value))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -130,7 +133,7 @@ func (op i32Load8s) doOp(m *Machine) error {
 	value := uint64(int8(m.vmMemory[ea]))
 	m.pushToStack(value)
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	return nil
@@ -148,7 +151,7 @@ func (op i32Store8) doOp(m *Machine) error {
 	ea := int(uint64(index) + uint64(op.offset))
 
 	m.vmMemory[ea] = byte(value)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -167,7 +170,7 @@ func (op i32Load8u) doOp(m *Machine) error {
 	res := int64(m.vmMemory[ea])
 
 	m.pushToStack(uint64(res))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -185,7 +188,7 @@ func (op i64Load16s) doOp(m *Machine) error {
 	ea := int(index + uint64(op.offset))
 	res := int64(int16(LE.Uint16(m.vmMemory[ea : ea+2])))
 	m.pushToStack(uint64(res))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -204,7 +207,7 @@ func (op i32Load16u) doOp(m *Machine) error {
 	ea := int(index + uint64(op.offset))
 	res := uint64(int16(LE.Uint16(m.vmMemory[ea : ea+2])))
 	m.pushToStack(res)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -222,7 +225,7 @@ func (op i64Load32s) doOp(m *Machine) error {
 	ea := int(index + uint64(op.offset))
 	res := int64(int32(LE.Uint32(m.vmMemory[ea : ea+4])))
 	m.pushToStack(uint64(res))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -241,7 +244,7 @@ func (op i32Store16) doOp(m *Machine) error {
 	ea := int(uint64(index) + uint64(op.offset))
 	LE.PutUint16(m.vmMemory[ea:ea+2], uint16(value))
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 

@@ -10,7 +10,7 @@ type f32Const struct {
 func (op f32Const) doOp(m *Machine) error {
 	m.pushToStack(op.val)
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -31,7 +31,7 @@ func (op f32Eq) doOp(m *Machine) error {
 		m.pushToStack(uint64(0))
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -51,7 +51,7 @@ func (op f32Neq) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(1))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -72,7 +72,7 @@ func (op f32Lt) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(0))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -92,7 +92,7 @@ func (op f32Gt) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(0))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -112,7 +112,7 @@ func (op f32Ge) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(0))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -132,7 +132,7 @@ func (op f32Le) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(0))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -151,7 +151,7 @@ func (op f32Abs) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -170,7 +170,7 @@ func (op f32Neg) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -189,7 +189,7 @@ func (op f32Ceil) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -208,7 +208,7 @@ func (op f32Floor) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -227,7 +227,7 @@ func (op f32Trunc) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -247,7 +247,7 @@ func (op f32Nearest) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -269,7 +269,7 @@ func (op f32Sqrt) doOp(m *Machine) error {
 	}
 	// m.pushToStack(uint64(math.Sqrt(float64(val))))
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -292,7 +292,7 @@ func (op f32Add) doOp(m *Machine) error {
 	// }
 	m.pushToStack(math.Float32bits(a + b))
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -309,7 +309,7 @@ func (op f32Sub) doOp(m *Machine) error {
 	a := math.Float32frombits(uint32(m.popFromStack()))
 
 	m.pushToStack(a - b)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -326,7 +326,7 @@ func (op f32Mul) doOp(m *Machine) error {
 	b := math.Float32frombits(uint32(m.popFromStack()))
 
 	m.pushToStack(a * b)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -347,7 +347,7 @@ func (op f32Div) doOp(m *Machine) error {
 		m.pushToStack(a / b)
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -369,7 +369,7 @@ func (op f32Max) doOp(m *Machine) error {
 	// 	m.pushToStack(uint64(math.Float32bits(c)))
 	// }
 	m.pushToStack(float32(math.Max(float64(a), float64(b))))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -390,7 +390,7 @@ func (op f32Min) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -412,7 +412,7 @@ func (op f32CopySign) doOp(m *Machine) error {
 		m.pushToStack(uint64(math.Float32bits(c)))
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++

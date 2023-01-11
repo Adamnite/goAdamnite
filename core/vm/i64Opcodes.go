@@ -9,7 +9,7 @@ type i64Const struct {
 
 func (op i64Const) doOp(m *Machine) error {
 	m.pushToStack(uint64(op.val))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -22,7 +22,7 @@ type i64Add struct {
 
 func (op i64Add) doOp(m *Machine) error {
 	m.pushToStack(m.popFromStack() + m.popFromStack())
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -37,7 +37,7 @@ func (op i64Sub) doOp(m *Machine) error {
 	c2 := m.popFromStack()
 	c1 := m.popFromStack()
 	m.pushToStack(c1 - c2)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -50,7 +50,7 @@ type i64Mul struct {
 
 func (op i64Mul) doOp(m *Machine) error {
 	m.pushToStack(m.popFromStack() * m.popFromStack())
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -70,7 +70,7 @@ func (op i64Divs) doOp(m *Machine) error {
 	}
 
 	m.pushToStack(uint64(c1 / c2))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -90,7 +90,7 @@ func (op i64Divu) doOp(m *Machine) error {
 	}
 
 	m.pushToStack(uint64(c1 / c2))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -111,7 +111,7 @@ func (op i64Eqz) doOp(m *Machine) error {
 		m.pushToStack(uint64(0))
 	}
 
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 
@@ -129,7 +129,7 @@ func (op i64Eq) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -146,7 +146,7 @@ func (op i64Ne) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(1)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -162,7 +162,7 @@ func (op i64And) doOp(m *Machine) error {
 	c1 := m.popFromStack()
 
 	m.pushToStack(c1 & c2)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -178,7 +178,7 @@ func (op i64Or) doOp(m *Machine) error {
 	c1 := m.popFromStack()
 
 	m.pushToStack(c1 | c2)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -194,7 +194,7 @@ func (op i64Xor) doOp(m *Machine) error {
 	c1 := m.popFromStack()
 
 	m.pushToStack(c1 ^ c2)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -213,7 +213,7 @@ func (op i64Les) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -233,7 +233,7 @@ func (op i64Leu) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -252,7 +252,7 @@ func (op i64Ges) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -271,7 +271,7 @@ func (op i64Geu) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -290,7 +290,7 @@ func (op i64Lts) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -309,7 +309,7 @@ func (op i64Ltu) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -328,7 +328,7 @@ func (op i64Gtu) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -347,7 +347,7 @@ func (op i64Gts) doOp(m *Machine) error {
 	} else {
 		m.pushToStack(0)
 	}
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -362,7 +362,7 @@ func (op i64Shl) doOp(m *Machine) error {
 	c2 := m.popFromStack()
 	c1 := m.popFromStack()
 	m.pushToStack(c1 << (c2 % 64))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -378,7 +378,7 @@ func (op i64Shrs) doOp(m *Machine) error {
 	c1 := int64(m.popFromStack())
 
 	m.pushToStack(uint64(c1 >> (c2 % 64)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -393,7 +393,7 @@ func (op i64Shru) doOp(m *Machine) error {
 	c2 := m.popFromStack()
 	c1 := m.popFromStack()
 	m.pushToStack(c1 >> (c2 % 64))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -408,7 +408,7 @@ func (op i64Rotl) doOp(m *Machine) error {
 	c2 := int64(m.popFromStack())
 	c1 := int64(m.popFromStack())
 	m.pushToStack(bits.RotateLeft64(uint64(c1), int(c2)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -423,7 +423,7 @@ func (op i64Rotr) doOp(m *Machine) error {
 	c2 := m.popFromStack()
 	c1 := m.popFromStack()
 	m.pushToStack(bits.RotateLeft64(uint64(c1), -1*int(c2)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -437,7 +437,7 @@ type i64Clz struct {
 func (op i64Clz) doOp(m *Machine) error {
 	a := m.popFromStack()
 	m.pushToStack(uint64(bits.LeadingZeros64(a)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -451,7 +451,7 @@ type i64Ctz struct {
 func (op i64Ctz) doOp(m *Machine) error {
 	a := m.popFromStack()
 	m.pushToStack(uint64(bits.TrailingZeros64(a)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -465,7 +465,7 @@ type i64PopCnt struct {
 func (op i64PopCnt) doOp(m *Machine) error {
 	a := m.popFromStack()
 	m.pushToStack(uint64(bits.OnesCount64(a)))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -485,7 +485,7 @@ func (op i64Rems) doOp(m *Machine) error {
 	}
 
 	m.pushToStack(c1 % c2)
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
@@ -505,7 +505,7 @@ func (op i64Remu) doOp(m *Machine) error {
 	}
 
 	m.pushToStack(uint64(c1 % c2))
-	if !m.useGas(op.gas) {
+	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
 	m.pointInCode++
