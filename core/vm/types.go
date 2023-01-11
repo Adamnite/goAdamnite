@@ -120,6 +120,7 @@ type Contract struct {
 	Value         *big.Int
 	CallerAddress common.Address
 	Code          []CodeStored
+	CodeHashes    []string //the hash of the code,the code is only actually in Contract.Code once its called
 	Storage       []uint64
 	Input         []byte // The bytes from `input` field of the transaction
 	Gas           uint64
