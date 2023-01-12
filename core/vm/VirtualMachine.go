@@ -114,6 +114,31 @@ func (m *Machine) outputMemory() string {
 	return ans
 }
 
+// CanTransfer checks whether there are enough funds in the address' account to make a transfer.
+func CanTransfer(db *statedb.StateDB, addr common.Address, amount *big.Int) bool {
+	return db.GetBalance(addr).Cmp(amount) >= 0
+}
+
+// Transfer subtracts amount from sender and adds amount to recipient using the given Db
+func Transfer(db *statedb.StateDB, sender, recipient common.Address, amount *big.Int) {
+	db.SubBalance(sender, amount)
+	db.AddBalance(recipient, amount)
+}
+
+func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
+	bc := BlockContext{}
+	bc.Coinbase = coinbase
+	bc.GasLimit = ateLimit
+	bc.BlockNumber = blockNumber
+	bc.Time = time
+	bc.Difficulty = diff
+	bc.BaseFee = fee
+	bc.CanTransfer = CanTransfer
+	bc.Transfer = Transfer
+
+	return bc
+}
+
 func initMemoryWithDataSection(module *Module, vm *Machine) {
 
 	dataSegmentSize := uint32(len(module.dataSection))

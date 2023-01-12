@@ -76,6 +76,7 @@ type blocktimestamp struct {
 
 func (op blocktimestamp) doOp(m *Machine) error {
 	ts := m.BlockCtx.Time.Uint64()
+	
 	m.pushToStack(ts)
 
 	if !m.useAte(op.gas) {

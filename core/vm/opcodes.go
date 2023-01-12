@@ -234,20 +234,20 @@ const (
 
 // Environment Related Operations
 const (
-	Op_address  = 0xc1 //address of the contract
-	Op_balance  = 0xc2 //balance of the address popped from stack (3 uint64) returns 2 uint64
-	Op_caller   = 0xc3 //address of the caller
-	Op_datasize = 0xc4
+	Op_address  = 0xc1 //done //address of the contract
+	Op_balance  = 0xc2 //done //balance of the address popped from stack (3 uint64) returns 2 uint64
+	Op_caller   = 0xc3 //done //address of the caller
+	Op_datasize = 0xc4 // duplicate
 	// Op_caller_balance = 0xc5 //balance just gets the balance of what calls
-	Op_timestamp = 0xc6 //blocks timestamp
+	Op_timestamp = 0xc6 //done //blocks timestamp
 )
 
 // Fee and storage level operations
 const (
-	Op_value     = 0xd1
-	Op_gas_price = 0xd2
+	Op_value     = 0xd1 // done
+	Op_gas_price = 0xd2 // done
 	Op_code_size = 0xd3
-	Op_data_size = 0xd4
+	Op_data_size = 0xd4 // done
 	Op_get_code  = 0xd5
 	Op_copy_code = 0xd6
 	Op_get_data  = 0xd7
