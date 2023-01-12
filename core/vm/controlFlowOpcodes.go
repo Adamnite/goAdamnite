@@ -303,6 +303,8 @@ func (op Call) doOp(m *Machine) error {
 
 	// Pop the required params from stack
 	hexEncodingOfHash, _ := hex.DecodeString((m.contract.CodeHashes[op.funcIndex]))
+	
+	//TODO: have this save the code grabbed, if its used multiple times, we shouldn't need to fetch it multiple times.
 	lFuncType, lOps, lControlBlocks := m.config.codeGetter(hexEncodingOfHash)
 
 	params := lFuncType.params

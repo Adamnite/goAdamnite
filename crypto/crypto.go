@@ -99,7 +99,7 @@ func Ripemd160Hash(data ...[]byte) []byte {
 	return hashBytes
 }
 
-//String Function can be used in cases where a message needs to be hashed
+// String Function can be used in cases where a message needs to be hashed
 func NewRipemd160String(s string) []byte {
 	bytes, err := hex.DecodeString(s)
 	if err != nil {

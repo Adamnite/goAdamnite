@@ -12,7 +12,7 @@ import (
 
 //UPLOADER
 
-func uploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
+func UploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	//takes the code as an array of bytes and returns the hash, and any errors
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
@@ -49,7 +49,7 @@ func uploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	return hashInBytes, nil
 }
 
-func uploadContract(apiEndpoint string, con Contract) error {
+func UploadContract(apiEndpoint string, con Contract) error {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
 		contractApiString = contractApiString[:len(contractApiString)-1]
@@ -80,7 +80,7 @@ func uploadContract(apiEndpoint string, con Contract) error {
 
 }
 
-func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
+func UploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
 	functionsToUpload := []CodeStored{}
 	hashes := [][]byte{}
 	for x := range mod.functionSection {
@@ -90,7 +90,7 @@ func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]by
 			CodeBytes:   mod.codeSection[x].body,
 		}
 		functionsToUpload = append(functionsToUpload, code)
-		newHash, err := uploadMethod(apiEndpoint, code)
+		newHash, err := UploadMethod(apiEndpoint, code)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -104,10 +104,13 @@ func uploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]by
 
 	return functionsToUpload, hashes, nil
 }
+func (m Machine) UploadMachinesContract(apiEndpoint string) error {
+	return UploadContract(apiEndpoint, m.contract)
+}
 
 //GETTER
 
-func getMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
+func GetMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 	ApiString := apiEndpoint
 	if ApiString[len(ApiString)-1:] == "/" {
 		ApiString = ApiString[:len(ApiString)-1]
@@ -134,7 +137,7 @@ func getMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 	return &code, nil
 }
 
-func getContractData(apiEndpoint string, contractAddress string) (*Contract, error) {
+func GetContractData(apiEndpoint string, contractAddress string) (*Contract, error) {
 	contractApiString := apiEndpoint
 	if contractApiString[len(contractApiString)-1:] == "/" {
 		contractApiString = contractApiString[:len(contractApiString)-1]

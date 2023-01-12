@@ -12,19 +12,21 @@ import (
 )
 
 type StateProcessor struct {
-	config      *params.ChainConfig // Chain configuration options
-	bc          *Blockchain         // Canonical block chain
-	engine      dpos.AdamniteDPOS   // Consensus engine used for block rewards
-	vmInstances []VM.Machine
+	config             *params.ChainConfig // Chain configuration options
+	bc                 *Blockchain         // Canonical block chain
+	engine             dpos.AdamniteDPOS   // Consensus engine used for block rewards
+	vmInstances        []VM.Machine
+	localDBAPIEndpoint string
 }
 
 // NewStateProcessor initializes a new StateProcessor.
 func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.AdamniteDPOS) *StateProcessor {
 	return &StateProcessor{
-		config:      config,
-		bc:          bc,
-		engine:      engine,
-		vmInstances: []VM.Machine{},
+		config:             config,
+		bc:                 bc,
+		engine:             engine,
+		vmInstances:        []VM.Machine{},
+		localDBAPIEndpoint: "http://127.0.0.1:5001/",
 	}
 }
 
@@ -38,7 +40,23 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	for i, tx := range block.Body().Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		//TODO: actually get the blockContext...
-		v, err := ApplyTransaction(p.config, p.bc, nil, gasPrice, statedb, header, tx, usedGas, cfg, VM.BlockContext{})
+		v, err := ApplyTransaction(
+			p.config,
+			p.bc,
+			nil,
+			gasPrice,
+			statedb,
+			header,
+			tx,
+			usedGas,
+			cfg,
+			VM.NewBlockContext( //TODO: someone with a better understanding of block structure should review this!
+				header.DBWitness, //coinbase Address //TODO:SOMEONE REVIEW THIS!
+				tx.ATEMax(),
+				p.bc.CurrentBlock().Number(),
+				big.NewInt(block.ReceivedAt.UnixMicro()),
+				big.NewInt(1),
+				tx.Cost()))
 		if err != nil {
 			return 0, err
 		}
@@ -46,8 +64,13 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Body().Transactions)
-	for i, v := range p.vmInstances {
-
+	if p.localDBAPIEndpoint != "" { //just check that this server is in fact, running a DB
+		for _, v := range p.vmInstances {
+			err := v.UploadMachinesContract(p.localDBAPIEndpoint)
+			if err != nil {
+				return 0, err
+			}
+		}
 	}
 	return *usedGas, nil
 }

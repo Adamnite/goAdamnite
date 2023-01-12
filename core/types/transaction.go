@@ -73,7 +73,7 @@ func (s Transactions) EncodeIndex(i int, w *bytes.Buffer) {
 }
 
 //// TODO: Implement structure for creating a new transaction, basic message transactions (will do this weekend),
-//proper encoding and decoding of transactions, fetch operations (the fetching of various transaction releated data),
+//proper encoding and decoding of transactions, fetch operations (the fetching of various transaction related data),
 //and some stack operations such as shift.
 
 func NewTx(inner Transaction_Data) *Transaction {

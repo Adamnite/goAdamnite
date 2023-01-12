@@ -19,7 +19,7 @@ func NewContract(caller common.Address, value *big.Int, input []byte, gas uint64
 }
 
 func GetCodeBytes2(uri string, hash string) ([]byte, error) {
-	code, err := getMethodCode(uri, hash)
+	code, err := GetMethodCode(uri, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +445,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	m.Statedb.SetNonce(caller, nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
-	contractData, err := getContractData(m.config.uri, address.String())
+	contractData, err := GetContractData(m.config.uri, address.String())
 
 	if err != nil {
 		return nil, address, gas, err
@@ -485,7 +485,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	}
 
 	// Upload the module here
-	_, _, err = uploadModuleFunctions(m.config.uri, module)
+	_, _, err = UploadModuleFunctions(m.config.uri, module)
 
 	if err != nil {
 		m.Statedb.RevertToSnapshot(snapshot)

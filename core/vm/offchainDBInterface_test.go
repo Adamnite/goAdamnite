@@ -32,7 +32,7 @@ var (
 
 func TestUploadingContract(t *testing.T) {
 	testContract = NewContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
-	err := uploadContract(apiEndpoint, *testContract)
+	err := UploadContract(apiEndpoint, *testContract)
 	fmt.Println(testContract.Address.Hex())
 	fmt.Println(testContract)
 	if err != nil {
@@ -47,7 +47,7 @@ func TestUploadingContract(t *testing.T) {
 }
 
 func TestGettingContract(t *testing.T) {
-	cdata, err := getContractData(apiEndpoint, testContract.Address.Hex())
+	cdata, err := GetContractData(apiEndpoint, testContract.Address.Hex())
 	if err != nil {
 		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
 			fmt.Println("Local Server Appears to be offline.")
@@ -68,7 +68,7 @@ func TestGettingContract(t *testing.T) {
 func TestUploadingCode(t *testing.T) {
 	fmt.Println(addTwoFunctionHash)
 
-	hash, err := uploadMethod(apiEndpoint, addTwoCodeStored)
+	hash, err := UploadMethod(apiEndpoint, addTwoCodeStored)
 	if err != nil {
 		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
 			fmt.Println("Local Server Appears to be offline.")
@@ -84,7 +84,7 @@ func TestUploadingCode(t *testing.T) {
 
 }
 func TestGettingCode(t *testing.T) {
-	codeString, err := getMethodCode(apiEndpoint, hex.EncodeToString(addTwoFunctionHash))
+	codeString, err := GetMethodCode(apiEndpoint, hex.EncodeToString(addTwoFunctionHash))
 	if err != nil {
 		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
 			fmt.Println("Local Server Appears to be offline.")
