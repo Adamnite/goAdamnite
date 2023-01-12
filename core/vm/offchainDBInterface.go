@@ -10,6 +10,29 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+type APIcodeGetter struct {
+	apiEndpointString string
+}
+
+func NewAPICodeGetter(apiString string) APIcodeGetter {
+	return APIcodeGetter{apiEndpointString: apiString}
+}
+
+func (c APIcodeGetter) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	locCopy, err := GetMethodCode(c.apiEndpointString, hex.EncodeToString(hash))
+	if err != nil {
+		panic(err)
+	}
+	ops, blocks := parseBytes(locCopy.CodeBytes)
+	funcType := FunctionType{
+		params:  locCopy.CodeParams,
+		results: locCopy.CodeResults,
+		string:  hex.EncodeToString(hash), //so you can lie better.
+	}
+	return funcType, ops, blocks
+	// func GetMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
+}
+
 //UPLOADER
 
 func UploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {

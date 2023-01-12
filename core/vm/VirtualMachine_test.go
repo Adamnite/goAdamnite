@@ -45,7 +45,7 @@ func TestCall2(t *testing.T) {
 		code, ctrlStack := parseBytes(module.codeSection[index].body)
 		return *module.typeSection[0], code, ctrlStack
 	}
-	vm.config.codeGetter = getCodeMock
+	vm.config.CodeGetter = getCodeMock
 
 	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102"
 	// 00ee919d00ee919d00ee919d00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]

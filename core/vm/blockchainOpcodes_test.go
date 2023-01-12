@@ -82,7 +82,7 @@ func preTestSetup() {
 	}
 	vm = newVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
 	vm.contract.Address = common.BytesToAddress(testAddress)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 }
 
 func TestOpAddress(t *testing.T) {

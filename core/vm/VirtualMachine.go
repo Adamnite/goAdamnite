@@ -32,7 +32,7 @@ func getDefaultConfig() VMConfig {
 		gasLimit:                 30000, // 30000 ATE
 		returnOnGasLimitExceeded: true,
 		debugStack:               false,
-		codeGetter:               defaultCodeGetter,
+		CodeGetter:               defaultCodeGetter,
 		codeBytesGetter:          GetCodeBytes2,
 		uri:                      "https//default.uri",
 	}
@@ -282,8 +282,6 @@ func (m *Machine) useAte(gas uint64) bool {
 	return true
 }
 
-type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
-
 func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	panic(fmt.Errorf("virtual machine does not have a code getter setup"))
 }
@@ -308,7 +306,7 @@ func (m *Machine) call2(callBytes interface{}, gas uint64) error {
 
 	funcIdentifier := bytes[:16]
 
-	funcTypes, funcCode, controlStack := m.config.codeGetter(funcIdentifier)
+	funcTypes, funcCode, controlStack := m.config.CodeGetter(funcIdentifier)
 
 	var params []uint64
 	//get the params from the bytes passed.

@@ -382,7 +382,7 @@ func Test_Call(t *testing.T) {
 	localCodeStoredHash, _ := localCodeStored.hash()
 	contract.CodeHashes = []string{hex.EncodeToString(localCodeStoredHash)}
 	spoofer.addSpoofedCode(hex.EncodeToString(localCodeStoredHash), localCodeStored)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 
 	vm.contract = *contract
 
@@ -392,7 +392,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(8))
 	vm.callStack[0].Locals = vm.locals
@@ -403,7 +403,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(12))
 	vm.callStack[0].Locals = vm.locals
@@ -413,7 +413,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(14))
 	vm.callStack[0].Locals = vm.locals
@@ -424,7 +424,7 @@ func Test_Call(t *testing.T) {
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
 
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(25))
 	vm.callStack[0].Locals = vm.locals
@@ -436,7 +436,7 @@ func Test_Call(t *testing.T) {
 
 	//floating math only holds accurate to 27!
 	vm = newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
-	vm.config.codeGetter = spoofer.GetCode
+	vm.config.CodeGetter = spoofer.GetCode
 	vm.contract = *contract
 	vm.addLocal(float64(27))
 	vm.callStack[0].Locals = vm.locals

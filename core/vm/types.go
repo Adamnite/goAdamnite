@@ -92,13 +92,15 @@ type TxContext struct {
 	GasPrice *big.Int
 }
 
+type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
+
 type VMConfig struct {
 	maxCallStackDepth        uint
 	gasLimit                 uint64
 	returnOnGasLimitExceeded bool
 	debugStack               bool // should it output the stack every operation
 	maxCodeSize              uint64
-	codeGetter               GetCode
+	CodeGetter               GetCode
 	codeBytesGetter          func(uri string, hash string) ([]byte, error)
 	uri                      string
 }

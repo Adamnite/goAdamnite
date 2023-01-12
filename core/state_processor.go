@@ -37,9 +37,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	)
 	// Mutate the block and state according to any hard-fork specs
 	// Iterate over and process the individual transactions
+	if cfg.CodeGetter == nil {
+		getObject := VM.NewAPICodeGetter(p.localDBAPIEndpoint)
+		cfg.CodeGetter = getObject.GetCode
+	}
 	for i, tx := range block.Body().Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		//TODO: actually get the blockContext...
 		v, err := ApplyTransaction(
 			p.config,
 			p.bc,
