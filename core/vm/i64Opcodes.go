@@ -66,7 +66,7 @@ func (op i64Divs) doOp(m *Machine) error {
 	c1 := int64(m.popFromStack())
 
 	if c2 == 0 {
-		panic("Division by 0")
+		panic("Division by zero")
 	}
 
 	m.pushToStack(uint64(c1 / c2))
@@ -86,7 +86,7 @@ func (op i64Divu) doOp(m *Machine) error {
 	c1 := m.popFromStack()
 
 	if c2 == 0 {
-		panic("Division by 0")
+		panic("Division by zero")
 	}
 
 	m.pushToStack(uint64(c1 / c2))

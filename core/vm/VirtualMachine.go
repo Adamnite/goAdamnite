@@ -459,7 +459,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 
 	m.BlockCtx.Transfer(m.Statedb, caller, address, value)
 
-	// Initialize a new contract and set the code that is to be used by the EVM.
+	// Initialize a new contract and set the code that is to be used by the ADVM.
 	contract := NewContract(caller, value, codeBytes, gas)
 	m.contract = *contract
 

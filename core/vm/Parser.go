@@ -407,11 +407,6 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			ansOps = append(ansOps, growMemory{})
 			pointInBytes += 1
 
-		// case Op_call:
-		// 	pointInBytes += 1
-		// 	ansOps = append(ansOps, call{bytes[pointInBytes : pointInBytes+64]})
-		// 	pointInBytes += 64
-
 		case Op_tee_local:
 			ansOps = append(ansOps, TeeLocal{uint64(bytes[pointInBytes+1]), GasQuickStep})
 			pointInBytes += 2

@@ -482,15 +482,8 @@ func Test_FuncFact(t *testing.T) {
 	assert.Equal(t, res, uint64(24))
 }
 
-func Test_block(t *testing.T) {
-	// double fact() {
-	// 	int i = 4;
-	// 	long long n = 1;
-	// 	for (;i > 0; i--) {
-	// 	  n *= i;
-	// 	}
-	// 	return (double)n;
-	//   }
+func Test_blockDeep(t *testing.T) {
+	// https://github.com/WebAssembly/testsuite//blob/main/block.wast#L40
 	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070801046465657000010a7e0202000b7900027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f10004196010b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0016046e616d65010801000564756d6d7902050200000100")
 	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
@@ -523,4 +516,58 @@ func Test_block(t *testing.T) {
 	vm.run()
 	assert.Equal(t, expected, module.codeSection[1].body)
 	assert.Equal(t, vm.popFromStack(), uint64(150))
+}
+
+func Test_blockEmpty(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d010000000104016000000302010007090105656d70747900000a0a01080002400b02400b0b000a046e616d650203010000")
+
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	module := *decode(wasmBytes)
+	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+	err := vm.run()
+	fmt.Printf("err: %v\n", err)
+}
+
+func Test_blockNested(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070a01066e657374656400010a1a0202000b1500027f0240100002400b010b027f100041090b0b0b0016046e616d65010801000564756d6d7902050200000100")
+
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+
+	module := *decode(wasmBytes)
+	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+	err := vm.run()
+	fmt.Printf("err: %v\n", err)
+}
+
+func Test_blockAsLoop(t *testing.T) {
+	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f03030200010711010d61732d6c6f6f702d666972737400010a130202000b0e00037f027f41010b100010000b0b0016046e616d65010801000564756d6d7902050200000100")
+
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *testContract
+
+	module := *decode(wasmBytes)
+	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+	err := vm.run()
+	fmt.Printf("err: %v\n", err)
+}
+
+
+func Test_LoopDeep(t *testing.T) {
+	// https://github.com/WebAssembly/testsuite//blob/main/loop.wast#L37
+	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070801046465657000010a84010202000b7f00037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f10004196010b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0016046e616d65010801000564756d6d7902050200000100")
+
+	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm.contract = *testContract
+
+	module := *decode(wasmBytes)
+	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
+	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
+	err := vm.run()
+	res := vm.popFromStack()
+	assert.Equal(t, res, uint64(0x96))
+	fmt.Printf("err: %v\n", err)
 }
