@@ -78,15 +78,13 @@ func UploadContract(apiEndpoint string, con Contract) error {
 		contractApiString = contractApiString[:len(contractApiString)-1]
 	}
 
-	cdata := contractToContractData(con)
-
-	packedData, err := msgpack.Marshal(&cdata)
+	packedData, err := ContractToMSGPackBytes(con)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
 
-	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+cdata.Address, bytes.NewReader(packedData))
+	re, err := http.NewRequest("PUT", contractApiString+"/contract/"+con.Address.Hex(), bytes.NewReader(packedData))
 	if err != nil {
 		fmt.Println(err)
 		return err

@@ -347,20 +347,20 @@ func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader,
 
 	number := header.Number.Uint64()
 	var witnessPool *WitnessPool
+	var dbWitnessPool *poh.DBWitnessPool
+
 	if number > 0 {
 		witnessPool, _ = adpos.witnesspool(chain, number-1, header.ParentHash, nil)
 		if witnessPool == nil {
 			return
 		}
-	}
 
-	var dbWitnessPool *poh.DBWitnessPool
-	if number > 0 {
 		dbWitnessPool, _ = adpos.dbwitnesspool(chain, number-1, header.ParentHash, nil)
 		if dbWitnessPool == nil {
 			return
 		}
 	}
+
 walk:
 	for _, tx := range txs {
 

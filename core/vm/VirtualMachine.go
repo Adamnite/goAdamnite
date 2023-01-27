@@ -550,3 +550,7 @@ func (m *Machine) addLocal(n interface{}) {
 		fmt.Printf("pushed to locals: %v\n", n)
 	}
 }
+
+func (m *Machine) getContractHash() common.Hash {
+	return m.contract.Hash()
+}

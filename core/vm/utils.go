@@ -3,7 +3,9 @@ package VM
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -269,4 +271,26 @@ func contractToContractData(con Contract) ContractData {
 		cdata.Methods = append(cdata.Methods, hex.EncodeToString(foo))
 	}
 	return cdata
+}
+
+func (con Contract) Hash() common.Hash {
+	contractBytes, err := ContractToMSGPackBytes(con)
+	if err != nil {
+		return common.BytesToHash([]byte{0})
+	}
+	h := sha256.New()
+	h.Write(contractBytes)
+	// fmt.Printf("%x", h.Sum(nil))
+	return common.BytesToHash(h.Sum(nil))
+}
+
+func ContractToMSGPackBytes(con Contract) ([]byte, error) {
+	cdata := contractToContractData(con)
+
+	packedData, err := msgpack.Marshal(&cdata)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return packedData, nil
 }
