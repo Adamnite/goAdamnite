@@ -33,13 +33,7 @@ func executeStateless(inputbytes string) {
 	spoofer := VM.NewDBSpoofer()
 	bytes, _ := hex.DecodeString(inputbytes)
 	decodedModule := VM.DecodeModule(bytes)
-	err, hashes := spoofer.AddModuleToSpoofedCode(decodedModule)
-
-	if (err == nil && true) {
-		for _ , x := range hashes {
-			fmt.Printf("hash: %v\n", hex.EncodeToString(x))
-		}
-	}
+	spoofer.AddModuleToSpoofedCode(decodedModule)
 	var cfg VM.VMConfig
 	cfg.CodeGetter = spoofer.GetCode
 	vMachine := VM.NewVirtualMachine([]byte{}, []uint64{0}, &cfg, gas)
@@ -48,7 +42,7 @@ func executeStateless(inputbytes string) {
 		funcHash += callArgs
 	}
 
-	err = vMachine.Call2(funcHash, gas)
+	err := vMachine.Call2(funcHash, gas)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
@@ -73,6 +67,8 @@ var executeCmd = &cobra.Command{
 				panic(err)
 			}
 			executeStateless(string(readBytes))
+		} else {
+			panic("Bytes or file path should be specified")
 		}
 	} 
   },
