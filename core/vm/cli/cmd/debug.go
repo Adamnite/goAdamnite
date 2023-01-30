@@ -46,6 +46,7 @@ var debugCmd = &cobra.Command{
       if err != nil {
         panic(err)
       }
+      bytes2, _ = hex.DecodeString(string(bytes2))
     } else {
       panic("Bytes or file path should be specified")
     }
