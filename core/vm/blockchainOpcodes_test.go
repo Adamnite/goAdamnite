@@ -80,7 +80,7 @@ func preTestSetup() {
 	if err != nil {
 		panic("error in preTestSetup")
 	}
-	vm = newVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
+	vm = NewVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
 	vm.contract.Address = common.BytesToAddress(testAddress)
 	vm.config.CodeGetter = spoofer.GetCode
 }

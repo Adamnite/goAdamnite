@@ -44,7 +44,7 @@ func Test_f32Basics(t *testing.T) {
 	// 	(export "fdivTwo" (func 3)))
 
 	// testCode := []byte{}
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	// vm.config.debugStack = true
 
 	module := *decode(wasmBytes)
@@ -56,9 +56,9 @@ func Test_f32Basics(t *testing.T) {
 	}
 	for i := range testParams { //f32_add
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]+testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -67,9 +67,9 @@ func Test_f32Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	for i := range testParams { //f32_sub
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]-testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -78,9 +78,9 @@ func Test_f32Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[2].body)
 	for i := range testParams { //f32_mul
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]*testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -89,9 +89,9 @@ func Test_f32Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[3].body)
 	for i := range testParams { //f32_div
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]/testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -136,7 +136,7 @@ func Test_f64Basics(t *testing.T) {
 	// 	(export "fdivTwo" (func 3)))
 
 	// testCode := []byte{}
-	vm := newVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	vm.config.debugStack = true
 
 	module := *decode(wasmBytes)
@@ -148,9 +148,9 @@ func Test_f64Basics(t *testing.T) {
 	}
 	for i := range testParams { //f64_add
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]+testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -159,9 +159,9 @@ func Test_f64Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	for i := range testParams { //f64_sub
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]-testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -170,9 +170,9 @@ func Test_f64Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[2].body)
 	for i := range testParams { //f64_mul
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]*testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -181,9 +181,9 @@ func Test_f64Basics(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[3].body)
 	for i := range testParams { //f64_div
 		vm.reset()
-		vm.addLocal(testParams[i])
+		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.run()
+		vm.Run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]/testParams[i][1], math.Float64frombits(poppedValue))
 

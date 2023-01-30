@@ -33,13 +33,13 @@ func getDefaultConfig() VMConfig {
 		returnOnGasLimitExceeded: true,
 		debugStack:               false,
 		CodeGetter:               defaultCodeGetter,
-		codeBytesGetter:          GetCodeBytes2,
+		CodeBytesGetter:          GetCodeBytes2,
 		uri:                      "https//default.uri",
 	}
 }
 
 func (m *Machine) step() {
-	//DANGER!!! Untested! No longer same as an individual run step!
+	//DANGER!!! Untested! No longer same as an individual Run step!
 	if m.pointInCode < uint64(len(m.vmCode)) {
 		op := m.vmCode[m.pointInCode]
 		op.doOp(m)
@@ -59,7 +59,6 @@ func (m *Machine) run() error {
 		currentFrame.Ip = m.pointInCode
 		m.vmCode = currentFrame.Code
 		m.locals = currentFrame.Locals
-
 		for uint64(currentFrame.Ip) < uint64(len(currentFrame.Code)) {
 			oldFrameNum := m.currentFrame
 			op := currentFrame.Code[currentFrame.Ip]
@@ -194,27 +193,22 @@ func NewVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMC
 	return machine
 }
 
-func setCallCode(m *Machine, funcBodyBytes []byte, gas uint64) {
+func SetCallCode(m *Machine, funcBodyBytes []byte, gas uint64) {
 	m.vmCode, m.controlBlockStack = parseBytes(funcBodyBytes)
 	m.gas = gas
 }
 
-func setCodeAndInit(m *Machine, funcBodyBytes []byte, gas uint64) {
+func SetCodeAndInit(m *Machine, funcBodyBytes []byte, gas uint64) {
 	m.vmCode, m.controlBlockStack = parseBytes(funcBodyBytes)
 	m.gas = gas
 	initVMState(m)
 }
 
 // This constructor is let for compatibility only and should be updated/removed
-func newVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
+func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage
-	// machine.module = *decode(wasmBytes)
-	// // These delimited lines are left for compatibility purpose only should be removed
-	// machine.vmCode, machine.controlBlockStack = parseBytes(machine.module.codeSection[0].body)
-	// machine.locals = make([]uint64, len(machine.module.codeSection[0].localTypes))
-	//
 	machine.gas = gas
 
 	if config != nil {
@@ -251,6 +245,11 @@ func (m *Machine) popFromStack() uint64 {
 	ans, m.vmStack = m.vmStack[len(m.vmStack)-1], m.vmStack[:len(m.vmStack)-1]
 	return ans
 }
+
+func (m *Machine) DumpStack() {
+	fmt.Printf("Stack Output: %v\n", m.vmStack)
+}
+
 func (m *Machine) pushToStack(n interface{}) {
 
 	switch v := n.(type) {
@@ -287,7 +286,7 @@ func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlB
 }
 
 // Called when invoking specific function inside the contract
-func (m *Machine) call2(callBytes interface{}, gas uint64) error {
+func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 	// Structure: 0x[16 bytes func identifier][param1..][param2...][param3]
 	// Note: The callbytes is following the wasm encoding scheme. can be passed as string or byte array
 	var bytes []byte
@@ -305,9 +304,7 @@ func (m *Machine) call2(callBytes interface{}, gas uint64) error {
 	}
 
 	funcIdentifier := bytes[:16]
-
 	funcTypes, funcCode, controlStack := m.config.CodeGetter(funcIdentifier)
-
 	var params []uint64
 	//get the params from the bytes passed.
 	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
@@ -355,6 +352,7 @@ func (m *Machine) call2(callBytes interface{}, gas uint64) error {
 	incomingParamCount := len(params)
 
 	if expectedParamCount != incomingParamCount {
+		fmt.Printf("Expecting: %v Got %v ", expectedParamCount, incomingParamCount)
 		panic("Call2 - Param counts mismatch")
 	}
 
@@ -403,7 +401,7 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 	contract := NewContract(caller, value, input, gas)
 	m.contract = *contract
 
-	err = m.call2(input, gas)
+	err = m.Call2(input, gas)
 
 	if err != nil {
 		m.Statedb.RevertToSnapshot(snapshot)
@@ -516,7 +514,7 @@ func (m *Machine) reset() {
 	m.callStack = []*Frame{m.callStack[0]}
 }
 
-func (m *Machine) addLocal(n interface{}) {
+func (m *Machine) AddLocal(n interface{}) {
 	switch v := n.(type) {
 	case uint64:
 		m.locals = append(m.locals, v)
@@ -528,19 +526,19 @@ func (m *Machine) addLocal(n interface{}) {
 		m.locals = append(m.locals, uint64(math.Float32bits(v)))
 	case []uint64:
 		for i := 0; i < len(v); i++ {
-			m.addLocal(v[i])
+			m.AddLocal(v[i])
 		}
 	case []uint32:
 		for i := 0; i < len(v); i++ {
-			m.addLocal(v[i])
+			m.AddLocal(v[i])
 		}
 	case []float64:
 		for i := 0; i < len(v); i++ {
-			m.addLocal(v[i])
+			m.AddLocal(v[i])
 		}
 	case []float32:
 		for i := 0; i < len(v); i++ {
-			m.addLocal(v[i])
+			m.AddLocal(v[i])
 		}
 
 	default:

@@ -115,7 +115,7 @@ func UploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]by
 		if err != nil {
 			return nil, nil, err
 		}
-		localHash, err := code.hash()
+		localHash, err := code.Hash()
 		if bytes.Equal(newHash, localHash) || err != nil {
 			fmt.Println(err)
 			return nil, nil, fmt.Errorf("hashes are not equal, or could not hash local copy. ERR: %w, server hash: %v, local hash: %v", err, newHash, localHash)
