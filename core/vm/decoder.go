@@ -55,6 +55,14 @@ type FunctionType struct {
 	resultNumInUint64 int
 }
 
+func (f FunctionType) Params() []ValueType {
+	return f.params
+}
+
+func (f FunctionType) Results() []ValueType {
+	return f.results
+}
+
 type ModuleID = [sha256.Size]byte
 type SectionID = byte
 type ValueType = byte
