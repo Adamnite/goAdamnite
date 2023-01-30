@@ -500,7 +500,10 @@ func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *
 	nonce := m.Statedb.GetNonce(caller)
 	addrBytes = append(addrBytes, byte(nonce))
 
-	contractAddr = crypto.PubkeyByteToAddress(addrBytes)
+	contractKey, err := crypto.GenerateKey()
+
+	contractAddr = crypto.PubkeyToAddress(contractKey.PublicKey)
+
 	return m.create(caller, code, gas, value, contractAddr)
 }
 
