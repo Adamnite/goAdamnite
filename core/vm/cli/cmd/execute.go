@@ -4,7 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/core/vm"
+	"github.com/adamnite/go-adamnite/params"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +16,7 @@ var gas uint64
 var funcHash string
 var callArgs string
 var filePath string
-var stateless bool
+var testnet bool
 
 func init() {
   executeCmd.Flags().StringVarP(&bytes, "from-bytes", "", "", "Bytes to execute")
@@ -22,7 +25,7 @@ func init() {
   executeCmd.Flags().Uint64Var(&gas, "gas", 0, "Amount of gas to allocate for the execution")
   executeCmd.Flags().StringVarP(&funcHash, "function", "", "", "Hash of the function to execute")
   executeCmd.Flags().StringVarP(&callArgs, "call-args", "", "", "Wasm encoded arguments of the function")
-  executeCmd.Flags().BoolVarP(&stateless, "stateless", "", true, "Whether to retrieve context from live blockchain. If true user has to provide block information")
+  executeCmd.Flags().BoolVarP(&testnet, "testnet", "", true, "The network type to use (mainnet, testnet)")
 
   executeCmd.MarkFlagRequired("gas")
   executeCmd.MarkFlagRequired("function")
@@ -35,8 +38,10 @@ func executeStateless(inputbytes string) {
 	decodedModule := VM.DecodeModule(bytes)
 	spoofer.AddModuleToSpoofedCode(decodedModule)
 	var cfg VM.VMConfig
+	var chainCfg params.ChainConfig
+
 	cfg.CodeGetter = spoofer.GetCode
-	vMachine := VM.NewVirtualMachine([]byte{}, []uint64{0}, &cfg, gas)
+	vMachine := VM.NewVM(&statedb.StateDB{}, VM.BlockContext{}, VM.TxContext{}, &cfg, &chainCfg)
 
 	if (callArgs != "") {
 		funcHash += callArgs
@@ -58,7 +63,7 @@ var executeCmd = &cobra.Command{
 
 	// The execution done here is stateless. For state depending execution,
 	// the user has to provide a block from which the state will be retrieved from
-	if (stateless) {
+	if (testnet) {
 		if (bytes != "") {
 			executeStateless(bytes)
 		} else if (filePath != "") {
