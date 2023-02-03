@@ -312,7 +312,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 		valTypeByte := bytes[i]
 
 		switch valTypeByte {
-		case Op_i32_const:
+		case Op_i32:
 			paramValue, count, err := DecodeInt32(reader(bytes[i+1:]))
 
 			if err != nil {
@@ -322,7 +322,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 			params = append(params, uint64(paramValue))
 			i += count
 
-		case Op_i64_const:
+		case Op_i64:
 			paramValue, count, err := DecodeInt64(reader(bytes[i+1:]))
 			params = append(params, uint64(paramValue))
 
@@ -331,13 +331,13 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 			}
 			i += count
 
-		case Op_f32_const:
+		case Op_f32:
 			num := LE.Uint32(bytes[i+1 : 4])
 			math.Float32frombits(num)
 			params = append(params, uint64(num))
 			i += 5
 
-		case Op_f64_const:
+		case Op_f64:
 			num := LE.Uint64(bytes[i+1:])
 			math.Float64frombits(num)
 			params = append(params, num)
