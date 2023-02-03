@@ -58,7 +58,7 @@ func Test_f32Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]+testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -69,7 +69,7 @@ func Test_f32Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]-testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -80,7 +80,7 @@ func Test_f32Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]*testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -91,7 +91,7 @@ func Test_f32Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]/testParams[i][1], math.Float32frombits(uint32(poppedValue)))
 
@@ -150,7 +150,7 @@ func Test_f64Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]+testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -161,7 +161,7 @@ func Test_f64Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]-testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -172,7 +172,7 @@ func Test_f64Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]*testParams[i][1], math.Float64frombits(poppedValue))
 
@@ -183,7 +183,7 @@ func Test_f64Basics(t *testing.T) {
 		vm.reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
-		vm.Run()
+		vm.run()
 		poppedValue := vm.popFromStack()
 		assert.Equal(t, testParams[i][0]/testParams[i][1], math.Float64frombits(poppedValue))
 

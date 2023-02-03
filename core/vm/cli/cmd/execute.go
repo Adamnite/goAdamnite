@@ -28,7 +28,7 @@ func init() {
 
 	executeCmd.Flags().Uint64Var(&gas, "gas", 0, "Amount of gas to allocate for the execution")
 	executeCmd.Flags().StringVarP(&funcHash, "function", "", "", "Hash of the function to execute")
-	executeCmd.Flags().StringVarP(&callArgs, "call-args", "", "", "Wasm encoded arguments of the function")
+	executeCmd.Flags().StringVarP(&callArgs, "call-args", "", "", "comma separated arguments of the function")
 	executeCmd.Flags().BoolVarP(&testnet, "testnet", "", true, "The network type to use (mainnet, testnet)")
 
 	executeCmd.MarkFlagRequired("gas")
@@ -58,6 +58,7 @@ func executeStateless(inputbytes string) {
 		//split by comma separation
 		paramsSplit := strings.Split(callArgs, ",")
 		callParamsHex := []byte{}
+		fmt.Println(paramsSplit)
 		for i, indexedTypeValue := range funcTypes.Params() {
 			switch indexedTypeValue {
 			case VM.Op_i32:
@@ -86,13 +87,19 @@ func executeStateless(inputbytes string) {
 			case VM.Op_f64:
 
 				valueOfParam, err := strconv.ParseFloat(paramsSplit[i], 64)
+				fmt.Println("value of param is: ", valueOfParam)
+				fmt.Println("floatsBits is: ", math.Float64bits(valueOfParam))
+
+				fmt.Println("final encoding is: ", VM.LE.AppendUint64([]byte{}, math.Float64bits(valueOfParam)))
 				if err != nil {
 					panic(fmt.Errorf("error in parsing parameters, %w", err))
 				}
 				callParamsHex = append(callParamsHex, indexedTypeValue)
-				callParamsHex = append(callParamsHex, VM.EncodeUint64(math.Float64bits(valueOfParam))...)
+				callParamsHex = append(callParamsHex, VM.LE.AppendUint64([]byte{}, math.Float64bits(valueOfParam))...)
 			}
 		}
+		fmt.Println(callParamsHex)
+		fmt.Println(hex.EncodeToString(callParamsHex))
 		callEncodedString := strings.ReplaceAll( //sanitizing out any possible hex encoding fluff left over
 			hex.EncodeToString(callParamsHex),
 			"0x",
@@ -107,6 +114,7 @@ func executeStateless(inputbytes string) {
 		return
 	}
 	vMachine.DumpStack()
+
 	return
 }
 

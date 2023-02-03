@@ -22,7 +22,7 @@ func Test_i32Add(t *testing.T) {
 	vm.locals = append(vm.locals, 1)
 	vm.locals = append(vm.locals, 1)
 	vm.callStack[0].Locals = vm.locals
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(2))
 	// (assert_return (invoke "add" (i32.const 1) (i32.const 0)) (i32.const 1))
 
@@ -36,19 +36,19 @@ func Test_i32Add(t *testing.T) {
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(1))
 
 	// (assert_return (invoke "add" (i32.const -1) (i32.const -1)) (i32.const -2))
 	// vm.locals = append(vm.locals, -1)
 	// vm.locals = append(vm.locals, -1)
-	// vm.Run()
+	// vm.run()
 	// assert.Equal(t, vm.popFromStack(), -2)
 
 	// (assert_return (invoke "add" (i32.const -1) (i32.const 1)) (i32.const 0))
 	// vm.locals = append(vm.locals, -1)
 	// vm.locals = append(vm.locals, 0)
-	// vm.Run()
+	// vm.run()
 	// assert.Equal(t, vm.popFromStack(), 0)
 
 	// (assert_return (invoke "add" (i32.const 0x7fffffff) (i32.const 1)) (i32.const 0x80000000))
@@ -60,7 +60,7 @@ func Test_i32Add(t *testing.T) {
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x80000000))
 
 	// (assert_return (invoke "add" (i32.const 0x80000000) (i32.const -1)) (i32.const 0x7fffffff))
@@ -73,7 +73,7 @@ func Test_i32Add(t *testing.T) {
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x0))
 
 	// (assert_return (invoke "add" (i32.const 0x3fffffff) (i32.const 1)) (i32.const 0x40000000))
@@ -85,7 +85,7 @@ func Test_i32Add(t *testing.T) {
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x40000000))
 }
 
@@ -112,7 +112,7 @@ func Test_i32Sub(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0))
 
 	// (assert_return (invoke "sub" (i32.const 1) (i32.const 0)) (i32.const 1))
@@ -126,7 +126,7 @@ func Test_i32Sub(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(1))
 
 	// (assert_return (invoke "sub" (i32.const -1) (i32.const -1)) (i32.const 0))
@@ -143,7 +143,7 @@ func Test_i32Sub(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x7fffffff))
 
 	// (assert_return (invoke "sub" (i32.const 0x80000000) (i32.const 0x80000000)) (i32.const 0))
@@ -157,7 +157,7 @@ func Test_i32Sub(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x0))
 
 	// (assert_return (invoke "sub" (i32.const 0x3fffffff) (i32.const -1)) (i32.const 0x40000000))
@@ -189,7 +189,7 @@ func Test_i32divu(t *testing.T) {
 			assert.Equal(t, err, "Division by zero")
 		}
 	}()
-	vm.Run()
+	vm.run()
 
 	// (assert_trap (invoke "div_u" (i32.const 0) (i32.const 0)) "integer divide by zero")
 	vm.pointInCode = 0
@@ -206,7 +206,7 @@ func Test_i32divu(t *testing.T) {
 			assert.Equal(t, err, "Division by zero")
 		}
 	}()
-	vm.Run()
+	vm.run()
 
 	// (assert_return (invoke "div_u" (i32.const 1) (i32.const 1)) (i32.const 1))
 
@@ -219,7 +219,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x1))
 
 	// (assert_return (invoke "div_u" (i32.const 0) (i32.const 1)) (i32.const 0))
@@ -233,7 +233,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x1))
 
 	// (assert_return (invoke "div_u" (i32.const -1) (i32.const -1)) (i32.const 1))
@@ -249,7 +249,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x40000000))
 
 	// (assert_return (invoke "div_u" (i32.const 0x8ff00ff0) (i32.const 0x10001)) (i32.const 0x8fef))
@@ -263,7 +263,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x8fef))
 
 	// (assert_return (invoke "div_u" (i32.const 0x80000001) (i32.const 1000)) (i32.const 0x20c49b))
@@ -277,7 +277,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x20c49b))
 
 	// (assert_return (invoke "div_u" (i32.const 5) (i32.const 2)) (i32.const 2))
@@ -290,7 +290,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0x20c49b))
 
 	// (assert_return (invoke "div_u" (i32.const -5) (i32.const 2)) (i32.const 0x7ffffffd))
@@ -307,7 +307,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(2))
 
 	// (assert_return (invoke "div_u" (i32.const 11) (i32.const 5)) (i32.const 2))
@@ -320,7 +320,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(2))
 
 	// (assert_return (invoke "div_u" (i32.const 17) (i32.const 7)) (i32.const 2))
@@ -334,7 +334,7 @@ func Test_i32divu(t *testing.T) {
 	vm.currentFrame = 0
 	vm.callStack[0].Locals = vm.locals
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(2))
 
 }

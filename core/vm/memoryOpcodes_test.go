@@ -28,7 +28,7 @@ func Test_i32Store(t *testing.T) {
 	}
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	vm.Run()
+	vm.run()
 	// Stored values in memory
 	stored1 := LE.Uint32(vm.vmMemory[12 : 12+4])
 	stored2 := LE.Uint32(vm.vmMemory[0x8 : 0x8+4])
@@ -64,7 +64,7 @@ func Test_i32Store2(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	// Stored values in memory
 	stored1 := LE.Uint32(vm.vmMemory[0xc : 0xc+4])
 	stored2 := LE.Uint32(vm.vmMemory[0x8 : 0x8+4])
@@ -96,7 +96,7 @@ func Test_i32Store3(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	// Stored value in memory
 	r := LE.Uint32(vm.vmMemory[0x8 : 0x8+4])
 	assert.Equal(t, uint64(0x4), uint64(r))

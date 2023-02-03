@@ -61,7 +61,7 @@ func Test_SingleBlock(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedModuleCode, module.codeSection[0].body)
-	vm.Run()
+	vm.run()
 }
 
 func Test_MultiBlock(t *testing.T) {
@@ -98,7 +98,7 @@ func Test_MultiBlock(t *testing.T) {
 
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, len(vm.vmStack), 0)
 }
 
@@ -134,7 +134,7 @@ func Test_Br(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, vm.popFromStack(), uint64(0))
 }
 
@@ -175,7 +175,7 @@ func Test_Br2(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	vm.Run()
+	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(30))
 }
@@ -223,7 +223,7 @@ func Test_Loop(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	fmt.Printf("vmStack: %v\n", vm.vmStack)
 	assert.Equal(t, vm.popFromStack(), uint64(45))
 }
@@ -267,7 +267,7 @@ func Test_If(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(code)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(115), uint64(res))
 }
@@ -320,7 +320,7 @@ func Test_Return(t *testing.T) {
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
-	vm.Run()
+	vm.run()
 	res := LE.Uint32(vm.vmMemory[12 : 12+4])
 	assert.Equal(t, uint64(110), uint64(res))
 }
@@ -372,22 +372,22 @@ func Test_Call(t *testing.T) {
 	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
 	var gas = big.NewInt(100)
 	contract := NewContract(callerAddr, gas, module.codeSection[0].body, 100)
-	spoofer := newDBSpoofer()
+	spoofer := NewDBSpoofer()
 
 	localCodeStored := CodeStored{
 		CodeParams:  module.typeSection[0].params,
 		CodeResults: module.typeSection[0].results,
 		CodeBytes:   module.codeSection[0].body,
 	}
-	localCodeStoredHash, _ := localCodeStored.hash()
+	localCodeStoredHash, _ := localCodeStored.Hash()
 	contract.CodeHashes = []string{hex.EncodeToString(localCodeStoredHash)}
-	spoofer.addSpoofedCode(hex.EncodeToString(localCodeStoredHash), localCodeStored)
+	spoofer.AddSpoofedCode(hex.EncodeToString(localCodeStoredHash), localCodeStored)
 	vm.config.CodeGetter = spoofer.GetCode
 
 	vm.contract = *contract
 
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
-	vm.Run()
+	vm.run()
 
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(120))
 
@@ -398,7 +398,7 @@ func Test_Call(t *testing.T) {
 	vm.callStack[0].Locals = vm.locals
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 
-	vm.Run()
+	vm.run()
 
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(40320))
 
@@ -409,7 +409,7 @@ func Test_Call(t *testing.T) {
 	vm.callStack[0].Locals = vm.locals
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(479001600))
 
 	vm = NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -419,7 +419,7 @@ func Test_Call(t *testing.T) {
 	vm.callStack[0].Locals = vm.locals
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 
-	vm.Run()
+	vm.run()
 
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(87178291200))
 
@@ -430,7 +430,7 @@ func Test_Call(t *testing.T) {
 	vm.callStack[0].Locals = vm.locals
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 
-	vm.Run()
+	vm.run()
 
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(15511210043330985984000000))
 
@@ -442,7 +442,7 @@ func Test_Call(t *testing.T) {
 	vm.callStack[0].Locals = vm.locals
 	vm.callStack[vm.currentFrame].Code, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 
-	vm.Run()
+	vm.run()
 	assert.Equal(t, math.Float64frombits(vm.popFromStack()), float64(10888869450418352160768000000))
 }
 
@@ -476,7 +476,7 @@ func Test_FuncFact(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(expected)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	vm.Run()
+	vm.run()
 	fmt.Printf("vm.vmStack: %v\n", vm.vmStack)
 	res := vm.popFromStack()
 	assert.Equal(t, res, uint64(24))
@@ -513,7 +513,7 @@ func Test_blockDeep(t *testing.T) {
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
 
 	module := *decode(wasmBytes)
-	vm.Run()
+	vm.run()
 	assert.Equal(t, expected, module.codeSection[1].body)
 	assert.Equal(t, vm.popFromStack(), uint64(150))
 }
@@ -526,7 +526,7 @@ func Test_blockEmpty(t *testing.T) {
 	module := *decode(wasmBytes)
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[0].body)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	err := vm.Run()
+	err := vm.run()
 	fmt.Printf("err: %v\n", err)
 }
 
@@ -538,7 +538,7 @@ func Test_blockNested(t *testing.T) {
 	module := *decode(wasmBytes)
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	err := vm.Run()
+	err := vm.run()
 	fmt.Printf("err: %v\n", err)
 }
 
@@ -551,7 +551,7 @@ func Test_blockAsLoop(t *testing.T) {
 	module := *decode(wasmBytes)
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	err := vm.Run()
+	err := vm.run()
 	fmt.Printf("err: %v\n", err)
 }
 
@@ -565,7 +565,7 @@ func Test_LoopDeep(t *testing.T) {
 	module := *decode(wasmBytes)
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	vm.callStack[0].Code, vm.callStack[0].CtrlStack = vm.vmCode, vm.controlBlockStack
-	err := vm.Run()
+	err := vm.run()
 	res := vm.popFromStack()
 	assert.Equal(t, res, uint64(0x96))
 	fmt.Printf("err: %v\n", err)

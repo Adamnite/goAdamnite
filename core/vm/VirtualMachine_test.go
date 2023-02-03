@@ -47,16 +47,16 @@ func TestCall2(t *testing.T) {
 	}
 	vm.config.CodeGetter = getCodeMock
 
-	callCode := "00ee919d00ee919d00ee919d00ee919d410a4102"
-	// 00ee919d00ee919d00ee919d00ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode := "00ee919d00ee919d00ee919d00ee919d7f0a7f02"
+	// 00ee919d00ee919d00ee919d00ee919d = FuncIdentifier, [0x7f = i32, value = 0x2] [0x7f = i64, value = 0x0a]
 	vm.Call2(callCode, 10000)
 	assert.Equal(t, vm.popFromStack(), uint64(0xc))
 
 	vm.pointInCode = 0
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
-	callCode2 := "01ee919d01ee919d01ee919d01ee919d410a4102"
-	// 01ee919d01ee919d01ee919d01ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode2 := "01ee919d01ee919d01ee919d01ee919d7f0a7f02"
+	// 01ee919d01ee919d01ee919d01ee919d = FuncIdentifier, [0x7f = i32, value = 0x2] [0x7f = i64, value = 0x0a]
 
 	vm.Call2(callCode2, 1000)
 
@@ -65,7 +65,7 @@ func TestCall2(t *testing.T) {
 	vm.pointInCode = 0
 	vm.callStack[0].Ip = 0
 	vm.currentFrame = 0
-	callCode3 := "02ee919d02ee919d02ee919d02ee919d410a4102" // 0x02ee919d = FuncIdentifier, [0x41 = i32, value = 0x2] [0x41 = i64, value = 0x0a]
+	callCode3 := "02ee919d02ee919d02ee919d02ee919d7f0a7f02" // 0x02ee919d = FuncIdentifier, [0x7f = i32, value = 0x2] [0x7f = i64, value = 0x0a]
 
 	vm.Call2(callCode3, 1000)
 
