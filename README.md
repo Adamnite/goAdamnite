@@ -6,8 +6,18 @@ Please look at all the branches if you are an interested contributor to determin
 
 Also, be sure to join the Contributor Discord if you are interested in contributing to the POC as a whole.
 
+## Building A1 code on the Adamnite Blockchain
 
+1. Run `./cli debug --from-file <location of file>` from the CLI folder which should return a response similar to:
+`cli % ./cli debug --from-file examples/sum.ao 9703bdb17a160ed80486a83aa3c413c1 ===> i64 (i64, i64)`
+ This response shows the hash of the code, parameters, as well as types.
 
+2. Using the returned has, run the cli execute command like so:
+`cli % ./cli execute --from-file examples/sum.ao --call-args 0x123,1 --gas 1000000 --function 9703bdb17a160ed80486a83aa3c413c1`
+
+3. To then build `cd` into the core/VM/cli folder and run `go build`
+
+You have now debugged and built your A1 code.
 
 ## Project Structure and Specifications
 
