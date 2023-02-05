@@ -50,62 +50,7 @@ func executeStateless(inputbytes string) {
 	funcTypes, _, _ := cfg.CodeGetter(funcHashBytes)
 
 	if callArgs != "" {
-		//remove any extra characters, and sanitize the inputs.
-		callArgs = strings.ReplaceAll(callArgs, " ", "")
-		callArgs = strings.ReplaceAll(callArgs, "[", "")
-		callArgs = strings.ReplaceAll(callArgs, "]", "")
-
-		//split by comma separation
-		paramsSplit := strings.Split(callArgs, ",")
-		callParamsHex := []byte{}
-		fmt.Println(paramsSplit)
-		for i, indexedTypeValue := range funcTypes.Params() {
-			switch indexedTypeValue {
-			case VM.Op_i32:
-				valueOfParam, err := strconv.ParseInt(paramsSplit[i], 0, 32) //this will figure out the base
-				if err != nil {
-					panic(fmt.Errorf("error in parsing parameters, %w", err))
-				}
-				callParamsHex = append(callParamsHex, indexedTypeValue)
-
-				callParamsHex = append(callParamsHex, VM.EncodeInt32(int32(valueOfParam))...)
-			case VM.Op_i64:
-				valueOfParam, err := strconv.ParseInt(paramsSplit[i], 0, 64)
-				if err != nil {
-					panic(fmt.Errorf("error in parsing parameters, %w", err))
-				}
-				callParamsHex = append(callParamsHex, indexedTypeValue)
-				callParamsHex = append(callParamsHex, VM.EncodeInt64(valueOfParam)...)
-			case VM.Op_f32:
-
-				valueOfParam, err := strconv.ParseFloat(paramsSplit[i], 32)
-				if err != nil {
-					panic(fmt.Errorf("error in parsing parameters, %w", err))
-				}
-				callParamsHex = append(callParamsHex, indexedTypeValue)
-				callParamsHex = append(callParamsHex, VM.EncodeUint32(math.Float32bits(float32(valueOfParam)))...)
-			case VM.Op_f64:
-
-				valueOfParam, err := strconv.ParseFloat(paramsSplit[i], 64)
-				fmt.Println("value of param is: ", valueOfParam)
-				fmt.Println("floatsBits is: ", math.Float64bits(valueOfParam))
-
-				fmt.Println("final encoding is: ", VM.LE.AppendUint64([]byte{}, math.Float64bits(valueOfParam)))
-				if err != nil {
-					panic(fmt.Errorf("error in parsing parameters, %w", err))
-				}
-				callParamsHex = append(callParamsHex, indexedTypeValue)
-				callParamsHex = append(callParamsHex, VM.LE.AppendUint64([]byte{}, math.Float64bits(valueOfParam))...)
-			}
-		}
-		fmt.Println(callParamsHex)
-		fmt.Println(hex.EncodeToString(callParamsHex))
-		callEncodedString := strings.ReplaceAll( //sanitizing out any possible hex encoding fluff left over
-			hex.EncodeToString(callParamsHex),
-			"0x",
-			"")
-		//if any further cleanup needs to be done, it should be done here
-		funcHash += callEncodedString
+		funcHash += userInputToFuncArgsStr(callArgs, funcTypes)
 	}
 
 	err := vMachine.Call2(funcHash, gas)
@@ -114,8 +59,57 @@ func executeStateless(inputbytes string) {
 		return
 	}
 	vMachine.DumpStack()
+	// valueOfParam, _ := strconv.ParseFloat("-1", 64)
+	// fmt.Println("floatsBits is: ", math.Float64bits(valueOfParam))
+}
 
-	return
+func userInputToFuncArgsStr(passedArgs string, funcTypes VM.FunctionType) string {
+	// remove any extra characters, and sanitize the inputs.
+	passedArgs = strings.ReplaceAll(passedArgs, " ", "")
+	passedArgs = strings.ReplaceAll(passedArgs, "[", "")
+	passedArgs = strings.ReplaceAll(passedArgs, "]", "")
+
+	// split by comma separation
+	paramsSplit := strings.Split(passedArgs, ",")
+	callParamsHex := []byte{}
+
+	for i, indexedTypeValue := range funcTypes.Params() {
+		var valueOfParam []byte
+		var loopErr error = nil
+
+		switch indexedTypeValue {
+		case VM.Op_i32:
+			//this will figure out the base
+			if paramV, loopErr := strconv.ParseInt(paramsSplit[i], 0, 32); loopErr == nil {
+				valueOfParam = VM.EncodeInt32(int32(paramV))
+			}
+		case VM.Op_i64:
+			if paramV, loopErr := strconv.ParseInt(paramsSplit[i], 0, 64); loopErr == nil {
+				valueOfParam = VM.EncodeInt64(paramV)
+			}
+		case VM.Op_f32:
+			if paramV, loopErr := strconv.ParseFloat(paramsSplit[i], 32); loopErr == nil {
+				valueOfParam = VM.EncodeUint32(math.Float32bits(float32(paramV)))
+			}
+		case VM.Op_f64:
+			if paramV, loopErr := strconv.ParseFloat(paramsSplit[i], 64); loopErr == nil {
+				valueOfParam = VM.LE.AppendUint64([]byte{}, math.Float64bits(paramV))
+			}
+		default:
+			panic(fmt.Errorf("unrecognized type passed as func param type: %v", indexedTypeValue))
+		}
+
+		if loopErr != nil {
+			panic(fmt.Errorf("error in parsing parameters, %w", loopErr))
+		}
+		callParamsHex = append(callParamsHex, indexedTypeValue)
+		callParamsHex = append(callParamsHex, valueOfParam...)
+	}
+
+	return strings.ReplaceAll( //sanitizing out any possible hex encoding fluff left over
+		hex.EncodeToString(callParamsHex),
+		"0x",
+		"") // if any further cleanup needs to be done, it should be done here
 }
 
 var executeCmd = &cobra.Command{
