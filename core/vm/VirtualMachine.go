@@ -335,15 +335,17 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 			num := LE.Uint32(bytes[i+1 : 4])
 			math.Float32frombits(num)
 			params = append(params, uint64(num))
-			i += 5
+			i += 4
 
 		case Op_f64:
 			num := LE.Uint64(bytes[i+1:])
-			math.Float64frombits(num)
+			fmt.Println("num version of f64 is: ", num)
+			fmt.Println(math.Float64frombits(num))
 			params = append(params, num)
-			i += 9
+			i += 8
 		default:
 			println("Parsed valtype %v", valTypeByte)
+			println("at index ", i)
 			return fmt.Errorf("parsed valtype %v, no such known type", valTypeByte)
 		}
 	}
