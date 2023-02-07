@@ -90,11 +90,11 @@ func (m *Machine) run() error {
 func (m *Machine) debugOutputStack() {
 	//removing repeated code with a function that outputs the stack if debug is set to True
 	if m.config.debugStack {
-		fmt.Println(m.outputStack())
+		fmt.Println(m.OutputStack())
 	}
 }
 
-func (m *Machine) outputStack() string {
+func (m *Machine) OutputStack() string {
 	ans := ""
 	for i, v := range m.vmStack {
 		ans += strconv.FormatInt(int64(i), 16) + " ::: " + strconv.FormatUint(v, 16) + "\n"
@@ -104,7 +104,7 @@ func (m *Machine) outputStack() string {
 	return ans
 }
 
-func (m *Machine) outputMemory() string {
+func (m *Machine) OutputMemory() string {
 	ans := ""
 	for _, v := range m.vmMemory {
 

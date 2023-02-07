@@ -36,7 +36,7 @@ func init() {
 	root.AddCommand(executeCmd)
 }
 
-func executeStateless(inputbytes string) {
+func executeStateless(inputbytes string) string {
 	spoofer := VM.NewDBSpoofer()
 	bytes, _ := hex.DecodeString(inputbytes)
 	decodedModule := VM.DecodeModule(bytes)
@@ -56,11 +56,12 @@ func executeStateless(inputbytes string) {
 	err := vMachine.Call2(funcHash, gas)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
-		return
+		return "err"
 	}
 	vMachine.DumpStack()
 	// valueOfParam, _ := strconv.ParseFloat("-1", 64)
 	// fmt.Println("floatsBits is: ", math.Float64bits(valueOfParam))
+	return vMachine.OutputStack()
 }
 
 func userInputToFuncArgsStr(passedArgs string, funcTypes VM.FunctionType) string {

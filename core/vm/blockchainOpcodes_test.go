@@ -90,7 +90,7 @@ func TestOpAddress(t *testing.T) {
 	vm.config.debugStack = true
 	fmt.Println(vm.Call2(hashes[0]+"", 1000))
 
-	fmt.Println(vm.outputStack())
+	fmt.Println(vm.OutputStack())
 	assert.Equal(t, vm.contract.Address.Bytes(), uintsArrayToAddress(vm.vmStack))
 }
 
