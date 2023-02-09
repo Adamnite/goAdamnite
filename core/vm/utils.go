@@ -30,7 +30,7 @@ type DBSpoofer struct {
 	storedFunctions map[string]CodeStored //hash=>functions
 }
 
-func newDBSpoofer() DBSpoofer {
+func NewDBSpoofer() DBSpoofer {
 	return DBSpoofer{map[string]CodeStored{}}
 }
 
@@ -46,10 +46,10 @@ func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, [
 	return funcType, ops, blocks
 }
 
-func (spoof *DBSpoofer) addSpoofedCode(hash string, funcCode CodeStored) {
+func (spoof *DBSpoofer) AddSpoofedCode(hash string, funcCode CodeStored) {
 	spoof.storedFunctions[hash] = funcCode
 }
-func (spoof *DBSpoofer) addModuleToSpoofedCode(input interface{}) (error, [][]byte) {
+func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) (error, [][]byte) {
 	var mod Module
 	switch v := input.(type) {
 	case Module:
@@ -62,7 +62,7 @@ func (spoof *DBSpoofer) addModuleToSpoofedCode(input interface{}) (error, [][]by
 	case []string:
 		hashes := [][]byte{}
 		for i := 0; i < len(v); i++ {
-			err, foo := spoof.addModuleToSpoofedCode(v[i])
+			err, foo := spoof.AddModuleToSpoofedCode(v[i])
 			if err != nil {
 				return err, nil
 			}
@@ -74,7 +74,7 @@ func (spoof *DBSpoofer) addModuleToSpoofedCode(input interface{}) (error, [][]by
 	case [][]byte:
 		hashes := [][]byte{}
 		for i := 0; i < len(v); i++ {
-			err, foo := spoof.addModuleToSpoofedCode(v[i])
+			err, foo := spoof.AddModuleToSpoofedCode(v[i])
 			if err != nil {
 				return err, nil
 			}
@@ -91,12 +91,12 @@ func (spoof *DBSpoofer) addModuleToSpoofedCode(input interface{}) (error, [][]by
 			CodeResults: mod.typeSection[x].results,
 			CodeBytes:   mod.codeSection[x].body,
 		}
-		localHash, err := code.hash()
+		localHash, err := code.Hash()
 
 		if err != nil {
 			return err, nil
 		}
-		spoof.addSpoofedCode(hex.EncodeToString(localHash), code)
+		spoof.AddSpoofedCode(hex.EncodeToString(localHash), code)
 		hashes = append(hashes, localHash)
 	}
 	return nil, hashes
@@ -226,8 +226,8 @@ func contractsEqual(a Contract, b Contract) bool {
 	}
 
 	for i := range a.Code {
-		hashA, err := a.Code[i].hash()
-		hashB, errB := b.Code[i].hash()
+		hashA, err := a.Code[i].Hash()
+		hashB, errB := b.Code[i].Hash()
 		if err != nil || errB != nil || !bytes.Equal(hashA, hashB) {
 			return false
 		}
@@ -240,7 +240,7 @@ func contractsEqual(a Contract, b Contract) bool {
 	return true
 }
 
-func (code CodeStored) hash() ([]byte, error) {
+func (code CodeStored) Hash() ([]byte, error) {
 	packedData, err := msgpack.Marshal(&code)
 	if err != nil {
 		return nil, err
@@ -267,7 +267,7 @@ func contractToContractData(con Contract) ContractData {
 		Storage: con.Storage,
 	}
 	for _, code := range con.Code {
-		foo, _ := code.hash()
+		foo, _ := code.Hash()
 		cdata.Methods = append(cdata.Methods, hex.EncodeToString(foo))
 	}
 	return cdata
@@ -293,4 +293,22 @@ func ContractToMSGPackBytes(con Contract) ([]byte, error) {
 		return nil, err
 	}
 	return packedData, nil
+}
+
+func DecodeModule(moduleBytes []byte) Module {
+	l := *decode(moduleBytes)
+	return l
+}
+
+func ModuleToCodeStored(m *Module) []CodeStored {
+	cs := []CodeStored{}
+	for i := 0; i < len(m.functionSection); i++ {
+		cs = append(cs, CodeStored{
+			CodeParams: m.typeSection[i].params,
+			CodeResults: m.typeSection[i].results,
+			CodeBytes: m.codeSection[i].body,
+		})
+	}
+
+	return cs
 }

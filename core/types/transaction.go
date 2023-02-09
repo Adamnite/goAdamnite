@@ -15,7 +15,7 @@ import (
 var (
 	ErrorCryptoSignature    = errors.New("Invalid Elliptic Curve Values")
 	ErrorEmptyTX            = errors.New("Empty Transaction Data")
-	ErrorLowFee             = errors.New("Fee lower than minimum fee dicated by network")
+	ErrorLowFee             = errors.New("Fee lower than minimum fee dictated by network")
 	ErrorInvalidTransaction = errors.New("Transaction Balance is too large")
 )
 

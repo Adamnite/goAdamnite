@@ -72,15 +72,15 @@ func preTestSetup() {
 		0x0b,
 	}
 
-	spoofer = newDBSpoofer()
-	err, foo := spoofer.addModuleToSpoofedCode([][]byte{getContractAddressWasm, getContractBalanceWasm, getBlocktimestampWasm, getDataSize, getValue})
+	spoofer = NewDBSpoofer()
+	err, foo := spoofer.AddModuleToSpoofedCode([][]byte{getContractAddressWasm, getContractBalanceWasm, getBlocktimestampWasm, getDataSize, getValue})
 	for i := 0; i < len(foo); i++ {
 		hashes = append(hashes, hex.EncodeToString(foo[i]))
 	}
 	if err != nil {
 		panic("error in preTestSetup")
 	}
-	vm = newVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
+	vm = NewVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
 	vm.contract.Address = common.BytesToAddress(testAddress)
 	vm.config.CodeGetter = spoofer.GetCode
 }
@@ -88,9 +88,9 @@ func preTestSetup() {
 func TestOpAddress(t *testing.T) {
 	preTestSetup()
 	vm.config.debugStack = true
-	fmt.Println(vm.call2(hashes[0]+"", 1000))
+	fmt.Println(vm.Call2(hashes[0]+"", 1000))
 
-	fmt.Println(vm.outputStack())
+	fmt.Println(vm.OutputStack())
 	assert.Equal(t, vm.contract.Address.Bytes(), uintsArrayToAddress(vm.vmStack))
 }
 
@@ -107,7 +107,7 @@ func TestOpBalance(t *testing.T) {
 	vm.Statedb = state
 
 	// fmt.Println(state.GetBalance(common.BytesToAddress(testAddress)))
-	fmt.Println(vm.call2(hashes[1]+"", 1000))
+	fmt.Println(vm.Call2(hashes[1]+"", 1000))
 	assert.Equal(t, testBalance, arrayToBalance(vm.vmStack))
 }
 
@@ -117,7 +117,7 @@ func TestOpBlocktimestamp(t *testing.T) {
 	blockCtx := BlockContext{}
 	blockCtx.Time = blockts
 	vm.BlockCtx = blockCtx
-	vm.call2(hashes[2]+"", 1000)
+	vm.Call2(hashes[2]+"", 1000)
 	res := vm.popFromStack()
 	fmt.Printf("res: %v\n", res)
 	assert.Equal(t, blockts, big.NewInt(1673372829))
@@ -128,7 +128,7 @@ func TestOpDatasize(t *testing.T) {
 	contract := Contract{}
 	contract.Input = []byte{0x1, 0x2, 0x3, 0x4}
 	vm.contract = contract
-	vm.call2(hashes[3]+"", 1000)
+	vm.Call2(hashes[3]+"", 1000)
 	res := vm.popFromStack()
 	assert.Equal(t, res, uint64(4))
 }
@@ -139,6 +139,6 @@ func TestOpValue(t *testing.T) {
 	contract.Input = []byte{0x1, 0x2, 0x3, 0x4}
 	vm.contract = contract
 	vm.contract.Value = big.NewInt(0xc)
-	vm.call2(hashes[4]+"", 1000)
+	vm.Call2(hashes[4]+"", 1000)
 	assert.Equal(t, vm.contract.Value, arrayToBalance(vm.vmStack))
 }

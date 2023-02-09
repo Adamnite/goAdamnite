@@ -29,7 +29,7 @@ type (
 
 type VirtualMachine interface {
 	// step()
-	run() error
+	Run() error
 
 	do()
 	outputStack() string
@@ -101,7 +101,7 @@ type VMConfig struct {
 	debugStack               bool // should it output the stack every operation
 	maxCodeSize              uint64
 	CodeGetter               GetCode
-	codeBytesGetter          func(uri string, hash string) ([]byte, error)
+	CodeBytesGetter          func(uri string, hash string) ([]byte, error)
 	uri                      string
 }
 
