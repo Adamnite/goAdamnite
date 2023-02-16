@@ -10,6 +10,10 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+var (
+	ERR_CONTRACT_NOT_STORED = fmt.Errorf("No contract saved at that point")
+)
+
 type APIcodeGetter struct {
 	apiEndpointString string
 }
@@ -61,10 +65,10 @@ func UploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("code upload response")
-	fmt.Println(hex.EncodeToString(byteResponse))
-	fmt.Println(byteResponse)
-	fmt.Println(string(byteResponse))
+	// fmt.Println("code upload response")
+	// fmt.Println(hex.EncodeToString(byteResponse))
+	// fmt.Println(byteResponse)
+	// fmt.Println(string(byteResponse))
 	hashInBytes, err := hex.DecodeString(string(byteResponse))
 	if err != nil {
 		return nil, err
@@ -116,7 +120,8 @@ func UploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]by
 			return nil, nil, err
 		}
 		localHash, err := code.Hash()
-		if bytes.Equal(newHash, localHash) || err != nil {
+
+		if !bytes.Equal(newHash, localHash) || err != nil {
 			fmt.Println(err)
 			return nil, nil, fmt.Errorf("hashes are not equal, or could not hash local copy. ERR: %w, server hash: %v, local hash: %v", err, newHash, localHash)
 		}
@@ -173,6 +178,9 @@ func GetContractData(apiEndpoint string, contractAddress string) (*Contract, err
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
+	}
+	if string(byteResponse) == "contract not stored" {
+		return nil, ERR_CONTRACT_NOT_STORED
 	}
 	//hopefully you know if things went wrong by here!
 	var conData ContractData

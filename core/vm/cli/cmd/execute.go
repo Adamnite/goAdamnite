@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	VM "github.com/adamnite/go-adamnite/core/vm"
+	"github.com/adamnite/go-adamnite/core/VM"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/spf13/cobra"
 )

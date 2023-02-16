@@ -102,7 +102,7 @@ type VMConfig struct {
 	maxCodeSize              uint64
 	CodeGetter               GetCode
 	CodeBytesGetter          func(uri string, hash string) ([]byte, error)
-	uri                      string
+	Uri                      string
 }
 
 type Frame struct {

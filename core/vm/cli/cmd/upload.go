@@ -6,8 +6,10 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	VM "github.com/adamnite/go-adamnite/core/vm"
+	"github.com/adamnite/go-adamnite/core/VM"
 	"github.com/spf13/cobra"
 )
 
@@ -24,16 +26,47 @@ func init() {
 	root.AddCommand(uploadCmd)
 }
 
-func triggerUpload(bytes []byte) {
-	value := big.NewInt(100)
-	contract := VM.NewContract(common.Address{}, value, bytes, gas)
-	err := VM.UploadContract(serverUrl, *contract)
+func triggerUpload(codeBytes []byte) bool {
+	// uploads a contract to the local DB, returns true if successful
+	db := rawdb.NewMemoryDB()
+	callerAddress := common.BytesToAddress([]byte{0x00})
+	state, err := statedb.New(common.Hash{}, statedb.NewDatabase(db))
+	if err != nil {
+		fmt.Println(err)
+	}
+	state.CreateAccount(callerAddress)
+	state.AddBalance(callerAddress, big.NewInt(1000000))
+
+	vmConfig := VM.GetDefaultConfig()
+	vmConfig.Uri = serverUrl
+
+	vMachine := VM.NewVM(state,
+		VM.NewBlockContext(
+			callerAddress,
+			gas,
+			big.NewInt(0),
+			big.NewInt(0),
+			big.NewInt(0),
+			big.NewInt(0),
+		),
+		VM.TxContext{},
+		&vmConfig,
+		nil)
+	_, _, err = vMachine.Create(callerAddress, codeBytes, gas, big.NewInt(1))
+	if err != nil {
+		panic(err)
+	}
+
+	// contract := VM.NewContract(common.Address{}, value, bytes, gas)
+	// err := VM.UploadContract(serverUrl, *contract)
+	err = vMachine.UploadContract(serverUrl)
 	if err != nil {
 		fmt.Println("Unable to upload specified contract")
 		panic(err)
 	} else {
 		fmt.Print("Contract uploaded successfully")
 	}
+	return err == nil
 }
 
 var uploadCmd = &cobra.Command{

@@ -13,13 +13,13 @@ import (
 )
 
 var (
-	apiEndpoint            = "http://127.0.0.1:5001/"
+	apiEndpoint            = "http://127.0.0.1:5000/"
 	addTwoFunctionCode     = "0061736d0100000001070160027f7f017f03020100070a010661646454776f00000a09010700200020016a0b000a046e616d650203010000"
 	addTwoFunctionBytes, _ = hex.DecodeString(addTwoFunctionCode)
 	addTwoCodeStored       = CodeStored{[]ValueType{Op_i64, Op_i64}, []ValueType{Op_i64}, addTwoFunctionBytes}
 	// addTwoFunctionHash     = hex.EncodeToString(crypto.MD5.New().Sum(addTwoFunctionBytes))
 	addTwoFunctionHash, _ = addTwoCodeStored.Hash()
-	testContract          = NewContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
+	testContract          = newContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
 	// testContract          = Contract{
 	// 	Address: "1",
 	// 	Methods: []string{hex.EncodeToString(addTwoFunctionHash)},
@@ -31,7 +31,7 @@ var (
 )
 
 func TestUploadingContract(t *testing.T) {
-	testContract = NewContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
+	testContract = newContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
 	err := UploadContract(apiEndpoint, *testContract)
 	fmt.Println(testContract.Address.Hex())
 	fmt.Println(testContract)

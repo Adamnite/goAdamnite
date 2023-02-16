@@ -13,7 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/params"
 )
 
-func NewContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
+func newContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
 }
@@ -26,7 +26,7 @@ func GetCodeBytes2(uri string, hash string) ([]byte, error) {
 	return code.CodeBytes, nil
 }
 
-func getDefaultConfig() VMConfig {
+func GetDefaultConfig() VMConfig {
 	return VMConfig{
 		maxCallStackDepth:        1024,
 		gasLimit:                 30000, // 30000 ATE
@@ -34,7 +34,7 @@ func getDefaultConfig() VMConfig {
 		debugStack:               false,
 		CodeGetter:               defaultCodeGetter,
 		CodeBytesGetter:          GetCodeBytes2,
-		uri:                      "https//default.uri",
+		Uri:                      "https//default.uri",
 	}
 }
 
@@ -187,8 +187,9 @@ func NewVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMC
 	if config != nil {
 		machine.config = *config
 	} else {
-		machine.config = getDefaultConfig()
+		machine.config = GetDefaultConfig()
 	}
+	machine.gas = config.gasLimit //TODO: check this out
 
 	return machine
 }
@@ -214,7 +215,7 @@ func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	if config != nil {
 		machine.config = *config
 	} else {
-		machine.config = getDefaultConfig()
+		machine.config = GetDefaultConfig()
 	}
 
 	// Push the main frame
@@ -400,7 +401,7 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 		return nil, gas, nil
 	}
 
-	contract := NewContract(caller, value, input, gas)
+	contract := newContract(caller, value, input, gas)
 	m.contract = *contract
 
 	err = m.Call2(input, gas)
@@ -424,33 +425,34 @@ func getModuleLen(module *Module) uint64 {
 	return le
 }
 
-func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
-
+func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, value *big.Int, address common.Address) (common.Address, uint64, error) {
+	//creates a new contract from the bytes passed (whole module) and uploads those functions, then has a locally created contract (only in this VM)
 	if m.currentFrame > int(m.config.maxCallStackDepth) {
-		return nil, common.Address{}, gas, ErrDepth
+		return common.Address{}, gas, ErrDepth
 	}
 
 	if !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-		return nil, common.Address{}, gas, ErrInsufficientBalance
+		return common.Address{}, gas, ErrInsufficientBalance
 	}
 
 	nonce := m.Statedb.GetNonce(caller)
 
 	if nonce+1 < nonce {
-		return nil, common.Address{}, gas, ErrNonceUintOverflow
+		return common.Address{}, gas, ErrNonceUintOverflow
 	}
 
 	m.Statedb.SetNonce(caller, nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
-	contractData, err := GetContractData(m.config.uri, address.String())
+	_, err := GetContractData(m.config.Uri, address.Hex())
 
-	if err != nil {
-		return nil, address, gas, err
+	if err == nil || err != ERR_CONTRACT_NOT_STORED {
+		//either theres a strange error, or the contract already exists.
+		return address, gas, err
 	}
 
-	if m.Statedb.GetNonce(address) != 0 || contractData.Address.String() != "" {
-		return nil, common.Address{}, 0, ErrContractAddressCollision
+	if m.Statedb.GetNonce(address) != 0 || address.String() == "" {
+		return common.Address{}, 0, ErrContractAddressCollision
 	}
 
 	// Create a new account on the state
@@ -460,7 +462,8 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	m.BlockCtx.Transfer(m.Statedb, caller, address, value)
 
 	// Initialize a new contract and set the code that is to be used by the ADVM.
-	contract := NewContract(caller, value, codeBytes, gas)
+	contract := newContract(caller, value, codeBytes, gas)
+	contract.Address = address
 	m.contract = *contract
 
 	module := *decode(codeBytes)
@@ -469,33 +472,39 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	// Check whether the max code size has been exceeded
 	if err == nil && modLen > m.config.maxCodeSize {
 		m.Statedb.RevertToSnapshot(snapshot)
-		return nil, address, 0, ErrMaxCodeSizeExceeded
+		return address, 0, ErrMaxCodeSizeExceeded
 	}
 
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code.
 
 	// @TODO update this with right creation price
+	//TODO: update this to charge only for new methods being uploaded.
 	createModuleGas := modLen * 2000
 	if createModuleGas > m.gas {
 		m.Statedb.RevertToSnapshot(snapshot)
-		return nil, address, m.gas, ErrCodeStoreOutOfGas
+		return address, m.gas, ErrCodeStoreOutOfGas
 	}
 
 	// Upload the module here
-	_, _, err = UploadModuleFunctions(m.config.uri, module)
+	codeStored, hashesOfMethods, err := UploadModuleFunctions(m.config.Uri, module)
 
 	if err != nil {
 		m.Statedb.RevertToSnapshot(snapshot)
 		// Somehow revert the uploading here?
 	}
+	m.contract.Code = codeStored
+	m.contract.CodeHashes = make([]string, len(hashesOfMethods))
+	for i, hashBytes := range hashesOfMethods {
+		m.contract.CodeHashes[i] = hex.EncodeToString(hashBytes)
+	}
 
 	m.gas -= createModuleGas
-	return nil, address, contract.Gas, err
+	return address, contract.Gas, err
 }
 
 // Create creates a new contract using code as deployment code.
-func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
 	addrBytes := caller.Bytes()
 	nonce := m.Statedb.GetNonce(caller)
 	addrBytes = append(addrBytes, byte(nonce))
@@ -556,4 +565,9 @@ func (m *Machine) AddLocal(n interface{}) {
 
 func (m *Machine) getContractHash() common.Hash {
 	return m.contract.Hash()
+}
+
+func (m *Machine) UploadContract(APIEndpoint string) error {
+	//takes the contract (or just its changes) and uploads that to the DB at the APIEndpoint link
+	return UploadContract(APIEndpoint, m.contract)
 }

@@ -371,7 +371,7 @@ func Test_Call(t *testing.T) {
 
 	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
 	var gas = big.NewInt(100)
-	contract := NewContract(callerAddr, gas, module.codeSection[0].body, 100)
+	contract := newContract(callerAddr, gas, module.codeSection[0].body, 100)
 	spoofer := NewDBSpoofer()
 
 	localCodeStored := CodeStored{
