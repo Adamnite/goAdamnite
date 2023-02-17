@@ -11,7 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// func Test_controlFlowOpcodes(t *testing.T) {
+// 	moduleCodes := [][]byte{}
+// 	wasmStrings := []string{}
+
+// }
 func Test_OpBlock(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ab28080800001ac8080800001017f410028020441106b2200410036020c024041010d002000200028020c41136c36020c0b200028020c0b")
 
 	_ = NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -46,6 +52,7 @@ func Test_OpBlock(t *testing.T) {
 }
 
 func Test_SingleBlock(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160027f7f0003020100070a010661646454776f00000a0d010b000240410a410f6a1a0b0b000a046e616d650203010000")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 	module := *decode(wasmBytes)
@@ -65,6 +72,7 @@ func Test_SingleBlock(t *testing.T) {
 }
 
 func Test_MultiBlock(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d0100000001060160027f7f0003020100070a010661646454776f00000a10010e0002400240410a410f6a1a0b0b0b000a046e616d650203010000")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
@@ -103,6 +111,7 @@ func Test_MultiBlock(t *testing.T) {
 }
 
 func Test_Br(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d01000000018580808000016000017f03828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000ab28080800001ac8080800001017f410028020441106b2200410036020c024041010d002000200028020c41146a36020c0b200028020c0b")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
@@ -139,6 +148,7 @@ func Test_Br(t *testing.T) {
 }
 
 func Test_Br2(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d010000000186808080000160017f017f0382808080000100048480808000017000000583808080000100010681808080000007988080800002066d656d6f727902000b5f5a376d616b654164646900000ab98080800001b38080800001017f410028020441106b2201200036020c2001410a360208024041000d002001200128020841146a3602080b20012802080b")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
@@ -181,6 +191,7 @@ func Test_Br2(t *testing.T) {
 }
 
 func Test_Loop(t *testing.T) {
+	t.Parallel()
 	// int testFunction() {
 	// 	int sum = 0;
 	// 	for(int i = 0; i < 10; ++i) {
@@ -229,6 +240,7 @@ func Test_Loop(t *testing.T) {
 }
 
 func Test_If(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d010000000184808080000160000003828080800001000484808080000170000005838080800001000106818080800000079e8080800002066d656d6f72790200115f5a31327465737446756e6374696f6e7600000abd8080800001b78080800001017f410028020441106b220041e40036020c02404100450d002000200028020c410a6a36020c0f0b2000200028020c410f6a36020c0b")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
@@ -273,6 +285,7 @@ func Test_If(t *testing.T) {
 }
 
 func Test_Return(t *testing.T) {
+	t.Parallel()
 	// int testFunction() {
 	// 	int sum = 100;
 	// 	if (sum%2 != 0) {
@@ -326,6 +339,7 @@ func Test_Return(t *testing.T) {
 }
 
 func Test_Call(t *testing.T) {
+	t.Parallel()
 	// (module
 	// 	(func $fac (export "fac") (param f64) (result f64)
 	// 	  local.get 0
@@ -447,6 +461,7 @@ func Test_Call(t *testing.T) {
 }
 
 func Test_FuncFact(t *testing.T) {
+	t.Parallel()
 	// double fact() {
 	// 	int i = 4;
 	// 	long long n = 1;
@@ -483,6 +498,7 @@ func Test_FuncFact(t *testing.T) {
 }
 
 func Test_blockDeep(t *testing.T) {
+	t.Parallel()
 	// https://github.com/WebAssembly/testsuite//blob/main/block.wast#L40
 	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070801046465657000010a7e0202000b7900027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f027f10004196010b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0016046e616d65010801000564756d6d7902050200000100")
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -519,6 +535,7 @@ func Test_blockDeep(t *testing.T) {
 }
 
 func Test_blockEmpty(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d010000000104016000000302010007090105656d70747900000a0a01080002400b02400b0b000a046e616d650203010000")
 
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -531,6 +548,7 @@ func Test_blockEmpty(t *testing.T) {
 }
 
 func Test_blockNested(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070a01066e657374656400010a1a0202000b1500027f0240100002400b010b027f100041090b0b0b0016046e616d65010801000564756d6d7902050200000100")
 
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -543,6 +561,7 @@ func Test_blockNested(t *testing.T) {
 }
 
 func Test_blockAsLoop(t *testing.T) {
+	t.Parallel()
 	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f03030200010711010d61732d6c6f6f702d666972737400010a130202000b0e00037f027f41010b100010000b0b0016046e616d65010801000564756d6d7902050200000100")
 
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
@@ -556,6 +575,7 @@ func Test_blockAsLoop(t *testing.T) {
 }
 
 func Test_LoopDeep(t *testing.T) {
+	t.Parallel()
 	// https://github.com/WebAssembly/testsuite//blob/main/loop.wast#L37
 	wasmBytes, _ := hex.DecodeString("0061736d010000000108026000006000017f0303020001070801046465657000010a84010202000b7f00037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f037f027f10004196010b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0016046e616d65010801000564756d6d7902050200000100")
 

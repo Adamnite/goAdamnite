@@ -103,7 +103,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value) //using sender would make the users address the contracts, would it not?
+		_, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value)
 	} else {
 
 		// Increment the nonce for the next transaction
