@@ -5,12 +5,16 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"reflect"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/vmihailenco/msgpack/v5"
+	"github.com/ugorji/go/codec"
 )
 
+// type Query struct {
+// 	Data []byte
+// }
 
 type AdamniteServer struct {
 	Endpoint string
@@ -18,22 +22,11 @@ type AdamniteServer struct {
 	statedb  statedb.StateDB
 }
 
-func (a *AdamniteServer) GetBalance(arg []byte, ans *Reply) error {
+func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntReply) error {
 	//arg is passed, so we should sanitize it, but for now we will assume it is a correctly formatted hash
-	var add common.Address
-	err := msgpack.Unmarshal(arg, &add)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	balBytes, err := msgpack.Marshal(a.statedb.GetBalance(add))
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
+	fmt.Println("Starting get balance server side")
 
-	ans.Data = balBytes
-
+	*ans = BigIntReplyFromBigInt(*a.statedb.GetBalance(add))
 	return nil
 }
 
@@ -50,16 +43,24 @@ func (as *AdamniteServer) Launch() {
 	// fmt.Println(as.Endpoint)
 	// http.Serve(listener, nil)
 	handler := rpc.NewServer()
-	handler.HandleHTTP("/", "/debug/")
+	// handler.HandleHTTP("/", "/debug/")
+	// handler.ServeCodec()
 	handler.Register(as)
 	if err != nil {
 		fmt.Printf("listen(%q): %s\n", as.Endpoint, err)
 		return
 	}
 	// fmt.Printf("Server %d listening on %s\n", as.id, listener.Addr())
+	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	go func() {
 		for {
 			cxn, err := listener.Accept()
+
+			// handler.ServeCodec(codec.GoRpc.ServerCodec(cxn, handler))
+			// codec.MsgpackSpecRpc.ServerCodec(cxn, &mh)
+			rpcCodec := codec.GoRpc.ServerCodec(cxn, &mh)
+
+			handler.ServeCodec(rpcCodec)
 			if err != nil {
 				log.Printf("listen(%q): %s\n", as.Endpoint, err)
 				return
@@ -68,4 +69,5 @@ func (as *AdamniteServer) Launch() {
 			go handler.ServeConn(cxn)
 		}
 	}()
+	fmt.Println("server launched!")
 }

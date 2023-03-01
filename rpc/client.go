@@ -1,12 +1,15 @@
 package rpc
 
 import (
+	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"net/rpc"
+	"reflect"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/vmihailenco/msgpack/v5"
+	"github.com/ugorji/go/codec"
 )
 
 type AdamniteClient struct {
@@ -21,32 +24,32 @@ func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
 
-func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
-	bytes, err := msgpack.Marshal(&address)
-	if err != nil {
-		return nil, err
-	}
-	var reply Reply
-	err = a.client.Call("AdamniteServer.GetBalance", bytes, &reply)
+type SendingAddress struct {
+	Value common.Address
+}
 
+func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
+	fmt.Println("starting GetBalanceClient side")
+
+	var reply BigIntReply
+	err := a.client.Call("AdamniteServer.GetBalance", address, &reply)
 	if err != nil {
+		log.Fatal(err)
 		return nil, err
 	}
-	var ansInt big.Int
-	err = msgpack.Unmarshal(reply.Data, &ansInt)
-	if err != nil {
-		return nil, err
-	}
-	return &ansInt, nil
+	return reply.toBigInt(), nil
 }
 
 // create a new RPC client that will call to the following point.
 func NewAdamniteClient(listenPoint string) *AdamniteClient {
-	// fmt.Println(listenPoint)
-	client, err := rpc.Dial("tcp", listenPoint)
+	fmt.Println("new client generated")
+	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	conn, err := net.Dial("tcp", listenPoint)
+
+	rpcCodec := codec.GoRpc.ClientCodec(conn, &mh)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	client := rpc.NewClientWithCodec(rpcCodec)
 	return &AdamniteClient{listenPoint, *client}
 }
