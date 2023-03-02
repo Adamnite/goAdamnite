@@ -9,6 +9,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core"
 	"github.com/ugorji/go/codec"
 )
 
@@ -19,20 +20,38 @@ import (
 type AdamniteServer struct {
 	Endpoint string
 	id       int
-	statedb  statedb.StateDB
+	statedb  *statedb.StateDB
+	chain    *core.Blockchain
 }
+
+const adm_getBalance_endpoint = "AdamniteServer.GetBalance"
 
 func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntReply) error {
 	//arg is passed, so we should sanitize it, but for now we will assume it is a correctly formatted hash
 	fmt.Println("Starting get balance server side")
+	if a.statedb == nil {
+		return ErrStateNotSet
+	}
 
 	*ans = BigIntReplyFromBigInt(*a.statedb.GetBalance(add))
 	return nil
 }
 
-func NewAdamniteServer(db statedb.StateDB) *AdamniteServer {
+const adm_getChainID_endpoint = "AdamniteServer.GetChainID"
+
+func (a *AdamniteServer) GetChainID(_ interface{}, ans *BigIntReply) error {
+	fmt.Println("Starting get Chain ID server side")
+	if a.chain == nil || a.chain.Config() == nil {
+		return ErrChainNotSet
+	}
+	*ans = BigIntReplyFromBigInt(*a.chain.Config().ChainID)
+	return nil
+}
+
+func NewAdamniteServer(db *statedb.StateDB, chainReference *core.Blockchain) *AdamniteServer {
 	admServer := new(AdamniteServer)
 	admServer.statedb = db
+	admServer.chain = chainReference
 	return admServer
 }
 

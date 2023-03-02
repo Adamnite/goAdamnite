@@ -28,11 +28,22 @@ type SendingAddress struct {
 	Value common.Address
 }
 
+func (a *AdamniteClient) GetChainID() (*big.Int, error) {
+	fmt.Println("starting GetChainID client side")
+	var reply BigIntReply
+	err := a.client.Call(adm_getChainID_endpoint, nil, &reply)
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	return reply.toBigInt(), nil
+}
+
 func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
 	fmt.Println("starting GetBalanceClient side")
 
 	var reply BigIntReply
-	err := a.client.Call("AdamniteServer.GetBalance", address, &reply)
+	err := a.client.Call(adm_getBalance_endpoint, address, &reply)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
