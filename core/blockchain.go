@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/binary"
+	"math/big"
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
@@ -35,7 +36,10 @@ type Blockchain struct {
 	witness types.Witness
 
 	// For demo version
-	blocks        []types.Block // memory cache
+	blocks         []types.Block // memory cache
+	blocksByHash   map[common.Hash]*types.Block
+	blocksByNumber map[*big.Int]*types.Block
+
 	accountStates map[common.Address]accountSet
 
 	// events
@@ -59,7 +63,7 @@ func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engi
 	if err != nil {
 		return nil, err
 	}
-	bc.blocks = append(bc.blocks, *block)
+	bc.addBlockToCache(*block)
 	bc.genesisBlock = block
 
 	return bc, nil
@@ -97,23 +101,26 @@ func encodeBlockNumber(number uint64) []byte {
 }
 
 func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
-	return nil
+	return bc.blocksByHash[hash].Header()
 }
 
-func (bc *Blockchain) GetHeaderByNumber(number uint64) *types.BlockHeader {
-	return bc.blocks[number].Header()
+func (bc *Blockchain) GetHeaderByNumber(number *big.Int) *types.BlockHeader {
+	return bc.blocksByNumber[number].Header()
 }
 
-func (bc *Blockchain) GetBlock(hash common.Hash, number uint64) *types.Block {
-	return nil
+func (bc *Blockchain) GetBlock(hash common.Hash, number *big.Int) *types.Block {
+	if number == nil {
+		return bc.GetBlockByHash(hash)
+	}
+	return bc.GetBlockByNumber(number)
 }
 
 func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
-	return nil
+	return bc.blocksByHash[hash]
 }
 
-func (bc *Blockchain) GetBlockByNumber(number uint64) *types.Block {
-	return nil
+func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
+	return bc.blocksByNumber[number]
 }
 func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
 	return nil, nil
@@ -127,7 +134,7 @@ func (bc *Blockchain) WriteBlock(block *types.Block) error {
 	bc.chainlock.Lock()
 	defer bc.chainlock.Unlock()
 
-	bc.blocks = append(bc.blocks, *block)
+	bc.addBlockToCache(*block)
 	return nil
 }
 
@@ -141,7 +148,8 @@ func (bc *Blockchain) AddImportedBlock(block *types.Block) error {
 		return nil
 	}
 
-	bc.blocks = append(bc.blocks, *block)
+	// bc.blocks = append(bc.blocks, *block)
+	bc.addBlockToCache(*block)
 
 	bc.importBlockFeed.Send(ImportBlockEvent{Block: block})
 	return nil
@@ -157,4 +165,11 @@ func (bc *Blockchain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Su
 
 func (bc *Blockchain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Subscription {
 	return bc.scope.Track(bc.chainSideFeed.Subscribe(ch))
+}
+
+// adds blocks to the local cache so they can easily be found by hash, or block id number.
+func (bc *Blockchain) addBlockToCache(block types.Block) {
+	bc.blocks = append(bc.blocks, block)
+	bc.blocksByHash[block.Hash()] = &block
+	bc.blocksByNumber[block.Number()] = &block
 }
