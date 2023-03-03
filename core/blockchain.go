@@ -52,9 +52,11 @@ type Blockchain struct {
 
 func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engine dpos.DPOS) (*Blockchain, error) {
 	bc := &Blockchain{
-		chainConfig: chainConfig,
-		db:          db,
-		engine:      engine,
+		chainConfig:    chainConfig,
+		db:             db,
+		engine:         engine,
+		blocksByHash:   make(map[common.Hash]*types.Block),
+		blocksByNumber: make(map[*big.Int]*types.Block),
 	}
 
 	// demo logic
@@ -75,8 +77,8 @@ func (bc *Blockchain) CurrentHeader() *types.BlockHeader {
 	return bc.CurrentBlock().Header()
 }
 
-func (bc *Blockchain) GetHeader(hash common.Hash, number uint64) *types.BlockHeader {
-	data, _ := bc.db.Get(headerKey(number, hash))
+func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockHeader {
+	data, _ := bc.db.Get(headerKey(number.Uint64(), hash))
 	if len(data) == 0 {
 		return nil
 	}
@@ -148,7 +150,6 @@ func (bc *Blockchain) AddImportedBlock(block *types.Block) error {
 		return nil
 	}
 
-	// bc.blocks = append(bc.blocks, *block)
 	bc.addBlockToCache(*block)
 
 	bc.importBlockFeed.Send(ImportBlockEvent{Block: block})

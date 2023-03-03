@@ -16,21 +16,33 @@ import (
 
 var (
 	testAddress = common.BytesToAddress([]byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13})
+	testBalance = big.NewInt(1).Mul(big.NewInt(9000000000000000000), big.NewInt(1000))
+	test_db     = rawdb.NewMemoryDB()
+	state, _    = statedb.New(common.Hash{}, statedb.NewDatabase(test_db))
+	chainConfig = params.TestnetChainConfig
 )
 
-func TestGetBalance(t *testing.T) {
-	testBalance := big.NewInt(9000000000000000000)
-	testBalance.Mul(testBalance, big.NewInt(100))
-
-	db := rawdb.NewMemoryDB()
-	state, _ := statedb.New(common.Hash{}, statedb.NewDatabase(db))
+func setupTestingServer() AdamniteServer {
 	state.AddBalance(testAddress, testBalance)
 	rootHash := state.IntermediateRoot(false)
 	state.Database().TrieDB().Commit(rootHash, false, nil)
 
-	admServer := NewAdamniteServer(state, nil)
+	bc, err := core.NewBlockchain(test_db,
+		chainConfig,
+		dpos.New(chainConfig, test_db),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	admServer := NewAdamniteServer(state, bc)
 	admServer.Launch()
-	t.Parallel()
+	return *admServer
+}
+func TestGetBalance(t *testing.T) {
+	// t.Parallel()
+	admServer := setupTestingServer()
+
 	// fmt.Println(admServer.Endpoint)
 	client := NewAdamniteClient(admServer.Endpoint)
 
@@ -45,19 +57,9 @@ func TestGetBalance(t *testing.T) {
 
 }
 func TestGetChainID(t *testing.T) {
-	chainConfig := params.TestnetChainConfig
-	db := rawdb.NewMemoryDB()
-	bc, err := core.NewBlockchain(db,
-		chainConfig,
-		dpos.New(chainConfig, db),
-	)
-	if err != nil {
-		fmt.Println(err)
-		t.Fail()
-	}
-	admServer := NewAdamniteServer(nil, bc)
-	admServer.Launch()
-	t.Parallel()
+	// t.Parallel()
+	admServer := setupTestingServer()
+
 	client := NewAdamniteClient(admServer.Endpoint)
 
 	value, err := client.GetChainID()

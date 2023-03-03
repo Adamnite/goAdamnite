@@ -23,7 +23,7 @@ func TestServerGetBalance(t *testing.T) {
 	admServer := NewAdamniteServer(state, nil)
 	admServer.Launch()
 
-	returnedInt := BigIntReply{}
+	returnedInt := BigIntRPC{}
 	admServer.GetBalance(testAddress, &returnedInt)
 	assert.Equal(t, testBalance, returnedInt.toBigInt())
 }

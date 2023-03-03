@@ -10,6 +10,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/ugorji/go/codec"
 )
 
@@ -26,7 +27,7 @@ type AdamniteServer struct {
 
 const adm_getBalance_endpoint = "AdamniteServer.GetBalance"
 
-func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntReply) error {
+func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntRPC) error {
 	//arg is passed, so we should sanitize it, but for now we will assume it is a correctly formatted hash
 	fmt.Println("Starting get balance server side")
 	if a.statedb == nil {
@@ -39,12 +40,23 @@ func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntReply) error 
 
 const adm_getChainID_endpoint = "AdamniteServer.GetChainID"
 
-func (a *AdamniteServer) GetChainID(_ interface{}, ans *BigIntReply) error {
+func (a *AdamniteServer) GetChainID(_ interface{}, ans *BigIntRPC) error {
 	fmt.Println("Starting get Chain ID server side")
 	if a.chain == nil || a.chain.Config() == nil {
 		return ErrChainNotSet
 	}
 	*ans = BigIntReplyFromBigInt(*a.chain.Config().ChainID)
+	return nil
+}
+
+const adm_getBlockByHash_endpoint = "AdamniteServer.GetBlockByHash"
+
+func (a *AdamniteServer) GetBlockByHash(hash common.Hash, ans *types.Block) error {
+	*ans = *a.chain.GetBlockByHash(hash)
+	return nil
+}
+func (a *AdamniteServer) GetBlockByNumber(blockIndex BigIntRPC, ans *types.Block) error {
+	*ans = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
 	return nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"reflect"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/ugorji/go/codec"
 )
 
@@ -30,7 +31,7 @@ type SendingAddress struct {
 
 func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	fmt.Println("starting GetChainID client side")
-	var reply BigIntReply
+	var reply BigIntRPC
 	err := a.client.Call(adm_getChainID_endpoint, nil, &reply)
 	if err != nil {
 		log.Fatal(err)
@@ -42,13 +43,23 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
 	fmt.Println("starting GetBalanceClient side")
 
-	var reply BigIntReply
+	var reply BigIntRPC
 	err := a.client.Call(adm_getBalance_endpoint, address, &reply)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
 	}
 	return reply.toBigInt(), nil
+}
+func (a *AdamniteClient) GetBlockByHash(hash common.Hash) (*types.Block, error) {
+	fmt.Println("starting GetBlockByHash Client side")
+	var reply types.Block
+	err := a.client.Call(adm_getBlockByHash_endpoint, hash, &reply)
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	return &reply, nil
 }
 
 // create a new RPC client that will call to the following point.

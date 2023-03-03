@@ -6,18 +6,18 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
-type BigIntReply struct {
+type BigIntRPC struct {
 	Value []byte
 }
 
-func (b *BigIntReply) toBigInt() *big.Int {
+func (b *BigIntRPC) toBigInt() *big.Int {
 	return big.NewInt(0).SetBytes(b.Value)
 }
-func BigIntReplyFromBytes(val []byte) BigIntReply {
-	return BigIntReply{Value: val}
+func BigIntReplyFromBytes(val []byte) BigIntRPC {
+	return BigIntRPC{Value: val}
 }
-func BigIntReplyFromBigInt(val big.Int) BigIntReply {
-	return BigIntReply{Value: val.Bytes()}
+func BigIntReplyFromBigInt(val big.Int) BigIntRPC {
+	return BigIntRPC{Value: val.Bytes()}
 }
 
 var (
