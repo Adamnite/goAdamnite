@@ -1,4 +1,4 @@
-package VM
+package vm
 
 import (
 	"encoding/hex"
@@ -136,6 +136,33 @@ func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.
 	bc.Transfer = Transfer
 
 	return bc
+}
+
+type Message interface {
+	From() common.Address
+	//FromFrontier() (common.Address, error)
+	To() *common.Address
+
+	AtePrice() *big.Int
+	Ate() uint64
+	Value() *big.Int
+
+	Nonce() uint64
+	CheckNonce() bool
+	Data() []byte
+}
+
+type TxContext struct {
+	// Message information
+	Origin   common.Address // Provides information for ORIGIN
+	GasPrice *big.Int       // Provides information for GASPRICE
+}
+
+func NewTxContext(msg Message) TxContext {
+	return TxContext{
+		Origin:   msg.From(),
+		GasPrice: new(big.Int).Set(msg.AtePrice()),
+	}
 }
 
 func initMemoryWithDataSection(module *Module, vm *Machine) {
