@@ -36,14 +36,15 @@ func setupTestingServer() AdamniteServer {
 	}
 
 	admServer := NewAdamniteServer(state, bc)
-	admServer.Launch()
+	foo := "[127.0.0.1]:12345"
+	admServer.Launch(&foo)
 	return *admServer
 }
 func TestGetBalance(t *testing.T) {
 	// t.Parallel()
 	admServer := setupTestingServer()
 
-	// fmt.Println(admServer.Endpoint)
+	fmt.Println(admServer.Endpoint)
 	client := NewAdamniteClient(admServer.Endpoint)
 
 	value, err := client.GetBalance(testAddress)

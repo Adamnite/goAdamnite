@@ -23,6 +23,7 @@ type AdamniteServer struct {
 	id       int
 	statedb  *statedb.StateDB
 	chain    *core.Blockchain
+	listener net.Listener
 }
 
 const adm_getBalance_endpoint = "AdamniteServer.GetBalance"
@@ -55,8 +56,18 @@ func (a *AdamniteServer) GetBlockByHash(hash common.Hash, ans *types.Block) erro
 	*ans = *a.chain.GetBlockByHash(hash)
 	return nil
 }
+
+const adm_getBlockByNumber_endpoint = "AdamniteServer.GetBlockByNumber"
+
 func (a *AdamniteServer) GetBlockByNumber(blockIndex BigIntRPC, ans *types.Block) error {
 	*ans = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
+	return nil
+}
+
+const adm_createAccount_endpoint = "AdamniteServer.CreateAccount"
+
+func (a *AdamniteServer) CreateAccount(add common.Address, _ *interface{}) error {
+	a.statedb.CreateAccount(add)
 	return nil
 }
 
@@ -67,25 +78,28 @@ func NewAdamniteServer(db *statedb.StateDB, chainReference *core.Blockchain) *Ad
 	return admServer
 }
 
-func (as *AdamniteServer) Launch() {
+func (as *AdamniteServer) Launch(endpoint *string) error {
+	var apiEndpoint string
+	if endpoint == nil {
+		apiEndpoint = "[127.0.0.1]:0"
+	} else {
+		apiEndpoint = *endpoint
+	}
 	// Start listening for the requests on any open port
-	listener, err := net.Listen("tcp", "[127.0.0.1]:0")
-	as.Endpoint = listener.Addr().String()
-	// fmt.Println(as.Endpoint)
-	// http.Serve(listener, nil)
+	var err error
+	as.listener, err = net.Listen("tcp", apiEndpoint)
+	as.Endpoint = as.listener.Addr().String()
 	handler := rpc.NewServer()
-	// handler.HandleHTTP("/", "/debug/")
-	// handler.ServeCodec()
 	handler.Register(as)
 	if err != nil {
 		fmt.Printf("listen(%q): %s\n", as.Endpoint, err)
-		return
+		return err
 	}
-	// fmt.Printf("Server %d listening on %s\n", as.id, listener.Addr())
+
 	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
 	go func() {
 		for {
-			cxn, err := listener.Accept()
+			cxn, err := as.listener.Accept()
 
 			// handler.ServeCodec(codec.GoRpc.ServerCodec(cxn, handler))
 			// codec.MsgpackSpecRpc.ServerCodec(cxn, &mh)
@@ -101,4 +115,9 @@ func (as *AdamniteServer) Launch() {
 		}
 	}()
 	fmt.Println("server launched!")
+	return nil
+}
+
+func (as *AdamniteServer) Stop() error {
+	return as.listener.Close()
 }

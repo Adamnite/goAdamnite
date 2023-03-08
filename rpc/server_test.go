@@ -21,7 +21,7 @@ func TestServerGetBalance(t *testing.T) {
 	state.Database().TrieDB().Commit(rootHash, false, nil)
 
 	admServer := NewAdamniteServer(state, nil)
-	admServer.Launch()
+	admServer.Launch(nil)
 
 	returnedInt := BigIntRPC{}
 	admServer.GetBalance(testAddress, &returnedInt)
