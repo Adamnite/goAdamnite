@@ -21,10 +21,9 @@ type BlockHeader struct {
 	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
 	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
 	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
-	CurrentEpoch    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
+	CurrentRound    uint64         `json:"epoch" gencodec:"required"`       // The current epoch number of the DPOS vote round
 	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
-	DBWitness       common.Address `json:"dbWitness" gencodec:"required"` // The address of the db witness that proposed the block
 }
 
 type Block struct {
