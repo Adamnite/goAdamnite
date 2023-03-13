@@ -41,7 +41,6 @@ func setupTestingServer() AdamniteServer {
 	return *admServer
 }
 func TestGetBalance(t *testing.T) {
-	// t.Parallel()
 	admServer := setupTestingServer()
 
 	fmt.Println(admServer.Endpoint)
@@ -58,7 +57,7 @@ func TestGetBalance(t *testing.T) {
 
 }
 func TestGetChainID(t *testing.T) {
-	// t.Parallel()
+	// this sometimes fails when all tests are run at once. Run it again and it will pass.
 	admServer := setupTestingServer()
 
 	client := NewAdamniteClient(admServer.Endpoint)

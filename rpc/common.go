@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ugorji/go/codec"
@@ -27,4 +28,9 @@ var (
 	// 	WriteExt:            true,
 	// 	PositiveIntUnsigned: false,
 	// }
+)
+
+var (
+	ErrStateNotSet = errors.New("StateDB was not established")
+	ErrChainNotSet = errors.New("chain reference not filled")
 )
