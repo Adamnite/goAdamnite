@@ -1,103 +1,123 @@
 package rpc
 
 import (
-	"context"
-	"io"
-	"sync/atomic"
+	"fmt"
+	"log"
+	"net"
+	"net/rpc"
+	"reflect"
 
-	"github.com/adamnite/go-adamnite/log15"
-	mapset "github.com/deckarep/golang-set"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/ugorji/go/codec"
 )
 
-type CodecOption int
+// type Query struct {
+// 	Data []byte
+// }
 
-const MetadataApi = "rpc"
-const (
-	// OptionMethodInvocation is an indication that the codec supports RPC method calls
-	OptionMethodInvocation CodecOption = 1 << iota
-
-	// OptionSubscriptions is an indication that the codec supports RPC notifications
-	OptionSubscriptions = 1 << iota // support pub sub
-)
-
-// RPC server
-type Server struct {
-	services adamniteServiceRegistry
-	run      int32
-	idgen    func() ID
-	codecs   mapset.Set
+type AdamniteServer struct {
+	Endpoint string
+	id       int
+	statedb  *statedb.StateDB
+	chain    *core.Blockchain
+	listener net.Listener
 }
 
-func NewAdamniteRPCServer() *Server {
-	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
-	rpcService := &RPCService{server}
-	server.RegisterName(MetadataApi, rpcService)
-	return server
-}
+const adm_getBalance_endpoint = "AdamniteServer.GetBalance"
 
-func (s *Server) Stop() {
-	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
-		log15.Debug("RPC server shutting down")
-	}
-}
-
-func (s *Server) RegisterName(name string, receiver interface{}) error {
-	return s.services.registerName(name, receiver)
-}
-
-func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
-	// Don't serve if server is stopped.
-	if atomic.LoadInt32(&s.run) == 0 {
-		return
+func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntRPC) error {
+	//arg is passed, so we should sanitize it, but for now we will assume it is a correctly formatted hash
+	fmt.Println("Starting get balance server side")
+	if a.statedb == nil {
+		return ErrStateNotSet
 	}
 
-	h := newHandler(ctx, codec, s.idgen, &s.services)
-	h.allowSubscribe = false
-	defer h.close(io.EOF, nil)
+	*ans = BigIntReplyFromBigInt(*a.statedb.GetBalance(add))
+	return nil
+}
 
-	reqs, batch, err := codec.readBatch()
-	if err != nil {
-		if err != io.EOF {
-			codec.writeJSON(ctx, errorMessage(&invalidMessageError{"parse error"}))
-		}
-		return
+const adm_getChainID_endpoint = "AdamniteServer.GetChainID"
+
+func (a *AdamniteServer) GetChainID(_ interface{}, ans *BigIntRPC) error {
+	fmt.Println("Starting get Chain ID server side")
+	if a.chain == nil || a.chain.Config() == nil {
+		return ErrChainNotSet
 	}
-	if batch {
-		h.handleBatch(reqs)
+	*ans = BigIntReplyFromBigInt(*a.chain.Config().ChainID)
+	return nil
+}
+
+const adm_getBlockByHash_endpoint = "AdamniteServer.GetBlockByHash"
+
+func (a *AdamniteServer) GetBlockByHash(hash common.Hash, ans *types.Block) error {
+	*ans = *a.chain.GetBlockByHash(hash)
+	return nil
+}
+
+const adm_getBlockByNumber_endpoint = "AdamniteServer.GetBlockByNumber"
+
+func (a *AdamniteServer) GetBlockByNumber(blockIndex BigIntRPC, ans *types.Block) error {
+	*ans = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
+	return nil
+}
+
+const adm_createAccount_endpoint = "AdamniteServer.CreateAccount"
+
+func (a *AdamniteServer) CreateAccount(add common.Address, _ *interface{}) error {
+	a.statedb.CreateAccount(add)
+	return nil
+}
+
+func NewAdamniteServer(db *statedb.StateDB, chainReference *core.Blockchain) *AdamniteServer {
+	admServer := new(AdamniteServer)
+	admServer.statedb = db
+	admServer.chain = chainReference
+	return admServer
+}
+
+func (as *AdamniteServer) Launch(endpoint *string) error {
+	var apiEndpoint string
+	if endpoint == nil {
+		apiEndpoint = "[127.0.0.1]:0"
 	} else {
-		h.handleMsg(reqs[0])
+		apiEndpoint = *endpoint
 	}
+	// Start listening for the requests on any open port
+	var err error
+	as.listener, err = net.Listen("tcp", apiEndpoint)
+	as.Endpoint = as.listener.Addr().String()
+	handler := rpc.NewServer()
+	handler.Register(as)
+	if err != nil {
+		fmt.Printf("listen(%q): %s\n", as.Endpoint, err)
+		return err
+	}
+
+	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	go func() {
+		for {
+			cxn, err := as.listener.Accept()
+
+			// handler.ServeCodec(codec.GoRpc.ServerCodec(cxn, handler))
+			// codec.MsgpackSpecRpc.ServerCodec(cxn, &mh)
+			rpcCodec := codec.GoRpc.ServerCodec(cxn, &mh)
+
+			handler.ServeCodec(rpcCodec)
+			if err != nil {
+				log.Printf("listen(%q): %s\n", as.Endpoint, err)
+				return
+			}
+			log.Printf("Server %d accepted connection to %s from %s\n", as.id, cxn.LocalAddr(), cxn.RemoteAddr())
+			go handler.ServeConn(cxn)
+		}
+	}()
+	fmt.Println("server launched!")
+	return nil
 }
 
-func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
-	defer codec.close()
-
-	// Don't serve if server is stopped.
-	if atomic.LoadInt32(&s.run) == 0 {
-		return
-	}
-
-	// Add the codec to the set so it can be closed by Stop.
-	s.codecs.Add(codec)
-	defer s.codecs.Remove(codec)
-
-	c := initClient(codec, s.idgen, &s.services)
-	<-codec.closed()
-	c.Close()
-}
-
-type RPCService struct {
-	server *Server
-}
-
-// Modules returns the list of RPC services with their version number
-func (s *RPCService) Modules() map[string]string {
-	s.server.services.mu.Lock()
-	defer s.server.services.mu.Unlock()
-
-	modules := make(map[string]string)
-	for name := range s.server.services.services {
-		modules[name] = "1.0"
-	}
-	return modules
+func (as *AdamniteServer) Stop() error {
+	return as.listener.Close()
 }

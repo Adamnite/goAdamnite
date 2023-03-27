@@ -181,15 +181,15 @@ func (srv *Server) initializeLocalNode() error {
 		return err
 	}
 
-	listeners, err := utils.FindUDPPortListeners(addr.Port)
-	if err != nil {
-		return err
-	}
-	if len(listeners) > 0 {
-		err = errAlreadyListened
-		srv.log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
-		return err
-	}
+	// listeners, err := utils.FindUDPPortListeners(addr.Port)
+	// if err != nil {
+	// 	return err
+	// }
+	// if len(listeners) > 0 {
+	// 	err = errAlreadyListened
+	// 	srv.log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
+	// 	return err
+	// }
 
 	udpListener, err := net.ListenUDP("udp", addr)
 	if err != nil {

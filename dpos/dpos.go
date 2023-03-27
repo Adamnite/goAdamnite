@@ -91,8 +91,11 @@ func (adpos *AdamniteDPOS) Close() error {
 	})
 	return nil
 }
+func bigModIsZero(a *big.Int, b *big.Int) bool {
+	return big.NewInt(0).Mod(a, b).Cmp(big.NewInt(0)) == 0
+}
 
-func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash common.Hash, parents []*types.BlockHeader) (*WitnessPool, error) {
+func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash common.Hash, parents []*types.BlockHeader) (*WitnessPool, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers     []*types.BlockHeader
@@ -100,15 +103,14 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 	)
 	for witnessPool == nil {
 
-		if number%checkpointInterval == 0 {
+		if bigModIsZero(number, big.NewInt(checkpointInterval)) {
 			if s, err := GetWitnessPool(adpos.config, adpos.signatures, adpos.db, hash); err == nil {
 				log15.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
 				witnessPool = s
 				break
 			}
 		}
-
-		if number == 0 {
+		if number.Cmp(big.NewInt(0)) == 0 { //more complicated number == 0 statement.
 			checkpoint := chain.GetHeaderByNumber(number)
 			if checkpoint != nil {
 				hash := checkpoint.Hash()
@@ -120,7 +122,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 				tmpWitnesses := make([]types.Witness, 0)
 				dposData.Witnesses = tmpWitnesses
 
-				witnessPool = NewRoundWitnessPool(DefaultWitnessConfig, adpos.config, adpos.signatures, number, hash, dposData.Witnesses)
+				witnessPool = NewRoundWitnessPool(DefaultWitnessConfig, adpos.config, adpos.signatures, number.Uint64(), hash, dposData.Witnesses)
 				if err := witnessPool.saveWitnessPool(adpos.db); err != nil {
 					return nil, err
 				}
@@ -132,7 +134,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 		var header *types.BlockHeader
 		if len(parents) > 0 {
 			header = parents[len(parents)-1]
-			if header.Hash() != hash || header.Number.Uint64() != number {
+			if header.Hash() != hash || header.Number.Cmp(number) != 0 {
 				return nil, ErrUnknownAncestor
 			}
 			parents = parents[:len(parents)-1]
@@ -145,7 +147,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 		}
 
 		headers = append(headers, header)
-		number, hash = number-1, header.ParentHash
+		number, hash = big.NewInt(0).Sub(number, big.NewInt(1)), header.ParentHash
 	}
 
 	for i := 0; i < len(headers)/2; i++ {
@@ -167,7 +169,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number uint64, hash co
 	return witnessPool, err
 }
 
-func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash common.Hash, parents []*types.BlockHeader) (*poh.DBWitnessPool, error) {
+func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, hash common.Hash, parents []*types.BlockHeader) (*poh.DBWitnessPool, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 
 	var (
@@ -176,7 +178,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash 
 	)
 	for dbWitnessPool == nil {
 
-		if number%checkpointInterval == 0 {
+		if bigModIsZero(number, big.NewInt(checkpointInterval)) {
 			if s, err := poh.GetDBWitnessPool(adpos.config, adpos.signatures, adpos.db, hash); err == nil {
 				log15.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
 				dbWitnessPool = s
@@ -184,7 +186,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash 
 			}
 		}
 
-		if number == 0 {
+		if number.Cmp(big.NewInt(0)) == 0 { //more complicated number == 0 statement.
 			checkpoint := chain.GetHeaderByNumber(number)
 			if checkpoint != nil {
 				hash := checkpoint.Hash()
@@ -196,7 +198,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash 
 				tmpWitnesses := make([]types.Witness, 0)
 				pohData.Witnesses = tmpWitnesses
 
-				dbWitnessPool = poh.NewDBRoundWitnessPool(poh.DefaultDBWitnessConfig, adpos.config, adpos.signatures, number, hash, pohData.Witnesses)
+				dbWitnessPool = poh.NewDBRoundWitnessPool(poh.DefaultDBWitnessConfig, adpos.config, adpos.signatures, number.Uint64(), hash, pohData.Witnesses)
 				if err := dbWitnessPool.SaveDBWitnessPool(adpos.db); err != nil {
 					return nil, err
 				}
@@ -208,7 +210,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash 
 		var header *types.BlockHeader
 		if len(parents) > 0 {
 			header = parents[len(parents)-1]
-			if header.Hash() != hash || header.Number.Uint64() != number {
+			if header.Hash() != hash || header.Number.Cmp(number) != 0 {
 				return nil, ErrUnknownAncestor
 			}
 			parents = parents[:len(parents)-1]
@@ -221,7 +223,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number uint64, hash 
 		}
 
 		headers = append(headers, header)
-		number, hash = number-1, header.ParentHash
+		number, hash = big.NewInt(0).Sub(number, big.NewInt(1)), header.ParentHash
 	}
 
 	for i := 0; i < len(headers)/2; i++ {
@@ -256,15 +258,15 @@ func (adpos *AdamniteDPOS) VerifyHeader(header *types.BlockHeader, chain ChainRe
 		return errUnknownBlock
 	}
 
-	number := header.Number.Uint64()
+	number := header.Number
 
-	parent := chain.GetHeader(header.ParentHash, number-1)
+	parent := chain.GetHeader(header.ParentHash, big.NewInt(0).Sub(number, big.NewInt(1)))
 
-	if number == 0 {
+	if number.Cmp(big.NewInt(0)) == 0 {
 		return nil
 	}
 
-	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
+	if parent == nil || parent.Number.Cmp(big.NewInt(0).Sub(number, big.NewInt(1))) != 0 || parent.Hash() != header.ParentHash {
 		return ErrUnknownAncestor
 	}
 
@@ -277,13 +279,13 @@ func (adpos *AdamniteDPOS) VerifyHeader(header *types.BlockHeader, chain ChainRe
 
 func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader) error {
 
-	number := header.Number.Uint64()
+	number := header.Number
 
 	parent := chain.GetHeaderByHash(header.ParentHash)
 	if parent == nil {
 		return ErrUnknownAncestor
 	}
-	witnesspool, err := adpos.witnesspool(chain, number-1, parent.Hash(), nil)
+	witnesspool, err := adpos.witnesspool(chain, big.NewInt(0).Sub(number, big.NewInt(1)), parent.Hash(), nil)
 	if err != nil {
 		return err
 	}
@@ -292,13 +294,14 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 		Witnesses: []types.Witness{},
 		Votes:     map[common.Address]types.Voter{},
 	}
-	if number%EpochBlockCount == 0 {
+
+	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
 		dposData.Witnesses = witnesspool.CalcWitnesses()
 	}
 	header.Extra = append(header.Extra, DposDataEncode(dposData)...)
 	adpos.poh.GeneratePOH(1)
 
-	dbwitnesspool, err := adpos.dbwitnesspool(chain, number-1, parent.Hash(), nil)
+	dbwitnesspool, err := adpos.dbwitnesspool(chain, big.NewInt(0).Sub(number, big.NewInt(1)), parent.Hash(), nil)
 
 	if err != nil {
 		return err
@@ -308,7 +311,7 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 		Witnesses: []types.Witness{},
 		Votes:     map[common.Address]types.Voter{},
 	}
-	if number%EpochBlockCount == 0 {
+	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
 		pohData.Witnesses = dbwitnesspool.CalcWitnesses()
 	}
 	header.Extra = append(header.Extra, poh.PohDataEncode(pohData)...)
@@ -345,17 +348,16 @@ func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader
 func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[common.Address]types.Voter) {
 	votes = map[common.Address]types.Voter{}
 
-	number := header.Number.Uint64()
+	number := header.Number
 	var witnessPool *WitnessPool
 	var dbWitnessPool *poh.DBWitnessPool
-
-	if number > 0 {
-		witnessPool, _ = adpos.witnesspool(chain, number-1, header.ParentHash, nil)
+	if number.Cmp(big.NewInt(0)) == 1 {
+		witnessPool, _ = adpos.witnesspool(chain, big.NewInt(0).Sub(number, big.NewInt(1)), header.ParentHash, nil)
 		if witnessPool == nil {
 			return
 		}
 
-		dbWitnessPool, _ = adpos.dbwitnesspool(chain, number-1, header.ParentHash, nil)
+		dbWitnessPool, _ = adpos.dbwitnesspool(chain, big.NewInt(0).Sub(number, big.NewInt(1)), header.ParentHash, nil)
 		if dbWitnessPool == nil {
 			return
 		}
@@ -370,7 +372,7 @@ walk:
 		switch tx.Type() {
 		case types.VOTE_TX:
 
-			if number != 0 && witnessPool.isVoted(sender) {
+			if number.Cmp(big.NewInt(0)) != 0 && witnessPool.isVoted(sender) {
 				continue walk
 			}
 			stakingAmount, ok := big.NewInt(0).SetString(tx.Amount().String(), 10)
@@ -388,7 +390,7 @@ walk:
 
 		case types.VOTE_POH_TX:
 
-			if number != 0 && dbWitnessPool.IsVoted(sender) {
+			if number.Cmp(big.NewInt(0)) != 0 && dbWitnessPool.IsVoted(sender) {
 				continue walk
 			}
 			stakingAmount, ok := big.NewInt(0).SetString(tx.Amount().String(), 10)

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/big"
 	"sync"
 	"time"
 
@@ -43,7 +44,7 @@ type TxPool struct {
 
 type blockChain interface {
 	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number uint64) *types.Block
+	GetBlock(hash common.Hash, number *big.Int) *types.Block
 	StateAt(root common.Hash) (*statedb.StateDB, error)
 }
 
