@@ -18,6 +18,7 @@ type BlockHeader struct {
 	Time            uint64         `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
 	Witness         common.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
 	WitnessRoot     common.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
+	DBWitness       common.Address `json:"dbwitness" gencodec:"required"`   //The address of the db witness. required in db witness pool
 	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
 	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
 	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
