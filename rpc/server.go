@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"net/rpc"
 	"reflect"
 
@@ -88,9 +89,15 @@ func (as *AdamniteServer) Launch(endpoint *string) error {
 	// Start listening for the requests on any open port
 	var err error
 	as.listener, err = net.Listen("tcp", apiEndpoint)
+	if err != nil {
+		fmt.Printf("Listener failed to generate with reason %v", err)
+		return err
+	}
 	as.Endpoint = as.listener.Addr().String()
+
 	handler := rpc.NewServer()
 	handler.Register(as)
+	handler.HandleHTTP(apiEndpoint+"/main/", apiEndpoint+"/debug/")
 	if err != nil {
 		fmt.Printf("listen(%q): %s\n", as.Endpoint, err)
 		return err
@@ -114,6 +121,9 @@ func (as *AdamniteServer) Launch(endpoint *string) error {
 			go handler.ServeConn(cxn)
 		}
 	}()
+
+	// go http.Serve(as.listener, nil)//this is known to work, incase listen and serve does not.
+	http.ListenAndServe(as.Endpoint, handler)
 	fmt.Println("server launched!")
 	return nil
 }
