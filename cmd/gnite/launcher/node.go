@@ -66,7 +66,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, adamConfig) {
 
 func makeAdamniteNode(ctx *cli.Context) (*node.Node, adm.AdamniteAPI) {
 	stack, cfg := makeConfigNode(ctx)
-	adamniteImpl := utils.RegisterAdamniteSerivce(stack, &cfg.Adamnite)
+	adamniteImpl := utils.RegisterAdamniteService(stack, &cfg.Adamnite)
 	return stack, adamniteImpl
 }
 

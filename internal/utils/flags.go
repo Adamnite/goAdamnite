@@ -156,7 +156,7 @@ func MakeAdamniteDatabaseHandles() int {
 	return int(hRaised / 2)
 }
 
-func RegisterAdamniteSerivce(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {
+func RegisterAdamniteService(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {
 	backend, err := adm.New(node, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Adamnite service: %v", err)
