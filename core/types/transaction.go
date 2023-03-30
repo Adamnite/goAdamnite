@@ -60,7 +60,7 @@ type Transaction_Data interface {
 	nonce() uint64
 
 	rawSignature() (v, r, s *big.Int)
-	setSignatue(chain_TYPE, v, r, s *big.Int)
+	setSignature(chain_TYPE, v, r, s *big.Int)
 }
 
 type Transactions []*Transaction
@@ -167,7 +167,7 @@ func (tx *Transaction) WithSignature(signer Signer, signature []byte) (*Transact
 	}
 
 	cpy := tx.InnerData.copy()
-	cpy.setSignatue(signer.ChainType(), v, r, s)
+	cpy.setSignature(signer.ChainType(), v, r, s)
 	return &Transaction{InnerData: cpy, timestamp: tx.timestamp}, nil
 }
 
