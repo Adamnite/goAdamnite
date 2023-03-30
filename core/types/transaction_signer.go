@@ -93,14 +93,13 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error
 	if len(pub) == 0 || pub[0] != 4 {
 		return common.Address{}, errors.New("invalid public key")
 	}
-	var addr common.Address
-	copy(addr[:], crypto.Ripemd160Hash(crypto.Sha512(pub[1:])))
-	return addr, nil
+	return crypto.PubkeyByteToAddress(pub), nil
 }
 
 func SignTransaction(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, error) {
 	hash := s.Hash(tx)
 	signature, err := crypto.Sign(hash[:], prv)
+
 	if err != nil {
 		return nil, err
 	}
