@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
-	"github.com/adamnite/go-adamnite/serialization"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -42,7 +42,7 @@ func (as AdamniteSigner) Sender(tx *Transaction) (common.Address, error) {
 }
 
 func (as AdamniteSigner) Hash(tx *Transaction) common.Hash {
-	serial := serialization.Serialize(tx.Nonce())
+	serial, _ := msgpack.Marshal(tx.Nonce())
 	bytes := crypto.Sha512(serial)
 	hash := common.Hash{}
 	copy(hash[:], bytes)

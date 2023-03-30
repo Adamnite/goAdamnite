@@ -49,42 +49,6 @@ type Decoder interface {
 	Decodeserialization(*Stream) error
 }
 
-// Decode parses serialization-encoded data from r and stores the result in the value pointed to by
-// val. Please see package-level documentation for the decoding rules. Val must be a
-// non-nil pointer.
-//
-// If r does not implement ByteReader, Decode will do its own buffering.
-//
-// Note that Decode does not set an input limit for all readers and may be vulnerable to
-// panics cause by huge value sizes. If you need an input limit, use
-//
-//     NewStream(r, limit).Decode(val)
-func Decode(r io.Reader, val interface{}) error {
-	stream := streamPool.Get().(*Stream)
-	defer streamPool.Put(stream)
-
-	stream.Reset(r, 0)
-	return stream.Decode(val)
-}
-
-// DecodeBytes parses serialization data from b into val. Please see package-level documentation for
-// the decoding rules. The input must contain exactly one value and no trailing data.
-func DecodeBytes(b []byte, val interface{}) error {
-	r := bytes.NewReader(b)
-
-	stream := streamPool.Get().(*Stream)
-	defer streamPool.Put(stream)
-
-	stream.Reset(r, uint64(len(b)))
-	if err := stream.Decode(val); err != nil {
-		return err
-	}
-	if r.Len() > 0 {
-		return ErrMoreThanOneValue
-	}
-	return nil
-}
-
 type decodeError struct {
 	msg string
 	typ reflect.Type
