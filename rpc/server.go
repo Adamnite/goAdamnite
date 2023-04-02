@@ -1,133 +1,121 @@
 package rpc
 
 import (
-	"fmt"
+	"encoding/base64"
+    "errors"
 	"log"
 	"net"
-	"net/http"
 	"net/rpc"
-	"reflect"
+	"strings"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/ugorji/go/codec"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
-// type Query struct {
-// 	Data []byte
-// }
-
-type AdamniteServer struct {
-	Endpoint string
-	id       int
-	statedb  *statedb.StateDB
-	chain    *core.Blockchain
-	listener net.Listener
+type Adamnite struct {
+	stateDB *statedb.StateDB
+	chain   *core.Blockchain
 }
 
-const adm_getBalance_endpoint = "AdamniteServer.GetBalance"
+func encodeBase64(value []byte) string {
+	return base64.StdEncoding.EncodeToString(value)
+}
 
-func (a *AdamniteServer) GetBalance(add common.Address, ans *BigIntRPC) error {
-	//arg is passed, so we should sanitize it, but for now we will assume it is a correctly formatted hash
-	fmt.Println("Starting get balance server side")
-	if a.statedb == nil {
-		return ErrStateNotSet
+const getBalanceEndpoint = "Adamnite.GetBalance"
+
+func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Get balance")
+	input := struct {
+		Address string
+	}{}
+
+    if err := msgpack.Unmarshal(*params, &input); err != nil {
+        return err
+    }
+
+	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
+	if err != nil {
+		return err
 	}
 
-	*ans = BigIntReplyFromBigInt(*a.statedb.GetBalance(add))
+	*reply = encodeBase64(data)
 	return nil
 }
 
-const adm_getChainID_endpoint = "AdamniteServer.GetChainID"
+const getChainIDEndpoint = "Adamnite.GetChainID"
 
-func (a *AdamniteServer) GetChainID(_ interface{}, ans *BigIntRPC) error {
-	fmt.Println("Starting get Chain ID server side")
+func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
-		return ErrChainNotSet
+		return errors.New("Chain is not set")
 	}
-	*ans = BigIntReplyFromBigInt(*a.chain.Config().ChainID)
-	return nil
-}
 
-const adm_getBlockByHash_endpoint = "AdamniteServer.GetBlockByHash"
-
-func (a *AdamniteServer) GetBlockByHash(hash common.Hash, ans *types.Block) error {
-	*ans = *a.chain.GetBlockByHash(hash)
-	return nil
-}
-
-const adm_getBlockByNumber_endpoint = "AdamniteServer.GetBlockByNumber"
-
-func (a *AdamniteServer) GetBlockByNumber(blockIndex BigIntRPC, ans *types.Block) error {
-	*ans = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
-	return nil
-}
-
-const adm_createAccount_endpoint = "AdamniteServer.CreateAccount"
-
-func (a *AdamniteServer) CreateAccount(add common.Address, _ *interface{}) error {
-	a.statedb.CreateAccount(add)
-	return nil
-}
-
-func NewAdamniteServer(db *statedb.StateDB, chainReference *core.Blockchain) *AdamniteServer {
-	admServer := new(AdamniteServer)
-	admServer.statedb = db
-	admServer.chain = chainReference
-	return admServer
-}
-
-func (as *AdamniteServer) Launch(endpoint *string) error {
-	var apiEndpoint string
-	if endpoint == nil {
-		apiEndpoint = "[127.0.0.1]:0"
-	} else {
-		apiEndpoint = *endpoint
-	}
-	// Start listening for the requests on any open port
-	var err error
-	as.listener, err = net.Listen("tcp", apiEndpoint)
+	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
-		fmt.Printf("Listener failed to generate with reason %v", err)
-		return err
-	}
-	as.Endpoint = as.listener.Addr().String()
-
-	handler := rpc.NewServer()
-	handler.Register(as)
-	handler.HandleHTTP(apiEndpoint+"/main/", apiEndpoint+"/debug/")
-	if err != nil {
-		fmt.Printf("listen(%q): %s\n", as.Endpoint, err)
 		return err
 	}
 
-	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	go func() {
-		for {
-			cxn, err := as.listener.Accept()
-
-			// handler.ServeCodec(codec.GoRpc.ServerCodec(cxn, handler))
-			// codec.MsgpackSpecRpc.ServerCodec(cxn, &mh)
-			rpcCodec := codec.GoRpc.ServerCodec(cxn, &mh)
-
-			handler.ServeCodec(rpcCodec)
-			if err != nil {
-				log.Printf("listen(%q): %s\n", as.Endpoint, err)
-				return
-			}
-			log.Printf("Server %d accepted connection to %s from %s\n", as.id, cxn.LocalAddr(), cxn.RemoteAddr())
-			go handler.ServeConn(cxn)
-		}
-	}()
-
-	// go http.Serve(as.listener, nil)//this is known to work, incase listen and serve does not.
-	http.ListenAndServe(as.Endpoint, handler)
-	fmt.Println("server launched!")
+	*reply = encodeBase64(data)
 	return nil
 }
 
-func (as *AdamniteServer) Stop() error {
-	return as.listener.Close()
+const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
+
+func (a *Adamnite) GetBlockByHash(hash common.Hash, reply *types.Block) error {
+	*reply = *a.chain.GetBlockByHash(hash)
+	return nil
+}
+
+const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
+
+func (a *Adamnite) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) error {
+	*reply = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
+	return nil
+}
+
+const createAccountEndpoint = "Adamnite.CreateAccount"
+
+func (a *Adamnite) CreateAccount(add common.Address, _ *interface{}) error {
+	a.stateDB.CreateAccount(add)
+	return nil
+}
+
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func()) {
+    rpcServer := rpc.NewServer()
+
+	adamnite := new(Adamnite)
+	adamnite.stateDB = stateDB
+	adamnite.chain = chain
+
+    if err := rpcServer.Register(adamnite); err != nil {
+        log.Fatal(err)
+    }
+
+    listener, _ = net.Listen("tcp", "127.0.0.1:0")
+    log.Println("[Adamnite RPC] Endpoint:", listener.Addr().String())
+
+    runFunc = func() {
+        for {
+            conn, err := listener.Accept()
+            if err != nil {
+                log.Println("[Listener accept]", err)
+                return
+            }
+
+            go func(conn net.Conn) {
+                defer func() {
+                    if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
+                        log.Println(err)
+                    }
+                }()
+                _ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+                rpcServer.ServeConn(conn)
+            }(conn)
+        }
+    }
+    return listener, runFunc
 }
