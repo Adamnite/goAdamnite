@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
@@ -13,7 +12,7 @@ import (
 
 // hasherPool holds LegacyKeccak256 hashers for rlpHash.
 var hasherPool = sync.Pool{
-	New: func() interface{} { return sha3.NewLegacyKeccak256() },
+	New: func() interface{} { return sha3.New512() },
 }
 
 // deriveBufferPool holds temporary encoder buffers for DeriveSha and TX encoding.
@@ -22,7 +21,7 @@ var encodeBufferPool = sync.Pool{
 }
 
 func serializationHash(x interface{}) (h common.Hash) {
-	sha := hasherPool.Get().(crypto.KeccakState)
+	sha := hasherPool.Get().(sha3.ShakeHash)
 	defer hasherPool.Put(sha)
 	sha.Reset()
 	msgpack.NewEncoder(sha).Encode(x)
@@ -31,7 +30,7 @@ func serializationHash(x interface{}) (h common.Hash) {
 }
 
 func prefixedSerializationHash(prefix byte, x interface{}) (h common.Hash) {
-	sha := hasherPool.Get().(crypto.KeccakState)
+	sha := hasherPool.Get().(sha3.ShakeHash)
 	defer hasherPool.Put(sha)
 	sha.Reset()
 	sha.Write([]byte{prefix})

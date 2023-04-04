@@ -212,18 +212,13 @@ func (n *NodeInfo) GetNodeID() *NodeID {
 	nodeId := NodeID{}
 	switch n.infoType {
 	case TypeNil:
-	case TypeURLV1:
+	case TypeURLV1, TypeCompatURLV1:
 		pubKey := n.GetPubKey()
 		buf := make([]byte, 64)
 		math.ReadBits(pubKey.X, buf[:32])
 		math.ReadBits(pubKey.Y, buf[32:])
-		copy(nodeId[:], crypto.Keccak256(buf))
-	case TypeCompatURLV1:
-		pubKey := n.GetPubKey()
-		buf := make([]byte, 64)
-		math.ReadBits(pubKey.X, buf[:32])
-		math.ReadBits(pubKey.Y, buf[32:])
-		copy(nodeId[:], crypto.Keccak256(buf))
+		hashed := sha3.Sum512(buf)
+		copy(nodeId[:], hashed[:32])
 	}
 
 	return &nodeId

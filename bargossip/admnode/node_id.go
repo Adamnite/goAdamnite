@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/adamnite/go-adamnite/common/math"
-	"github.com/adamnite/go-adamnite/crypto"
+	"golang.org/x/crypto/sha3"
 )
 
 type NodeID [32]byte
@@ -49,9 +49,12 @@ func ParseNodeID(strID string) (NodeID, error) {
 func PubkeyToNodeID(key *ecdsa.PublicKey) NodeID {
 	var nodeId NodeID
 	pub := make([]byte, 64)
+	// pub := [64]byte{}
 	math.ReadBits(key.X, pub[:32])
 	math.ReadBits(key.Y, pub[32:])
-	copy(nodeId[:], crypto.Keccak256(pub))
+	pubCopy := append([]byte{}, pub...)
+	hashed := sha3.Sum512(pubCopy)
+	copy(nodeId[:], hashed[:32])
 
 	return nodeId
 }

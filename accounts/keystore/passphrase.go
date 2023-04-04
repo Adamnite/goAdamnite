@@ -186,7 +186,6 @@ func EncryptData(data, pwd []byte, scryptN, scriptP int) (CryptoJSON, error) {
 	}
 
 	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
-
 	scryptParamsJson := make(map[string]interface{}, 5)
 	scryptParamsJson["n"] = scryptN
 	scryptParamsJson["p"] = scriptP
