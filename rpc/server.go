@@ -18,11 +18,29 @@ import (
 
 type Adamnite struct {
 	stateDB *statedb.StateDB
-	chain   *core.Blockchain
+	chain *core.Blockchain
+	addresses []string
 }
 
 func encodeBase64(value []byte) string {
 	return base64.StdEncoding.EncodeToString(value)
+}
+
+const getChainIDEndpoint = "Adamnite.GetChainID"
+
+func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Get chain ID")
+	if a.chain == nil || a.chain.Config() == nil {
+		return errors.New("Chain is not set")
+	}
+
+	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
+	if err != nil {
+		return err
+	}
+
+	*reply = encodeBase64(data)
+	return nil
 }
 
 const getBalanceEndpoint = "Adamnite.GetBalance"
@@ -46,15 +64,12 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 	return nil
 }
 
-const getChainIDEndpoint = "Adamnite.GetChainID"
+const getAccountsEndpoint = "Adamnite.GetAccounts"
 
-func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
-	log.Println("[Adamnite RPC] Get chain ID")
-	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("Chain is not set")
-	}
+func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Get accounts")
 
-	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
+	data, err := msgpack.Marshal(a.addresses)
 	if err != nil {
 		return err
 	}
@@ -79,8 +94,33 @@ func (a *Adamnite) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) er
 
 const createAccountEndpoint = "Adamnite.CreateAccount"
 
-func (a *Adamnite) CreateAccount(add common.Address, _ *interface{}) error {
-	a.stateDB.CreateAccount(add)
+func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Create account")
+
+	input := struct {
+		Address string
+	}{}
+
+    if err := msgpack.Unmarshal(*params, &input); err != nil {
+        return err
+    }
+
+	for _, address := range a.addresses {
+		if address == input.Address {
+			log.Println("[Adamnite RPC] Specified account already exists on chain")
+			return errors.New("Specified account already exists on chain")
+		}
+	}
+
+	a.stateDB.CreateAccount(common.HexToAddress(input.Address))
+	a.addresses = append(a.addresses, input.Address)
+
+	data, err := msgpack.Marshal(true)
+	if err != nil {
+		return err
+	}
+
+	*reply = encodeBase64(data)
 	return nil
 }
 
