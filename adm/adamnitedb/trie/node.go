@@ -27,7 +27,7 @@ type (
 		Val   node
 		flags nodeFlag
 	}
-	hashNode  []byte
+	hashNode  []byte //i guess the hash should hold the full 512bit value of a sha512 hash?
 	valueNode []byte
 )
 

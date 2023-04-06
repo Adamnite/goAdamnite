@@ -354,19 +354,58 @@ func readHandshakeMsg(conn io.Reader, prv *ecdsa.PrivateKey, msg messageDecoder)
 	}
 }
 
+// THIS NEEDS FURTHER REVIEW
 func getHandshakeKeys(handshakePacket, respHandshakePacket []byte, encKeys *handshakeEncKeys) (handshakeKeys, error) {
 	secretKey, err := encKeys.oneTimePrivKey.GenerateShared(encKeys.remoteOneTimePubKey, 16, 16)
 	if err != nil {
 		return handshakeKeys{}, err
 	}
 
-	sharedSecret := crypto.Keccak256(secretKey, crypto.Keccak256(encKeys.respNonce, encKeys.initNonce))
-	aesSecret := crypto.Keccak256(secretKey, sharedSecret)
-
+	sharedSecret := sha3.New512()
+	// foo.Write(append([]byte{}, sha3.Sum512(secretKey), sha3.Sum512(encKeys.respNonce), sha3.Sum512(encKeys.initNonce)))
+	_, err = sharedSecret.Write(secretKey)
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	_, err = sharedSecret.Write(encKeys.respNonce)
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	_, err = sharedSecret.Write(encKeys.initNonce)
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	// sharedSecret := crypto.Keccak256(secretKey, crypto.Keccak256(encKeys.respNonce, encKeys.initNonce))
+	aesSecret := sha3.New512()
+	_, err = aesSecret.Write(secretKey)
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	_, err = aesSecret.Write(sharedSecret.Sum(nil))
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	mac := sha3.New512()
+	_, err = mac.Write(secretKey)
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
+	_, err = mac.Write(aesSecret.Sum(nil))
+	if err != nil {
+		fmt.Println(err)
+		return handshakeKeys{}, err
+	}
 	hKeys := handshakeKeys{
 		remotePubKey: encKeys.remotePubKey.ExportECDSA(),
-		AES:          aesSecret,
-		MAC:          crypto.Keccak256(secretKey, aesSecret),
+		AES:          aesSecret.Sum(nil)[:32],
+
+		MAC: mac.Sum(nil),
 	}
 
 	mac1 := sha3.NewLegacyKeccak256()

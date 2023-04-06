@@ -2,12 +2,12 @@ package statedb
 
 import (
 	"fmt"
+	"hash"
 	"math/big"
 	"sort"
 	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -32,7 +32,7 @@ type StateDB struct {
 	db           Database
 	originalRoot common.Hash // The pre-state root, before any changes were made
 	trie         Trie
-	hasher       crypto.KeccakState
+	hasher       hash.Hash
 
 	snapAccounts  map[common.Hash][]byte
 	snapWitnesses map[common.Hash][]byte
@@ -414,7 +414,6 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 func (s *StateDB) Exist(addr common.Address) bool {
 	return s.getStateObject(addr) != nil
 }
-
 
 func (s *StateDB) CreateAccount(addr common.Address) {
 	newObj, prev := s.createStateObject(addr)

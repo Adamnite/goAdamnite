@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyState is the known hash of an empty state trie entry.
-	emptyState = crypto.Keccak256Hash(nil)
+	emptyState = sha3.Sum512(nil)
 )
 
 type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error
@@ -555,10 +555,9 @@ type prefixIterator struct {
 }
 
 func newPrefixIterator(trie *Trie, prefix []byte) NodeIterator {
-	if trie.Hash() == emptyState {
+	if bytes.Compare(trie.Hash().Bytes(), emptyState[:32]) == 0 {
 		return new(prefixIterator).nodeIterator
 	}
-	//
 	nodeIt := newNodeIterator(trie, prefix)
 	prefix = keybytesToHex(prefix)
 	return (&prefixIterator{

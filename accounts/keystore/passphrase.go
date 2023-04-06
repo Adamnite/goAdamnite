@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/scrypt"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -184,8 +185,10 @@ func EncryptData(data, pwd []byte, scryptN, scriptP int) (CryptoJSON, error) {
 	if err != nil {
 		return CryptoJSON{}, err
 	}
-
-	mac := crypto.Keccak256(derivedKey[16:32], cipherText)
+	mac := sha3.New512()
+	mac.Write(derivedKey[16:32])
+	mac.Write(cipherText)
+	// mac := crypto.Keccak256(derivedKey[16:32], cipherText)
 	scryptParamsJson := make(map[string]interface{}, 5)
 	scryptParamsJson["n"] = scryptN
 	scryptParamsJson["p"] = scriptP
@@ -203,7 +206,7 @@ func EncryptData(data, pwd []byte, scryptN, scriptP int) (CryptoJSON, error) {
 		CipherParams: cipherParamsJSON,
 		KDF:          "scrypt",
 		KDFParams:    scryptParamsJson,
-		MAC:          hex.EncodeToString(mac),
+		MAC:          hex.EncodeToString(mac.Sum(nil)),
 	}
 
 	return cryptedKey, nil
@@ -234,8 +237,11 @@ func DecryptData(cryptedKey CryptoJSON, pwd string) ([]byte, error) {
 		return nil, err
 	}
 
-	calculatedMAC := crypto.Keccak256(derivedKey[16:32], cipherText)
-	if !bytes.Equal(calculatedMAC, mac) {
+	calculatedMAC := sha3.New512()
+	calculatedMAC.Write(derivedKey[16:32])
+	calculatedMAC.Write(cipherText)
+	// crypto.Keccak256(derivedKey[16:32], cipherText)
+	if !bytes.Equal(calculatedMAC.Sum(nil)[:32], mac) {
 		return nil, errors.New("could not decrypt key with given password")
 	}
 
