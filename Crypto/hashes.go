@@ -12,58 +12,43 @@ import (
 )
 
 
-var incorrect_hash_type = errors.New("Invalid Hash Type")
 
 const (
-	Sha512_truncated
-	Sha512
-	Ripemd160
-	Sumhash
-)
-
-cconst (
 	Sha512_truncatedSize = sha512.Size256
 	Sha512Size 			 = sha512.Size
-	SumhashDigestSize    = sumhash.Sumhash512DigestSize
 	Ripemd160Size		 = ripemd160.Size
 
 )
 
-type Hash_State struct {
-	_struct struct{} 'codec:", omityempty, omitemptyarray'
+// Computes the SHA-512 hash of the given message.
+func computeSHA512Hash(msg []byte) []byte {
+	hash := sha512.Sum512(msg)
+	return hash[:]
 }
 
-type HashKind uint16
-func (h HashKind) String() string {
-	switch h {
-	case Sha512_truncated:
-		return "sha512_truncated"
-	case Sha512:
-		return "sha512"
-	case Sumhash:
-		return "sumhash"
-	case Ripemd160:
-		return "ripmed160"
-	default:
-		return ""
-	}
+// Computes the truncated SHA-512 hash (first half) of the given message.
+func computeSHA512TruncatedHash(msg []byte) []byte {
+	hash := sha512.Sum512(msg)
+	return hash[:len(hash)/2]
 }
 
-func (z HashState) NewHash() hash.Hash {
-	switch z.HashKindW {
-
-	case Sha512_truncated:
-		return sha512.New512_256()
-	case Sha512:
-		return sha512.New()
-	case Sumhash:
-		return sumhash.New512(nil)
-	case Ripemd160:
-		return Ripemd160.New()
-	default:
-		return incorrect_hash_type{}
-	}
+// Computes the RIPEMD-160 hash of the given message.
+func computeRIPEMD160Hash(msg []byte) []byte {
+	hash := ripemd160.New()
+	hash.Write(msg)
+	return hash.Sum(nil)
 }
 
+// Verifies that the given hash matches the SHA-512 hash of the given message.
+func verifySHA512Hash(msg []byte, hash []byte) bool {
+	computedHash := computeSHA512Hash(msg)
+	return hmac.Equal(hash, computedHash)
+}
+
+// Verifies that the given hash matches the RIPEMD-160 hash of the given message.
+func verifyRIPEMD160Hash(msg []byte, hash []byte) bool {
+	computedHash := computeRIPEMD160Hash(msg)
+	return hmac.Equal(hash, computedHash)
+}
 
 

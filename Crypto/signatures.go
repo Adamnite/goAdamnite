@@ -90,7 +90,95 @@ func DecompressPubkey(pubkey []byte) ([]byte, error) {
 	return uncompressedPubKey, nil
 }
 
+
+type OneTimeSignature struct {
+	pubKey     ecdsa.PublicKey
+	privKey    ecdsa.PrivateKey
+	counter    uint32
+	maxCounter uint32
+}
+
+type OneTimeSignatureEphemeral struct {
+	privKey ecdsa.PrivateKey
+}
+
+func NewOneTimeSignature(maxCounter uint32) (*OneTimeSignature, error) {
+	curve := elliptic.P256()
+	privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OneTimeSignature{
+		pubKey:     privKey.PublicKey,
+		privKey:    *privKey,
+		counter:    0,
+		maxCounter: maxCounter,
+	}, nil
+}
+
+func (ots *OneTimeSignature) Sign(msg []byte) (*big.Int, *big.Int, error) {
+	if ots.counter >= ots.maxCounter {
+		return nil, nil, errors.New("max signature limit reached")
+	}
+
+	ephKey, err := NewOneTimeSignatureEphemeral()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	h := sha256.Sum256(msg)
+	r, s, err := ecdsa.Sign(rand.Reader, &ephKey.privKey, h[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Calculate one-time public key
+	Rx, Ry := curve.ScalarBaseMult(r.Bytes())
+	Px, Py := curve.ScalarMult(ots.pubKey.X, ots.pubKey.Y, s.Bytes())
+	Qx, Qy := curve.Add(Rx, Ry, Px, Py)
+	if !curve.IsOnCurve(Qx, Qy) {
+		return nil, nil, errors.New("invalid signature")
+	}
+
+	ots.counter++
+
+	return Qx, Qy, nil
+}
+
+func (ots *OneTimeSignature) Verify(msg []byte, Qx, Qy *big.Int) error {
+	if ots.counter >= ots.maxCounter {
+		return errors.New("max signature limit reached")
+	}
+
+	h := sha256.Sum256(msg)
+
+	if !ecdsa.Verify(&ots.pubKey, h[:], Qx, Qy) {
+		return errors.New("invalid signature")
+	}
+
+	ots.counter++
+
+	return nil
+}
+
+func NewOneTimeSignatureEphemeral() (*OneTimeSignatureEphemeral, error) {
+	curve := elliptic.P256()
+	privKey, err := ecdsa.GenerateKey(curve, rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OneTimeSignatureEphemeral{
+		privKey: *privKey,
+	}, nil
+}
+
+
+
 // S256 returns an instance of the secp256k1 curve.
 func S256() elliptic.Curve {
 	return secp256k1.S256()
 }
+
+
