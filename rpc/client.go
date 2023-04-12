@@ -32,7 +32,7 @@ type SendingAddress struct {
 func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	fmt.Println("starting GetChainID client side")
 	var reply BigIntRPC
-	err := a.client.Call(adm_getChainID_endpoint, nil, &reply)
+	err := a.client.Call(getChainIDEndpoint, nil, &reply)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -44,7 +44,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
 	fmt.Println("starting GetBalanceClient side")
 
 	var reply BigIntRPC
-	err := a.client.Call(adm_getBalance_endpoint, address, &reply)
+	err := a.client.Call(getBalanceEndpoint, address, &reply)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -54,7 +54,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
 func (a *AdamniteClient) GetBlockByHash(hash common.Hash) (*types.Block, error) {
 	fmt.Println("starting GetBlockByHash Client side")
 	var reply types.Block
-	err := a.client.Call(adm_getBlockByHash_endpoint, hash, &reply)
+	err := a.client.Call(getBlockByHashEndpoint, hash, &reply)
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
