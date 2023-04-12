@@ -25,32 +25,31 @@ var (
 )
 
 func setupTestingServer() {
-	if admServer == nil { //checks to prevent multiple server creation on the same port...
-		state.AddBalance(testAddress, testBalance)
-		rootHash := state.IntermediateRoot(false)
-		state.Database().TrieDB().Commit(rootHash, false, nil)
 
-		bc, err := core.NewBlockchain(test_db,
-			chainConfig,
-			dpos.New(chainConfig, test_db),
-		)
-		if err != nil {
-			fmt.Println(err)
-		}
+	state.SetBalance(testAddress, testBalance) //reset balance to the set testing value.
+	rootHash := state.IntermediateRoot(false)
+	state.Database().TrieDB().Commit(rootHash, false, nil)
 
-		admServer = NewAdamniteServer(state, bc)
-		foo := "[127.0.0.1]:12345"
-		admServer.Launch(&foo)
+	bc, err := core.NewBlockchain(test_db,
+		chainConfig,
+		dpos.New(chainConfig, test_db),
+	)
+	if err != nil {
+		fmt.Println(err)
 	}
+
+	adListener, runFunc := NewAdamniteServer(state, bc)
+	runFunc()
+
 	if client == nil {
-		client = NewAdamniteClient(admServer.Endpoint)
+		client = NewAdamniteClient(adListener.Addr().String())
 	}
 }
 func TestGetBalance(t *testing.T) {
-	t.Parallel() //one of these parallels needs to happen first to make sure that there isnt a race condition.
+	t.Parallel() //one of these parallels needs to happen first to make sure that there isn't a race condition.
 	setupTestingServer()
 
-	fmt.Println(admServer.Endpoint)
+	// fmt.Println(admServer.Endpoint)
 
 	value, err := client.GetBalance(testAddress)
 	if err != nil {

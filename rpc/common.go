@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/base64"
 	"errors"
 	"math/big"
 
@@ -34,3 +35,20 @@ var (
 	ErrStateNotSet = errors.New("StateDB was not established")
 	ErrChainNotSet = errors.New("chain reference not filled")
 )
+
+// for internal use of converting http request data towards rpc supported structuring.
+func decodeBase64(value *string) ([]byte, error) {
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(*value)))
+	n, err := base64.StdEncoding.Decode(decoded, []byte(*value))
+	if err != nil {
+		return nil, err
+	}
+	return decoded[:n], nil
+}
+
+// for converting HTTP request data into rpc conforming data
+type RPCRequest struct {
+	Method string
+	Params string
+	Id     int
+}

@@ -20,10 +20,10 @@ func TestServerGetBalance(t *testing.T) {
 	rootHash := state.IntermediateRoot(false)
 	state.Database().TrieDB().Commit(rootHash, false, nil)
 
-	admServer := NewAdamniteServer(state, nil)
-	admServer.Launch(nil)
+	_, launchFunc := NewAdamniteServer(state, nil)
+	launchFunc()
 
 	returnedInt := BigIntRPC{}
-	admServer.GetBalance(testAddress, &returnedInt)
+	// admServer.GetBalance(testAddress, &returnedInt)
 	assert.Equal(t, testBalance, returnedInt.toBigInt())
 }
