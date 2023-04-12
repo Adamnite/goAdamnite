@@ -17,6 +17,7 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
 	admRpc "github.com/adamnite/go-adamnite/rpc"
+    "github.com/rs/cors"
 )
 
 // Test setup
@@ -134,7 +135,8 @@ func main() {
         }
     })
 
-    server := http.Server{Addr: "127.0.0.1:3000", Handler: mux}
+    handler := cors.Default().Handler(mux)
+    server := http.Server{Addr: "127.0.0.1:3000", Handler: handler}
     listener, _ := net.Listen("tcp", server.Addr)
     log.Println("[Adamnite HTTP] Endpoint:", listener.Addr().String()+"/v1/")
 
