@@ -129,45 +129,9 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 				}
 				pool.Witnesses = append(pool.Witnesses, witness)
 			}
-
-			var (
-				maxStakingAmount          big.Int
-				maxBlockValidationPercent float64
-				maxVoterCount             int
-				maxElectedCount           uint64
-			)
-
-			maxStakingAmount = *big.NewInt(0)
-			maxBlockValidationPercent = 0.0
-			maxVoterCount = 0
-			maxElectedCount = 0
-
-			for _, w := range pool.Witnesses {
-				if maxBlockValidationPercent < w.GetBlockValidationPercents() {
-					maxBlockValidationPercent = w.GetBlockValidationPercents()
-				}
-
-				if maxStakingAmount.Cmp(w.GetStakingAmount()) == -1 {
-					maxStakingAmount = *w.GetStakingAmount()
-				}
-
-				if maxVoterCount < len(w.GetVoters()) {
-					maxVoterCount = len(w.GetVoters())
-				}
-
-				if maxElectedCount < w.GetElectedCount() {
-					maxElectedCount = w.GetElectedCount()
-				}
-			}
-
-			for _, w := range pool.Witnesses {
-
-				avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
-				avgBlockValidationPercent := w.GetBlockValidationPercents() / maxBlockValidationPercent
-				avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
-				avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
-				w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
-				pool.vrfMaps[string(w.GetPubKey())] = w
+			vrfMaps, _ := setVRFItems(pool.Witnesses)
+			for _, w := range vrfMaps {
+				pool.vrfMaps[w.GetAddress().String()] = w
 			}
 		}
 
@@ -198,72 +162,21 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 			pool.Witnesses = append(pool.Witnesses, witness)
 		}
 
-		var (
-			maxStakingAmount          big.Int
-			maxBlockValidationPercent float64
-			maxVoterCount             int
-			maxElectedCount           uint64
-		)
-
-		maxStakingAmount = *big.NewInt(0)
-		maxBlockValidationPercent = 0.0
-		maxVoterCount = 0
-		maxElectedCount = 0
-
-		for _, w := range pool.Witnesses {
-			if maxBlockValidationPercent < w.GetBlockValidationPercents() {
-				maxBlockValidationPercent = w.GetBlockValidationPercents()
-			}
-
-			if maxStakingAmount.Cmp(w.GetStakingAmount()) == -1 {
-				maxStakingAmount = *w.GetStakingAmount()
-			}
-
-			if maxVoterCount < len(w.GetVoters()) {
-				maxVoterCount = len(w.GetVoters())
-			}
-
-			if maxElectedCount < w.GetElectedCount() {
-				maxElectedCount = w.GetElectedCount()
-			}
-		}
-
-		for _, w := range pool.Witnesses {
-
-			avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
-			avgBlockValidationPercent := w.GetBlockValidationPercents() / maxBlockValidationPercent
-			avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
-			avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
-			w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
-			pool.vrfMaps[string(w.GetPubKey())] = w
+		vrfMaps, _ := setVRFItems(pool.Witnesses)
+		for _, w := range vrfMaps {
+			pool.vrfMaps[w.GetAddress().String()] = w
 		}
 
 	}
 
 	return pool
 }
-
-func (wp *WitnessPool) CalcWitnesses() []types.Witness {
-	witnessCount := wp.config.WitnessCount
-	trustedWitnessCount := witnessCount/3*2 + 1
-
-	var (
-		maxStakingAmount          big.Int
-		maxBlockValidationPercent float64
-		maxVoterCount             int
-		maxElectedCount           uint64
-		vrfWeights                []float64
-		vrfMaps                   map[float64]types.Witness
-		witnesses                 []types.Witness
-	)
-
-	vrfMaps = make(map[float64]types.Witness)
+func getMaxesFrom(witnesses []types.Witness) (maxBlockValidationPercent float64, maxStakingAmount big.Int, maxVoterCount int, maxElectedCount uint64) {
 	maxStakingAmount = *big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
 	maxElectedCount = 0
-
-	for _, w := range wp.witnessCandidates {
+	for _, w := range witnesses {
 		if maxBlockValidationPercent < w.GetBlockValidationPercents() {
 			maxBlockValidationPercent = w.GetBlockValidationPercents()
 		}
@@ -280,17 +193,17 @@ func (wp *WitnessPool) CalcWitnesses() []types.Witness {
 			maxElectedCount = w.GetElectedCount()
 		}
 	}
+	return
+}
 
-	for _, w := range wp.witnessCandidates {
-		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
-		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
-		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
-		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
-		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
-		weightVal, _ := weight.Float64()
-		vrfWeights = append(vrfWeights, weightVal)
-		vrfMaps[weightVal] = w
-	}
+func (wp *WitnessPool) CalcWitnesses() []types.Witness {
+	witnessCount := wp.config.WitnessCount
+	trustedWitnessCount := witnessCount/3*2 + 1
+
+	var (
+		witnesses []types.Witness
+	)
+	vrfMaps, vrfWeights := setVRFItems(wp.witnessCandidates)
 
 	sort.Slice(vrfWeights[:], func(i, j int) bool {
 		return vrfWeights[i] > vrfWeights[j]
@@ -301,6 +214,23 @@ func (wp *WitnessPool) CalcWitnesses() []types.Witness {
 	}
 
 	return witnesses
+}
+func setVRFItems(witnesses []types.Witness) (vrfMaps map[float64]types.Witness, vrfWeights []float64) {
+	vrfMaps, vrfWeights = make(map[float64]types.Witness), []float64{} //variable assignment for clarity.
+
+	maxBlockValidationPercent, maxStakingAmount, maxVoterCount, maxElectedCount := getMaxesFrom(witnesses)
+	for _, w := range witnesses {
+		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
+		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
+		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
+		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
+		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
+		w.SetWeight(weight)
+		weightVal, _ := weight.Float64()
+		vrfWeights = append(vrfWeights, weightVal)
+		vrfMaps[weightVal] = w
+	}
+	return
 }
 
 func (cp *WitnessPool) SetWitnessCandidates(witnessCandidates []types.Witness) {
