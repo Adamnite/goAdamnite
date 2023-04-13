@@ -1,12 +1,14 @@
 package findnode
 
 import (
+	"bytes"
+
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 )
 
 func contains(nodes []*node, id admnode.NodeID) bool {
 	for _, n := range nodes {
-		if n.ID() == n.ID() {
+		if bytes.Equal(n.ID().Bytes(), id.Bytes()) {
 			return true
 		}
 	}
