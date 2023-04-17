@@ -36,6 +36,7 @@ func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -52,11 +53,13 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 	}{}
 
     if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
         return err
     }
 
 	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -71,6 +74,7 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(a.addresses)
 	if err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -102,6 +106,7 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 	}{}
 
     if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
         return err
     }
 
@@ -117,6 +122,34 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	*reply = encodeBase64(data)
+	return nil
+}
+
+const sendTransactionEndpoint = "Adamnite.SendTransaction"
+
+func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Send transaction")
+
+	input := struct {
+		Hash string
+		Raw  string
+	}{}
+
+    if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
+        return err
+    }
+
+	// TODO: send transaction to blockchain node
+
+	data, err := msgpack.Marshal(true)
+	if err != nil {
+		log.Fatalf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
