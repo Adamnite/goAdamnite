@@ -34,7 +34,7 @@ type NetNode struct {
 	activeOutboundCount    uint                            //how many connections are active
 	activeContactToClient  map[Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
-	hostingServers []*rpc.Adamnite
+	hostingServers []*rpc.AdamniteServer
 }
 
 func NewNetNode() *NetNode {
@@ -45,7 +45,7 @@ func NewNetNode() *NetNode {
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  make(map[Contact]*rpc.AdamniteClient),
-		hostingServers:         []*rpc.Adamnite{},
+		hostingServers:         []*rpc.AdamniteServer{},
 	}
 
 	return &n
