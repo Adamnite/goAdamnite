@@ -17,8 +17,8 @@ import (
 )
 
 type Adamnite struct {
-	stateDB *statedb.StateDB
-	chain *core.Blockchain
+	stateDB   *statedb.StateDB
+	chain     *core.Blockchain
 	addresses []string
 }
 
