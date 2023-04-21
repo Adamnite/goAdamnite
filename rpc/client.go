@@ -35,7 +35,7 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	var reply BigIntRPC
 	err := a.client.Call(getChainIDEndpoint, nil, &reply)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return nil, err
 	}
 	return reply.toBigInt(), nil
@@ -47,7 +47,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
 	var reply BigIntRPC
 	err := a.client.Call(getBalanceEndpoint, address, &reply)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return nil, err
 	}
 	return reply.toBigInt(), nil
@@ -57,7 +57,7 @@ func (a *AdamniteClient) GetBlockByHash(hash common.Hash) (*types.Block, error) 
 	var reply types.Block
 	err := a.client.Call(getBlockByHashEndpoint, hash, &reply)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return nil, err
 	}
 	return &reply, nil
@@ -72,7 +72,7 @@ func NewAdamniteClient(listenPoint string) *AdamniteClient {
 
 	rpcCodec := codec.GoRpc.ClientCodec(conn, &mh)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	client := rpc.NewClientWithCodec(rpcCodec)
 	return &AdamniteClient{listenPoint, *client}
