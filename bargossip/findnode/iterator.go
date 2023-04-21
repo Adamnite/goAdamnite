@@ -7,7 +7,6 @@ import (
 )
 
 // nodePoolIterator iterates over all seen nodes in node pool.
-//
 type nodePoolIterator struct {
 	nodes    []*node
 	ctx      context.Context
@@ -18,7 +17,7 @@ type nodePoolIterator struct {
 
 type findFunc func(ctx context.Context) *find
 
-func newNodePoolIterator(ctx context.Context, findFunc findFunc) *nodePoolIterator {
+func NewNodePoolIterator(ctx context.Context, findFunc findFunc) *nodePoolIterator {
 	ctx, cancel := context.WithCancel(ctx)
 	return &nodePoolIterator{
 		ctx:      ctx,

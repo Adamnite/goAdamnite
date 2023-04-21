@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type AdamniteClient struct {
@@ -29,7 +30,7 @@ func (a *AdamniteClient) GetChainID() (*string, error) {
 		ChainID string
 	}{}
 
-	if err := Decode(reply, &output); err != nil {
+	if err := msgpack.Unmarshal(reply, &output); err != nil {
 		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
@@ -42,9 +43,9 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 
 	input := struct {
 		Address string
-	}{ Address: address.String() }
+	}{Address: address.String()}
 
-	data, err := Encode(input)
+	data, err := msgpack.Marshal(input)
 	if err != nil {
 		log.Fatal("[Adamnite RPC Client] Encode error: ", err)
 		return nil, err
@@ -58,7 +59,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 
 	var balance string
 
-	if err := Decode(reply, &balance); err != nil {
+	if err := msgpack.Unmarshal(reply, &balance); err != nil {
 		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func (a *AdamniteClient) GetAccounts() (*[]string, error) {
 		Accounts []string
 	}{}
 
-	if err := Decode(reply, &output); err != nil {
+	if err := msgpack.Unmarshal(reply, &output); err != nil {
 		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}

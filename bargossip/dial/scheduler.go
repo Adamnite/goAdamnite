@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+	"github.com/adamnite/go-adamnite/bargossip/findnode"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 )
 
@@ -34,6 +35,7 @@ type Scheduler struct {
 }
 
 func New(config Config, it admnode.NodeIterator, addConnectionFunc AddConnection) *Scheduler {
+
 	s := &Scheduler{
 		Config:            config,
 		nodeIterator:      it,
@@ -46,6 +48,10 @@ func New(config Config, it admnode.NodeIterator, addConnectionFunc AddConnection
 	}
 
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	if it == nil {
+		s.nodeIterator = findnode.NewNodePoolIterator(s.ctx, nil)
+	}
+
 	return s
 }
 
