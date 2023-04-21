@@ -31,12 +31,12 @@ const getChainIDEndpoint = "Adamnite.GetChainID"
 func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("Chain is not set")
+		return errors.New("chain is not set")
 	}
 
 	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -53,13 +53,13 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
 	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -74,7 +74,7 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(a.addresses)
 	if err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -106,14 +106,14 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
 	for _, address := range a.addresses {
 		if address == input.Address {
 			log.Println("[Adamnite RPC] Specified account already exists on chain")
-			return errors.New("Specified account already exists on chain")
+			return errors.New("specified account already exists on chain")
 		}
 	}
 
@@ -122,7 +122,7 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -141,7 +141,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -149,7 +149,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
-		log.Fatalf("[Adamnite RPC] Error: %s", err)
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
