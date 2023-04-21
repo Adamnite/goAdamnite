@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"encoding/base64"
-    "errors"
+	"errors"
 	"log"
 	"net"
 	"net/rpc"
@@ -17,8 +17,8 @@ import (
 )
 
 type Adamnite struct {
-	stateDB *statedb.StateDB
-	chain *core.Blockchain
+	stateDB   *statedb.StateDB
+	chain     *core.Blockchain
 	addresses []string
 }
 
@@ -31,11 +31,12 @@ const getChainIDEndpoint = "Adamnite.GetChainID"
 func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("Chain is not set")
+		return errors.New("chain is not set")
 	}
 
 	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -51,12 +52,14 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 		Address string
 	}{}
 
-    if err := msgpack.Unmarshal(*params, &input); err != nil {
-        return err
-    }
+	if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
 
 	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -71,6 +74,7 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(a.addresses)
 	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -101,14 +105,15 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 		Address string
 	}{}
 
-    if err := msgpack.Unmarshal(*params, &input); err != nil {
-        return err
-    }
+	if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
 
 	for _, address := range a.addresses {
 		if address == input.Address {
 			log.Println("[Adamnite RPC] Specified account already exists on chain")
-			return errors.New("Specified account already exists on chain")
+			return errors.New("specified account already exists on chain")
 		}
 	}
 
@@ -117,6 +122,34 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	*reply = encodeBase64(data)
+	return nil
+}
+
+const sendTransactionEndpoint = "Adamnite.SendTransaction"
+
+func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
+	log.Println("[Adamnite RPC] Send transaction")
+
+	input := struct {
+		Hash string
+		Raw  string
+	}{}
+
+	if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	// TODO: send transaction to blockchain node
+
+	data, err := msgpack.Marshal(true)
+	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
 		return err
 	}
 
@@ -125,37 +158,37 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 }
 
 func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func()) {
-    rpcServer := rpc.NewServer()
+	rpcServer := rpc.NewServer()
 
 	adamnite := new(Adamnite)
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
 
-    if err := rpcServer.Register(adamnite); err != nil {
-        log.Fatal(err)
-    }
+	if err := rpcServer.Register(adamnite); err != nil {
+		log.Fatal(err)
+	}
 
-    listener, _ = net.Listen("tcp", "127.0.0.1:0")
-    log.Println("[Adamnite RPC] Endpoint:", listener.Addr().String())
+	listener, _ = net.Listen("tcp", "127.0.0.1:0")
+	log.Println("[Adamnite RPC] Endpoint:", listener.Addr().String())
 
-    runFunc = func() {
-        for {
-            conn, err := listener.Accept()
-            if err != nil {
-                log.Println("[Listener accept]", err)
-                return
-            }
+	runFunc = func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Println("[Listener accept]", err)
+				return
+			}
 
-            go func(conn net.Conn) {
-                defer func() {
-                    if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
-                        log.Println(err)
-                    }
-                }()
-                _ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-                rpcServer.ServeConn(conn)
-            }(conn)
-        }
-    }
-    return listener, runFunc
+			go func(conn net.Conn) {
+				defer func() {
+					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
+						log.Println(err)
+					}
+				}()
+				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				rpcServer.ServeConn(conn)
+			}(conn)
+		}
+	}
+	return listener, runFunc
 }
