@@ -16,7 +16,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type Adamnite struct {
+type AdamniteServer struct {
 	stateDB   *statedb.StateDB
 	chain     *core.Blockchain
 	addresses []string
@@ -26,9 +26,23 @@ func encodeBase64(value []byte) string {
 	return base64.StdEncoding.EncodeToString(value)
 }
 
+const getVersionEndpoint = "Adamnite.GetVersion"
+
+func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
+	log.Println("[Adamnite RPC] Get Version")
+
+	reply.Client_version = ""
+	reply.Timestamp = time.Now().UTC()
+	reply.Addr_received = ""
+	reply.Addr_from = ""
+	reply.Last_round = BigIntRPC{}
+
+	return nil
+}
+
 const getChainIDEndpoint = "Adamnite.GetChainID"
 
-func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
+func (a *AdamniteServer) GetChainID(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
 		return errors.New("chain is not set")
@@ -46,7 +60,7 @@ func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
 
 const getBalanceEndpoint = "Adamnite.GetBalance"
 
-func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
+func (a *AdamniteServer) GetBalance(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Get balance")
 	input := struct {
 		Address string
@@ -69,7 +83,7 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 
 const getAccountsEndpoint = "Adamnite.GetAccounts"
 
-func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
+func (a *AdamniteServer) GetAccounts(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Get accounts")
 
 	data, err := msgpack.Marshal(a.addresses)
@@ -84,21 +98,21 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
 
 const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
 
-func (a *Adamnite) GetBlockByHash(hash common.Hash, reply *types.Block) error {
+func (a *AdamniteServer) GetBlockByHash(hash common.Hash, reply *types.Block) error {
 	*reply = *a.chain.GetBlockByHash(hash)
 	return nil
 }
 
 const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
 
-func (a *Adamnite) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) error {
+func (a *AdamniteServer) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) error {
 	*reply = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
 	return nil
 }
 
 const createAccountEndpoint = "Adamnite.CreateAccount"
 
-func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
+func (a *AdamniteServer) CreateAccount(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Create account")
 
 	input := struct {
@@ -160,7 +174,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
 func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func()) {
 	rpcServer := rpc.NewServer()
 
-	adamnite := new(Adamnite)
+	adamnite := new(AdamniteServer)
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
 

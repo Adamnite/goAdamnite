@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/rpc"
 	"reflect"
+	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -66,7 +67,8 @@ func (a *AdamniteClient) GetBlockByHash(hash common.Hash) (*types.Block, error) 
 func NewAdamniteClient(listenPoint string) *AdamniteClient {
 	fmt.Println("new client generated")
 	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	conn, err := net.Dial("tcp", listenPoint)
+	conn, err := net.DialTimeout("tcp", listenPoint, time.Second*10)
+	// conn, err := net.Dial("tcp", listenPoint)
 
 	rpcCodec := codec.GoRpc.ClientCodec(conn, &mh)
 	if err != nil {

@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ugorji/go/codec"
 )
@@ -19,6 +20,15 @@ func BigIntReplyFromBytes(val []byte) BigIntRPC {
 }
 func BigIntReplyFromBigInt(val big.Int) BigIntRPC {
 	return BigIntRPC{Value: val.Bytes()}
+}
+
+type AdmVersionReply struct {
+	Client_version string
+	Timestamp      time.Time
+	Addr_received  string //address is passed as a string
+	Addr_from      string
+	Last_round     BigIntRPC
+	Nonce          int //TODO: check what the nonce should be
 }
 
 var (
