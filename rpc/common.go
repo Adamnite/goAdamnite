@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ugorji/go/codec"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type BigIntRPC struct {
@@ -34,3 +35,11 @@ var (
 	ErrStateNotSet = errors.New("StateDB was not established")
 	ErrChainNotSet = errors.New("chain reference not filled")
 )
+
+func Encode(v interface{}) ([]byte, error) {
+	return msgpack.Marshal(v)
+}
+
+func Decode(data []byte, v interface{}) error {
+	return msgpack.Unmarshal(data, v)
+}
