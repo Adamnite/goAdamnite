@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"encoding/base64"
 	"errors"
 	"log"
 	"net"
@@ -22,13 +21,9 @@ type Adamnite struct {
 	addresses []string
 }
 
-func encodeBase64(value []byte) string {
-	return base64.StdEncoding.EncodeToString(value)
-}
-
 const getChainIDEndpoint = "Adamnite.GetChainID"
 
-func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
+func (a *Adamnite) GetChainID(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC] Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
 		return errors.New("chain is not set")
@@ -40,13 +35,13 @@ func (a *Adamnite) GetChainID(params *[]byte, reply *string) error {
 		return err
 	}
 
-	*reply = encodeBase64(data)
+	*reply = data
 	return nil
 }
 
 const getBalanceEndpoint = "Adamnite.GetBalance"
 
-func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
+func (a *Adamnite) GetBalance(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC] Get balance")
 	input := struct {
 		Address string
@@ -63,13 +58,13 @@ func (a *Adamnite) GetBalance(params *[]byte, reply *string) error {
 		return err
 	}
 
-	*reply = encodeBase64(data)
+	*reply = data
 	return nil
 }
 
 const getAccountsEndpoint = "Adamnite.GetAccounts"
 
-func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
+func (a *Adamnite) GetAccounts(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC] Get accounts")
 
 	data, err := msgpack.Marshal(a.addresses)
@@ -78,7 +73,7 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *string) error {
 		return err
 	}
 
-	*reply = encodeBase64(data)
+	*reply = data
 	return nil
 }
 
@@ -98,7 +93,7 @@ func (a *Adamnite) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) er
 
 const createAccountEndpoint = "Adamnite.CreateAccount"
 
-func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
+func (a *Adamnite) CreateAccount(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC] Create account")
 
 	input := struct {
@@ -126,13 +121,13 @@ func (a *Adamnite) CreateAccount(params *[]byte, reply *string) error {
 		return err
 	}
 
-	*reply = encodeBase64(data)
+	*reply = data
 	return nil
 }
 
 const sendTransactionEndpoint = "Adamnite.SendTransaction"
 
-func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
+func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC] Send transaction")
 
 	input := struct {
@@ -153,7 +148,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
 		return err
 	}
 
-	*reply = encodeBase64(data)
+	*reply = data
 	return nil
 }
 

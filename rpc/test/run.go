@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/big"
 	"net"
@@ -37,20 +35,10 @@ var (
 
 type RPCRequest struct {
 	Method string
-	Params string
-	Id     int
+	Params []byte
 }
 
 var RPCServerAddr *string
-
-func decodeBase64(value *string) ([]byte, error) {
-	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(*value)))
-	n, err := base64.StdEncoding.Decode(decoded, []byte(*value))
-	if err != nil {
-	  return nil, err
-	}
-	return decoded[:n], nil
-}
 
 func main() {
 	// Setup test blockchain
@@ -110,29 +98,15 @@ func main() {
 			_ = conn.Close()
 		}()
 
-		var reply string
-
-		params, err := decodeBase64(&req.Params)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err = conn.Call(req.Method, params, &reply); err != nil {
+		var reply []byte
+		if err = conn.Call(req.Method, &req.Params, &reply); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		// Handle response
 		w.Header().Set("Content-Type", "application/x-msgpack")
-		resultBytes, _ := json.Marshal(struct {
-			Message string
-		}{
-			reply,
-		})
-		if _, err = fmt.Fprintln(w, string(resultBytes)); err != nil {
-			log.Println(err)
-		}
+		w.Write(reply)
 	})
 
 	handler := cors.Default().Handler(mux)
