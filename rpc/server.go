@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 	"log"
+	"math/big"
 	"net"
 	"net/rpc"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
-	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -79,15 +79,50 @@ func (a *Adamnite) GetAccounts(params *[]byte, reply *[]byte) error {
 
 const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
 
-func (a *Adamnite) GetBlockByHash(hash common.Hash, reply *types.Block) error {
-	*reply = *a.chain.GetBlockByHash(hash)
+func (a *Adamnite) GetBlockByHash(params *[]byte, reply *[]byte) error {
+	log.Println("[Adamnite RPC] Get block by hash")
+
+	input := struct {
+		BlockHash common.Hash
+	}{}
+
+	if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	data, err := msgpack.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
+	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	*reply = data
 	return nil
+
 }
 
 const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
 
-func (a *Adamnite) GetBlockByNumber(blockIndex BigIntRPC, reply *types.Block) error {
-	*reply = *a.chain.GetBlockByNumber(blockIndex.toBigInt())
+func (a *Adamnite) GetBlockByNumber(params *[]byte, reply *[]byte) error {
+	log.Println("[Adamnite RPC] Get block by number")
+
+	input := struct {
+		BlockNumber big.Int
+	}{}
+
+	if err := msgpack.Unmarshal(*params, &input); err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	data, err := msgpack.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
+	if err != nil {
+		log.Printf("[Adamnite RPC] Error: %s", err)
+		return err
+	}
+
+	*reply = data
 	return nil
 }
 
