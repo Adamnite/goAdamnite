@@ -19,7 +19,9 @@ import (
 // these nodes sending the data are useful, as this can act as a test to see if they are still active (eg, if no response is heard from them after 10s, you can remove them from the whitelist)
 // when a node receives a new list, it assumes that they are "gray" nodes, testing their response time with a handshake, if these nodes respond within time, they are added to the whitelist.
 //
-//
+// Node needs to be able to update its gray list, which should be reflected in the RPC servers answers.
+// to do this, we could use a local DB instance to cache all known nodes, then update the db here, but get the data in RPC?
+// pass RPC an array so we can still change the contact list without actually needing to change anything, or keep reference to the RPC object?
 //
 //
 //adding a blacklist will be required within this to ban bad acting members from clogging the server
@@ -27,12 +29,12 @@ import (
 // NetNode does not handle whitelisting or blacklisting, only the interactions with specified points.
 type NetNode struct {
 	thisContact Contact
-	contactList []*Contact //list of known contacts. Assume this to be gray.
+	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxInboundConnections  uint                            //how many inbound connections can this reply to.
-	maxOutboundConnections uint                            //how many outbound connections can this reply to.
-	activeOutboundCount    uint                            //how many connections are active
-	activeContactToClient  map[Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
+	maxInboundConnections  uint                             //how many inbound connections can this reply to.
+	maxOutboundConnections uint                             //how many outbound connections can this reply to.
+	activeOutboundCount    uint                             //how many connections are active
+	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
 	hostingServers []*rpc.AdamniteServer
 }
@@ -40,11 +42,11 @@ type NetNode struct {
 func NewNetNode() *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: rand.Int()},
-		contactList:            []*Contact{},
+		contactBook:            NewContactBook(),
 		maxInboundConnections:  5,
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
-		activeContactToClient:  make(map[Contact]*rpc.AdamniteClient),
+		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
 		hostingServers:         []*rpc.AdamniteServer{},
 	}
 
@@ -59,46 +61,23 @@ func (n *NetNode) AddServer() error {
 	return nil
 }
 
-func (n *NetNode) ConnectToContact(contact Contact) error {
+func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if n.activeContactToClient[contact] != nil {
 		return err_preexistingConnection
 	}
 	if n.activeOutboundCount >= n.maxOutboundConnections {
 		return err_outboundCapacityReached
 	}
-	if len(n.contactList) == 0 {
-		n.contactList = append(n.contactList, &contact)
-	} else {
-		caseFound := false
-		//we check if this contact is already in the contact list. If it isn't, we add it. this comes with more edge cases than id care to admit.
-		//also, go doesn't allow bitwise manipulation from a boolean, so i cant convert this to more efficient(and fun looking) case.
-		for i := 0; i < len(n.contactList) && !caseFound; i++ {
-			switch sameConnectionString, sameNodeID := (contact.connectionString == n.contactList[i].connectionString), (contact.NodeID == n.contactList[i].NodeID); {
-			case sameConnectionString && sameNodeID:
-				//the id, and connection string are the same, therefor this has already been added
-				fmt.Println("identical contact added")
-			case (!sameConnectionString && !sameNodeID) && i == len(n.contactList):
-				//we've gone through the list, and not found this yet, therefor this has to be new
-				n.contactList = append(n.contactList, &contact)
-				caseFound = true
-			case !sameConnectionString && sameNodeID:
-				// we already have this nodeID in use, but under a different connection string.
-				//TODO: figure out the best way to solve this. This could be caused by a node's router restarting, and changing its dynamic IP
-				return fmt.Errorf("the contact you tried to connect to is currently saved under a different IP. Saved: %v, New: %v", n.contactList[i], contact)
-			case sameConnectionString && !sameNodeID:
-				// this is a new nodeID being sent from a saved connection string.
-				//TODO: figure out the best way to solve this. This could be caused by a node being restarted and generating a new NodeID
-				return fmt.Errorf("the contact you tried to connect to is currently saved under a different NodeID. Saved: %v, New: %v", n.contactList[i], contact)
-			}
-		}
+	if err := n.contactBook.AddConnection(contact); err != nil {
+		return err
 	}
-
+	//TODO, use the contact book to check if it has this contact already.
 	n.activeContactToClient[contact] = rpc.NewAdamniteClient(contact.connectionString)
 	n.activeOutboundCount++
 	return nil
 }
 
-func (n *NetNode) DropConnection(contact Contact) error {
+func (n *NetNode) DropConnection(contact *Contact) error {
 	if n.activeContactToClient[contact] == nil {
 		return fmt.Errorf("contact is not currently connected")
 	}
