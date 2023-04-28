@@ -2,6 +2,9 @@ package networking
 
 import (
 	"fmt"
+	"sort"
+
+	"github.com/adamnite/go-adamnite/rpc"
 )
 
 type Contact struct { //the contacts list from this point.
@@ -63,17 +66,78 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 	return nil
 }
 
+// mark demerit points against this contact. Returns if you distrust them.(true means they have been blacklisted)
+func (cb *ContactBook) Distrust(contact *Contact, amount uint64) bool {
+	if cb.connectionsByContact[contact] == nil {
+		cb.AddConnection(contact)
+	}
+	if !cb.connectionsByContact[contact].distrust(amount) {
+		cb.AddToBlacklist(contact)
+		return true
+	}
+	return false
+}
 func (cb *ContactBook) AddToBlacklist(contact *Contact) {
+	if cb.connectionsByContact[contact] != nil {
+		cb.connectionsByContact[contact] = nil
+		for i := 0; i < len(cb.connections); i++ {
+			if cb.connections[i].contact == contact {
+				cb.connections = append(cb.connections[0:i-1], cb.connections[i:]...)
+				break
+			}
+		}
+	}
+	if _, exists := cb.blacklistSet[contact]; exists {
+		//already stored.
+		return
+	}
 	cb.blacklist = append(cb.blacklist, contact)
 	cb.blacklistSet[contact] = blacklisted
 }
+func (cb *ContactBook) GetContactList() rpc.PassedContacts {
+	passed := rpc.PassedContacts{
+		NodeIDs:                    []int{},
+		ConnectionStrings:          []string{},
+		BlacklistIDs:               []int{},
+		BlacklistConnectionStrings: []string{},
+	}
+	for _, x := range cb.connections {
+		passed.NodeIDs = append(passed.NodeIDs, x.contact.NodeID)
+		passed.ConnectionStrings = append(passed.ConnectionStrings, x.contact.connectionString)
+	}
+	for _, x := range cb.blacklist {
+		passed.BlacklistIDs = append(passed.BlacklistIDs, x.NodeID)
+		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, x.connectionString)
+	}
 
+	return passed
+}
 func (conns ContactBook) GetAverageConnectionResponseTime() int64 {
 	var total uint64 = 0 //use uint64 to hav extra space to work with.
 	for _, x := range conns.connections {
 		total += uint64(x.getAverageResponseTime())
 	}
 	return int64(total / uint64(len(conns.connections)))
+}
+
+// drops this percentage of the slowest responses. percentage should be passed as a range from 0-1
+func (conns *ContactBook) DropSlowestPercentage(percentage float32) {
+	cutoffCount := len(conns.connections) - int(float32(len(conns.connections))*(percentage))
+	if percentage > 1 || percentage <= 0 || cutoffCount <= 0 {
+		//if its over 1(or 100%) or negative, an error happened. If its 0(or drop 0%), were done! or if the cutoff count is less than actually removing any.
+		return
+	}
+
+	if percentage == 1 { //drop all, so don't bother calculating order.
+		conns.connections = make([]*connectionStatus, 0)
+		conns.connectionsByContact = make(map[*Contact]*connectionStatus)
+		return
+	}
+	sort.Slice(conns.connections, func(i, j int) bool {
+		return conns.connections[i].getAverageResponseTime() < conns.connections[j].getAverageResponseTime()
+	})
+
+	conns.connections = conns.connections[0:cutoffCount]
 }
 
 type connectionStatus struct {

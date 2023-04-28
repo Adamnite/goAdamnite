@@ -8,6 +8,12 @@ import (
 	"github.com/ugorji/go/codec"
 )
 
+type PassedContacts struct {
+	NodeIDs                    []int
+	ConnectionStrings          []string
+	BlacklistIDs               []int
+	BlacklistConnectionStrings []string
+}
 type BigIntRPC struct {
 	Value []byte
 }

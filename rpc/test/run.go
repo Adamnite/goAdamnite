@@ -47,7 +47,7 @@ func decodeBase64(value *string) ([]byte, error) {
 	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(*value)))
 	n, err := base64.StdEncoding.Decode(decoded, []byte(*value))
 	if err != nil {
-	  return nil, err
+		return nil, err
 	}
 	return decoded[:n], nil
 }
@@ -76,7 +76,7 @@ func main() {
 	}
 
 	// Create RPC and HTTP servers
-	listenerRPC, rpcServerRunFunc := admRpc.NewAdamniteServer(stateDB, blockchain)
+	listenerRPC, rpcServerRunFunc, _ := admRpc.NewAdamniteServer(stateDB, blockchain)
 	defer func() {
 		_ = listenerRPC.Close()
 	}()

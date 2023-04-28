@@ -17,20 +17,35 @@ import (
 )
 
 type AdamniteServer struct {
-	stateDB   *statedb.StateDB
-	chain     *core.Blockchain
-	addresses []string
+	stateDB             *statedb.StateDB
+	chain               *core.Blockchain
+	addresses           []string
+	GetContactsFunction DefaultGetContactsFunc
 }
+
+type DefaultGetContactsFunc func() PassedContacts
 
 func encodeBase64(value []byte) string {
 	return base64.StdEncoding.EncodeToString(value)
+}
+
+const getContactsListEndpoint = "Adamnite.GetContactList"
+
+func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
+	log.Println("b")
+	contacts := a.GetContactsFunction()
+	log.Println("b")
+	*reply, err = msgpack.Marshal(contacts)
+	log.Println("b")
+	return
 }
 
 const getVersionEndpoint = "Adamnite.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
 	log.Println("[Adamnite RPC] Get Version")
-
+	//TODO: add the versioning, of the blockchain, and have it passed here.
+	//TODO: parse the parameters from this
 	reply.Client_version = ""
 	reply.Timestamp = time.Now().UTC()
 	reply.Addr_received = ""
@@ -171,10 +186,10 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func()) {
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func(), adamnite *AdamniteServer) {
 	rpcServer := rpc.NewServer()
 
-	adamnite := new(AdamniteServer)
+	adamnite = new(AdamniteServer)
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
 
@@ -183,7 +198,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listen
 	}
 
 	listener, _ = net.Listen("tcp", "127.0.0.1:0")
-	log.Println("[Adamnite RPC] Endpoint:", listener.Addr().String())
+	log.Println("[AdamniteServer RPC] Endpoint:", listener.Addr().String())
 
 	runFunc = func() {
 		for {
@@ -195,7 +210,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listen
 
 			go func(conn net.Conn) {
 				defer func() {
-					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
+					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 						log.Println(err)
 					}
 				}()
@@ -204,5 +219,5 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listen
 			}(conn)
 		}
 	}
-	return listener, runFunc
+	return
 }

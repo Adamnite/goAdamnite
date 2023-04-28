@@ -11,7 +11,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/ugorji/go/codec"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type AdamniteClient struct {
@@ -30,6 +30,26 @@ type SendingAddress struct {
 	Value common.Address
 }
 
+func (a *AdamniteClient) GetContactList() *PassedContacts {
+	fmt.Println("starting GetContactList client side")
+	var passed *PassedContacts
+	var reply []byte
+	fmt.Println("a")
+	if err := a.client.Call(getContactsListEndpoint, []byte{}, &reply); err != nil {
+		fmt.Println("err")
+		fmt.Println(err)
+		log.Println(err)
+		return nil
+	}
+	fmt.Println("a")
+	if err := msgpack.Unmarshal(reply, passed); err != nil {
+		fmt.Println("err2")
+		log.Println(err)
+		return nil
+	}
+	fmt.Println("a")
+	return passed
+}
 func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	fmt.Println("starting GetChainID client side")
 	var reply BigIntRPC
