@@ -64,7 +64,7 @@ func main() {
 	}
 
 	// Create RPC and HTTP servers
-	listenerRPC, rpcServerRunFunc := admRpc.NewAdamniteServer(stateDB, blockchain)
+	listenerRPC, rpcServerRunFunc := admRpc.NewAdamniteServer(stateDB, blockchain, 0)
 	defer func() {
 		_ = listenerRPC.Close()
 	}()

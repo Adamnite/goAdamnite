@@ -21,7 +21,7 @@ func (a *AdamniteClient) GetChainID() (*string, error) {
 
 	var reply []byte
 	if err := a.client.Call(getChainIDEndpoint, nil, &reply); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Call error: ", err)
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (a *AdamniteClient) GetChainID() (*string, error) {
 	}{}
 
 	if err := Decode(reply, &output); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
 
@@ -46,33 +46,31 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 
 	data, err := Encode(input)
 	if err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Encode error: ", err)
 		return nil, err
 	}
 
 	var reply []byte
 	if err := a.client.Call(getBalanceEndpoint, data, &reply); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Call error: ", err)
 		return nil, err
 	}
 
-	output := struct {
-		Balance string
-	}{}
+	var balance string
 
-	if err := Decode(reply, &output); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+	if err := Decode(reply, &balance); err != nil {
+		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
 
-	return &output.Balance, nil
+	return &balance, nil
 }
 func (a *AdamniteClient) GetAccounts() (*[]string, error) {
 	log.Println("[Adamnite RPC client] Get block by hash")
 
 	var reply []byte
 	if err := a.client.Call(getAccountsEndpoint, nil, &reply); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Call error: ", err)
 		return nil, err
 	}
 
@@ -81,17 +79,18 @@ func (a *AdamniteClient) GetAccounts() (*[]string, error) {
 	}{}
 
 	if err := Decode(reply, &output); err != nil {
-		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
 
 	return &output.Accounts, nil
 }
 
-func NewAdamniteClient(endpoint string) AdamniteClient {
-	client, err := rpc.DialHTTP("tcp", endpoint)
+func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
+	client, err := rpc.Dial("tcp", endpoint)
 	if err != nil {
 		log.Fatal("[Adamnite RPC Client] Error while creating new client: ", err)
+		return AdamniteClient{}, err
 	}
-	return AdamniteClient{endpoint, *client}
+	return AdamniteClient{endpoint, *client}, nil
 }

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"net"
@@ -186,7 +187,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listener net.Listener, runFunc func()) {
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port int32) (listener net.Listener, runFunc func()) {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(Adamnite)
@@ -197,7 +198,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain) (listen
 		log.Fatal(err)
 	}
 
-	listener, _ = net.Listen("tcp", "127.0.0.1:0")
+	listener, _ = net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	log.Println("[Adamnite RPC server] Endpoint:", listener.Addr().String())
 
 	runFunc = func() {
