@@ -1,77 +1,97 @@
 package rpc
 
 import (
-	"fmt"
 	"log"
-	"math/big"
-	"net"
 	"net/rpc"
-	"reflect"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/ugorji/go/codec"
 )
 
 type AdamniteClient struct {
-	callAddress string
-	client      rpc.Client
+	endpoint string
+	client   rpc.Client
 }
 
-func (a *AdamniteClient) CallAsync() {
-
-}
 func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
 
-type SendingAddress struct {
-	Value common.Address
-}
+func (a *AdamniteClient) GetChainID() (*string, error) {
+	log.Println("[Adamnite RPC client] Get chain ID")
 
-func (a *AdamniteClient) GetChainID() (*big.Int, error) {
-	fmt.Println("starting GetChainID client side")
-	var reply BigIntRPC
-	err := a.client.Call(getChainIDEndpoint, nil, &reply)
-	if err != nil {
-		log.Println(err)
+	var reply []byte
+	if err := a.client.Call(getChainIDEndpoint, nil, &reply); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
 		return nil, err
 	}
-	return reply.toBigInt(), nil
-}
 
-func (a *AdamniteClient) GetBalance(address common.Address) (*big.Int, error) {
-	fmt.Println("starting GetBalanceClient side")
+	output := struct {
+		ChainID string
+	}{}
 
-	var reply BigIntRPC
-	err := a.client.Call(getBalanceEndpoint, address, &reply)
-	if err != nil {
-		log.Println(err)
+	if err := Decode(reply, &output); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
 		return nil, err
 	}
-	return reply.toBigInt(), nil
+
+	return &output.ChainID, nil
 }
-func (a *AdamniteClient) GetBlockByHash(hash common.Hash) (*types.Block, error) {
-	fmt.Println("starting GetBlockByHash Client side")
-	var reply types.Block
-	err := a.client.Call(getBlockByHashEndpoint, hash, &reply)
+
+func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
+	log.Println("[Adamnite RPC client] Get balance")
+
+	input := struct {
+		Address string
+	}{ Address: address.String() }
+
+	data, err := Encode(input)
 	if err != nil {
-		log.Println(err)
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
 		return nil, err
 	}
-	return &reply, nil
+
+	var reply []byte
+	if err := a.client.Call(getBalanceEndpoint, data, &reply); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		return nil, err
+	}
+
+	output := struct {
+		Balance string
+	}{}
+
+	if err := Decode(reply, &output); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		return nil, err
+	}
+
+	return &output.Balance, nil
+}
+func (a *AdamniteClient) GetAccounts() (*[]string, error) {
+	log.Println("[Adamnite RPC client] Get block by hash")
+
+	var reply []byte
+	if err := a.client.Call(getAccountsEndpoint, nil, &reply); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		return nil, err
+	}
+
+	output := struct {
+		Accounts []string
+	}{}
+
+	if err := Decode(reply, &output); err != nil {
+		log.Fatal("[Adamnite RPC Client] Error: ", err)
+		return nil, err
+	}
+
+	return &output.Accounts, nil
 }
 
-// create a new RPC client that will call to the following point.
-func NewAdamniteClient(listenPoint string) *AdamniteClient {
-	fmt.Println("new client generated")
-	mh.MapType = reflect.TypeOf(map[string]interface{}(nil))
-	conn, err := net.Dial("tcp", listenPoint)
-
-	rpcCodec := codec.GoRpc.ClientCodec(conn, &mh)
+func NewAdamniteClient(endpoint string) AdamniteClient {
+	client, err := rpc.DialHTTP("tcp", endpoint)
 	if err != nil {
-		log.Println(err)
+		log.Fatal("[Adamnite RPC Client] Error while creating new client: ", err)
 	}
-	client := rpc.NewClientWithCodec(rpcCodec)
-	return &AdamniteClient{listenPoint, *client}
+	return AdamniteClient{endpoint, *client}
 }

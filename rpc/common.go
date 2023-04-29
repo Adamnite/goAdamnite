@@ -1,10 +1,8 @@
 package rpc
 
 import (
-	"errors"
 	"math/big"
 
-	"github.com/ugorji/go/codec"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -21,20 +19,6 @@ func BigIntReplyFromBytes(val []byte) BigIntRPC {
 func BigIntReplyFromBigInt(val big.Int) BigIntRPC {
 	return BigIntRPC{Value: val.Bytes()}
 }
-
-var (
-	mh codec.MsgpackHandle
-	// msgpackHandler = codec.MsgpackHandle{
-	// 	NoFixedNum:          true,
-	// 	WriteExt:            true,
-	// 	PositiveIntUnsigned: false,
-	// }
-)
-
-var (
-	ErrStateNotSet = errors.New("StateDB was not established")
-	ErrChainNotSet = errors.New("chain reference not filled")
-)
 
 func Encode(v interface{}) ([]byte, error) {
 	return msgpack.Marshal(v)
