@@ -65,10 +65,10 @@ func (n *NetNode) AddServer() error {
 
 func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if n.activeContactToClient[contact] != nil {
-		return err_preexistingConnection
+		return ErrPreexistingConnection
 	}
 	if n.activeOutboundCount >= n.maxOutboundConnections {
-		return err_outboundCapacityReached
+		return ErrOutboundCapacityReached
 	}
 	if err := n.contactBook.AddConnection(contact); err != nil {
 		return err

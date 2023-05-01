@@ -22,7 +22,7 @@ func TestTwoNodes(t *testing.T) {
 		assert.Equal(t, &nodeA.thisContact, nodeB.contactBook.connections[0].contact, "nodeB appears to have not correctly added the contact.")
 	}
 	fmt.Println("first connection successful")
-	assert.Equal(t, err_preexistingConnection, nodeB.ConnectToContact(&nodeA.thisContact))
+	assert.Equal(t, ErrPreexistingConnection, nodeB.ConnectToContact(&nodeA.thisContact))
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {

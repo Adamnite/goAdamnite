@@ -35,7 +35,7 @@ func NewContactBook() ContactBook {
 func (cb *ContactBook) AddConnection(contact *Contact) error {
 	newConn := newConnectionStatus(contact)
 	if _, blacklisted := cb.blacklistSet[contact]; blacklisted {
-		return err_contact_blacklisted
+		return ErrContactBlacklisted
 	}
 	if len(cb.connections) != 0 {
 		caseFound := false
