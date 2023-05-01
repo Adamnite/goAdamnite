@@ -34,9 +34,9 @@ type Node struct {
 	state         int
 	lock          sync.Mutex
 
-	inprocHandler *rpc.AdamniteServer
-	rpcAPIs       []rpc.AdamniteServer
-	services      []Service
+	adamniteServer *rpc.Adamnite
+	rpcAPIs        []rpc.Adamnite
+	services       []Service
 
 	openedDatabases map[*OpenedDB]struct{}
 }
@@ -62,7 +62,7 @@ func New(cfg *Config) (*Node, error) {
 		config:          cfg,
 		log:             cfg.Logger,
 		stop:            make(chan struct{}),
-		inprocHandler:   rpc.NewAdamniteServer(nil, nil),
+		adamniteServer:  rpc.NewAdamniteServer(nil, nil, 0),
 		server:          &bargossip.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
 		eventmux:        new(event.TypeMux),
@@ -70,7 +70,7 @@ func New(cfg *Config) (*Node, error) {
 
 	// node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
 
-	node.ipc = newIPCServer(node.log, cfg.IPCEndpoint())
+	node.ipc = newIPCServer(node.log, 0)
 
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.ServerPrvKey = node.config.NodeKey()
@@ -145,10 +145,8 @@ func (n *Node) startRPC() error {
 		return err
 	}
 
-	if n.ipc.endpoint != "" {
-		if err := n.ipc.start(); err != nil {
-			return err
-		}
+	if err := n.ipc.start(); err != nil {
+		return err
 	}
 
 	return nil
