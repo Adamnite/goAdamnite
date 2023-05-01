@@ -197,7 +197,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port int32) *Adamnite {
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port uint32) *Adamnite {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(Adamnite)

@@ -55,7 +55,7 @@ func setup() {
 		return
 	}
 
-	var port int32
+	var port uint32
 	port = 12345
 
 	adamniteServer := NewAdamniteServer(stateDB, blockchain, port)
