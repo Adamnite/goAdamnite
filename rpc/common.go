@@ -9,6 +9,13 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+type PassedContacts struct {
+	NodeIDs                    []int
+	ConnectionStrings          []string
+	BlacklistIDs               []int
+	BlacklistConnectionStrings []string
+}
+
 func Encode(v interface{}) ([]byte, error) {
 	return msgpack.Marshal(v)
 }

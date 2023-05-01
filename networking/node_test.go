@@ -14,15 +14,15 @@ func TestTwoNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Println("first server spun up")
-	if err := nodeB.ConnectToContact(nodeA.thisContact); err != nil {
+	if err := nodeB.ConnectToContact(&nodeA.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("second node connected")
-	if assert.Equal(t, 1, len(nodeB.contactList), "node did not add contact") {
-		assert.Equal(t, &nodeA.thisContact, nodeB.contactList[0], "nodeB appears to have not correctly added the contact.")
+	if assert.Equal(t, 1, len(nodeB.contactBook.connections), "node did not add contact") {
+		assert.Equal(t, &nodeA.thisContact, nodeB.contactBook.connections[0].contact, "nodeB appears to have not correctly added the contact.")
 	}
 	fmt.Println("first connection successful")
-	assert.Equal(t, err_preexistingConnection, nodeB.ConnectToContact(nodeA.thisContact))
+	assert.Equal(t, ErrPreexistingConnection, nodeB.ConnectToContact(&nodeA.thisContact))
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {
@@ -32,10 +32,10 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	//proper connection
-	if err := nodeB.ConnectToContact(nodeA.thisContact); err != nil {
+	if err := nodeB.ConnectToContact(&nodeA.thisContact); err != nil {
 		t.Fatal(err)
 	}
-	wrongConnectionString := Contact{
+	wrongConnectionString := &Contact{
 		NodeID:           nodeA.thisContact.NodeID,
 		connectionString: "not a connection string",
 	}
@@ -47,7 +47,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 		// fmt.Println(err)
 	}
 
-	wrongNodeID := Contact{
+	wrongNodeID := &Contact{
 		NodeID:           1234567,
 		connectionString: nodeA.thisContact.connectionString,
 	}

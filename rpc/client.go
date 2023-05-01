@@ -1,7 +1,9 @@
 package rpc
 
 import (
+	"fmt"
 	"log"
+	"math/big"
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -17,12 +19,26 @@ func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
 
-func (a *AdamniteClient) GetChainID() (*string, error) {
-	log.Println("[Adamnite RPC client] Get chain ID")
-
+func (a *AdamniteClient) GetContactList() *PassedContacts {
+	fmt.Println("starting GetContactList client side")
+	var passed *PassedContacts
 	var reply []byte
-	if err := a.client.Call(getChainIDEndpoint, nil, &reply); err != nil {
-		log.Fatal("[Adamnite RPC Client] Call error: ", err)
+	if err := a.client.Call(getContactsListEndpoint, nil, &reply); err != nil {
+		log.Println(err)
+		return nil
+	}
+	if err := msgpack.Unmarshal(reply, passed); err != nil {
+		log.Println(err)
+		return nil
+	}
+	return passed
+}
+func (a *AdamniteClient) GetChainID() (*big.Int, error) {
+	fmt.Println("starting GetChainID client side")
+	var reply BigIntRPC
+	err := a.client.Call(getChainIDEndpoint, nil, &reply)
+	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 
