@@ -58,11 +58,11 @@ func setup() {
 	var port int32
 	port = 12345
 
-	listenerRPC, rpcServerRunFunc := NewAdamniteServer(stateDB, blockchain, port)
+	adamniteServer := NewAdamniteServer(stateDB, blockchain, port)
 	defer func() {
-		_ = listenerRPC.Close()
+		adamniteServer.Close()
 	}()
-	go rpcServerRunFunc()
+	go adamniteServer.Run()
 
 	// setup Adamnite client
 	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))

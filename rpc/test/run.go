@@ -64,14 +64,14 @@ func main() {
 	}
 
 	// Create RPC and HTTP servers
-	listenerRPC, rpcServerRunFunc := admRpc.NewAdamniteServer(stateDB, blockchain, 0)
+	adamniteServer := admRpc.NewAdamniteServer(stateDB, blockchain, 0)
 	defer func() {
-		_ = listenerRPC.Close()
+		adamniteServer.Close()
 	}()
-	go rpcServerRunFunc()
+	go adamniteServer.Run()
 
 	RPCServerAddr = new(string)
-	*RPCServerAddr = listenerRPC.Addr().String()
+	*RPCServerAddr = adamniteServer.Addr()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

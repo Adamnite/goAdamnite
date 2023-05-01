@@ -19,6 +19,16 @@ type Adamnite struct {
 	stateDB   *statedb.StateDB
 	chain     *core.Blockchain
 	addresses []string
+	listener  net.Listener
+	Run       func()
+}
+
+func (a *Adamnite) Addr() string {
+	return a.listener.Addr().String()
+}
+
+func (a *Adamnite) Close() {
+	_ = a.listener.Close()
 }
 
 const getChainIDEndpoint = "Adamnite.GetChainID"
@@ -187,7 +197,7 @@ func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port int32) (listener net.Listener, runFunc func()) {
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port int32) *Adamnite {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(Adamnite)
@@ -198,10 +208,10 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port in
 		log.Fatal(err)
 	}
 
-	listener, _ = net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	log.Println("[Adamnite RPC server] Endpoint:", listener.Addr().String())
 
-	runFunc = func() {
+	runFunc := func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
@@ -220,5 +230,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port in
 			}(conn)
 		}
 	}
-	return listener, runFunc
+	adamnite.listener = listener
+	adamnite.Run = runFunc
+	return adamnite
 }
