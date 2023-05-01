@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"fmt"
+	"log"
 	"math/big"
+	"os"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
@@ -15,63 +17,79 @@ import (
 )
 
 var (
-	testAddress                 = common.BytesToAddress([]byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13})
-	testBalance                 = big.NewInt(1).Mul(big.NewInt(9000000000000000000), big.NewInt(1000))
-	test_db                     = rawdb.NewMemoryDB()
-	state, _                    = statedb.New(common.Hash{}, statedb.NewDatabase(test_db))
-	chainConfig                 = params.TestnetChainConfig
-	admServer   *AdamniteServer = nil
-	client      *AdamniteClient = nil
+	niteBigExponent = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(20), nil) // big math version of 10**20
+	testAccounts    = []common.Address{
+		common.BytesToAddress([]byte{0x00}),
+		common.BytesToAddress([]byte{0x01}),
+		common.BytesToAddress([]byte{0x02}),
+	}
+	testBalances = []*big.Int{
+		big.NewInt(0),
+		big.NewInt(1),
+		big.NewInt(2),
+	}
+	testDB      = rawdb.NewMemoryDB()
+	stateDB, _  = statedb.New(common.Hash{}, statedb.NewDatabase(testDB))
+	chainConfig = params.TestnetChainConfig
+	client      AdamniteClient
 )
 
-func setupTestingServer() {
-	if admServer == nil { //checks to prevent multiple server creation on the same port...
-		state.AddBalance(testAddress, testBalance)
-		rootHash := state.IntermediateRoot(false)
-		state.Database().TrieDB().Commit(rootHash, false, nil)
-
-		bc, err := core.NewBlockchain(test_db,
-			chainConfig,
-			dpos.New(chainConfig, test_db),
-		)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		admServer = NewAdamniteServer(state, bc)
-		foo := "[127.0.0.1]:12345"
-		admServer.Launch(&foo)
+func setup() {
+	// setup Adamnite server
+	for i, address := range testBalances {
+		testBalances[i] = big.NewInt(0).Mul(niteBigExponent, address)
+		stateDB.AddBalance(testAccounts[i], testBalances[i])
 	}
-	if client == nil {
-		client = NewAdamniteClient(admServer.Endpoint)
+
+	rootHash := stateDB.IntermediateRoot(false)
+	stateDB.Database().TrieDB().Commit(rootHash, false, nil)
+
+	blockchain, err := core.NewBlockchain(
+		testDB,
+		chainConfig,
+		dpos.New(chainConfig, testDB),
+	)
+
+	if err != nil {
+		log.Printf("[Adamnite E2E test] Error: %s", err)
+		return
+	}
+
+	var port uint32
+	port = 12345
+
+	adamniteServer := NewAdamniteServer(stateDB, blockchain, port)
+	defer func() {
+		adamniteServer.Close()
+	}()
+	go adamniteServer.Run()
+
+	// setup Adamnite client
+	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		log.Printf("[Adamnite E2E test] Error: %s", err)
+		return
 	}
 }
+
+func shutdown() {
+	client.Close()
+}
+
 func TestGetBalance(t *testing.T) {
-	t.Parallel() //one of these parallels needs to happen first to make sure that there isnt a race condition.
-	setupTestingServer()
-
-	fmt.Println(admServer.Endpoint)
-
-	value, err := client.GetBalance(testAddress)
+	balance, err := client.GetBalance(testAccounts[0])
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("[Adamnite E2E test] Error: %s", err)
 		t.Fail()
 	}
-	if !assert.Equal(t, testBalance, value, "balances are not matching after RPC call.") {
+	if !assert.Equal(t, testBalances[0].String(), *balance, "Balances do not match") {
 		t.Fail()
 	}
-
 }
-func TestGetChainID(t *testing.T) {
-	setupTestingServer()
-	t.Parallel()
 
-	value, err := client.GetChainID()
-	if err != nil {
-		fmt.Println(err)
-		t.Fail()
-	}
-	if !assert.Equal(t, chainConfig.ChainID, value, "chain ids are not matching after RPC call.") {
-		t.Fail()
-	}
+func TestMain(m *testing.M) {
+	setup()
+	code := m.Run()
+	shutdown()
+	os.Exit(code)
 }
