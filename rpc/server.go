@@ -32,11 +32,8 @@ func encodeBase64(value []byte) string {
 const getContactsListEndpoint = "Adamnite.GetContactList"
 
 func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
-	log.Println("b")
 	contacts := a.GetContactsFunction()
-	log.Println("b")
 	*reply, err = msgpack.Marshal(contacts)
-	log.Println("b")
 	return
 }
 
@@ -161,7 +158,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *string) error {
 
 const sendTransactionEndpoint = "Adamnite.SendTransaction"
 
-func (a *Adamnite) SendTransaction(params *[]byte, reply *string) error {
+func (a *AdamniteServer) SendTransaction(params *[]byte, reply *string) error {
 	log.Println("[Adamnite RPC] Send transaction")
 
 	input := struct {
