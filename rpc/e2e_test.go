@@ -18,7 +18,7 @@ import (
 
 var (
 	niteBigExponent = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(20), nil) // big math version of 10**20
-	testAccounts = []common.Address{
+	testAccounts    = []common.Address{
 		common.BytesToAddress([]byte{0x00}),
 		common.BytesToAddress([]byte{0x01}),
 		common.BytesToAddress([]byte{0x02}),
@@ -31,7 +31,7 @@ var (
 	testDB      = rawdb.NewMemoryDB()
 	stateDB, _  = statedb.New(common.Hash{}, statedb.NewDatabase(testDB))
 	chainConfig = params.TestnetChainConfig
-	client AdamniteClient
+	client      AdamniteClient
 )
 
 func setup() {
@@ -88,8 +88,8 @@ func TestGetBalance(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-    setup()
-    code := m.Run()
+	setup()
+	code := m.Run()
 	shutdown()
-    os.Exit(code)
+	os.Exit(code)
 }
