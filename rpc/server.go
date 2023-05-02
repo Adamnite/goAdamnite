@@ -31,6 +31,8 @@ func (a *AdamniteServer) Addr() string {
 
 type DefaultGetContactsFunc func() PassedContacts
 
+const serverPreface = "[Adamnite RPC server] %v \n"
+
 func (a *AdamniteServer) Close() {
 	_ = a.listener.Close()
 }
@@ -46,7 +48,7 @@ func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err erro
 const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
-	log.Println("[Adamnite RPC] Get Version")
+	log.Printf(serverPreface, "Get Version")
 	//TODO: add the versioning, of the blockchain, and have it passed here.
 	//TODO: parse the parameters from this
 	reply.Client_version = ""
@@ -61,7 +63,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) erro
 const getChainIDEndpoint = "AdamniteServer.GetChainID"
 
 func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get chain ID")
+	log.Printf(serverPreface, "Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
 		return errors.New("chain is not set")
 	}
@@ -79,7 +81,7 @@ func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 const getBalanceEndpoint = "AdamniteServer.GetBalance"
 
 func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get balance")
+	log.Printf(serverPreface, "Get balance")
 	input := struct {
 		Address string
 	}{}
@@ -91,7 +93,7 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 
 	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -102,11 +104,11 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 const getAccountsEndpoint = "AdamniteServer.GetAccounts"
 
 func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get accounts")
+	log.Printf(serverPreface, "Get accounts")
 
 	data, err := msgpack.Marshal(a.addresses)
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -117,20 +119,20 @@ func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
 const getBlockByHashEndpoint = "AdamniteServer.GetBlockByHash"
 
 func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by hash")
+	log.Printf(serverPreface, "Get block by hash")
 
 	input := struct {
 		BlockHash common.Hash
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
 	data, err := msgpack.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -142,20 +144,20 @@ func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 const getBlockByNumberEndpoint = "AdamniteServer.GetBlockByNumber"
 
 func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by number")
+	log.Printf(serverPreface, "Get block by number")
 
 	input := struct {
 		BlockNumber big.Int
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
 	data, err := msgpack.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -166,20 +168,20 @@ func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 const createAccountEndpoint = "AdamniteServer.CreateAccount"
 
 func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Create account")
+	log.Printf(serverPreface, "Create account")
 
 	input := struct {
 		Address string
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
 	for _, address := range a.addresses {
 		if address == input.Address {
-			log.Println("[Adamnite RPC server] Specified account already exists on chain")
+			log.Printf(serverPreface, "Specified account already exists on chain")
 			return errors.New("specified account already exists on chain")
 		}
 	}
@@ -189,7 +191,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -200,7 +202,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 const sendTransactionEndpoint = "AdamniteServer.SendTransaction"
 
 func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Send transaction")
+	log.Printf(serverPreface, "Send transaction")
 
 	input := struct {
 		Hash string
@@ -208,7 +210,7 @@ func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -216,7 +218,7 @@ func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 
 	data, err := msgpack.Marshal(true)
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -236,7 +238,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 	}
 
 	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	log.Println("[Adamnite RPC server] Endpoint:", listener.Addr().String())
+	log.Printf(serverPreface, fmt.Sprint("Endpoint: %w", listener.Addr().String()))
 
 	runFunc := func() {
 		for {
