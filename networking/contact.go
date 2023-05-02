@@ -15,6 +15,8 @@ type Contact struct { //the contacts list from this point.
 
 // keeps track of all the contacts, sorts them, and manages the connections.
 type ContactBook struct {
+	ownerContact *Contact //useful so you dont try to add yourself to your own contacts list
+
 	//an array of connections for general use, stored by pointer. Followed by mappings to give o1 performance of sorting static characteristics
 	connections          []*connectionStatus
 	connectionsByContact map[*Contact]*connectionStatus
@@ -23,8 +25,9 @@ type ContactBook struct {
 	blacklistSet map[*Contact]void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
 }
 
-func NewContactBook() ContactBook {
+func NewContactBook(owner *Contact) ContactBook {
 	return ContactBook{
+		ownerContact:         owner,
 		connections:          make([]*connectionStatus, 0),
 		connectionsByContact: make(map[*Contact]*connectionStatus),
 		blacklist:            make([]*Contact, 0),
@@ -33,6 +36,9 @@ func NewContactBook() ContactBook {
 }
 
 func (cb *ContactBook) AddConnection(contact *Contact) error {
+	if contact == cb.ownerContact {
+		return ErrContactIsSelf //don't try to connect to yourself.
+	}
 	newConn := newConnectionStatus(contact)
 	if _, blacklisted := cb.blacklistSet[contact]; blacklisted {
 		return ErrContactBlacklisted

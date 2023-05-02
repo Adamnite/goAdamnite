@@ -22,18 +22,26 @@ func TestLotsOfNodes(t *testing.T) {
 		seedKnowNodes[i] = x
 	}
 	for i, n := range seedKnowNodes {
-		fmt.Println(i)
 		if err := n.SprawlConnections(1, 0); err != nil {
-			fmt.Println("error in sprawling")
+			fmt.Printf("error in sprawling at index: %v\n with error: %v\n", i, err)
 			t.Fatal(err)
 		}
 
-		assert.Equal(
+		if !assert.Equal(
 			t,
-			len(seedKnowNodes),
+			len(seedKnowNodes)+1, //they always know the seed. The seed is the only one to not know the seed
 			len(n.contactBook.connections),
-			"it appears at least one contact is missing, or overly added.",
-		)
+			"",
+		) {
+			if len(seedKnowNodes)+1 > len(n.contactBook.connections) {
+				fmt.Printf("at index %v, a node has not found all nodes. Node in question: %v", i, n)
+
+			} else {
+				fmt.Printf("at index %v, a node has found an extra node. Node in question: %v", i, n)
+			}
+
+			t.Fail()
+		}
 	}
 
 }

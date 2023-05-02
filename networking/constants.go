@@ -9,6 +9,7 @@ var (
 	ErrPreexistingConnection   = fmt.Errorf("contact already has active connection")
 	ErrOutboundCapacityReached = fmt.Errorf("currently at capacity for outbound connections")
 	ErrContactBlacklisted      = fmt.Errorf("contact attempting to be added is already blacklisted")
+	ErrContactIsSelf           = fmt.Errorf("the contact you're trying to add is the owner of this contact list")
 )
 
 type void struct{}

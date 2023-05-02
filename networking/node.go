@@ -42,22 +42,23 @@ type NetNode struct {
 func NewNetNode() *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: rand.Int()},
-		contactBook:            NewContactBook(),
 		maxInboundConnections:  5,
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
 	}
+	n.contactBook = NewContactBook(&n.thisContact)
 
 	return &n
 }
 
 // spins up a server for this node.
 func (n *NetNode) AddServer() error {
-	l, rf, admServer := rpc.NewAdamniteServer(nil, nil) //TODO: pass more parameters to this.
+	admServer := rpc.NewAdamniteServer(nil, nil, 0) //TODO: pass more parameters to this.
+
 	admServer.GetContactsFunction = n.contactBook.GetContactList
-	n.thisContact.connectionString = l.Addr().String()
-	go rf() //TODO: replace all of this to return a server, and keep that in the hosting servers array.
+	n.thisContact.connectionString = admServer.Addr()
+	go admServer.Run()
 	n.hostingServer = admServer
 
 	return nil
@@ -73,9 +74,14 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if err := n.contactBook.AddConnection(contact); err != nil {
 		return err
 	}
-	n.activeContactToClient[contact] = rpc.NewAdamniteClient(contact.connectionString)
-	n.activeOutboundCount++
-	return nil
+
+	if newClient, err := rpc.NewAdamniteClient(contact.connectionString); err != nil {
+		return err
+	} else {
+		n.activeContactToClient[contact] = &newClient
+		n.activeOutboundCount++
+		return nil
+	}
 }
 
 func (n *NetNode) DropConnection(contact *Contact) error {
@@ -132,6 +138,7 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 		n.DropConnection(contact)
 	}
 	talkedToContacts := make(map[*Contact]bool)
+	talkedToContacts[&n.thisContact] = true
 	//there are now no active connections.
 	for i := 0; i < layers; i++ {
 		//this is done EACH layer.
