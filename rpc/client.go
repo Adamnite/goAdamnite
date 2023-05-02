@@ -3,7 +3,6 @@ package rpc
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -23,35 +22,33 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	fmt.Println("starting GetContactList client side")
 	var passed *PassedContacts
 	var reply []byte
-	if err := a.client.Call(getContactsListEndpoint, nil, &reply); err != nil {
+	if err := a.client.Call(getContactsListEndpoint, []byte{}, &reply); err != nil { //you can, in fact, not just pass nil
 		log.Println(err)
 		return nil
 	}
-	if err := msgpack.Unmarshal(reply, passed); err != nil {
+	if err := msgpack.Unmarshal(reply, &passed); err != nil {
 		log.Println(err)
 		return nil
 	}
 	return passed
 }
-func (a *AdamniteClient) GetChainID() (*big.Int, error) {
+func (a *AdamniteClient) GetChainID() (*string, error) {
 	fmt.Println("starting GetChainID client side")
-	var reply BigIntRPC
+	reply := []byte{}
 	err := a.client.Call(getChainIDEndpoint, nil, &reply)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 
-	output := struct {
-		ChainID string
-	}{}
+	var output string
 
 	if err := msgpack.Unmarshal(reply, &output); err != nil {
 		log.Fatal("[Adamnite RPC Client] Decode error: ", err)
 		return nil, err
 	}
 
-	return &output.ChainID, nil
+	return &output, nil
 }
 
 func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {

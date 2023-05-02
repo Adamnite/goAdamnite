@@ -35,7 +35,7 @@ func (a *AdamniteServer) Close() {
 	_ = a.listener.Close()
 }
 
-const getContactsListEndpoint = "Adamnite.GetContactList"
+const getContactsListEndpoint = "AdamniteServer.GetContactList"
 
 func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
 	contacts := a.GetContactsFunction()
@@ -43,7 +43,7 @@ func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err erro
 	return
 }
 
-const getVersionEndpoint = "Adamnite.GetVersion"
+const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
 	log.Println("[Adamnite RPC] Get Version")
@@ -58,7 +58,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) erro
 	return nil
 }
 
-const getChainIDEndpoint = "Adamnite.GetChainID"
+const getChainIDEndpoint = "AdamniteServer.GetChainID"
 
 func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Get chain ID")
@@ -76,7 +76,7 @@ func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const getBalanceEndpoint = "Adamnite.GetBalance"
+const getBalanceEndpoint = "AdamniteServer.GetBalance"
 
 func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Get balance")
@@ -99,7 +99,7 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const getAccountsEndpoint = "Adamnite.GetAccounts"
+const getAccountsEndpoint = "AdamniteServer.GetAccounts"
 
 func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Get accounts")
@@ -114,7 +114,7 @@ func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
+const getBlockByHashEndpoint = "AdamniteServer.GetBlockByHash"
 
 func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Get block by hash")
@@ -139,7 +139,7 @@ func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 
 }
 
-const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
+const getBlockByNumberEndpoint = "AdamniteServer.GetBlockByNumber"
 
 func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Get block by number")
@@ -163,7 +163,7 @@ func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const createAccountEndpoint = "Adamnite.CreateAccount"
+const createAccountEndpoint = "AdamniteServer.CreateAccount"
 
 func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Create account")
@@ -197,7 +197,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const sendTransactionEndpoint = "Adamnite.SendTransaction"
+const sendTransactionEndpoint = "AdamniteServer.SendTransaction"
 
 func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	log.Println("[Adamnite RPC server] Send transaction")
