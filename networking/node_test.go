@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTwoNodes(t *testing.T) {
-	nodeA := NewNetNode()
-	nodeB := NewNetNode()
+	nodeA := NewNetNode(common.Address{0})
+	nodeB := NewNetNode(common.Address{1})
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
 	}
@@ -26,8 +27,8 @@ func TestTwoNodes(t *testing.T) {
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {
-	nodeA := NewNetNode()
-	nodeB := NewNetNode()
+	nodeA := NewNetNode(common.Address{0})
+	nodeB := NewNetNode(common.Address{1})
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +49,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 	}
 
 	wrongNodeID := &Contact{
-		NodeID:           1234567,
+		NodeID:           common.Address{0, 1, 2, 3, 4, 5},
 		connectionString: nodeA.thisContact.connectionString,
 	}
 
@@ -61,7 +62,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 }
 
 func TestSingleNode(t *testing.T) {
-	testingNode := NewNetNode()
+	testingNode := NewNetNode(common.Address{0})
 
 	fmt.Println(testingNode.thisContact.NodeID)
 

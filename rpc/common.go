@@ -5,14 +5,15 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/ugorji/go/codec"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type PassedContacts struct {
-	NodeIDs                    []int
+	NodeIDs                    []common.Address
 	ConnectionStrings          []string
-	BlacklistIDs               []int
+	BlacklistIDs               []common.Address
 	BlacklistConnectionStrings []string
 }
 
@@ -27,8 +28,8 @@ func Decode(data []byte, v interface{}) error {
 type AdmVersionReply struct {
 	Client_version string
 	Timestamp      time.Time
-	Addr_received  string //address is passed as a string
-	Addr_from      string
+	Addr_received  common.Address //address is passed as a string
+	Addr_from      common.Address
 	Last_round     *big.Int
 	Nonce          int //TODO: check what the nonce should be
 }
@@ -43,6 +44,8 @@ var (
 )
 
 var (
-	ErrStateNotSet = errors.New("StateDB was not established")
-	ErrChainNotSet = errors.New("chain reference not filled")
+	ErrStateNotSet        = errors.New("StateDB was not established")
+	ErrChainNotSet        = errors.New("chain reference not filled")
+	ErrPreExistingAccount = errors.New("specified account already exists on chain")
+	ErrNoAccountSet       = errors.New("the account address has not been set")
 )

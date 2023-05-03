@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -85,6 +86,7 @@ func TestGetBalance(t *testing.T) {
 		t.Fail()
 	}
 }
+
 func TestGetChainID(t *testing.T) {
 	if id, err := client.GetChainID(); err != nil {
 		log.Printf("[Adamnite E2E test] Error: %s", err)
@@ -94,6 +96,20 @@ func TestGetChainID(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func TestGetVersion(t *testing.T) {
+	leeway := time.Second / 10 //no actions can be instant, so this is how much time allowance i give.
+	client.SetAddress(&common.Address{123})
+	version, err := client.GetVersion()
+	now := time.Now().UTC()
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, chainConfig.ChainID.String(), version.Client_version, "chain id miss match")
+	//timestamp is going to be off, but shouldn't be too off
+	assert.Equal(t, now.Round(leeway), version.Timestamp.Round(leeway), "time is too far off")
+	//TODO: check the rest of this is indeed working
 }
 
 func TestMain(m *testing.M) {

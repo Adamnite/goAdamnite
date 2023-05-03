@@ -46,17 +46,28 @@ func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err erro
 
 const getVersionEndpoint = "AdamniteServer.GetVersion"
 
-func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
+func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	log.Printf(serverPreface, "Get Version")
-
-	//TODO: add the versioning, of the blockchain, and have it passed here.
-	//TODO: parse the parameters from this
-	reply.Client_version = ""
-	reply.Timestamp = time.Now().UTC()
-	reply.Addr_received = ""
-	reply.Addr_from = ""
-	reply.Last_round = &big.Int{}
-
+	var receivedAddress common.Address
+	if err := msgpack.Unmarshal(*params, &receivedAddress); err != nil {
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		return err
+	}
+	// if a.chain == nil {//leave this commented out until RPC consistently has a chain passed to it
+	// 	return ErrChainNotSet
+	// }
+	ans := AdmVersionReply{}
+	// ans.Client_version = a.chain.Config().ChainID.String() //TODO: replace this with a better versioning system
+	ans.Timestamp = time.Now().UTC()
+	ans.Addr_received = receivedAddress
+	ans.Addr_from = common.Address{} //TODO: pass the hosting address down to the RPC
+	// ans.Last_round = a.chain.CurrentBlock().Number()
+	if data, err := msgpack.Marshal(ans); err != nil {
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		return err
+	} else {
+		*reply = data
+	}
 	return nil
 }
 
@@ -238,7 +249,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 	}
 
 	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	log.Printf(serverPreface, fmt.Sprint("Endpoint: %w", listener.Addr().String()))
+	log.Printf(serverPreface, fmt.Sprint("Endpoint: ", listener.Addr().String()))
 
 	runFunc := func() {
 		for {

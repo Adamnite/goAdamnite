@@ -3,13 +3,15 @@ package networking
 import (
 	"fmt"
 	"sort"
+	"time"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
 type Contact struct { //the contacts list from this point.
 	connectionString string //ip and port for the specified endpoint.
-	NodeID           int
+	NodeID           common.Address
 	//any other data needed about an endpoint would be stored here.
 }
 
@@ -72,12 +74,26 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 	return nil
 }
 
+func (cb *ContactBook) AddConnectionStatus(contact *Contact, timeDifference *time.Duration) {
+	status := cb.connectionsByContact[contact]
+	if timeDifference != nil {
+		status.responseTimes = append(status.responseTimes, timeDifference.Nanoseconds())
+		cb.Distrust(contact, 100)
+	} else {
+		status.trust()
+	}
+	status.connectionAttempts++
+}
+
 // mark demerit points against this contact. Returns if you distrust them.(true means they have been blacklisted)
 func (cb *ContactBook) Distrust(contact *Contact, amount uint64) bool {
+	if _, exists := cb.blacklistSet[contact]; exists {
+		return true
+	}
 	if cb.connectionsByContact[contact] == nil {
 		cb.AddConnection(contact)
 	}
-	if !cb.connectionsByContact[contact].distrust(amount) {
+	if cb.connectionsByContact[contact].distrust(amount) {
 		cb.AddToBlacklist(contact)
 		return true
 	}
@@ -88,7 +104,12 @@ func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 		cb.connectionsByContact[contact] = nil
 		for i := 0; i < len(cb.connections); i++ {
 			if cb.connections[i].contact == contact {
-				cb.connections = append(cb.connections[0:i-1], cb.connections[i:]...)
+				if i == 0 {
+					cb.connections = cb.connections[i:]
+				} else {
+					cb.connections = append(cb.connections[0:i-1], cb.connections[i:]...)
+				}
+
 				break
 			}
 		}
@@ -102,9 +123,9 @@ func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 }
 func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 	passed := rpc.PassedContacts{
-		NodeIDs:                    []int{},
+		NodeIDs:                    []common.Address{},
 		ConnectionStrings:          []string{},
-		BlacklistIDs:               []int{},
+		BlacklistIDs:               []common.Address{},
 		BlacklistConnectionStrings: []string{},
 	}
 	for _, x := range cb.connections {

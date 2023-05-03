@@ -2,8 +2,9 @@ package networking
 
 import (
 	"fmt"
-	"math/rand"
+	"time"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
@@ -39,9 +40,9 @@ type NetNode struct {
 	hostingServer *rpc.AdamniteServer
 }
 
-func NewNetNode() *NetNode {
+func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
-		thisContact:            Contact{NodeID: rand.Int()},
+		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
 		maxInboundConnections:  5,
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
@@ -67,21 +68,60 @@ func (n *NetNode) AddServer() error {
 func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if n.activeContactToClient[contact] != nil {
 		return ErrPreexistingConnection
-	}
-	if n.activeOutboundCount >= n.maxOutboundConnections {
+	} else if n.activeOutboundCount >= n.maxOutboundConnections {
 		return ErrOutboundCapacityReached
-	}
-	if err := n.contactBook.AddConnection(contact); err != nil {
+	} else if err := n.contactBook.AddConnection(contact); err != nil {
 		return err
+	} else if n.contactBook.Distrust(contact, 0) {
+		return ErrContactBlacklisted
 	}
 
 	if newClient, err := rpc.NewAdamniteClient(contact.connectionString); err != nil {
 		return err
 	} else {
+		newClient.SetAddress(&n.thisContact.NodeID)
 		n.activeContactToClient[contact] = &newClient
 		n.activeOutboundCount++
-		return nil
+		working, err := n.testConnection(contact)
+		if !working {
+			n.DropConnection(contact)
+			return ErrDistrustedConnection
+		}
+		return err
 	}
+}
+
+// return wether a connection is worth using.
+func (n *NetNode) testConnection(contact *Contact) (bool, error) {
+	if n.activeContactToClient[contact] == nil {
+		if err := n.ConnectToContact(contact); err != nil {
+			return false, err
+		}
+	}
+	connection := n.activeContactToClient[contact]
+	timeBeforeConnect := time.Now().UTC()
+	versionData, err := connection.GetVersion()
+	timeAfterResponse := time.Now().UTC()
+
+	if err != nil {
+		n.contactBook.AddConnectionStatus(contact, nil)
+		return false, err
+	}
+	// its /2 because this is recording the round trip response time.
+	foo := timeAfterResponse.Sub(timeBeforeConnect) / 2
+	n.contactBook.AddConnectionStatus(contact, &foo)
+	//TODO: check the version running.
+	if versionData.Timestamp.Before(timeBeforeConnect) || versionData.Timestamp.After(timeAfterResponse) {
+		//trying to lie about when they received this.
+		n.contactBook.Distrust(contact, 900)
+	}
+	if versionData.Addr_from != contact.NodeID {
+		//returning the wrong nodeID, we almost entirely ban them, but we don't fully because this could have been misrepresented by someone else.
+		n.contactBook.Distrust(contact, 900)
+	}
+
+	return true, nil
+
 }
 
 func (n *NetNode) DropConnection(contact *Contact) error {

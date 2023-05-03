@@ -10,22 +10,51 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
+const clientPreface = "[Adamnite RPC client] %v \n"
+
 type AdamniteClient struct {
-	endpoint string
-	client   rpc.Client
+	endpoint      string
+	client        rpc.Client
+	callerAddress *common.Address
+}
+
+func (a *AdamniteClient) SetAddress(add *common.Address) {
+	a.callerAddress = add
 }
 
 func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
 
-const clientPreface = "[Adamnite RPC server] %v \n"
+func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
+	log.Printf(clientPreface, "Get Version")
+	var reply []byte = []byte{}
+	var versionReceived AdmVersionReply
+
+	if a.callerAddress == nil {
+		return nil, ErrNoAccountSet
+	}
+	addressBytes, err := msgpack.Marshal(a.callerAddress)
+	if err != nil {
+		return nil, err
+	}
+	if err := a.client.Call(getVersionEndpoint, addressBytes, &reply); err != nil {
+		log.Panicln(err)
+		return nil, err
+	}
+	if err := msgpack.Unmarshal(reply, &versionReceived); err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	versionReceived.Timestamp = versionReceived.Timestamp.UTC()
+	return &versionReceived, nil
+}
 
 func (a *AdamniteClient) GetContactList() *PassedContacts {
 	log.Printf(clientPreface, "Get Contact List")
 	var passed *PassedContacts
 	var reply []byte
-	if err := a.client.Call(getContactsListEndpoint, []byte{}, &reply); err != nil { //you can, in fact, not just pass nil
+	if err := a.client.Call(getContactsListEndpoint, []byte{}, &reply); err != nil {
 		log.Println(err)
 		return nil
 	}
@@ -110,5 +139,8 @@ func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
 		log.Fatalf(clientPreface, fmt.Sprintf("Error while creating new client: %v", err))
 		return AdamniteClient{}, err
 	}
-	return AdamniteClient{endpoint, *client}, nil
+	return AdamniteClient{
+		endpoint: endpoint,
+		client:   *client,
+	}, nil
 }
