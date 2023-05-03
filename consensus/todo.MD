@@ -1,12 +1,17 @@
-1. implement the structure of witness/block validator
-2. implement the logic to pick winner based on voting
-3. implement the voting logic
+# Actual To-Do
+
+1. Make sure imports within goAdamnite are actually working.
+2. Replace placeholder gossip protocol with actual gossip protocol
+3. Make sure various checks are perfomed within both the regular consensus protocol and the POH generator.
+4. Integrate with node structure.
+5. Create an implementation for selecting db_witnesses and the sharing of the off-chain database.
+
+### THIS IS NOT WORKING OR PRODUCTION LEVEL CODE: IT IS JUST A POC/IDEA OF WHAT STUFF COULD LOOK LIKE.
 
 
 
 
-#More specific details follow below
-
+# Random Notes
 
 The witness, or block validator, should have the ability to both propose and validate blocks. The structure of this has already been implemented in a high level,
 but it specifically will be very similar to regular node, but will also have the addiitonal parameters of reputation and the total number of most recent votes.
@@ -33,3 +38,7 @@ This is essentially a cyclic process, and will be repeated for the life of the b
 
 Specific low level details concerning the actual implementation (such as data parsing for block proposal) will also have to be implemented. More details on this to
 follow. 
+
+
+
+
