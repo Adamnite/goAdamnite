@@ -6,7 +6,54 @@ import(
     "https://github.com/adamnite/go-adamnite/core/types"
 )
 
+type StateTransition struct {
+    ContractAddress string
+    CallerAddress   string
+    Input           []byte
+}
 
+
+func applyStateTransitions(transitions []*StateTransition, POHTable map[int][]byte) error {
+    for _, transition := range transitions {
+        // Apply state transition
+        switch transition.Type {
+        case ContractCreation:
+            // Create new contract instance
+            contract := &Contract{
+                Code:    transition.Code,
+                Storage: make(map[string][]byte),
+            }
+            err := contractDB.Write(contract.ID, contract)
+            if err != nil {
+                return fmt.Errorf("error writing contract to database: %s", err)
+            }
+        case ContractCall:
+            // Retrieve contract instance from database
+            contract := &Contract{}
+            err := contractDB.Read(transition.ContractID, contract)
+            if err != nil {
+                return fmt.Errorf("error reading contract from database: %s", err)
+            }
+            // Execute contract call
+            output, err := executeContractCall(contract, transition.Function, transition.Arguments)
+            if err != nil {
+                return fmt.Errorf("error executing contract call: %s", err)
+            }
+            // Update contract storage with output
+            contract.Storage[transition.OutputVariable] = output
+            err = contractDB.Write(contract.ID, contract)
+            if err != nil {
+                return fmt.Errorf("error writing contract to database: %s", err)
+            }
+        default:
+            return fmt.Errorf("unknown state transition type")
+        }
+        // Create new POH record for this state transition
+        pohData := []byte(fmt.Sprintf("%d:%x", transition.Timestamp, sha256.Sum256([]byte(transition.String()))))
+        POHTable[transition.Timestamp] = pohData
+    }
+    return nil
+}
 
 
 
