@@ -6,7 +6,14 @@
 package dpos
 
 import (
-	"https://github.com/adamnite/go-adamnite/crypto"
+
+	//Replace with actual crypto imports (use the signature functions to sign messages)
+	//I was having trouble getting it to play nice with the new crypto library.
+	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
@@ -14,20 +21,21 @@ import (
 )
 
 type Candidate struct {
-	Round           uint64
-	StartTime       uint64
-	IsActive        bool
-	Stake           uint64
-	Votes           uint64
-	Reputation      uint64
-	FastTimeout     uint64
-	Deadline        uint64
-	PublicKey       *ecdsa.PublicKey
-	PrivateKey      *ecdsa.PrivateKey
-	SeenMessages    map[string]bool // to prevent duplicate messages
-	MessageChannel  chan Message
-	QuitChannel     chan bool
-	ConsensusParams ConsensusParams
+	Round             uint64
+	StartTime         uint64
+	IsActive          bool
+	Stake             uint64
+	Votes             uint64
+	Reputation        uint64
+	FastTimeout       uint64
+	Deadline          time.Time
+	PublicKey         *ecdsa.PublicKey
+	PrivateKey        *ecdsa.PrivateKey
+	SeenMessages      map[string]bool // to prevent duplicate messages
+	MessageChannel    chan Message
+	QuitChannel       chan bool
+	ConsensusParams   ConsensusParams
+	ParticipationKey  string // key used to sign activation certificate
 }
 
 type Message struct {
@@ -38,8 +46,16 @@ type Message struct {
 	Deadline uint64 // deadline for message to be processed
 }
 
+type ActivationCertificate struct {
+	Round            uint64
+	StartTime        uint64
+	Stake            uint64
+	ParticipationKey string
+	Signature        []byte
+}
+
 func (c *Candidate) HandleMessage(m Message) error {
-	if m.Deadline < time.Now().Unix() {
+	if m.Deadline < uint64(time.Now().Unix()) {
 		return errors.New("message expired")
 	}
 	if _, ok := c.SeenMessages[m.Sender]; ok {
@@ -74,6 +90,7 @@ func (c *Candidate) handleActivate(data []byte) error {
 	if err != nil {
 		return err
 	}
+
 	// check if the round matches and the candidate is not already active
 	if activationData.Round != c.Round {
 		return errors.New("incorrect round for activation")
@@ -81,55 +98,112 @@ func (c *Candidate) handleActivate(data []byte) error {
 	if c.IsActive {
 		return errors.New("candidate already active")
 	}
-	// set candidate as active and update the stake
-	c.IsActive = true
-	c.Stake = activationData.Stake
-	c.StartTime = activationData.StartTime
-	c.Deadline = 0 // reset the deadline
-	return nil
+
+	// sign activation certificate
+	cert := &ActivationCertificate{
+		Round:            activationData.Round,
+		StartTime:        activationData.StartTime,
+		Stake:            activationData.Stake,
+		ParticipationKey: c.ParticipationKey,
+	}
+	sig, err := c.signActivationCertificate(cert)
+	if err != nil {
+		return err
+	}
+	cert.Signature = sig
+
+	// encode certificate and send through gossip protocol
+	certBytes, err := asn1.Marshal(cert)
+	if err != nil {
+		return err
+	}
+	msg := Message{
+		Round:    c.Round,
+		Sender:   c.Address(),
+		Type:     "activate",
+		Data:     certBytes,
+		Deadline:
+
+ChatGPT
+c.ConsensusParams.ActivationDeadline + uint64(time.Now().Unix()),
+}
+for _, peer := range c.ConsensusParams.Peers {
+go func(p string) {
+err := c.ConsensusParams.SendMessage(p, msg)
+if err != nil {
+fmt.Println(err)
+}
+}(peer)
+}
+return nil
 }
 
 func (c *Candidate) handleVote(data []byte) error {
-	// decode the vote data
-	var voteData struct {
-		Round     uint64
-		Timestamp uint64
-		Amount    uint64
-		Recipient string
-	}
-	_, err := asn1.Unmarshal(data, &voteData)
-	if err != nil {
-		return err
-	}
-	// check if the round matches and the candidate is active
-	if voteData.Round != c.Round {
-		return errors.New("incorrect round for vote")
-	}
-	if !c.IsActive {
-		return errors.New("candidate not active")
-	}
-	// verify the vote
-	recipient := Address(voteData.Recipient)
-	vote := Vote{
-		Header: VoteHeader{
-			Sender:    Address(""),
-			Round:     voteData.Round,
-			Timestamp: voteData.Timestamp,
-			Amount:    voteData.Amount,
-			Recipient: recipient,
-		},
-		Signature: nil,
-	}
-	err = vote.Verify(c.PublicKey)
-	if err != nil {
-		return err
-	}
-	// update the candidate's votes and reputation
-	c.Votes += voteData.Amount
-	c.Reputation += voteData.Amount
-	return nil
+// decode vote data
+var voteData struct {
+Round uint64
+Votes uint64
+Hash []byte
+SignR []byte
+SignS []byte
+Address string
+}
+_, err := asn1.Unmarshal(data, &voteData)
+if err != nil {
+return err
 }
 
+
+// check if the round matches and the vote hash is correct
+if voteData.Round != c.Round {
+	return errors.New("incorrect round for vote")
+}
+hash := sha256.Sum256(data)
+if !bytes.Equal(hash[:], voteData.Hash) {
+	return errors.New("invalid vote hash")
+}
+
+// verify the vote signature
+pubKey := GetPublicKeyFromAddress(voteData.Address)
+if pubKey == nil {
+	return errors.New("invalid address")
+}
+signature := &ecdsa.Signature{
+	R: new(big.Int).SetBytes(voteData.SignR),
+	S: new(big.Int).SetBytes(voteData.SignS),
+}
+if !ecdsa.Verify(pubKey, hash[:], signature.R, signature.S) {
+	return errors.New("invalid signature")
+}
+
+// update candidate's votes and reputation
+c.Votes += voteData.Votes
+c.Reputation += voteData.Votes
+
+return nil
+}
+
+func (c *Candidate) signActivationCertificate(cert *ActivationCertificate) ([]byte, error) {
+h := sha256.New()
+_, err := h.Write(cert.ParticipationKey)
+if err != nil {
+return nil, err
+}
+_, err = h.Write([]byte(fmt.Sprintf("%d:%d:%d", cert.Round, cert.StartTime, cert.Stake)))
+if err != nil {
+return nil, err
+}
+hash := h.Sum(nil)
+r, s, err := ecdsa.Sign(rand.Reader, c.PrivateKey, hash)
+if err != nil {
+return nil, err
+}
+signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+if err != nil {
+return nil, err
+}
+return signature, nil
+}
 
 func (c *Candidate) Run(ctx context.Context, gossip *GossipProtocol) error {
 	// Start the ticker

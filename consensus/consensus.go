@@ -7,6 +7,8 @@ import (
 
 )
 
+//Replace with actual types, based on specifications. 
+
 
 type Validator interface {
 	ValidateBlock(block *Block) error

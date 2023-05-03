@@ -19,62 +19,86 @@ type WitnessPool struct {
 }
 
 type LeaderSelection struct {
-	WitnessPool      *WitnessPool
-	CurrentLeader    *Witness
-	LeaderSelectionC chan *Witness
+    WitnessPool        *WitnessPool
+    CurrentLeader      *Witness
+    LeaderSelectionC   chan *Witness
+    blocksPerRound     int
+    blocksInCurrentRound map[string]int
+    roundCounter       int
 }
 
-func NewLeaderSelection(witnessPool *WitnessPool) *LeaderSelection {
-	return &LeaderSelection{
-		WitnessPool:      witnessPool,
-		CurrentLeader:    nil,
-		LeaderSelectionC: make(chan *Witness),
-	}
+func NewLeaderSelection(witnessPool *WitnessPool, blocksPerRound int) *LeaderSelection {
+    return &LeaderSelection{
+        WitnessPool:        witnessPool,
+        CurrentLeader:      nil,
+        LeaderSelectionC:   make(chan *Witness),
+        blocksPerRound:     blocksPerRound,
+        blocksInCurrentRound: make(map[string]int),
+        roundCounter:       0,
+    }
 }
 
 func (ls *LeaderSelection) Start() {
-	for {
-		// Select a leader randomly
-		pool := ls.WitnessPool.SelectWitnesses(nil)
-		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(pool))))
-		if err != nil {
-			fmt.Printf("Error selecting leader: %s", err)
-			continue
-		}
-		leader := pool[index.Int64()]
+    for {
+        // Select a leader randomly
+        pool := ls.WitnessPool.SelectWitnesses(nil)
 
-		// Send message to all nodes to confirm leader selection
-		// (using placeholder messaging protocol: gossip)
-		err = gossip.Broadcast([]byte(fmt.Sprintf("LEADER:%s", leader.Address)))
-		if err != nil {
-			fmt.Printf("Error broadcasting leader selection: %s", err)
-			continue
-		}
+        // Find the next eligible witness
+        var leader *Witness
+        for i := 0; i < len(pool); i++ {
+            index := (i + ls.roundCounter) % len(pool)
+            if ls.blocksInCurrentRound[pool[index].Address] < ls.blocksPerRound {
+                leader = pool[index]
+                break
+            }
+        }
 
-		// Wait for responses from all nodes to confirm leader selection
-		// (using placeholder messaging protocol: gossip)
-		responses, err := gossip.BroadcastAndWait([]byte(fmt.Sprintf("CONFIRM_LEADER:%s", leader.Address)), len(ls.WitnessPool.AllWitnesses)-1, 10*time.Second)
-		if err != nil {
-			fmt.Printf("Error waiting for leader confirmation: %s", err)
-			continue
-		}
+        if leader == nil {
+            fmt.Println("Error: no eligible leader found")
+            continue
+        }
 
-		// Check if all nodes responded with confirmation message
-		confirmed := true
-		for _, response := range responses {
-			if string(response) != "CONFIRMED" {
-				confirmed = false
-				break
-			}
-		}
-		if !confirmed {
-			fmt.Println("Error: not all nodes confirmed leader selection")
-			continue
-		}
+        // Send message to all nodes to confirm leader selection
+        // (using placeholder messaging protocol: gossip)
+        err := gossip.Broadcast([]byte(fmt.Sprintf("LEADER:%s", leader.Address)))
+        if err != nil {
+            fmt.Printf("Error broadcasting leader selection: %s", err)
+            continue
+        }
 
-		// Set current leader and send to channel
-		ls.CurrentLeader = leader
-		ls.LeaderSelectionC <- leader
+        // Wait for responses from all nodes to confirm leader selection
+        // (using placeholder messaging protocol: gossip)
+        responses, err := gossip.BroadcastAndWait([]byte(fmt.Sprintf("CONFIRM_LEADER:%s", leader.Address)), len(ls.WitnessPool.AllWitnesses)-1, 10*time.Second)
+        if err != nil {
+            fmt.Printf("Error waiting for leader confirmation: %s", err)
+            continue
+        }
+
+        // Check if all nodes responded with confirmation message
+        confirmed := true
+        for _, response := range responses {
+            if string(response) != "CONFIRMED" {
+                confirmed = false
+                break
+            }
+        }
+        if !confirmed {
+            fmt.Println("Error: not all nodes confirmed leader selection")
+            continue
+        }
+
+        // Set current leader and send to channel
+        ls.CurrentLeader = leader
+        ls.LeaderSelectionC <- leader
+
+        // Increment block counter for the selected witness
+        ls.blocksInCurrentRound[leader.Address]++
+
+        // If all witnesses have proposed the maximum number of blocks in the current round, reset the counter and start a new round
+        if len(ls.blocksInCurrentRound) == len(ls.WitnessPool.AllWitnesses) && allBlocksProposed(ls.blocksInCurrentRound, ls.blocksPerRound) {
+            ls.blocksInCurrentRound = make(map[string]int)
+            ls.roundCounter++
+        }
 
 		// Wait for 6 blocks
 		time.Sleep(6 * 500 * time.Millisecond)
