@@ -55,8 +55,7 @@ func setup() {
 		return
 	}
 
-	var port uint32
-	port = 12345
+	var port uint32 = 12345
 
 	adamniteServer := NewAdamniteServer(stateDB, blockchain, port)
 	defer func() {
@@ -84,6 +83,16 @@ func TestGetBalance(t *testing.T) {
 	}
 	if !assert.Equal(t, testBalances[0].String(), *balance, "Balances do not match") {
 		t.Fail()
+	}
+}
+func TestGetChainID(t *testing.T) {
+	if id, err := client.GetChainID(); err != nil {
+		log.Printf("[Adamnite E2E test] Error: %s", err)
+		t.Fail()
+	} else {
+		if !assert.Equal(t, chainConfig.ChainID, id, "chain ID is not correct") {
+			t.Fail()
+		}
 	}
 }
 

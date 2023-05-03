@@ -3,6 +3,7 @@ package rpc
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -35,16 +36,16 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	return passed
 }
 
-func (a *AdamniteClient) GetChainID() (*string, error) {
+func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	log.Printf(clientPreface, "Get chain id")
 	reply := []byte{}
-	err := a.client.Call(getChainIDEndpoint, nil, &reply)
+	err := a.client.Call(getChainIDEndpoint, []byte{}, &reply)
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
 
-	var output string
+	var output big.Int
 
 	if err := msgpack.Unmarshal(reply, &output); err != nil {
 		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))

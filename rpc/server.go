@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -49,6 +48,7 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *AdmVersionReply) error {
 	log.Printf(serverPreface, "Get Version")
+
 	//TODO: add the versioning, of the blockchain, and have it passed here.
 	//TODO: parse the parameters from this
 	reply.Client_version = ""
@@ -65,12 +65,12 @@ const getChainIDEndpoint = "AdamniteServer.GetChainID"
 func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 	log.Printf(serverPreface, "Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("chain is not set")
+		return ErrChainNotSet
 	}
 
 	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 	}{}
 
 	if err := msgpack.Unmarshal(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
@@ -181,8 +181,8 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 
 	for _, address := range a.addresses {
 		if address == input.Address {
-			log.Printf(serverPreface, "Specified account already exists on chain")
-			return errors.New("specified account already exists on chain")
+			log.Printf(serverPreface, ErrPreExistingAccount)
+			return ErrPreExistingAccount
 		}
 	}
 
