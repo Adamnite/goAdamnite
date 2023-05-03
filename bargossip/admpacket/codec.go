@@ -440,6 +440,10 @@ func DecodeMessage(packetType byte, body []byte) (ADMPacket, error) {
 		dec = new(Findnode)
 	case RspFindnodeMsg:
 		dec = new(RspNodes)
+	case PingMsg:
+		dec = new(Ping)
+	case PongMsg:
+		dec = new(Pong)
 	default:
 		return nil, fmt.Errorf("unknown packet type %d", packetType)
 	}

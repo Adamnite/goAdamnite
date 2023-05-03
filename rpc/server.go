@@ -1,236 +1,103 @@
 package rpc
 
 import (
-	"errors"
-	"fmt"
-	"log"
-	"math/big"
-	"net"
-	"net/rpc"
-	"strings"
-	"time"
+	"context"
+	"io"
+	"sync/atomic"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/log15"
+	mapset "github.com/deckarep/golang-set"
 )
 
-type Adamnite struct {
-	stateDB   *statedb.StateDB
-	chain     *core.Blockchain
-	addresses []string
-	listener  net.Listener
-	Run       func()
+type CodecOption int
+
+const MetadataApi = "rpc"
+const (
+	// OptionMethodInvocation is an indication that the codec supports RPC method calls
+	OptionMethodInvocation CodecOption = 1 << iota
+
+	// OptionSubscriptions is an indication that the codec supports RPC notifications
+	OptionSubscriptions = 1 << iota // support pub sub
+)
+
+// RPC server
+type Server struct {
+	services adamniteServiceRegistry
+	run      int32
+	idgen    func() ID
+	codecs   mapset.Set
 }
 
-func (a *Adamnite) Addr() string {
-	return a.listener.Addr().String()
+func NewAdamniteRPCServer() *Server {
+	server := &Server{idgen: randomIDGenerator(), codecs: mapset.NewSet(), run: 1}
+	rpcService := &RPCService{server}
+	server.RegisterName(MetadataApi, rpcService)
+	return server
 }
 
-func (a *Adamnite) Close() {
-	_ = a.listener.Close()
+func (s *Server) Stop() {
+	if atomic.CompareAndSwapInt32(&s.run, 1, 0) {
+		log15.Debug("RPC server shutting down")
+	}
 }
 
-const getChainIDEndpoint = "Adamnite.GetChainID"
+func (s *Server) RegisterName(name string, receiver interface{}) error {
+	return s.services.registerName(name, receiver)
+}
 
-func (a *Adamnite) GetChainID(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get chain ID")
-	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("chain is not set")
+func (s *Server) serveSingleRequest(ctx context.Context, codec ServerCodec) {
+	// Don't serve if server is stopped.
+	if atomic.LoadInt32(&s.run) == 0 {
+		return
 	}
 
-	data, err := Encode(a.chain.Config().ChainID.String())
+	h := newHandler(ctx, codec, s.idgen, &s.services)
+	h.allowSubscribe = false
+	defer h.close(io.EOF, nil)
+
+	reqs, batch, err := codec.readBatch()
 	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getBalanceEndpoint = "Adamnite.GetBalance"
-
-func (a *Adamnite) GetBalance(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get balance")
-	input := struct {
-		Address string
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	data, err := Encode(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getAccountsEndpoint = "Adamnite.GetAccounts"
-
-func (a *Adamnite) GetAccounts(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get accounts")
-
-	data, err := Encode(a.addresses)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
-
-func (a *Adamnite) GetBlockByHash(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by hash")
-
-	input := struct {
-		BlockHash common.Hash
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	data, err := Encode(*a.chain.GetBlockByHash(input.BlockHash))
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-
-}
-
-const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
-
-func (a *Adamnite) GetBlockByNumber(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by number")
-
-	input := struct {
-		BlockNumber big.Int
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	data, err := Encode(*a.chain.GetBlockByNumber(&input.BlockNumber))
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const createAccountEndpoint = "Adamnite.CreateAccount"
-
-func (a *Adamnite) CreateAccount(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Create account")
-
-	input := struct {
-		Address string
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	for _, address := range a.addresses {
-		if address == input.Address {
-			log.Println("[Adamnite RPC server] Specified account already exists on chain")
-			return errors.New("specified account already exists on chain")
+		if err != io.EOF {
+			codec.writeJSON(ctx, errorMessage(&invalidMessageError{"parse error"}))
 		}
+		return
 	}
-
-	a.stateDB.CreateAccount(common.HexToAddress(input.Address))
-	a.addresses = append(a.addresses, input.Address)
-
-	data, err := Encode(true)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+	if batch {
+		h.handleBatch(reqs)
+	} else {
+		h.handleMsg(reqs[0])
 	}
-
-	*reply = data
-	return nil
 }
 
-const sendTransactionEndpoint = "Adamnite.SendTransaction"
+func (s *Server) ServeCodec(codec ServerCodec, options CodecOption) {
+	defer codec.close()
 
-func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Send transaction")
-
-	input := struct {
-		Hash string
-		Raw  string
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+	// Don't serve if server is stopped.
+	if atomic.LoadInt32(&s.run) == 0 {
+		return
 	}
 
-	// TODO: send transaction to blockchain node
+	// Add the codec to the set so it can be closed by Stop.
+	s.codecs.Add(codec)
+	defer s.codecs.Remove(codec)
 
-	data, err := Encode(true)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
+	c := initClient(codec, s.idgen, &s.services)
+	<-codec.closed()
+	c.Close()
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port uint32) *Adamnite {
-	rpcServer := rpc.NewServer()
+type RPCService struct {
+	server *Server
+}
 
-	adamnite := new(Adamnite)
-	adamnite.stateDB = stateDB
-	adamnite.chain = chain
+// Modules returns the list of RPC services with their version number
+func (s *RPCService) Modules() map[string]string {
+	s.server.services.mu.Lock()
+	defer s.server.services.mu.Unlock()
 
-	if err := rpcServer.Register(adamnite); err != nil {
-		log.Fatal(err)
+	modules := make(map[string]string)
+	for name := range s.server.services.services {
+		modules[name] = "1.0"
 	}
-
-	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	log.Println("[Adamnite RPC server] Endpoint:", listener.Addr().String())
-
-	runFunc := func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				log.Println("[Listener accept]", err)
-				return
-			}
-
-			go func(conn net.Conn) {
-				defer func() {
-					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
-						log.Println(err)
-					}
-				}()
-				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-				rpcServer.ServeConn(conn)
-			}(conn)
-		}
-	}
-	adamnite.listener = listener
-	adamnite.Run = runFunc
-	return adamnite
+	return modules
 }

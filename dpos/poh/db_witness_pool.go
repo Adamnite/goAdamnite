@@ -71,15 +71,16 @@ var DefaultDBWitnessConfig = DBWitnessConfig{
 	WitnessCount: 18,
 }
 
-var WitnessList = []DBWitnessInfo{{
-	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-	voters: []types.Voter{
-		{
-			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
+var WitnessList = []DBWitnessInfo{
+	{
+		address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+		voters: []types.Voter{
+			{
+				Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
+			},
 		},
 	},
-},
 	{
 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 		voters: []types.Voter{
@@ -489,14 +490,13 @@ func encodeSignHeader(w io.Writer, header *types.BlockHeader) {
 		header.ParentHash,
 		header.Witness,
 		header.WitnessRoot,
-		// header.CurrentEpoch,
+		header.CurrentRound,
 		header.Number,
 		header.Signature,
 		header.StateRoot,
 		header.Extra,
 		header.Time,
 		header.TransactionRoot,
-		header.DBWitness,
 	})
 	if err != nil {
 		panic("can't encode: " + err.Error())

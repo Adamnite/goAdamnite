@@ -1,0 +1,1 @@
+seednode.exe --nodekey=node.key --verbosity=6

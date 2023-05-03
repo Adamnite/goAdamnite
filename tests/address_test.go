@@ -9,7 +9,7 @@ import (
 func TestCreateAddressTest(t *testing.T) {
 	privKey, err := crypto.GenerateKey()
 	if err != nil {
-		t.Error("Error occured in crypto generatekey function")
+		t.Error("Error in crypto generatekey function")
 	}
 
 	pubkey := privKey.PublicKey
@@ -20,13 +20,13 @@ func TestCreateAddressTest(t *testing.T) {
 func TestSignAndValidate(t *testing.T) {
 	privKey, err := crypto.GenerateKey()
 	if err != nil {
-		t.Error("Error occured in GenerateKey function")
+		t.Error("Error in GenerateKey function")
 	}
 
 	var datahash = []byte("abcdefghijklmnopqrstuvwxyz012345")
 	signature, err := crypto.Sign(datahash, privKey)
 	if err != nil {
-		t.Error("Error occured in sign function")
+		t.Error("Error in sign function")
 	}
 
 	ret := crypto.VerifySignature(crypto.FromECDSAPub(&privKey.PublicKey), datahash, signature[0:64])

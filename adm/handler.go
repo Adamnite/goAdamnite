@@ -78,12 +78,12 @@ func (h *handler) newBlockBroadcastLoop() {
 
 	for block := range h.newBlockSub.Chan() {
 		if event, ok := block.Data.(core.NewBlockEvent); ok {
-			h.BoradcastBlock(event.Block)
+			h.BroadcastBlock(event.Block)
 		}
 	}
 }
 
-func (h *handler) BoradcastBlock(block *types.Block) {
+func (h *handler) BroadcastBlock(block *types.Block) {
 	for _, peer := range h.peers.peers {
 		peer.AsyncSendNewBlock(block)
 		log15.Debug("Send block to ", "peer", peer.Peer.ID().String(), "block num", block.Numberu64())

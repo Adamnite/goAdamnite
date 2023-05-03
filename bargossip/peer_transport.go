@@ -21,6 +21,7 @@ import (
 	"github.com/adamnite/go-adamnite/crypto/ecies"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
+	"github.com/adamnite/go-adamnite/log15"
 )
 
 type peerTransportImpl struct {
@@ -30,6 +31,7 @@ type peerTransportImpl struct {
 	state            *handshakeState
 
 	wbuf bytes.Buffer
+	rbuf bytes.Buffer
 }
 
 type handshakeKeys struct {
@@ -72,21 +74,21 @@ type handshakeState struct {
 }
 
 type messageDecoder interface {
-	Decode([]byte)
+	Decode([]byte) error
 }
 
-func (msg *handshakeMsg) Decode(input []byte) {
-	n := copy(msg.Nonce[:], input)
-	n += 32
-	n += copy(msg.SenderPubKey[:], input[n:])
-	copy(msg.Signature[:], input[n:])
-	msg.Version = AdamniteTCPHandshakeVersion
+func (msg *handshakeMsg) Decode(input []byte) error {
+	if err := msgpack.Unmarshal(input, msg); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (msg *respHandshakeMsg) Decode(input []byte) {
-	n := copy(msg.OneTimePubKey[:], input)
-	copy(msg.Nonce[:], input[n:])
-	msg.Version = AdamniteTCPHandshakeVersion
+func (msg *respHandshakeMsg) Decode(input []byte) error {
+	if err := msgpack.Unmarshal(input, msg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewPeerTransport(conn net.Conn, remotePeerPubKey *ecdsa.PublicKey) peerTransport {
@@ -148,7 +150,38 @@ func (t *peerTransportImpl) ReadMsg() (Msg, error) {
 	defer t.rwmu.RUnlock()
 
 	var msg Msg
-	t.conn.SetReadDeadline(time.Now().Add(messageReadTimeout))
+
+	t.rbuf.Reset()
+
+	if err := t.conn.SetReadDeadline(time.Now().Add(messageReadTimeout)); err != nil {
+		return msg, err
+	}
+
+	// Read Msg Code
+	byCode := make([]byte, 9)
+	if _, err := t.conn.Read(byCode); err != nil {
+		return msg, err
+	}
+	if err := msgpack.Unmarshal(byCode, &msg.Code); err != nil {
+		return msg, err
+	}
+
+	// Read Msg Size
+	bySize := make([]byte, 5)
+	if _, err := t.conn.Read(bySize); err != nil {
+		return msg, err
+	}
+	if err := msgpack.Unmarshal(bySize, &msg.Size); err != nil {
+		return msg, err
+	}
+
+	// Read Msg Payload
+	byPayload := make([]byte, msg.Size)
+	if _, err := io.ReadFull(t.conn, byPayload); err != nil {
+		return msg, err
+	}
+
+	msg.Payload = byPayload
 	return msg, nil
 }
 
@@ -157,6 +190,21 @@ func (t *peerTransportImpl) WriteMsg(msg Msg) error {
 	defer t.rwmu.Unlock()
 
 	t.wbuf.Reset()
+
+	byCode, err := msgpack.Marshal(msg.Code)
+	if err != nil {
+		return err
+	}
+
+	t.wbuf.Write(byCode)
+
+	bySize, err := msgpack.Marshal(msg.Size)
+	if err != nil {
+		return err
+	}
+
+	t.wbuf.Write(bySize)
+
 	if writtenSize, err := t.wbuf.Write(msg.Payload); err != nil || writtenSize != int(msg.Size) {
 		if writtenSize != int(msg.Size) {
 			return errors.New("message size error")
@@ -176,6 +224,10 @@ func (t *peerTransportImpl) WriteMsg(msg Msg) error {
 		return errTooLargeMessage
 	}
 
+	if _, err = t.conn.Write(t.wbuf.Bytes()); err != nil {
+		log15.Error("Exchange protcol write error", "err", err)
+		return err
+	}
 	return nil
 }
 
@@ -219,7 +271,7 @@ func (t *peerTransportImpl) readExchangeProtocol() (*exchangeProtocol, error) {
 	}
 
 	var exchProto exchangeProtocol
-	if err := msg.Decode(exchProto); err != nil {
+	if err := msg.Decode(&exchProto); err != nil {
 		return nil, err
 	}
 
@@ -267,6 +319,7 @@ func startHandshake(conn io.ReadWriter, prvKey *ecdsa.PrivateKey, remotePeerPubK
 	if err != nil {
 		return handshakeKeys{}, err
 	}
+
 	enc, err := ecies.Encrypt(rand.Reader, ecies.ImportECDSAPublic(remotePeerPubKey), packedMsg, nil, nil)
 	if err != nil {
 		return handshakeKeys{}, err
@@ -336,9 +389,11 @@ func readHandshakeMsg(conn io.Reader, prv *ecdsa.PrivateKey, msg messageDecoder)
 	plainSize := 0
 	switch msg.(type) {
 	case *handshakeMsg:
-		plainSize = binary.Size(handshakeMsg{}) + 65 /*pubkey*/ + 16 /*IV*/ + 32 /*MAC*/
+		// plainSize = binary.Size(handshakeMsg{}) + 65 /*pubkey*/ + 16 /*IV*/ + 32 /*MAC*/
+		plainSize = 319
 	case *respHandshakeMsg:
-		plainSize = binary.Size(respHandshakeMsg{}) + 65 /*pubkey*/ + 16 /*IV*/ + 32 /*MAC*/
+		// plainSize = binary.Size(respHandshakeMsg{}) + 65 /*pubkey*/ + 16 /*IV*/ + 32 /*MAC*/
+		plainSize = 243
 	}
 	buf := make([]byte, plainSize)
 	if _, err := io.ReadFull(conn, buf); err != nil {
@@ -347,65 +402,28 @@ func readHandshakeMsg(conn io.Reader, prv *ecdsa.PrivateKey, msg messageDecoder)
 
 	key := ecies.ImportECDSA(prv)
 	if dec, err := key.Decrypt(buf, nil, nil); err == nil {
-		msg.Decode(dec)
+		if err = msg.Decode(dec); err != nil {
+			return nil, err
+		}
 		return buf, nil
 	} else {
 		return nil, err
 	}
 }
 
-// THIS NEEDS FURTHER REVIEW
 func getHandshakeKeys(handshakePacket, respHandshakePacket []byte, encKeys *handshakeEncKeys) (handshakeKeys, error) {
 	secretKey, err := encKeys.oneTimePrivKey.GenerateShared(encKeys.remoteOneTimePubKey, 16, 16)
 	if err != nil {
 		return handshakeKeys{}, err
 	}
 
-	sharedSecret := sha3.New512()
-	// foo.Write(append([]byte{}, sha3.Sum512(secretKey), sha3.Sum512(encKeys.respNonce), sha3.Sum512(encKeys.initNonce)))
-	_, err = sharedSecret.Write(secretKey)
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	_, err = sharedSecret.Write(encKeys.respNonce)
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	_, err = sharedSecret.Write(encKeys.initNonce)
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	// sharedSecret := crypto.Keccak256(secretKey, crypto.Keccak256(encKeys.respNonce, encKeys.initNonce))
-	aesSecret := sha3.New512()
-	_, err = aesSecret.Write(secretKey)
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	_, err = aesSecret.Write(sharedSecret.Sum(nil))
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	mac := sha3.New512()
-	_, err = mac.Write(secretKey)
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
-	_, err = mac.Write(aesSecret.Sum(nil))
-	if err != nil {
-		fmt.Println(err)
-		return handshakeKeys{}, err
-	}
+	sharedSecret := crypto.Keccak256(secretKey, crypto.Keccak256(encKeys.respNonce, encKeys.initNonce))
+	aesSecret := crypto.Keccak256(secretKey, sharedSecret)
+
 	hKeys := handshakeKeys{
 		remotePubKey: encKeys.remotePubKey.ExportECDSA(),
-		AES:          aesSecret.Sum(nil)[:32],
-
-		MAC: mac.Sum(nil),
+		AES:          aesSecret,
+		MAC:          crypto.Keccak256(secretKey, aesSecret),
 	}
 
 	mac1 := sha3.NewLegacyKeccak256()

@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
-	"github.com/vmihailenco/msgpack/v5"
+	"github.com/adamnite/go-adamnite/serialization"
 )
 
 var (
@@ -42,8 +42,7 @@ func (as AdamniteSigner) Sender(tx *Transaction) (common.Address, error) {
 }
 
 func (as AdamniteSigner) Hash(tx *Transaction) common.Hash {
-	// serial := serialization.Serialize(tx.Nonce())
-	serial, _ := msgpack.Marshal(tx.Nonce())
+	serial := serialization.Serialize(tx.Nonce())
 	bytes := crypto.Sha512(serial)
 	hash := common.Hash{}
 	copy(hash[:], bytes)
@@ -94,13 +93,14 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error
 	if len(pub) == 0 || pub[0] != 4 {
 		return common.Address{}, errors.New("invalid public key")
 	}
-	return crypto.PubkeyByteToAddress(pub), nil
+	var addr common.Address
+	copy(addr[:], crypto.Ripemd160Hash(crypto.Sha512(pub[1:])))
+	return addr, nil
 }
 
 func SignTransaction(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, error) {
 	hash := s.Hash(tx)
 	signature, err := crypto.Sign(hash[:], prv)
-
 	if err != nil {
 		return nil, err
 	}

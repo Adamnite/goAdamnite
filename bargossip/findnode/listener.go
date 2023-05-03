@@ -9,12 +9,17 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
+	"bytes"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/admpacket"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/log15"
+	"github.com/adamnite/go-adamnite/crypto"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // UDPLayer is the implementation of the node discovery protocol.
@@ -39,6 +44,8 @@ type UDPLayer struct {
 	activeCallRequireAuthQueue map[admpacket.Nonce]*CallRsp
 	sslencoding                *admpacket.SSLCodec
 
+	addReplyMatcher chan *replyMatcher
+
 	// terminate items
 	closeCtx       context.Context
 	cancelCloseCtx context.CancelFunc
@@ -62,6 +69,41 @@ type CallRsp struct {
 	handshakeCount int
 	timeout        mclock.Timer
 }
+
+// replyMatcher represents a pending reply.
+//
+// Some implementations of the protocol wish to send more than one
+// reply packet to findnode. In general, any neighbors packet cannot
+// be matched up with a specific findnode packet.
+//
+// Our implementation handles this by storing a callback function for
+// each pending reply. Incoming packets from a node are dispatched
+// to all callback functions for that node.
+type replyMatcher struct {
+	// these fields must match in the reply.
+	from  admnode.NodeID
+	ip    net.IP
+	ptype byte
+
+	// time when the request must complete
+	deadline time.Time
+
+	// callback is called when a matching reply arrives. If it returns matched == true, the
+	// reply was acceptable. The second return value indicates whether the callback should
+	// be removed from the pending reply queue. If it returns false, the reply is considered
+	// incomplete and the callback will be invoked again for the next matching reply.
+	callback replyMatchFunc
+
+	// errc receives nil when the callback indicates completion or an
+	// error if no further reply is received within the timeout.
+	errc chan error
+
+	// reply contains the most recent reply. This field is safe for reading after errc has
+	// received a value.
+	reply admpacket.ADMPacket
+}
+
+type replyMatchFunc func(interface{}) (matched bool, requestDone bool)
 
 // ReadPacket is a packet that couldn't be handled.
 type ReadPacket struct {
@@ -92,6 +134,8 @@ func Start(conn *net.UDPConn, localNode *admnode.LocalNode, cfg Config) (*UDPLay
 		rspCallTimeoutCh: make(chan *callTimeout),
 		readCh:           make(chan struct{}, 1),
 		packetInCh:       make(chan ReadPacket, 1),
+		addReplyMatcher:  make(chan *replyMatcher),
+		callDoneCh:		  make(chan *CallRsp),
 
 		// state of background thread
 		callQueue:                  make(map[admnode.NodeID][]*CallRsp),
@@ -135,6 +179,10 @@ func (n *UDPLayer) findRandomNodes() []*admnode.GossipNode {
 	return newFind(n.closeCtx, n.nodeTable, target, func(nd *node) ([]*node, error) {
 		return n.findFunc(nd, target)
 	}).run()
+}
+
+func (n *UDPLayer) FindFunc(destNode *node, target admnode.NodeID) ([]*node, error) {
+	return n.findFunc(destNode, target)
 }
 
 func (n *UDPLayer) findFunc(destNode *node, target admnode.NodeID) ([]*node, error) {
@@ -182,7 +230,8 @@ func (n *UDPLayer) call(node *admnode.GossipNode, responseType byte, packet admp
 		expectedRspType: responseType,
 		requestID:       make([]byte, 8),
 		//channels
-		err: make(chan error),
+		respCh:          make(chan admpacket.ADMPacket),
+		err: 			 make(chan error),
 	}
 
 	crand.Read(callRsp.requestID)
@@ -226,7 +275,7 @@ func (n *UDPLayer) backgroundThread() {
 			delete(n.activeCallRequireAuthQueue, call.nonce)
 			n.sendCallToQueueAndRun(*id)
 		case <-n.closeCtx.Done():
-
+			return
 		}
 	}
 }
@@ -261,6 +310,8 @@ func (n *UDPLayer) handlePacket(p ReadPacket) error {
 		n.nodeTable.addSeenNode(&node{GossipNode: *fromNode})
 	}
 
+	n.log.Trace("Packet << "+packet.Name(), "addr", p.Addr, "id", fromNodeID, "err", err)
+
 	switch pkt := packet.(type) {
 	case *admpacket.AskHandshake:
 		n.handleAskHandshakePacket(pkt, fromNodeID, p.Addr)
@@ -270,6 +321,10 @@ func (n *UDPLayer) handlePacket(p ReadPacket) error {
 		n.handleFindNode(pkt, fromNodeID, p.Addr)
 	case *admpacket.RspNodes:
 		n.handleCallResponse(pkt, fromNodeID, p.Addr)
+	case *admpacket.Ping:
+		n.handlePingPacket(pkt, fromNodeID, p.Addr)
+	case *admpacket.Pong:
+		n.handlePongPacket(pkt, fromNodeID, p.Addr)
 	}
 	return nil
 }
@@ -340,7 +395,7 @@ func (n *UDPLayer) send(toID admnode.NodeID, toAddr *net.UDPAddr, packet admpack
 		return nonce, err
 	}
 	_, err = n.conn.WriteToUDP(enc, toAddr)
-	n.log.Trace("UDP Sent Packet >> "+packet.Name(), "id", toID, "udpAddr", addr)
+	n.log.Trace("Packet >> "+packet.Name(), "id", toID, "udpAddr", addr)
 	return nonce, err
 }
 
@@ -380,7 +435,8 @@ func (n *UDPLayer) waitForNodes(c *CallRsp, distances []uint) ([]*admnode.Gossip
 				return nodes, nil
 			}
 		case err := <-c.err:
-			return nodes, err
+			n.log.Warn("Failed to wait find node", "Packet", c.packet.Name(), "err", err)
+			return nil, err
 		}
 	}
 }
@@ -443,6 +499,118 @@ func (n *UDPLayer) checkResponseNode(nodeInfo *admnode.NodeInfo, distances []uin
 	return node, nil
 }
 
+func (l *UDPLayer) ping(n *admnode.GossipNode) (uint64, error) {
+	remoteAddr := &net.UDPAddr{IP: n.IP(), Port: int(n.UDP())}
+	reqPing := l.makePingPacket(remoteAddr)
+
+	resp := l.call(n, admpacket.PongMsg, reqPing)
+	return l.waitForPong(resp)
+
+	/*
+	rm := l.sendPing(*n.ID(), &net.UDPAddr{IP: n.IP(), Port: int(n.UDP())}, nil)
+	if err = <-rm.errc; err == nil {
+		// rm.reply.(*admpacket.Pong).PingHash
+	}
+	return nret, err;*/
+}
+
+// waitForPong waits for PONG responses to the given call.
+func (n *UDPLayer) waitForPong(c *CallRsp) (uint64, error) {
+	defer n.callDone(c)
+
+	for {
+		select {
+		case responseP := <-c.respCh:
+			response := responseP.(*admpacket.Pong)
+			return uint64(response.Version), nil
+		case err := <-c.err:
+			n.log.Error("Packet >> " + c.packet.Name(), "err", err)
+			return 0, err
+		}
+	}
+}
+
+func (l *UDPLayer) sendPing(remoteID admnode.NodeID, remoteAddr *net.UDPAddr, callback func()) *replyMatcher {
+	reqPing := l.makePingPacket(remoteAddr)
+	pkt, _, err := l.encode(l.privKey, reqPing)
+	if err != nil {
+		errc := make(chan error, 1)
+		errc <- err
+		return &replyMatcher{errc: errc}
+	}
+
+	rm := l.pending(remoteID, remoteAddr.IP, admpacket.PongMsg, func(p interface{}) (matched bool, requestDone bool) {
+		matched = bytes.Equal(p.(*admpacket.Pong).ReqID, reqPing.ReqID)
+		if matched && callback != nil {
+			callback()
+		}
+		return matched, matched
+	})
+	// Send the packet.
+	// l.localNode.UDPContact(remoteAddr)
+	l.write(remoteAddr, remoteID, reqPing.Name(), pkt)
+	return rm
+}
+
+func (l *UDPLayer) write(toaddr *net.UDPAddr, toid admnode.NodeID, what string, packet []byte) error {
+	_, err := l.conn.WriteToUDP(packet, toaddr)
+	l.log.Trace(">> "+what, "id", toid, "addr", toaddr, "err", err)
+	return err
+}
+
+func (l *UDPLayer) pending(id admnode.NodeID, ip net.IP, pktType byte, callback replyMatchFunc) *replyMatcher {
+	ch := make(chan error, 1)
+	p := &replyMatcher{from: id, ip: ip, ptype: pktType, callback: callback, errc: ch}
+	select {
+	case l.addReplyMatcher <- p:
+		// loop will handle it
+	case <-l.closeCtx.Done():
+		ch <- errClosed
+	}
+	return p
+}
+
+func (l *UDPLayer) encode(privKey *ecdsa.PrivateKey, reqPkt admpacket.ADMPacket) (byPacket, hash []byte, err error) {
+	b := new(bytes.Buffer)
+	b.Write(headSpace)
+	b.WriteByte(reqPkt.MessageType())
+
+	data, err := msgpack.Marshal(reqPkt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	b.Write(data)
+	byPacket = b.Bytes()
+
+	sig, err := crypto.Sign(crypto.Keccak256(byPacket[headSize:]), privKey)
+	if err != nil {
+		l.log.Error(fmt.Sprintf("Can't sign %s packet", reqPkt.Name()), "err", err)
+		return nil, nil, err
+	}
+
+	copy(byPacket[hashSize:], sig)
+	hash = crypto.Keccak256(byPacket[hashSize:])
+	copy(byPacket, hash)
+	return byPacket, hash, nil
+}
+
+func (l *UDPLayer) makePingPacket(remoteAddr *net.UDPAddr) *admpacket.Ping {
+	return &admpacket.Ping {
+		Version: pingPacketVersion,
+		From: l.localEndpoint(),
+		To: makePeerEndpoint(remoteAddr, 0),
+		PubKey: l.localNode.GetPubKey(),
+	}
+}
+
+func (l *UDPLayer) localEndpoint() admpacket.PeerEndpoint {
+	ln := l.SelfNode()
+	udpAddr := &net.UDPAddr{IP: ln.IP(), Port: int(ln.UDP())}
+
+	return makePeerEndpoint(udpAddr, ln.TCP())
+}
+
 func (n *UDPLayer) Close() {
 	n.closeOnce.Do(func() {
 		n.cancelCloseCtx()
@@ -450,4 +618,14 @@ func (n *UDPLayer) Close() {
 		n.wg.Wait()
 		n.nodeTable.close()
 	})
+}
+
+func makePeerEndpoint(addr *net.UDPAddr, port uint16) admpacket.PeerEndpoint {
+	ip := net.IP{}
+	if ip4 := addr.IP.To4(); ip4 != nil {
+		ip = ip4
+	} else if ip6 := addr.IP.To16(); ip6 != nil {
+		ip = ip6
+	}
+	return admpacket.PeerEndpoint{IP: ip, UDP: uint16(addr.Port), TCP: port}
 }

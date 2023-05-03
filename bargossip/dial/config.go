@@ -34,7 +34,7 @@ type Config struct {
 	Rand *mrand.Rand
 }
 
-func (cfg Config) withDefaults() Config {
+func (cfg Config) WithDefaults() Config {
 	if cfg.MaxOutboundConnections == 0 {
 		cfg.MaxOutboundConnections = defaultMaxOutboundConnections
 	}

@@ -1,10 +1,12 @@
 package types
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type Witness interface {
@@ -34,6 +36,8 @@ type Witness interface {
 	BlockReviewed(bool)
 }
 
+type WitnessList []Witness
+
 type WitnessImpl struct {
 	Address        common.Address
 	Voters         []Voter
@@ -44,28 +48,35 @@ type WitnessImpl struct {
 	blocksApproved uint64
 }
 
-func (w *WitnessImpl) GetAddress() common.Address {
+func (wl WitnessList) Len() int { return len(wl) }
+func (wl WitnessList) EncodeIndex(i int, buf *bytes.Buffer) {
+	witness := wl[i]
+	address := witness.GetAddress()
+	msgpack.NewEncoder(buf).Encode(address[:])
+}
+
+func (w WitnessImpl) GetAddress() common.Address {
 	return w.Address
 }
 
-func (w *WitnessImpl) GetVoters() []Voter {
+func (w WitnessImpl) GetVoters() []Voter {
 	return w.Voters
 }
-func (w *WitnessImpl) SetVoters(voters []Voter) {
+func (w WitnessImpl) SetVoters(voters []Voter) {
 	w.Voters = voters
 }
-func (w *WitnessImpl) GetBlockValidationPercents() float64 {
+func (w WitnessImpl) GetBlockValidationPercents() float64 {
 	if w.blocksReviewed == 0 {
 		return 0.5
 	}
 	return float64(w.blocksApproved) / float64(w.blocksReviewed)
 }
 
-func (w *WitnessImpl) GetElectedCount() uint64 {
+func (w WitnessImpl) GetElectedCount() uint64 {
 	return 1
 }
 
-func (w *WitnessImpl) GetStakingAmount() *big.Int {
+func (w WitnessImpl) GetStakingAmount() *big.Int {
 	totalStakingAmount := big.NewInt(0)
 
 	for _, w := range w.Voters {
@@ -75,18 +86,18 @@ func (w *WitnessImpl) GetStakingAmount() *big.Int {
 	return totalStakingAmount
 }
 
-func (w *WitnessImpl) GetWeight() *big.Float {
+func (w WitnessImpl) GetWeight() *big.Float {
 	return w.WeightVRF
 }
 
-func (w *WitnessImpl) SetWeight(weight *big.Float) {
+func (w WitnessImpl) SetWeight(weight *big.Float) {
 	w.WeightVRF = weight
 }
-func (w *WitnessImpl) GetPubKey() crypto.PublicKey {
+func (w WitnessImpl) GetPubKey() crypto.PublicKey {
 	return w.PubKey
 }
 
-func (w *WitnessImpl) BlockReviewed(successful bool) {
+func (w WitnessImpl) BlockReviewed(successful bool) {
 	w.blocksReviewed++
 	if successful {
 		w.blocksApproved++

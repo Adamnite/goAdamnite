@@ -19,7 +19,7 @@ func newTask(destNode *admnode.GossipNode, flag ConnectionFlag) *Task {
 func (t *Task) Start(s *Scheduler) {
 	conn, err := s.dialer.Dial(s.ctx, t.destNode)
 	if err != nil {
-		s.Log.Debug("Adamnite gossip error", "id", t.destNode.ID(), "ip", t.destNode.IP(), "err", err)
+		s.Log.Error("Adamnite gossip error", "id", t.destNode.ID(), "ip", t.destNode.IP(), "err", err)
 		return
 	}
 	s.addConnectionFunc(conn, OutboundConnection, t.destNode)

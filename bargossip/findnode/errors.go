@@ -15,6 +15,7 @@ var (
 	errLoopback    = errors.New("loopback address from non-loopback host")
 	errLAN         = errors.New("LAN address from WAN host")
 	errTimeout     = errors.New("send call timeout")
+	errClockWarp   = errors.New("reply deadline too far in the future")
 )
 
 // IsTemporaryError checks whether the given error should be considered temporary.

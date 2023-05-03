@@ -19,7 +19,7 @@ func wrapFindNodes(nodes []*admnode.GossipNode) []*node {
 	ret := make([]*node, len(nodes))
 
 	for i, n := range nodes {
-		ret[i] = &node{GossipNode: *n}
+		ret[i] = wrapFindNode(n)
 	}
 	return ret
 }
@@ -27,9 +27,17 @@ func wrapFindNodes(nodes []*admnode.GossipNode) []*node {
 func unWrapFindNodes(nodes []*node) []*admnode.GossipNode {
 	ret := make([]*admnode.GossipNode, len(nodes))
 	for i, n := range nodes {
-		ret[i] = &n.GossipNode
+		ret[i] = unWrapFindNode(n)
 	}
 	return ret
+}
+
+func wrapFindNode(n *admnode.GossipNode) *node {
+	return &node{GossipNode: *n}
+}
+
+func unWrapFindNode(node *node) *admnode.GossipNode {
+	return &node.GossipNode
 }
 
 func (n *node) getUDPAddr() net.UDPAddr {
@@ -47,7 +55,7 @@ func (ns *nodes) push(n *node, maxNodeCount int) {
 		return admnode.DistanceCmp(*ns.nodes[i].ID(), *n.ID(), ns.targetId) > 0
 	})
 	if index > 0 {
-		if index == len(ns.nodes)+1 {
+		if index == len(ns.nodes) {
 			ns.nodes = append(ns.nodes, n)
 		} else {
 			copy(ns.nodes[index+1:], ns.nodes[index:])

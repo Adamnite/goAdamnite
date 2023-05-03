@@ -27,7 +27,7 @@ type (
 		Val   node
 		flags nodeFlag
 	}
-	hashNode  []byte //i guess the hash should hold the full 512bit value of a sha512 hash?
+	hashNode  []byte
 	valueNode []byte
 )
 
@@ -160,7 +160,7 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 	return n, nil
 }
 
-const hashLen = common.HashLength
+const hashLen = len(common.Hash{})
 
 func decodeRef(buf []byte) (node, []byte, error) {
 	kind, val, rest, err := serialization.Split(buf)

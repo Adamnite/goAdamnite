@@ -34,7 +34,7 @@ func StartNode(ctx *cli.Context, node *node.Node) {
 	if err := node.Start(); err != nil {
 		Fatalf("Error starting protocol node: %v", err)
 	}
-
+	
 	go func() {
 		sigc := make(chan os.Signal, 1)
 		signal.Notify(sigc, syscall.SIGINT, syscall.SIGTERM)

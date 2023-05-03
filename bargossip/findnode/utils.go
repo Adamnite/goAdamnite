@@ -6,11 +6,21 @@ import (
 
 func contains(nodes []*node, id admnode.NodeID) bool {
 	for _, n := range nodes {
-		if n.ID() == n.ID() {
+		if *n.ID() == id {
 			return true
 		}
 	}
 	return false
+}
+
+func addNode(list []*node, n *node) []*node {
+	// check if node exists on the list
+	for i := range list {
+		if *list[i].ID() == *n.ID() {
+			return list
+		}
+	}
+	return append(list, n)
 }
 
 // deleteNode removes n from list.

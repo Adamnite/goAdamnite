@@ -2,6 +2,7 @@ package findnode
 
 import "github.com/adamnite/go-adamnite/bargossip/admnode"
 
+// findNodeTransport is implemented by the UDP transports.
 type findNodeTransport interface {
 	SelfNode() *admnode.GossipNode
 
@@ -10,4 +11,11 @@ type findNodeTransport interface {
 
 	// findRandomNodes looks up a random nodes.
 	findRandomNodes() []*admnode.GossipNode
+
+	ping(*admnode.GossipNode) (seq uint64, err error)
+}
+
+type FindNode interface {
+	Start() bool
+	ReplyNodes() []*node
 }

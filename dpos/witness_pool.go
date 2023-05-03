@@ -6,6 +6,8 @@ import (
 	"sort"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -54,10 +56,6 @@ func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float
 	return weightFloat
 }
 
-type WitnessInfo struct {
-	address common.Address
-	voters  []types.Voter
-}
 type WitnessConfig struct {
 	WitnessCount uint32 // The total numbers of witness on top tier
 }
@@ -70,40 +68,25 @@ var DefaultDemoWitnessConfig = WitnessConfig{
 	WitnessCount: 3,
 }
 
-var WitnessList = []WitnessInfo{{
-	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-	voters: []types.Voter{
-		{
-			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
-		},
-	},
-},
-	{
-		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-		voters: []types.Voter{
-			{
-				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
-			},
-		},
-	}}
-
 type WitnessPool struct {
 	config      WitnessConfig
 	chainConfig *params.ChainConfig
 
-	witnessCandidates []types.Witness
+	witnessCandidates types.WitnessList
 	// vrfWeights        []float32
 	vrfMaps map[string]types.Witness
 
-	Witnesses []types.Witness
+	witnesses types.WitnessList
 	seed      []byte
 	Votes     map[common.Address]*types.Voter
 	sigcache  *lru.ARCCache
 	Number    uint64
 	Hash      common.Hash
-	blacklist []types.Witness
+	blacklist types.WitnessList
+
+	// Blockchain Information
+	epochNum  uint64
+	blockNum  uint64
 }
 
 func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *WitnessPool {
@@ -116,34 +99,17 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 		Hash:              hash,
 		vrfMaps:           make(map[string]types.Witness, 0),
 		witnessCandidates: make([]types.Witness, 0),
-		Witnesses:         witnesses,
+		witnesses:         witnesses,
 		Votes:             map[common.Address]*types.Voter{},
-	}
-
-	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
-		if number == 0 {
-			for _, w := range WitnessList {
-				witness := &types.WitnessImpl{
-					Address: w.address,
-					Voters:  w.voters,
-				}
-				pool.Witnesses = append(pool.Witnesses, witness)
-			}
-			vrfMaps, _ := setVRFItems(pool.Witnesses)
-			for _, w := range vrfMaps {
-				pool.vrfMaps[w.GetAddress().String()] = w
-			}
-		}
-
 	}
 
 	return pool
 }
 
-func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *WitnessPool {
+func NewWitnessPool(config *WitnessConfig, chainConfig *params.ChainConfig, witnessList []types.Witness) *WitnessPool {
 
 	pool := &WitnessPool{
-		config:      config,
+		config:      *config,
 		chainConfig: chainConfig,
 
 		vrfMaps:           make(map[string]types.Witness, 0),
@@ -152,31 +118,27 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 		Votes: map[common.Address]*types.Voter{},
 	}
 
-	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
-
-		for _, w := range WitnessList {
-			witness := &types.WitnessImpl{
-				Address: w.address,
-				Voters:  w.voters,
-			}
-			pool.Witnesses = append(pool.Witnesses, witness)
+	for _, w := range witnessList {
+		witness := &types.WitnessImpl{
+			Address: w.GetAddress(),
+			Voters:  w.GetVoters(),
 		}
-
-		vrfMaps, _ := setVRFItems(pool.Witnesses)
-		for _, w := range vrfMaps {
-			pool.vrfMaps[w.GetAddress().String()] = w
-		}
-
+		pool.witnesses = append(pool.witnesses, witness)
 	}
 
-	return pool
-}
-func getMaxesFrom(witnesses []types.Witness) (maxBlockValidationPercent float64, maxStakingAmount big.Int, maxVoterCount int, maxElectedCount uint64) {
+	var (
+		maxStakingAmount          big.Int
+		maxBlockValidationPercent float64
+		maxVoterCount             int
+		maxElectedCount           uint64
+	)
+
 	maxStakingAmount = *big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
 	maxElectedCount = 0
-	for _, w := range witnesses {
+
+	for _, w := range pool.witnesses {
 		if maxBlockValidationPercent < w.GetBlockValidationPercents() {
 			maxBlockValidationPercent = w.GetBlockValidationPercents()
 		}
@@ -193,7 +155,18 @@ func getMaxesFrom(witnesses []types.Witness) (maxBlockValidationPercent float64,
 			maxElectedCount = w.GetElectedCount()
 		}
 	}
-	return
+
+	for _, w := range pool.witnesses {
+
+		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
+		avgBlockValidationPercent := w.GetBlockValidationPercents() / maxBlockValidationPercent
+		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
+		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
+		w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
+		pool.vrfMaps[string(w.GetPubKey())] = w
+	}
+
+	return pool
 }
 
 func (wp *WitnessPool) CalcWitnesses() []types.Witness {
@@ -201,9 +174,49 @@ func (wp *WitnessPool) CalcWitnesses() []types.Witness {
 	trustedWitnessCount := witnessCount/3*2 + 1
 
 	var (
-		witnesses []types.Witness
+		maxStakingAmount          big.Int
+		maxBlockValidationPercent float64
+		maxVoterCount             int
+		maxElectedCount           uint64
+		vrfWeights                []float64
+		vrfMaps                   map[float64]types.Witness
+		witnesses                 []types.Witness
 	)
-	vrfMaps, vrfWeights := setVRFItems(wp.witnessCandidates)
+
+	vrfMaps = make(map[float64]types.Witness)
+	maxStakingAmount = *big.NewInt(0)
+	maxBlockValidationPercent = 0.0
+	maxVoterCount = 0
+	maxElectedCount = 0
+
+	for _, w := range wp.witnessCandidates {
+		if maxBlockValidationPercent < w.GetBlockValidationPercents() {
+			maxBlockValidationPercent = w.GetBlockValidationPercents()
+		}
+
+		if maxStakingAmount.Cmp(w.GetStakingAmount()) == -1 {
+			maxStakingAmount = *w.GetStakingAmount()
+		}
+
+		if maxVoterCount < len(w.GetVoters()) {
+			maxVoterCount = len(w.GetVoters())
+		}
+
+		if maxElectedCount < w.GetElectedCount() {
+			maxElectedCount = w.GetElectedCount()
+		}
+	}
+
+	for _, w := range wp.witnessCandidates {
+		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
+		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
+		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
+		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
+		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
+		weightVal, _ := weight.Float64()
+		vrfWeights = append(vrfWeights, weightVal)
+		vrfMaps[weightVal] = w
+	}
 
 	sort.Slice(vrfWeights[:], func(i, j int) bool {
 		return vrfWeights[i] > vrfWeights[j]
@@ -214,23 +227,6 @@ func (wp *WitnessPool) CalcWitnesses() []types.Witness {
 	}
 
 	return witnesses
-}
-func setVRFItems(witnesses []types.Witness) (vrfMaps map[float64]types.Witness, vrfWeights []float64) {
-	vrfMaps, vrfWeights = make(map[float64]types.Witness), []float64{} //variable assignment for clarity.
-
-	maxBlockValidationPercent, maxStakingAmount, maxVoterCount, maxElectedCount := getMaxesFrom(witnesses)
-	for _, w := range witnesses {
-		avgStakingAmount := float64(math.GetPercent(w.GetStakingAmount(), &maxStakingAmount))
-		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
-		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
-		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
-		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
-		w.SetWeight(weight)
-		weightVal, _ := weight.Float64()
-		vrfWeights = append(vrfWeights, weightVal)
-		vrfMaps[weightVal] = w
-	}
-	return
 }
 
 func (cp *WitnessPool) SetWitnessCandidates(witnessCandidates []types.Witness) {
@@ -262,11 +258,11 @@ func (cp *WitnessPool) IsTrustedWitness(pubKey crypto.PublicKey, vrfValue []byte
 	if vrfIValue.Cmp(iWeight) == -1 { //vrfIValue<iWeight
 		//Check if there is actually space
 		betterFit, betterFitPoint := cp._IsBetterFit(witnessTesting)
-		if len(cp.Witnesses) < int(cp.config.WitnessCount) {
-			cp.Witnesses = append(cp.Witnesses, witnessTesting)
+		if len(cp.witnesses) < int(cp.config.WitnessCount) {
+			cp.witnesses = append(cp.witnesses, witnessTesting)
 		} else if betterFit {
 			//see if they might just fit into the extra bit of space
-			cp.Witnesses[betterFitPoint] = witnessTesting
+			cp.witnesses[betterFitPoint] = witnessTesting
 		} else {
 			return false
 		}
@@ -280,11 +276,11 @@ func (cp *WitnessPool) IsTrustedWitness(pubKey crypto.PublicKey, vrfValue []byte
 func (cp *WitnessPool) _IsBetterFit(newWit types.Witness) (bool, int) {
 	//sort everything to be from smallest value to lowest, then compare. So the smallest weight is still most likely
 	//to be replaced
-	sort.Slice(cp.Witnesses[:], func(i, j int) bool {
-		return cp.Witnesses[i].GetWeight().Cmp(cp.Witnesses[j].GetWeight()) == -1
+	sort.Slice(cp.witnesses[:], func(i, j int) bool {
+		return cp.witnesses[i].GetWeight().Cmp(cp.witnesses[j].GetWeight()) == -1
 	}) //orders the witnesses by their weight
 	//unsure if the witnesses will need to be ordered.
-	for i, witness := range cp.Witnesses {
+	for i, witness := range cp.witnesses {
 		if witness.GetWeight().Cmp(newWit.GetWeight()) == -1 { //witness.weight < newWit.weight
 			return true, i
 		}
@@ -307,15 +303,25 @@ func GetWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamn
 
 }
 
-func (wp *WitnessPool) saveWitnessPool(db adamnitedb.Database) error {
-	blob, err := msgpack.Marshal(wp)
-	if err != nil {
-		return err
-	}
-	return db.Insert(append([]byte(prefixKeyOfWitnessPool), wp.Hash[:]...), blob)
+func (wp *WitnessPool) SaveWitnessPool(db adamnitedb.Database) error{
+	witnessList := wp.WitnessList();
+	rawdb.WriteWitnessList(db, wp.EpochNum(), witnessList)
+
+	return nil
 }
 
-func (wp *WitnessPool) isVoted(voterAddr common.Address) bool {
+func LoadWitnessPool(config *WitnessConfig, chainConfig *params.ChainConfig, db adamnitedb.AdamniteDBReader) (*WitnessPool, error) {
+	epochNum := rawdb.ReadEpochNumber(db)
+	wList, err := rawdb.ReadWitnessList(db, epochNum)
+	if err != nil {
+		return nil, err
+	}
+
+	wp := NewWitnessPool(config, chainConfig, wList)
+	return wp, nil
+}
+
+func (wp *WitnessPool) IsVoted(voterAddr common.Address) bool {
 	return wp.Votes[voterAddr] != nil
 }
 
@@ -327,40 +333,13 @@ func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
 	return voteNum
 }
 
-func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
-	if prevWitnessAddr == nil {
-		if wp.Witnesses == nil || len(wp.Witnesses) == 0 {
-			for _, w := range WitnessList {
-				witness := &types.WitnessImpl{
-					Address: w.address,
-					Voters:  w.voters,
-				}
-				wp.Witnesses = append(wp.Witnesses, witness)
-			}
-		}
-		return wp.Witnesses[0].GetAddress()
-
-	}
-
-	for i, witness := range wp.Witnesses {
-		if witness.GetAddress() == *prevWitnessAddr {
-			if i >= len(wp.Witnesses)-1 {
-				return wp.Witnesses[0].GetAddress()
-			} else {
-				return wp.Witnesses[i+1].GetAddress()
-			}
-		}
-	}
-	return common.Address{}
-}
-
 func (wp *WitnessPool) copy() *WitnessPool {
 	cpy := &WitnessPool{
 		config:            wp.config,
 		sigcache:          wp.sigcache,
 		Number:            wp.Number,
 		Hash:              wp.Hash,
-		Witnesses:         wp.Witnesses,
+		witnesses:         wp.witnesses,
 		Votes:             wp.Votes,
 		witnessCandidates: wp.witnessCandidates,
 	}
@@ -390,7 +369,7 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 			return nil, err
 		}
 		i := 0
-		for index, wp_witness := range wp.Witnesses {
+		for index, wp_witness := range wp.witnesses {
 			println(index)
 			if wp_witness.GetAddress() == witness {
 				i++
@@ -410,7 +389,7 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 				witnesspool.Votes = make(map[common.Address]*types.Voter)
 				witnesspool.witnessCandidates = make([]types.Witness, 0)
 			}
-			witnesspool.Witnesses = dposData.Witnesses
+			witnesspool.witnesses = dposData.Witnesses
 		}
 		votes := dposData.Votes
 		for sender, vote := range votes {
@@ -446,3 +425,19 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 	witnesspool.Hash = headers[len(headers)-1].Hash()
 	return witnesspool, nil
 }
+
+func (wp *WitnessPool) WitnessList() []types.Witness {
+	return wp.witnesses
+}
+
+func (wp *WitnessPool) BlackList() []types.Witness {
+	return wp.blacklist
+}
+
+func (wp *WitnessPool) RootHash() common.Hash {
+	return types.DeriveSha(wp.witnesses, trie.NewStackTrie(nil))
+}
+
+func (wp *WitnessPool) BlockNum() uint64 { return wp.blockNum }
+
+func (wp *WitnessPool) EpochNum() uint64 { return wp.epochNum }

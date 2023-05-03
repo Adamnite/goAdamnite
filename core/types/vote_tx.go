@@ -71,6 +71,6 @@ func (tx *VoteTransaction) rawSignature() (v, r, s *big.Int) {
 	return tx.V, tx.R, tx.S
 }
 
-func (tx *VoteTransaction) setSignature(chainID, v, r, s *big.Int) {
+func (tx *VoteTransaction) setSignatue(chainID, v, r, s *big.Int) {
 	tx.V, tx.R, tx.S = v, r, s
 }

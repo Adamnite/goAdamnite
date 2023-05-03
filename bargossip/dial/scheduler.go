@@ -39,6 +39,8 @@ func New(config Config, it admnode.NodeIterator, addConnectionFunc AddConnection
 		nodeIterator:      it,
 		dialer:            tcpDialer{dialer: &net.Dialer{Timeout: defaultDialTimeout}},
 		addConnectionFunc: addConnectionFunc,
+		dialing:           make(map[admnode.NodeID]*Task),
+		peers:             make(map[admnode.NodeID]ConnectionFlag),
 
 		// Channels
 		nodeRecvCh: make(chan *admnode.GossipNode),
@@ -51,8 +53,8 @@ func New(config Config, it admnode.NodeIterator, addConnectionFunc AddConnection
 
 func (s *Scheduler) Start() {
 	s.wg.Add(2)
-	s.getNodeToConnect()
-	s.run()
+	go s.getNodeToConnect()
+	go s.run()
 }
 
 func (s *Scheduler) Stop() {
@@ -64,12 +66,18 @@ func (s *Scheduler) Stop() {
 func (s *Scheduler) getNodeToConnect() {
 	defer s.wg.Done()
 
-loop:
-	for s.nodeIterator.Next() {
-		select {
-		case s.nodeRecvCh <- s.nodeIterator.Node():
-		case <-s.ctx.Done():
-			break loop
+	if s.nodeIterator != nil {
+		loop:
+		for s.nodeIterator.Next() {
+			if s.nodeIterator.Node().TCP() == 0 {
+				continue
+			} else {
+				select {
+				case s.nodeRecvCh <- s.nodeIterator.Node():
+				case <-s.ctx.Done():
+					break loop
+				}
+			}
 		}
 	}
 }
@@ -94,6 +102,7 @@ loop:
 		case task := <-s.dialDoneCh:
 			delete(s.dialing, *task.destNode.ID())
 			s.peers[*task.destNode.ID()] = OutboundConnection
+			// s.Log.Info("adamnite peer connected", "peerCount", len(s.peers), "dialingCount", len(s.dialing))
 		case <-s.ctx.Done():
 			s.nodeIterator.Close()
 			break loop

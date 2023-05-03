@@ -10,6 +10,7 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
+	// "github.com/adamnite/go-adamnite/log15"
 )
 
 // Validator creates blocks based on Adamnite DPOS consensus.
@@ -30,9 +31,6 @@ type Config struct {
 	WitnessAddress common.Address
 	Recommit       time.Duration
 }
-
-var DefaultDemoConfig = Config{}
-var DefaultConfig = Config{}
 
 func New(adamnite AdamniteImplInterface, config *Config, chainConfig *params.ChainConfig, dpos dpos.DPOS, mux *event.TypeMux) *Validator {
 	validator := &Validator{

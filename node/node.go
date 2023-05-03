@@ -34,9 +34,9 @@ type Node struct {
 	state         int
 	lock          sync.Mutex
 
-	adamniteServer *rpc.Adamnite
-	rpcAPIs        []rpc.Adamnite
-	services       []Service
+	inprocHandler *rpc.Server
+	rpcAPIs       []rpc.API
+	services      []Service
 
 	openedDatabases map[*OpenedDB]struct{}
 }
@@ -62,15 +62,15 @@ func New(cfg *Config) (*Node, error) {
 		config:          cfg,
 		log:             cfg.Logger,
 		stop:            make(chan struct{}),
-		adamniteServer:  rpc.NewAdamniteServer(nil, nil, 0),
+		inprocHandler:   rpc.NewAdamniteRPCServer(),
 		server:          &bargossip.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
 		eventmux:        new(event.TypeMux),
 	}
 
-	// node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
+	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
 
-	node.ipc = newIPCServer(node.log, 0)
+	node.ipc = newIPCServer(node.log, cfg.IPCEndpoint())
 
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.ServerPrvKey = node.config.NodeKey()
@@ -123,6 +123,8 @@ func (n *Node) Start() error {
 		n.stopServices(started)
 		n.releaseResources(nil)
 	}
+
+	n.log.Info("Started adamnite node successfully", "instance", n.server.Name)
 	return err
 }
 
@@ -131,6 +133,7 @@ func (n *Node) openEndPoints() error {
 	if err := n.server.Start(); err != nil {
 		return convertFileLockError(err)
 	}
+	
 	err := n.startRPC()
 	if err != nil {
 		n.stopRPC()
@@ -145,8 +148,10 @@ func (n *Node) startRPC() error {
 		return err
 	}
 
-	if err := n.ipc.start(); err != nil {
-		return err
+	if n.ipc.endpoint != "" {
+		if err := n.ipc.start(n.rpcAPIs); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -157,11 +162,11 @@ func (n *Node) stopRPC() {
 }
 
 func (n *Node) startInProc() error {
-	// for _, api := range n.rpcAPIs {
-	// 	if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
-	// 		return err
-	// 	}
-	// }
+	for _, api := range n.rpcAPIs {
+		if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -170,6 +175,7 @@ func (n *Node) ResolvePath(x string) string {
 	return n.config.ResolvePath(x)
 }
 
+// OpenDatabase open database on the path.
 func (n *Node) OpenDatabase(fileName string, cache int, handle int, readonly bool) (adamnitedb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

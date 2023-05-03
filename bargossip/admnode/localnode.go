@@ -107,3 +107,15 @@ func (n *LocalNode) doSign(infoType NodeInfoType) error {
 func (n *LocalNode) Database() *NodeDB {
 	return n.db
 }
+
+func (n *LocalNode) UDPContact(toAddr *net.UDPAddr) {
+
+}
+
+/*
+func (n *LocalNode) endpointForIP(ip net.IP) *lnEndpoint {
+	if ip.To4() != nil {
+		return &n.endpoint4
+	}
+	return &n.endpoint6
+}*/

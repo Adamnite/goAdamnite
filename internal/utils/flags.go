@@ -66,7 +66,8 @@ func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config
 		cfg.Genesis = core.DefaultGenesisBlock()
 	case ctx.Bool(TestnetFlag.Name):
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
-
+	default:
+		cfg.Genesis = core.DefaultTestnetGenesisBlock()
 	}
 
 	cfg.AdamniteDbHandles = MakeAdamniteDatabaseHandles()
@@ -80,7 +81,7 @@ func setWitnessAddress(ctx *cli.Context, cfg *adamconfig.Config) {
 		witnessAddr = ctx.String(WitnessAddressFlag.Name)
 	}
 
-	cfg.Validator.WitnessAddress = common.HexToAddress(witnessAddr)
+	cfg.Validator.WitnessAddress = common.StringToAddress(witnessAddr)
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *bargossip.Config) {
@@ -156,7 +157,7 @@ func MakeAdamniteDatabaseHandles() int {
 	return int(hRaised / 2)
 }
 
-func RegisterAdamniteService(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {
+func RegisterAdamniteSerivce(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {
 	backend, err := adm.New(node, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Adamnite service: %v", err)

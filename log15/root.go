@@ -66,3 +66,8 @@ func Error(msg string, ctx ...interface{}) {
 func Crit(msg string, ctx ...interface{}) {
 	root.write(msg, LvlCrit, ctx, skipLevel)
 }
+
+// Trace is a convenient alias for Root().Crit
+func Trace(msg string, ctx ...interface{}) {
+	root.write(msg, LvlTrace, ctx, skipLevel)
+}

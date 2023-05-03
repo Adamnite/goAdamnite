@@ -68,12 +68,37 @@ seek:
 		processed[dist] = struct{}{}
 
 		// Apply some pre-checks to avoid sending invalid nodes.
-		for _, n := range bn {
+		for _, node := range bn {
 			// TODO livenessChecks > 1
-			if utils.CheckRelayIP(fromAddr.IP, n.IP()) != nil {
+			if utils.CheckRelayIP(fromAddr.IP, node.IP()) != nil {
 				continue
 			}
-			nodes = append(nodes, n)
+
+			if node.TCP() == 0 {
+				continue
+			}
+
+			// check if nodes contains the node
+			bFound := false
+			for i := range nodes {
+				if *nodes[i].ID() == *node.ID() {
+					bFound = true
+				}
+			}
+
+			if bFound {
+				continue
+			}
+
+			if *node.ID() == fromID {
+				continue
+			}
+
+			if *node.ID() == *n.localNode.Node().ID() {
+				continue
+			}
+
+			nodes = append(nodes, node)
 			if len(nodes) >= findNodeRspNodeLimit {
 				break seek
 			}
@@ -81,7 +106,7 @@ seek:
 	}
 
 	if len(nodes) == 0 {
-		n.sendWithoutHandshake(fromID, fromAddr, &admpacket.RspNodes{ReqID: packet.ReqID, Total: 1})
+		n.sendWithoutHandshake(fromID, fromAddr, &admpacket.RspNodes{ReqID: packet.ReqID, Total: 0})
 		return
 	}
 
@@ -91,7 +116,7 @@ seek:
 		p := &admpacket.RspNodes{ReqID: packet.ReqID, Total: total}
 
 		items := findNodeRspNodeLimit
-		if items < len(nodes) {
+		if items > len(nodes) {
 			items = len(nodes)
 		}
 
@@ -108,6 +133,41 @@ seek:
 }
 
 func (n *UDPLayer) handleCallResponse(packet admpacket.ADMPacket, fromID admnode.NodeID, fromAddr *net.UDPAddr) bool {
+	call := n.activeCallQueue[fromID]
+	if call == nil || !bytes.Equal(call.requestID, packet.RequestID()) {
+		n.log.Debug("No activecall "+packet.Name(), "id", fromID, "addr", fromAddr)
+		return false
+	}
+	if !fromAddr.IP.Equal(call.node.IP()) || fromAddr.Port != int(call.node.UDP()) {
+		n.log.Debug("wrong endpoint "+packet.Name(), "id", fromID, "addr", fromAddr)
+		return false
+	}
+	if packet.MessageType() != call.expectedRspType {
+		n.log.Debug("Wrong response type "+packet.Name(), "id", fromID, "addr", fromAddr)
+		return false
+	}
+	n.waitResponseTimeout(call)
+	call.respCh <- packet
+	return true
+}
+
+// handlePingPacket processes the ping packet.
+func (n *UDPLayer) handlePingPacket(packet *admpacket.Ping, fromID admnode.NodeID, fromAddr *net.UDPAddr) {
+	// send pong packet
+	pong := &admpacket.Pong {
+		Version: 	1,
+		To: 		n.localEndpoint(),
+		ReqID: 		packet.ReqID,
+	}
+
+	n.sendWithoutHandshake(fromID, fromAddr, pong)
+	// add verified node to node pool
+
+	remoteNode := admnode.NewWithParams(packet.PubKey, packet.From.IP, packet.From.TCP, packet.From.UDP)
+	n.nodeTable.addNode(wrapFindNode(remoteNode))
+}
+
+func (n *UDPLayer) handlePongPacket(packet *admpacket.Pong, fromID admnode.NodeID, fromAddr *net.UDPAddr) bool { 
 	call := n.activeCallQueue[fromID]
 	if call == nil || !bytes.Equal(call.requestID, packet.RequestID()) {
 		n.log.Debug("No activecall "+packet.Name(), "id", fromID, "addr", fromAddr)

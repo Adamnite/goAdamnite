@@ -3,6 +3,7 @@ package trie
 import (
 	"sync"
 
+	"github.com/adamnite/go-adamnite/crypto"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -20,7 +21,7 @@ func (b *sliceBuffer) Reset() {
 // hasher is a type used for the trie Hash operation. A hasher has some
 // internal preallocated temp space
 type hasher struct {
-	sha      sha3.ShakeHash
+	sha      crypto.KeccakState
 	tmp      sliceBuffer
 	parallel bool // Whether to use paralallel threads when hashing
 }
@@ -30,7 +31,7 @@ var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{
 			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
-			sha: sha3.NewShake256(),
+			sha: sha3.NewLegacyKeccak256().(crypto.KeccakState),
 		}
 	},
 }

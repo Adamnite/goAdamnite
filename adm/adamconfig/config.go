@@ -1,13 +1,12 @@
 package adamconfig
 
 import (
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"time"
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/dpos"
 
 	"github.com/adamnite/go-adamnite/core"
-	"github.com/adamnite/go-adamnite/node"
-	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
 )
 
 type Config struct {
@@ -22,27 +21,40 @@ type Config struct {
 	// Adamnite DB options
 	AdamniteDbCache   int
 	AdamniteDbHandles int `toml:"-"`
+
+	// Adamnite StateDB options
+	AdamniteStateDBCash *trie.Config
 }
 
 var Defaults = Config{
 	NetworkId:       888,
 	TxPool:          core.DefaultTxPoolConfig,
 	Witness:         dpos.DefaultWitnessConfig,
-	Validator:       validator.DefaultConfig,
+
+	Validator:       validator.Config{
+		Recommit:  3000 * time.Millisecond,
+	},
 	AdamniteDbCache: 512,
+	AdamniteStateDBCash: &trie.Config{
+		Cache     : 256,     // Memory allowance (MB) to use for caching trie nodes in memory
+		// Journal   : "", 	 // Journal of clean cache to survive node restarts
+		// Preimages : false,   // Flag whether the preimage of trie key is recorded
+	},
 }
 
 var DemoDefaults = Config{
 	NetworkId: 890,
 	TxPool:    core.DefaultTxPoolConfig,
 	Witness:   dpos.DefaultDemoWitnessConfig,
-	Validator: validator.DefaultDemoConfig,
+
+	Validator: validator.Config{
+		Recommit: 3000 * time.Millisecond,
+	},
 
 	AdamniteDbCache: 512,
-}
-
-func CreateConsensusEngine(node *node.Node, chainConfig *params.ChainConfig, db adamnitedb.Database) dpos.Engine {
-	engine := dpos.New(chainConfig, db)
-
-	return engine
+	AdamniteStateDBCash: &trie.Config{
+		Cache     : 256,     // Memory allowance (MB) to use for caching trie nodes in memory
+		// Journal   : "", 	 // Journal of clean cache to survive node restarts
+		// Preimages : false,   // Flag whether the preimage of trie key is recorded
+	},
 }

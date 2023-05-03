@@ -36,6 +36,8 @@ type AdamniteImpl struct {
 
 	validator  *validator.Validator
 	witness    common.Address
+
+	// Adamnite consensus engine
 	dposEngine dpos.DPOS
 }
 
@@ -51,7 +53,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		return nil, err
 	}
 
-	chainConfig, genesisHash, err := core.WriteGenesisBlockWithOverride(chainDB, config.Genesis)
+	chainConfig, genesisHash, err := core.WriteGenesisBlockWithOverride(chainDB, config.Genesis, config.Witness)
 	if err != nil {
 		return nil, err
 	}
@@ -62,19 +64,22 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	adamnite := &AdamniteImpl{
 		config:     config,
 		chainDB:    chainDB,
-		dposEngine: adamconfig.CreateConsensusEngine(node, chainConfig, chainDB),
+		dposEngine: dpos.New(chainConfig, chainDB),
 		p2pServer:  node.Server(),
 		eventMux:   node.EventMux(),
 		witness:    config.Validator.WitnessAddress,
 	}
 
-	adamnite.blockchain, err = core.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine)
+	adamnite.blockchain, err = core.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine, config.AdamniteStateDBCash)
 	if err != nil {
 		return nil, err
 	}
 
 	adamnite.txPool = core.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
-	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig)
+	adamnite.witnessPool, err = dpos.LoadWitnessPool(&config.Witness, chainConfig, chainDB)
+	if err != nil {
+		return nil, err
+	}
 
 	adamnite.handler, err = newHandler(&handlerParams{
 		Database: chainDB,
@@ -106,9 +111,11 @@ func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 	return adampro.MakeProtocols(adam.handler, adam.config.NetworkId, adam.adamniteDialCandidates)
 }
 
+func (adam *AdamniteImpl) IsConnected() bool { return adam.p2pServer.IsConnected() }
 func (adam *AdamniteImpl) Blockchain() *core.Blockchain   { return adam.blockchain }
 func (adam *AdamniteImpl) TxPool() *core.TxPool           { return adam.txPool }
 func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool { return adam.witnessPool }
+func (adam *AdamniteImpl) Witness() common.Address       { return adam.witness }
 
 func (adam *AdamniteImpl) Start() error {
 	adam.handler.Start(adam.p2pServer.MaxPendingConnections)

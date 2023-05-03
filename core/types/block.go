@@ -18,14 +18,12 @@ type BlockHeader struct {
 	Time            uint64         `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
 	Witness         common.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
 	WitnessRoot     common.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
-	DBWitness       common.Address `json:"dbwitness" gencodec:"required"`   //The address of the db witness. required in db witness pool
 	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
 	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
 	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
 	CurrentRound    uint64         `json:"round" gencodec:"required"`       // The current epoch number of the DPOS vote round
 	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
-	CurrentEpoch    uint64         //no json info added, this is just to get things to compile.
 }
 
 type Block struct {
@@ -93,7 +91,9 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
-func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
-func (b *Block) Numberu64() uint64    { return b.header.Number.Uint64() }
-func (b *Block) Body() *Body          { return &Body{b.transactionList} }
-func (b *Block) Header() *BlockHeader { return CopyHeader(b.header) }
+func (b *Block) Number() *big.Int           { return new(big.Int).Set(b.header.Number) }
+func (b *Block) Numberu64() uint64          { return b.header.Number.Uint64() }
+func (b *Block) Body() *Body                { return &Body{b.transactionList} }
+func (b *Block) Header() *BlockHeader       { return CopyHeader(b.header) }
+func (b *Block) GetRound() uint64 	        { return b.header.CurrentRound }
+func (b *Block) GetWitness() common.Address { return b.header.Witness }

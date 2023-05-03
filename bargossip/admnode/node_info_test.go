@@ -6,6 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -22,4 +23,21 @@ func TestSignatureAndVerify(t *testing.T) {
 	nodeInfo.SetIP(net.IPv4(10, 10, 10, 10))
 
 	require.NoError(t, Sign(&nodeInfo, privKey, nil, TypeURLV1))
+}
+
+func TestSerialize(t *testing.T) {
+	node := NewWithParams(pubKey, net.IPv4(192, 168, 109, 100), 90, 90)
+
+	val, err := msgpack.Marshal(node.NodeInfo())
+	if err != nil {
+		t.Error("Failed to encode node info")
+	}
+
+	var nodeInfo NodeInfo
+
+	if err := msgpack.Unmarshal(val, &nodeInfo); err != nil {
+		t.Error("Failed to decode node info")
+	}
+
+	require.Equal(t, node.Pubkey(), nodeInfo.GetPubKey())
 }

@@ -2,6 +2,8 @@ package findnode
 
 import (
 	"context"
+	crand "crypto/rand"
+	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 )
@@ -11,20 +13,33 @@ import (
 type nodePoolIterator struct {
 	nodes    []*node
 	ctx      context.Context
+	udpLayer *UDPLayer
 	cancel   func()
-	nextFind findFunc
 	findnode *find
+	init     bool
 }
 
 type findFunc func(ctx context.Context) *find
 
-func newNodePoolIterator(ctx context.Context, findFunc findFunc) *nodePoolIterator {
-	ctx, cancel := context.WithCancel(ctx)
+func NewNodePoolIterator(udpL *UDPLayer) *nodePoolIterator {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &nodePoolIterator{
 		ctx:      ctx,
 		cancel:   cancel,
-		nextFind: findFunc,
+		udpLayer: udpL,
+		init:     false,
 	}
+}
+
+func (it *nodePoolIterator) nextFind(ctx context.Context, udpLayer *UDPLayer) *find {
+	var target admnode.NodeID
+	crand.Read(target[:])
+
+	findNode := newFind(udpLayer.closeCtx, udpLayer.nodeTable, target, func(nd *node) ([]*node, error) {
+		return udpLayer.findFunc(nd, target)
+	})
+	return findNode
 }
 
 func (it *nodePoolIterator) Node() *admnode.GossipNode {
@@ -44,7 +59,15 @@ func (it *nodePoolIterator) Next() bool {
 			return false
 		}
 		if it.findnode == nil {
-			it.findnode = it.nextFind(it.ctx)
+			it.findnode = it.nextFind(it.ctx, it.udpLayer)
+
+			if it.init == true {
+				timer := time.NewTimer(30 * time.Second)
+				<-timer.C
+			} else {
+				it.init = true
+			}
+		
 			continue
 		}
 		if !it.findnode.start() {

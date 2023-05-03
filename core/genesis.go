@@ -9,6 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/log15"
@@ -24,12 +25,7 @@ type Genesis struct {
 	ParentHash      common.Hash          `json:"parentHash"`
 	Signature       common.Hash          `json:"signature"`
 	TransactionRoot common.Hash          `json:"txroot"`
-	WitnessList     []GenesisWitnessInfo `json:"witnessList"`
-}
-
-type GenesisWitnessInfo struct {
-	address common.Address
-	voters  []types.Voter
+	WitnessList     []types.Witness  `json:"witnessList"`
 }
 
 type GenesisAlloc map[common.Address]GenesisAccount
@@ -41,7 +37,7 @@ type GenesisAccount struct {
 }
 
 // Write writes the block and state of a genesis specification to the database.
-func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
+func (g *Genesis) Write(db adamnitedb.Database, witnessConf dpos.WitnessConfig) (*types.Block, error) {
 	if db == nil {
 		return nil, errors.New("db must be set")
 	}
@@ -54,12 +50,14 @@ func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
 
 	root := statedb.IntermediateRoot(false)
 
+	wp := dpos.NewWitnessPool(&witnessConf, g.Config, g.WitnessList)
+
 	head := &types.BlockHeader{
 		ParentHash:      g.ParentHash,
 		Time:            g.Time,
 		Number:          new(big.Int).SetUint64(g.Number),
 		Witness:         g.Witness,
-		WitnessRoot:     common.HexToHash("0x8888888888888888888888888888888888"),
+		WitnessRoot:     wp.RootHash(),
 		Signature:       g.Signature,
 		TransactionRoot: g.TransactionRoot,
 		StateRoot:       root,
@@ -79,8 +77,16 @@ func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
 		return nil, fmt.Errorf("genesis config is not set")
 	}
 
+	rawdb.WriteHeaderHash(db, block.Header())
 	rawdb.WriteEpochNumber(db, 0)
 	rawdb.WriteBlock(db, block)
+	rawdb.WriteCurrentBlockNumber(db, 0)
+	
+	wp.SaveWitnessPool(db)
+
+	if wAddrs1, err := rawdb.ReadWitnessList(db, 0); err != nil {
+		log15.Error("error to load witness list", "err", err, "wAddr", wAddrs1)
+	}
 
 	return block, nil
 }
@@ -98,20 +104,20 @@ func DefaultTestnetGenesisBlock() *Genesis {
 			common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
 			common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"): GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(80000000000))},
 		},
-		Witness: common.StringToAddress("24oB2iyytkPa91zz6w8ywLfbSC2N"),
-		WitnessList: []GenesisWitnessInfo{
-			{
-				address: common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-				voters: []types.Voter{
+		Witness: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+		WitnessList: []types.Witness{
+			&types.WitnessImpl{
+				Address: common.StringToAddress("347vh9kEJauu8LPBBKSiVES3GPag"),
+				Voters: []types.Voter{
 					{
 						Address:       common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 					},
 				},
 			},
-			{
-				address: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-				voters: []types.Voter{
+			&types.WitnessImpl{
+				Address: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+				Voters: []types.Voter{
 					{
 						Address:       common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
@@ -122,28 +128,29 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	}
 }
 
-func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+// WriteGenesisBlockWithOverride writes the genesis block to local database.
+func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis, witnessConf dpos.WitnessConfig) (*params.ChainConfig, common.Hash, error) {
+	if genesis == nil {
+		return nil, common.Hash{}, errors.New("please set genesis information")
+	} 
+
 	if genesis != nil && genesis.Config == nil {
 		return nil, common.Hash{}, errors.New("genesis has no chain configuration")
 	}
 
 	stored, err := rawdb.ReadHeaderHash(db, 0)
 	if err != nil {
-		return nil, common.Hash{}, errors.New("db access error")
-	}
-
-	if (stored == common.Hash{}) { // There is no genesis
-		if genesis == nil {
-			log15.Info("Writing testnet genesis block")
-			genesis = DefaultTestnetGenesisBlock()
+		if err == rawdb.ErrNoData {
+			block, err := genesis.Write(db, witnessConf)
+			if err != nil {
+				log15.Error("Failed to write genesis block on db")
+				return genesis.Config, common.Hash{}, err
+			}
+			log15.Info("Write genesis block on DB", "chain", genesis.Config)
+			return genesis.Config, block.Hash(), nil
 		} else {
-			log15.Info("Writing custom genesis block")
+			return nil, common.Hash{}, err
 		}
-		block, err := genesis.Write(db)
-		if err != nil {
-			return genesis.Config, common.Hash{}, err
-		}
-		return genesis.Config, block.Hash(), nil
 	}
 
 	return genesis.Config, stored, nil

@@ -16,6 +16,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/storage"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/vmihailenco/msgpack/v5"
+	"github.com/adamnite/go-adamnite/log15"
 )
 
 // NodeDB is the node database, storing previously seen live nodes
@@ -80,6 +81,8 @@ func (db *NodeDB) QueryRandomNodes(count int, maxAge time.Duration) []*GossipNod
 	nodes := make([]*GossipNode, 0, count)
 	iter := db.levelDB.NewIterator(nil, nil)
 	var id NodeID
+	var err error
+
 	defer iter.Release()
 
 seek:
@@ -89,7 +92,10 @@ seek:
 
 		var node *GossipNode
 		if iter.Next() {
-			node = isValidNode(iter.Key(), iter.Value())
+			node, err = isValidNode(iter.Key(), iter.Value())
+			if err != nil {
+				continue seek
+			}
 		} else {
 			continue seek
 		}
@@ -99,7 +105,7 @@ seek:
 		}
 
 		for i := range nodes {
-			if nodes[i].ID() == node.ID() {
+			if *nodes[i].ID() == *node.ID() {
 				continue seek
 			}
 		}
@@ -231,16 +237,18 @@ func getNodeKeyItems(key []byte) (id NodeID, ip net.IP, field string) {
 	return id, ip, field
 }
 
-func isValidNode(id, data []byte) *GossipNode {
+func isValidNode(id, data []byte) (*GossipNode, error) {
 	node := new(GossipNode)
 	if err := msgpack.Unmarshal(data, &node); err != nil {
-		panic(fmt.Errorf("p2p node: can't decode node %x in DB: %v", id, err))
+		log15.Error("can't decode p2p node in DB", "err", err)
+		return nil, err
 	}
 
 	if bytes.Equal(id, node.id[:]) {
-		panic(fmt.Errorf("node db id mismatch: %v", id))
+		log15.Error("node db id mismatch", "id", id)
+		return nil, ErrDBIdMismatch
 	}
-	return node
+	return node, nil
 }
 
 func (db *NodeDB) Node(id NodeID) *GossipNode {
@@ -249,6 +257,23 @@ func (db *NodeDB) Node(id NodeID) *GossipNode {
 		return nil
 	}
 	return parseDecodeNode(id[:], data)
+}
+
+// UpdateNode inserts - potentially overwriting - a node into the peer database.
+func (db *NodeDB) UpdateNode(node *GossipNode) error {
+	key := getNodeKey(*node.ID())
+	
+	val, err := msgpack.Marshal(node)
+	if err != nil {
+		log15.Error("Failed to encode witness list", "err", err)
+		return err
+	}
+
+	if err := db.levelDB.Put(key, val, nil); err != nil {
+		log15.Error("Failed to insert witness list on db", "err", err)
+		return err
+	}
+	return nil
 }
 
 func parseDecodeNode(id, data []byte) *GossipNode {

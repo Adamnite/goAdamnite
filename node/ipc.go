@@ -1,7 +1,7 @@
 package node
 
 import (
-	"errors"
+	"net"
 	"sync"
 
 	"github.com/adamnite/go-adamnite/log15"
@@ -9,24 +9,34 @@ import (
 )
 
 type ipcServer struct {
-	log    log15.Logger
-	port   uint32
-	mu     sync.Mutex
-	server *rpc.Adamnite
+	log      log15.Logger
+	endpoint string
+
+	listener net.Listener
+	mu       sync.Mutex
+	server   *rpc.Server
 }
 
-func newIPCServer(log log15.Logger, port uint32) *ipcServer {
-	return &ipcServer{log: log, port: port}
+func newIPCServer(log log15.Logger, endpoint string) *ipcServer {
+	return &ipcServer{log: log, endpoint: endpoint}
 }
 
-func (ipc *ipcServer) start() error {
+func (ipc *ipcServer) start(apis []rpc.API) error {
 	ipc.mu.Lock()
 	defer ipc.mu.Unlock()
 
-	ipc.server = rpc.NewAdamniteServer(nil, nil, ipc.port)
-	go ipc.server.Run()
+	if ipc.listener != nil {
+		return nil
+	}
 
-	ipc.log.Info("IPC endpoint opened", "url", ipc.server.Addr())
+	listener, srv, err := rpc.StartAdamniteIPCEndpoint(ipc.endpoint, apis)
+	if err != nil {
+		ipc.log.Warn("IPC opening failed", "url", ipc.endpoint, "error", err)
+		return err
+	}
+
+	ipc.log.Info("IPC endpoint opened", "url", ipc.endpoint)
+	ipc.server, ipc.listener = srv, listener
 	return nil
 }
 
@@ -34,13 +44,13 @@ func (ipc *ipcServer) stop() error {
 	ipc.mu.Lock()
 	defer ipc.mu.Unlock()
 
-	if ipc.server == nil {
-		return errors.New("Uninitialized IPC server")
+	if ipc.listener == nil {
+		return nil
 	}
 
-	ipc.server.Close()
-
-	ipc.server = nil
-	ipc.log.Info("IPC endpoint closed", "url", ipc.server.Addr())
-	return nil
+	err := ipc.listener.Close()
+	ipc.server.Stop()
+	ipc.listener, ipc.server = nil, nil
+	ipc.log.Info("IPC endpoint closed", "url", ipc.endpoint)
+	return err
 }

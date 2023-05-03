@@ -1,8 +1,6 @@
 package dpos
 
 import (
-	"math/big"
-
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -14,12 +12,13 @@ type ChainHeaderReader interface {
 	CurrentHeader() *types.BlockHeader
 
 	// GetHeaderByNumber retrieves the header from the database by number.
-	GetHeaderByNumber(number *big.Int) *types.BlockHeader
+	GetHeaderByNumber(number uint64) *types.BlockHeader
 
 	// GetHeaderByHash retrieves the header from the database by hash.
 	GetHeaderByHash(hash common.Hash) *types.BlockHeader
 
-	GetHeader(hash common.Hash, number *big.Int) *types.BlockHeader
+	// GetHeader retrieves the header with the block number.
+	GetHeader(hash common.Hash, number uint64) *types.BlockHeader
 }
 
 type ChainReader interface {
@@ -32,9 +31,18 @@ type ChainReader interface {
 	GetBlockByHash(hash common.Hash) *types.Block
 
 	// GetBlockByNumber retrieves the block from the database by number.
-	GetBlockByNumber(number *big.Int) *types.Block
+	GetBlockByNumber(number uint64) *types.Block
 
-	GetBlock(hash common.Hash, number *big.Int) *types.Block
+	// GetBlock retrieves the block with the number
+	GetBlock(hash common.Hash, number uint64) *types.Block
+
+	// CurrentBlock retrieves the latest block on Adamnite blockchain.
+	CurrentBlock() *types.Block
+}
+
+type WitnessPoolReader interface {
+	CalcWitnesses() []types.Witness
+	IsVoted(voterAddr common.Address) bool
 }
 
 // Engine is an algorithm agnostic consensus engine.
@@ -46,11 +54,17 @@ type Engine interface {
 	VerifyHeader(header *types.BlockHeader, chain ChainReader, blockInterval uint64) error
 
 	//Prepare according to Rules for a specific engine.
-	Prepare(chain ChainReader, header *types.BlockHeader) error
+	Prepare(chain ChainReader, header *types.BlockHeader, wp WitnessPoolReader) error
 
-	Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (*types.Block, error)
+	// Finalize finalizes the block with validators.
+	Finalize(chain ChainReader, wp WitnessPoolReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (*types.Block, error)
+
 	// GetRoundNumber retrieves the number of current round.
 	GetRoundNumber() uint64
+
+	// NextWitness retrieves the witness address who can make a next block on Adamnite blockchain.
+	NextWitness(chain ChainReader, witnesspool *WitnessPool) common.Address
+	
 	// Close terminates all background threads maintained by the engine.
 	Close() error
 }

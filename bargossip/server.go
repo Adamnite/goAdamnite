@@ -48,6 +48,9 @@ type Server struct {
 	quit                       chan struct{}
 	handshakeValidateCh        chan *wrapPeerConnection
 	exchangeProtocolValidateCh chan *wrapPeerConnection
+
+	// Peer Connection Info
+	peerConnected   bool
 }
 
 // Start starts the server.
@@ -64,8 +67,10 @@ func (srv *Server) Start() (err error) {
 		return err
 	}
 
-	srv.loopWG.Add(1)
+	srv.peerConnected = false
+	srv.loopWG.Add(2)
 	go srv.run()
+	srv.dialScheduler.Start()
 	return nil
 }
 
@@ -115,7 +120,7 @@ func (srv *Server) initialize() (err error) {
 	if err := srv.initializeLocalNode(); err != nil {
 		return err
 	}
-
+	
 	srv.initializeDialScheduler()
 
 	return nil
@@ -125,6 +130,9 @@ func (srv *Server) initialize() (err error) {
 func (srv *Server) initializeLocalNode() error {
 	// Create exchange protocol
 	srv.exchProto = &exchangeProtocol{}
+	for i := range srv.ChainProtocol {
+		srv.exchProto.ProtocolIDs = append(srv.exchProto.ProtocolIDs, srv.ChainProtocol[i].ProtocolID)
+	}
 
 	// Create the local node DB.
 	db, err := admnode.OpenDB(srv.Config.NodeDatabase)
@@ -166,6 +174,7 @@ func (srv *Server) initializeLocalNode() error {
 		if !tcp.IP.IsLoopback() && srv.NAT != nil {
 			srv.loopWG.Add(1)
 			go func() {
+				defer srv.loopWG.Done()
 				nat.Map(srv.NAT, srv.quit, "tcp", tcp.Port, tcp.Port, "adamnite p2p")
 				srv.loopWG.Done()
 			}()
@@ -181,15 +190,15 @@ func (srv *Server) initializeLocalNode() error {
 		return err
 	}
 
-	// listeners, err := utils.FindUDPPortListeners(addr.Port)
-	// if err != nil {
-	// 	return err
-	// }
-	// if len(listeners) > 0 {
-	// 	err = errAlreadyListened
-	// 	srv.log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
-	// 	return err
-	// }
+	listeners, err := utils.FindUDPPortListeners(addr.Port)
+	if err != nil {
+		return err
+	}
+	if len(listeners) > 0 {
+		err = errAlreadyListened
+		srv.log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
+		return err
+	}
 
 	udpListener, err := net.ListenUDP("udp", addr)
 	if err != nil {
@@ -202,11 +211,12 @@ func (srv *Server) initializeLocalNode() error {
 	if srv.NAT != nil && !udpAddr.IP.IsLoopback() {
 		srv.loopWG.Add(1)
 		go func() {
+			defer srv.loopWG.Done()
 			nat.Map(srv.NAT, srv.quit, "udp", udpAddr.Port, udpAddr.Port, "admanite udp listener")
 		}()
 	}
 	srv.localnode.SetUDP(uint16(udpAddr.Port))
-
+	
 	err = srv.initializeFindPeerModule(udpListener)
 	if err != nil {
 		return err
@@ -222,8 +232,10 @@ func (srv *Server) initializeDialScheduler() {
 		PeerBlackList: srv.PeerBlackList,
 		PeerWhiteList: srv.PeerWhiteList,
 	}
-	srv.dialScheduler = dial.New(cfg, nil, srv.AddConnection)
-	srv.dialScheduler.Start()
+	cfg = cfg.WithDefaults()
+
+	nodeIterator := findnode.NewNodePoolIterator(srv.findNodeUdpLayer)
+	srv.dialScheduler = dial.New(cfg, nodeIterator, srv.AddConnection)
 }
 
 func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {
@@ -314,6 +326,7 @@ running:
 			srv.log.Debug("Added peer", "id", p.peerConn.node.ID(), "addr", p.peerConn.node.IP(), "TCP", p.peerConn.node.TCP())
 
 			// ToDo: add peer to dial scheduler
+			srv.peerConnected = true
 		}
 	}
 
@@ -404,7 +417,7 @@ func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag
 	// Start handshake
 	remotePubKey, err := wrapPeerConn.doHandshake(srv.ServerPrvKey)
 	if err != nil {
-		srv.log.Debug("Failed handshake", "addr", wrapPeerConn.conn.RemoteAddr(), "conn", wrapPeerConn.connFlags, "err", err)
+		srv.log.Error("Failed handshake", "addr", wrapPeerConn.conn.RemoteAddr(), "conn", wrapPeerConn.connFlags, "err", err)
 		wrapPeerConn.peerTransport.close(errServerStopped)
 		return err
 	}
@@ -434,6 +447,9 @@ func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag
 	return nil
 }
 
+func (srv *Server) IsConnected() bool {
+	return srv.peerConnected
+}
 // handshakeValidate validates the connection
 func (srv *Server) handshakeValidate(connection *wrapPeerConnection, peers map[admnode.NodeID]*Peer, inboundCount int) error {
 	switch {

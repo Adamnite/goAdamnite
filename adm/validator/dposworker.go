@@ -145,9 +145,6 @@ func newDposWorker(config *Config, chainConfig *params.ChainConfig, dpos dpos.DP
 	go worker.genBlockLoop()
 	go worker.newWorkLoop(recommit)
 
-	if init {
-		worker.startCh <- struct{}{}
-	}
 	return worker
 }
 
@@ -168,8 +165,15 @@ func (w *dposWorker) setRecommitInterval(interval time.Duration) {
 }
 
 func (w *dposWorker) start() {
-	atomic.StoreInt32(&w.running, 1)
-	w.startCh <- struct{}{}
+	if (!w.isRunning()) {
+		for w.adamnite.IsConnected() == false {
+			timer := time.NewTimer(30 * time.Second)
+			<-timer.C
+		}
+		
+		atomic.StoreInt32(&w.running, 1)
+		w.startCh <- struct{}{}
+	}
 }
 
 //Pending returns the Pending state and the corresponding block.
@@ -381,80 +385,104 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	tstart := time.Now()
-	parent := w.chain.CurrentBlock()
+	nextWitness := w.dposEngine.NextWitness(w.chain, w.adamnite.WitnessPool())
 
-	// var wAddr common.Address
-	// if parent.Numberu64()%dpos.EpochBlockCount == 0 {
-	// 	wAddr = w.adamnite.WitnessPool().GetCurrentWitnessAddress(nil)
-	// } else {
-	// 	wAddr = w.adamnite.WitnessPool().GetCurrentWitnessAddress(&parent.Header().Witness)
-	// }
+	if nextWitness == w.adamnite.Witness() { 
+		// TODO: Generate Block
+		tstart := time.Now()
+		parent := w.chain.CurrentBlock()
 
-	tstamp := tstart.Unix()
-	if parent.Header().Time >= uint64(tstamp) {
-		tstamp = int64(parent.Header().Time) + 1
-	}
+		// 1. Check the witness address that can make a next block
+		// needs
+		//     witness list
+		//     witness black list
+		//     witness address who generate a prev block
 
-	if now := time.Now().Unix(); tstamp > now+1 {
-		wait := time.Duration(tstamp-now) * time.Second
-		log15.Info("too far in the future", "wait", common.PrettyDuration(wait))
-		time.Sleep(wait)
-	}
+		log15.Debug("Create new work", "prevBlockNum", parent.Numberu64(), "round", w.getRoundNumber(parent.Numberu64() + 1), "prevWitness", parent.GetWitness())
 
-	num := parent.Number()
-	header := &types.BlockHeader{
-		ParentHash:      parent.Hash(),
-		Time:            uint64(time.Now().Unix()),
-		WitnessRoot:     common.HexToHash("0x00000000000"),
-		Number:          num.Add(num, common.Big1),
-		Signature:       common.HexToHash("0x00000"),
-		TransactionRoot: common.HexToHash("0x0000"),
-		CurrentEpoch:    parent.Numberu64() / dpos.EpochBlockCount,
-		StateRoot:       common.HexToHash("0x0000"),
-		Extra:           w.extra,
-	}
+		// witnessList := 
+		// witnessBlackList := 
+		// curWitnessAddr := w.chooseWitness(parent.GetWitness(), parent.Numberu64() + 1, witnessList, witnessBlackList)
 
-	if err := w.dposEngine.Prepare(w.chain, header); err != nil {
-		// log15.Error("Failed to prepare header for staking", "err", err)
-		return
-	}
+		// if curWitnessAddr == w.adamnite.
+		
+		// var wAddr common.Address
+		// if parent.Numberu64()%dpos.EpochBlockCount == 0 {
+		// 	wAddr = w.adamnite.WitnessPool().GetCurrentWitnessAddress(nil)
+		// } else {
+		// 	wAddr = w.adamnite.WitnessPool().GetCurrentWitnessAddress(&parent.Header().Witness)
+		// }
 
-	err := w.makeCurrent(parent, header)
-	if err != nil {
-		log15.Error("Failed to create mining context", "err", err)
-		return
-	}
-	pending, err := w.adamnite.TxPool().Pending()
-	if err != nil {
-		log15.Error("Failed to fetch pending transactions", "err", err)
-		return
-	}
-
-	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
-	for _, account := range w.adamnite.TxPool().Locals() {
-		if txs := remoteTxs[account]; len(txs) > 0 {
-			delete(remoteTxs, account)
-			localTxs[account] = txs
+		tstamp := tstart.Unix()
+		if parent.Header().Time >= uint64(tstamp) {
+			tstamp = int64(parent.Header().Time) + 1
 		}
-	}
-	if len(localTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs)
-		if w.commitTransactions(txs, w.coinbase) {
+
+		if now := time.Now().Unix(); tstamp > now+1 {
+			wait := time.Duration(tstamp-now) * time.Second
+			log15.Info("too far in the future", "wait", common.PrettyDuration(wait))
+			time.Sleep(wait)
+		}
+
+		num := parent.Number()
+		header := &types.BlockHeader{
+			ParentHash:      parent.Hash(),
+			Witness:         w.adamnite.Witness(),
+			Time:            uint64(time.Now().Unix()),
+			WitnessRoot:     common.HexToHash("0x00000000000"),
+			Number:          num.Add(num, common.Big1),
+			Signature:       common.HexToHash("0x00000"),
+			TransactionRoot: common.HexToHash("0x0000"),
+			CurrentRound:    parent.Numberu64() / dpos.EpochBlockCount,
+			StateRoot:       common.HexToHash("0x0000"),
+			Extra:           w.extra,
+		}
+
+		if err := w.dposEngine.Prepare(w.chain, header, w.adamnite.WitnessPool()); err != nil {
+			// log15.Error("Failed to prepare header for staking", "err", err)
 			return
 		}
-	}
-	if len(remoteTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(w.current.signer, remoteTxs)
-		if w.commitTransactions(txs, w.coinbase) {
+
+		err := w.makeCurrent(parent, header)
+		if err != nil {
+			log15.Error("Failed to create mining context", "err", err)
 			return
 		}
-	}
+		/*
+		pending, err := w.adamnite.TxPool().Pending()
+		if err != nil {
+			log15.Error("Failed to fetch pending transactions", "err", err)
+			return
+		}
 
-	err1 := w.commit(w.fullTaskHook, tstart)
-	if err1 != nil {
-		log15.Error(err1.Error())
-		os.Exit(0)
+		localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+		for _, account := range w.adamnite.TxPool().Locals() {
+			if txs := remoteTxs[account]; len(txs) > 0 {
+				delete(remoteTxs, account)
+				localTxs[account] = txs
+			}
+		}
+		if len(localTxs) > 0 {
+			txs := types.NewTransactionsByPriceAndNonce(w.current.signer, localTxs)
+			if w.commitTransactions(txs, w.coinbase) {
+				return
+			}
+		}
+		if len(remoteTxs) > 0 {
+			txs := types.NewTransactionsByPriceAndNonce(w.current.signer, remoteTxs)
+			if w.commitTransactions(txs, w.coinbase) {
+				return
+			}
+		}
+		*/
+
+		err1 := w.commit(w.fullTaskHook, tstart)
+		if err1 != nil {
+			log15.Error(err1.Error())
+			os.Exit(0)
+		}
+	} else {
+		// TODO: Wait
 	}
 	return
 }
@@ -494,13 +522,14 @@ func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, 
 func (w *dposWorker) commit(interval func(), start time.Time) error {
 
 	s := w.current.state.Copy()
-	_, err := w.dposEngine.Finalize(w.chain, w.current.header, s, w.current.txs)
+	newBlock, err := w.dposEngine.Finalize(w.chain, w.adamnite.WitnessPool(), w.current.header, s, w.current.txs)
 	if err != nil {
 		return err
 	}
 
 	w.updateSnapshot()
 
+	w.genBlockCh <- newBlock
 	return nil
 }
 
@@ -536,4 +565,40 @@ func (w *dposWorker) makeCurrent(parent *types.Block, header *types.BlockHeader)
 	env.tcount = 0
 	w.current = env
 	return nil
+}
+
+// chooseWitness selects the next witness address who can generate the block.
+func (w *dposWorker) chooseWitness(beforeWitnessAddr common.Address, blockNum uint64, witnessList []common.Address, blackList []common.Address) *common.Address {
+	beforeWitnessIndex := 0
+	for index, witnessAddr := range witnessList {
+		if witnessAddr == beforeWitnessAddr {
+			beforeWitnessIndex = index
+			break
+		}
+	}
+
+	for i := beforeWitnessIndex + 1; i < len(witnessList); i ++ {
+		isBlackList := false
+		for _, blackListAddr := range blackList {
+			if blackListAddr == witnessList[i] {
+				isBlackList = true
+				break
+			}
+		}
+
+		if isBlackList == false {
+			return &witnessList[i]
+		}
+	}
+
+	return nil
+}
+
+// getRoundNumber returns the epoch number based on the block number.
+func (w *dposWorker) getRoundNumber(blockNum uint64) uint64 {
+	if blockNum % dpos.EpochBlockCount == 0 {
+		return w.chain.CurrentBlock().GetRound() + 1;
+	} else {
+		return w.chain.CurrentBlock().GetRound();
+	}
 }

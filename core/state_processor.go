@@ -12,19 +12,22 @@ import (
 )
 
 type StateProcessor struct {
-	config             *params.ChainConfig // Chain configuration options
-	bc                 *Blockchain         // Canonical block chain
-	engine             dpos.AdamniteDPOS   // Consensus engine used for block rewards
+	config             *params.ChainConfig    // Chain configuration options
+	bc                 *Blockchain            // Canonical block chain
+	engine             dpos.AdamniteDPOS      // Consensus engine used for block rewards
+	wpReader		   dpos.WitnessPoolReader // WitnessPool reader
+
 	vmInstances        []VM.Machine
 	localDBAPIEndpoint string
 }
 
 // NewStateProcessor initializes a new StateProcessor.
-func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.AdamniteDPOS) *StateProcessor {
+func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.AdamniteDPOS, wp dpos.WitnessPoolReader) *StateProcessor {
 	return &StateProcessor{
 		config:             config,
 		bc:                 bc,
 		engine:             engine,
+		wpReader: 			wp,
 		vmInstances:        []VM.Machine{},
 		localDBAPIEndpoint: "http://127.0.0.1:5001/",
 	}
@@ -54,7 +57,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 			usedGas,
 			cfg,
 			VM.NewBlockContext( //TODO: someone with a better understanding of block structure should review this!
-				header.DBWitness, //coinbase Address //TODO:SOMEONE REVIEW THIS!
+				header.Witness, //coinbase Address //TODO:SOMEONE REVIEW THIS!
 				tx.ATEMax(),
 				p.bc.CurrentBlock().Number(),
 				big.NewInt(block.ReceivedAt.UnixMicro()),
@@ -66,7 +69,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 		p.vmInstances = append(p.vmInstances, *v)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	p.engine.Finalize(p.bc, header, statedb, block.Body().Transactions)
+	p.engine.Finalize(p.bc, p.wpReader, header, statedb, block.Body().Transactions)
 	if p.localDBAPIEndpoint != "" { //just check that this server is in fact, running a DB
 		for _, v := range p.vmInstances {
 			err := v.UploadMachinesContract(p.localDBAPIEndpoint)

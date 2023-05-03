@@ -110,7 +110,7 @@ func (spoof *DBSpoofer) getCode2CallName(hash string, inputs []uint64) string {
 	ansString := hash //function identifier
 	cs := spoof.storedFunctions[hash]
 	for i := 0; i < len(cs.CodeParams); i++ {
-		ansString += "42" + (hex.EncodeToString(LE.AppendUint64([]byte{}, inputs[i]))[2:])
+//		ansString += "42" + (hex.EncodeToString(LE.AppendUint64([]byte{}, inputs[i]))[2:])
 	} //TODO: write this properly to actually take the param type into account.
 	return ansString
 }
@@ -180,7 +180,7 @@ func addressToInts(address interface{}) []uint64 {
 func uintsArrayToAddress(input []uint64) []byte {
 	ans := []byte{}
 	for i := 0; i < len(input); i++ {
-		ans = LE.AppendUint64(ans, input[i])
+//		ans = LE.AppendUint64(ans, input[i])
 	}
 	return ans[:common.AddressLength]
 }
@@ -204,9 +204,9 @@ func arrayToBalance(input []uint64) *big.Int {
 
 	//first convert it to bytes array
 	leBytes := []byte{}
-	for x := range input {
-		leBytes = LE.AppendUint64(leBytes, input[x])
-	}
+//	for x := range input {
+//		leBytes = LE.AppendUint64(leBytes, input[x])
+//	}
 	//then flip and convert to big int!
 	ans := big.NewInt(0).SetBytes(flipEndian(leBytes))
 	return ans
