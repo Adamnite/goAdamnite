@@ -52,28 +52,13 @@ func TestLotsOfNodes(t *testing.T) {
 
 }
 
-func TestLinearPropagation(t *testing.T) {
-	seedNode := NewNetNode(common.Address{0})
-	seedNode.AddServer()
-	seedContact := seedNode.thisContact
+func TestLinearForward(t *testing.T) {
 	fmt.Println("seed node has been spun up")
 
 	forwardingCount := big.NewInt(0)
-	nodes := [100]*NetNode{}
-	for i := range nodes {
-		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
-		nodes[i] = node
-		if err := node.AddServer(); err != nil {
-			t.Fatal(err)
-		}
-		node.maxInboundConnections = 1
-		node.maxOutboundConnections = 1
-	}
-	for i := 0; i < len(nodes)-1; i++ {
-		node := nodes[i]
-		if err := node.ConnectToContact(&nodes[i+1].thisContact); err != nil {
-			t.Fatal(err)
-		}
+	nodes, err := generateLineOfNodes(10)
+	if err != nil {
+		t.Fatal(err)
 	}
 	getLastNodeContactsReply := []byte{}
 	getLastNodesContacts := rpc.ForwardingContent{
@@ -81,13 +66,12 @@ func TestLinearPropagation(t *testing.T) {
 		DestinationNode: &nodes[len(nodes)-1].thisContact.NodeID,
 		FinalParams:     []byte{},
 		FinalReply:      getLastNodeContactsReply,
-		InitialSender:   seedContact.NodeID,
+		InitialSender:   nodes[0].thisContact.NodeID,
 	}
-	if err := seedNode.ConnectToContact(&nodes[0].thisContact); err != nil {
-		t.Fatal(err)
-	}
-	if err := seedNode.activeContactToClient[(&nodes[0].thisContact)].ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
-		t.Fatal(err)
+	if err := nodes[0].activeContactToClient[(&nodes[1].thisContact)].ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
+		if err.Error() != rpc.ErrAlreadyForwarded.Error() {
+			t.Fatal(err)
+		}
 	}
 
 	fmt.Println(getLastNodeContactsReply)
@@ -99,7 +83,81 @@ func TestLinearPropagation(t *testing.T) {
 		}
 	}
 	for _, node := range nodes {
-		assert.Equal(t, len(nodes)+1, len(node.contactBook.connections), "nodes couldn't find everyone.")
+		assert.Equal(t, len(nodes), len(node.contactBook.connections), "nodes couldn't find everyone.")
 
 	}
+}
+
+func TestLinearPropagationFromCenter(t *testing.T) {
+	nodes, err := generateLineOfNodes(500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	propagateContent := rpc.ForwardingContent{
+		FinalEndpoint:   rpc.TestServerEndpoint,
+		DestinationNode: nil,
+		FinalParams:     []byte{},
+		FinalReply:      []byte{},
+		InitialSender:   nodes[0].thisContact.NodeID,
+		Signature:       common.Hash{0},
+	}
+	for x := 0; x < 5; x++ {
+		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
+		if err := nodes[len(nodes)/2].handleForward(propagateContent, []byte{}); err != nil {
+			t.Fatal(err)
+		}
+		for _, node := range nodes {
+			assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+		}
+	}
+
+}
+func TestLinearPropagationFromSide(t *testing.T) {
+	nodes, err := generateLineOfNodes(500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	propagateContent := rpc.ForwardingContent{
+		FinalEndpoint:   rpc.TestServerEndpoint,
+		DestinationNode: nil,
+		FinalParams:     []byte{},
+		FinalReply:      []byte{},
+		InitialSender:   nodes[0].thisContact.NodeID,
+		Signature:       common.Hash{0},
+	}
+	for x := 0; x < 5; x++ {
+		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
+		if err := nodes[0].handleForward(propagateContent, []byte{}); err != nil {
+			t.Fatal(err)
+		}
+		for _, node := range nodes {
+			assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+		}
+	}
+}
+
+// generates a line where each node is connected to the one in front, and behind itself.
+func generateLineOfNodes(count int) ([]*NetNode, error) {
+	nodes := make([]*NetNode, count)
+	for i := range nodes {
+		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
+		nodes[i] = node
+		if err := node.AddServer(); err != nil {
+			return nil, err
+		}
+		node.maxInboundConnections = 2
+		node.maxOutboundConnections = 2
+	}
+	nodes[0].ConnectToContact(&nodes[1].thisContact)
+	for i := 1; i < len(nodes)-1; i++ {
+		node := nodes[i]
+		if err := node.ConnectToContact(&nodes[i+1].thisContact); err != nil {
+			return nil, err
+		}
+		if err := node.ConnectToContact(&nodes[i-1].thisContact); err != nil {
+			return nil, err
+		}
+	}
+
+	return nodes, nil
 }

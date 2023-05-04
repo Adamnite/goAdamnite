@@ -142,7 +142,11 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply []byte) err
 	//this has been added to us, (and isn't called if the message is directly to us.)
 	for _, element := range n.activeContactToClient {
 		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
-			return err
+			if err.Error() != rpc.ErrAlreadyForwarded.Error() {
+				//networking errors sometimes get weird, check the err.Error()
+				//with a complex web, its likely one node already heard the message, no need to panic
+				return err
+			}
 		}
 	}
 	return nil

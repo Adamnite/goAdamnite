@@ -22,9 +22,10 @@ type AdamniteServer struct {
 	seenConnections map[common.Hash]common.Void
 
 	addresses                 []string
-	GetContactsFunction       DefaultGetContactsFunc
+	GetContactsFunction       func() PassedContacts
 	listener                  net.Listener
-	mostRecentReceivedIP      string
+	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
+	timesTestHasBeenCalled    int
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, []byte) error
 	Run                       func()
@@ -46,13 +47,21 @@ func (a *AdamniteServer) SetHostingID(id *common.Address) {
 	}
 	a.hostingNodeID = *id
 }
-
-type DefaultGetContactsFunc func() PassedContacts
+func (a *AdamniteServer) Close() {
+	_ = a.listener.Close()
+}
 
 const serverPreface = "[Adamnite RPC server] %v \n"
 
-func (a *AdamniteServer) Close() {
-	_ = a.listener.Close()
+const TestServerEndpoint = "AdamniteServer.TestServer"
+
+func (a *AdamniteServer) TestServer(params *[]byte, reply *[]byte) error {
+	log.Printf(serverPreface, "Test Server")
+	a.timesTestHasBeenCalled++
+	return nil
+}
+func (a *AdamniteServer) GetTestsCount() int {
+	return a.timesTestHasBeenCalled
 }
 
 const forwardMessageEndpoint = "AdamniteServer.ForwardMessage"
@@ -88,6 +97,8 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 	switch content.FinalEndpoint {
 	case getContactsListEndpoint:
 		return a.GetContactList(&content.FinalParams, &content.FinalReply)
+	case TestServerEndpoint:
+		return a.TestServer(&content.FinalParams, &content.FinalReply)
 	}
 	return nil
 }
@@ -309,6 +320,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 	adamnite := new(AdamniteServer)
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
+	adamnite.timesTestHasBeenCalled = 0
 	adamnite.seenConnections = make(map[common.Hash]common.Void)
 
 	if err := rpcServer.Register(adamnite); err != nil {
