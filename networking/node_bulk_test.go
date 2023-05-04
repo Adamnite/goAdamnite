@@ -2,6 +2,7 @@ package networking
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -56,11 +57,9 @@ func TestLinearPropagation(t *testing.T) {
 	seedNode.AddServer()
 	seedContact := seedNode.thisContact
 	fmt.Println("seed node has been spun up")
-	goalNode := NewNetNode(common.Address{1, 2, 3, 4, 5, 6, 7, 8, 9})
-	goalNode.AddServer()
 
 	forwardingCount := big.NewInt(0)
-	nodes := [5]*NetNode{}
+	nodes := [100]*NetNode{}
 	for i := range nodes {
 		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
 		nodes[i] = node
@@ -93,4 +92,14 @@ func TestLinearPropagation(t *testing.T) {
 
 	fmt.Println(getLastNodeContactsReply)
 	fmt.Println(forwardingCount)
+	for _, node := range nodes {
+
+		if err := node.SprawlConnections(int(math.Log(float64(len(nodes)))), 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, node := range nodes {
+		assert.Equal(t, len(nodes)+1, len(node.contactBook.connections), "nodes couldn't find everyone.")
+
+	}
 }
