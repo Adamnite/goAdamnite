@@ -13,17 +13,30 @@ import (
 const clientPreface = "[Adamnite RPC client] %v \n"
 
 type AdamniteClient struct {
-	endpoint      string
-	client        rpc.Client
-	callerAddress *common.Address
+	endpoint          string
+	client            rpc.Client
+	callerAddress     *common.Address
+	hostingServerPort string //the string version of the port that our Server is running on.
 }
 
-func (a *AdamniteClient) SetAddress(add *common.Address) {
+func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPort string) {
 	a.callerAddress = add
+	a.hostingServerPort = hostingPort
 }
 
 func (a *AdamniteClient) Close() {
 	a.client.Close()
+}
+
+func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte) error {
+	log.Printf(clientPreface, "Forward Message")
+	// just pass this message along until someone who needs it finds it
+	// var forwardingBytes []byte
+	forwardingBytes, err := msgpack.Marshal(content)
+	if err != nil {
+		return err
+	}
+	return a.client.Call(forwardMessageEndpoint, forwardingBytes, &reply)
 }
 
 func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
@@ -34,7 +47,12 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 	if a.callerAddress == nil {
 		return nil, ErrNoAccountSet
 	}
-	addressBytes, err := msgpack.Marshal(a.callerAddress)
+	sendingData := struct {
+		Address           common.Address
+		HostingServerPort string
+	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
+
+	addressBytes, err := msgpack.Marshal(sendingData)
 	if err != nil {
 		return nil, err
 	}

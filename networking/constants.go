@@ -3,6 +3,8 @@ package networking
 import (
 	"fmt"
 	"time"
+
+	"github.com/adamnite/go-adamnite/common"
 )
 
 var (
@@ -13,9 +15,7 @@ var (
 	ErrDistrustedConnection    = fmt.Errorf("the contact attempting to connect to is untrustworthy")
 )
 
-type void struct{}
-
-var blacklisted void
+var blacklisted common.Void
 
 const (
 	//the time we ascribe to a missed connection. We ascribe 1.5x the connection time limit.

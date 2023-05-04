@@ -2,6 +2,7 @@ package networking
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -59,6 +60,9 @@ func (n *NetNode) AddServer() error {
 
 	admServer.GetContactsFunction = n.contactBook.GetContactList
 	n.thisContact.connectionString = admServer.Addr()
+	admServer.SetHostingID(&n.thisContact.NodeID)
+	admServer.SetForwardFunc(n.handleForward)
+	admServer.SetNewConnectionFunc(n.versionCheck)
 	go admServer.Run()
 	n.hostingServer = admServer
 
@@ -79,7 +83,7 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if newClient, err := rpc.NewAdamniteClient(contact.connectionString); err != nil {
 		return err
 	} else {
-		newClient.SetAddress(&n.thisContact.NodeID)
+		newClient.SetAddressAndHostingPort(&n.thisContact.NodeID, strings.Split(n.hostingServer.Addr(), ":")[1])
 		n.activeContactToClient[contact] = &newClient
 		n.activeOutboundCount++
 		working, err := n.testConnection(contact)
@@ -121,6 +125,35 @@ func (n *NetNode) testConnection(contact *Contact) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (n *NetNode) handleForward(content rpc.ForwardingContent, reply []byte) error {
+
+	if content.DestinationNode != nil {
+		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
+		for key, connection := range n.activeContactToClient {
+			if key.NodeID == *content.DestinationNode {
+
+				// err = connection.ForwardMessage(content, &reply)
+				return connection.ForwardMessage(content, &reply)
+			}
+		}
+	}
+	//this has been added to us, (and isn't called if the message is directly to us.)
+	for _, element := range n.activeContactToClient {
+		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// TODO: eventually this will also make sure versioning is the same, or will be renamed.
+func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
+	if remoteIP == "" {
+		return
+	}
+	n.contactBook.AddConnection(&Contact{connectionString: remoteIP, NodeID: nodeID})
 
 }
 

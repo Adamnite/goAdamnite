@@ -16,16 +16,35 @@ import (
 )
 
 type AdamniteServer struct {
-	stateDB             *statedb.StateDB
-	chain               *core.Blockchain
-	addresses           []string
-	GetContactsFunction DefaultGetContactsFunc
-	listener            net.Listener
-	Run                 func()
+	stateDB         *statedb.StateDB
+	chain           *core.Blockchain
+	hostingNodeID   common.Address
+	seenConnections map[common.Hash]common.Void
+
+	addresses                 []string
+	GetContactsFunction       DefaultGetContactsFunc
+	listener                  net.Listener
+	mostRecentReceivedIP      string
+	newConnection             func(string, common.Address)
+	forwardingMessageReceived func(ForwardingContent, []byte) error
+	Run                       func()
 }
 
 func (a *AdamniteServer) Addr() string {
 	return a.listener.Addr().String()
+}
+func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, []byte) error) {
+	a.forwardingMessageReceived = newForward
+}
+func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
+	a.newConnection = newConn
+}
+func (a *AdamniteServer) SetHostingID(id *common.Address) {
+	if id == nil {
+		a.hostingNodeID = common.Address{0}
+		return
+	}
+	a.hostingNodeID = *id
 }
 
 type DefaultGetContactsFunc func() PassedContacts
@@ -36,9 +55,47 @@ func (a *AdamniteServer) Close() {
 	_ = a.listener.Close()
 }
 
+const forwardMessageEndpoint = "AdamniteServer.ForwardMessage"
+
+func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
+	log.Printf(serverPreface, "Forward Message")
+	if a.forwardingMessageReceived == nil {
+		return ErrNotSetupToHandleForwarding
+	}
+
+	var content ForwardingContent
+	if err := msgpack.Unmarshal(*params, &content); err != nil {
+		return err
+	}
+	if _, exists := a.seenConnections[content.Signature]; exists {
+		return ErrAlreadyForwarded //we've already seen it
+	} else {
+		a.seenConnections[content.Signature] = common.Void{} //this doesn't actually use any memory
+	}
+
+	if content.DestinationNode != nil && *content.DestinationNode != a.hostingNodeID {
+		//it's not for us, but it is for someone!
+		return a.forwardingMessageReceived(content, *reply)
+	}
+
+	if content.DestinationNode == nil {
+		//its for everyone, so we need to parse it and share it
+		if err := a.forwardingMessageReceived(content, *reply); err != nil {
+			return err
+		}
+	}
+	//we need to call it on ourselves.
+	switch content.FinalEndpoint {
+	case getContactsListEndpoint:
+		return a.GetContactList(&content.FinalParams, &content.FinalReply)
+	}
+	return nil
+}
+
 const getContactsListEndpoint = "AdamniteServer.GetContactList"
 
 func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
+	log.Printf(serverPreface, "Get Contact list")
 	contacts := a.GetContactsFunction()
 	*reply, err = msgpack.Marshal(contacts)
 	return
@@ -48,10 +105,19 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	log.Printf(serverPreface, "Get Version")
-	var receivedAddress common.Address
-	if err := msgpack.Unmarshal(*params, &receivedAddress); err != nil {
+	// var receivedAddress common.Address //TODO, have the connection string passed as well.
+	receivedData := struct {
+		Address           common.Address
+		HostingServerPort string
+	}{}
+	if err := msgpack.Unmarshal(*params, &receivedData); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
+	}
+	if a.newConnection != nil && a.mostRecentReceivedIP != "" && receivedData.HostingServerPort != "" {
+		//format it correctly to use the right port
+		foo := strings.Split(a.mostRecentReceivedIP, ":")
+		a.newConnection(fmt.Sprintf("%v:%v", foo[0], receivedData.HostingServerPort), receivedData.Address)
 	}
 	// if a.chain == nil {//leave this commented out until RPC consistently has a chain passed to it
 	// 	return ErrChainNotSet
@@ -59,8 +125,8 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	ans := AdmVersionReply{}
 	// ans.Client_version = a.chain.Config().ChainID.String() //TODO: replace this with a better versioning system
 	ans.Timestamp = time.Now().UTC()
-	ans.Addr_received = receivedAddress
-	ans.Addr_from = common.Address{} //TODO: pass the hosting address down to the RPC
+	ans.Addr_received = receivedData.Address
+	ans.Addr_from = a.hostingNodeID //TODO: pass the hosting address down to the RPC
 	// ans.Last_round = a.chain.CurrentBlock().Number()
 	if data, err := msgpack.Marshal(ans); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
@@ -243,6 +309,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 	adamnite := new(AdamniteServer)
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
+	adamnite.seenConnections = make(map[common.Hash]common.Void)
 
 	if err := rpcServer.Register(adamnite); err != nil {
 		log.Fatal(err)
@@ -265,6 +332,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 						log.Println(err)
 					}
 				}()
+				adamnite.mostRecentReceivedIP = conn.RemoteAddr().String()
 				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 				rpcServer.ServeConn(conn)
 			}(conn)

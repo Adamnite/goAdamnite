@@ -24,7 +24,7 @@ type ContactBook struct {
 	connectionsByContact map[*Contact]*connectionStatus
 
 	blacklist    []*Contact
-	blacklistSet map[*Contact]void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
+	blacklistSet map[*Contact]common.Void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
 }
 
 func NewContactBook(owner *Contact) ContactBook {
@@ -33,7 +33,7 @@ func NewContactBook(owner *Contact) ContactBook {
 		connections:          make([]*connectionStatus, 0),
 		connectionsByContact: make(map[*Contact]*connectionStatus),
 		blacklist:            make([]*Contact, 0),
-		blacklistSet:         make(map[*Contact]void),
+		blacklistSet:         make(map[*Contact]common.Void),
 	}
 }
 
@@ -53,7 +53,7 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 			switch sameConnectionString, sameNodeID := (contact.connectionString == cb.connections[i].contact.connectionString), (contact.NodeID == cb.connections[i].contact.NodeID); {
 			case sameConnectionString && sameNodeID:
 				//the id, and connection string are the same, therefor this has already been added
-				fmt.Println("identical contact added")
+				// fmt.Println("identical contact added")
 				return nil
 			case (!sameConnectionString && !sameNodeID) && i == len(cb.connections):
 				//we've gone through the list, and not found this yet, therefor this has to be new
@@ -75,7 +75,10 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 }
 
 func (cb *ContactBook) AddConnectionStatus(contact *Contact, timeDifference *time.Duration) {
-	status := cb.connectionsByContact[contact]
+	status, exists := cb.connectionsByContact[contact]
+	if !exists {
+		return
+	}
 	if timeDifference != nil {
 		status.responseTimes = append(status.responseTimes, timeDifference.Nanoseconds())
 		cb.Distrust(contact, 100)
@@ -93,7 +96,7 @@ func (cb *ContactBook) Distrust(contact *Contact, amount uint64) bool {
 	if cb.connectionsByContact[contact] == nil {
 		cb.AddConnection(contact)
 	}
-	if cb.connectionsByContact[contact].distrust(amount) {
+	if cs, exists := cb.connectionsByContact[contact]; exists && cs.distrust(amount) {
 		cb.AddToBlacklist(contact)
 		return true
 	}

@@ -2,6 +2,9 @@ package common
 
 import "encoding/hex"
 
+// having a type to save memory space on hash tables
+type Void struct{}
+
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".
 func FromHex(s string) []byte {
