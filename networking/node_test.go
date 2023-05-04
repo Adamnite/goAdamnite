@@ -11,7 +11,11 @@ import (
 func TestTwoNodes(t *testing.T) {
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
+
 	if err := nodeA.AddServer(); err != nil {
+		t.Fatal(err)
+	}
+	if err := nodeB.AddServer(); err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("first server spun up")
@@ -30,6 +34,9 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
 	if err := nodeA.AddServer(); err != nil {
+		t.Fatal(err)
+	}
+	if err := nodeB.AddServer(); err != nil {
 		t.Fatal(err)
 	}
 	//proper connection

@@ -19,6 +19,7 @@ type Contact struct { //the contacts list from this point.
 type ContactBook struct {
 	ownerContact *Contact //useful so you dont try to add yourself to your own contacts list
 
+	maxGreyList uint //does what it says on the tin. set to 0 to have unlimited size
 	//an array of connections for general use, stored by pointer. Followed by mappings to give o1 performance of sorting static characteristics
 	connections          []*connectionStatus
 	connectionsByContact map[*Contact]*connectionStatus
@@ -30,6 +31,7 @@ type ContactBook struct {
 func NewContactBook(owner *Contact) ContactBook {
 	return ContactBook{
 		ownerContact:         owner,
+		maxGreyList:          0,
 		connections:          make([]*connectionStatus, 0),
 		connectionsByContact: make(map[*Contact]*connectionStatus),
 		blacklist:            make([]*Contact, 0),
@@ -168,6 +170,9 @@ func (conns *ContactBook) DropSlowestPercentage(percentage float32) {
 	})
 
 	conns.connections = conns.connections[0:cutoffCount]
+	if conns.maxGreyList != 0 && len(conns.connections) > int(conns.maxGreyList) {
+		conns.connections = conns.connections[0:conns.maxGreyList]
+	}
 }
 
 type connectionStatus struct {

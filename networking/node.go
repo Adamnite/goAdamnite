@@ -69,6 +69,11 @@ func (n *NetNode) AddServer() error {
 	return nil
 }
 
+// use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
+func (n *NetNode) SetMaxGreyList(maxLength uint) {
+	n.contactBook.maxGreyList = maxLength
+}
+
 func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if n.activeContactToClient[contact] != nil {
 		return ErrPreexistingConnection
@@ -83,7 +88,10 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	if newClient, err := rpc.NewAdamniteClient(contact.connectionString); err != nil {
 		return err
 	} else {
-		newClient.SetAddressAndHostingPort(&n.thisContact.NodeID, strings.Split(n.hostingServer.Addr(), ":")[1])
+		newClient.SetAddressAndHostingPort(
+			&n.thisContact.NodeID,
+			strings.Split(n.hostingServer.Addr(), ":")[1],
+		)
 		n.activeContactToClient[contact] = &newClient
 		n.activeOutboundCount++
 		working, err := n.testConnection(contact)
@@ -227,7 +235,7 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 				talkedToContacts[con.contact] = true
 			}
 		}
-		n.contactBook.DropSlowestPercentage(autoCutoff / 2) //take half per layer, don't worry, the full removal happens at the end.
+		n.contactBook.DropSlowestPercentage(autoCutoff / (float32(layers) + 1)) //take half per layer, don't worry, the full removal happens at the end.
 	}
 	n.contactBook.DropSlowestPercentage(autoCutoff)
 	for _, contact := range startingConnections {
