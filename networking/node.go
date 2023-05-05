@@ -111,6 +111,11 @@ func (n *NetNode) ResetConnections() error {
 }
 
 func (n *NetNode) FillOpenConnections() error {
+	if len(n.contactBook.connections) >= int(n.maxOutboundConnections*3) {
+		if err := n.SprawlConnections(5, 0.01); err != nil {
+			return err
+		}
+	}
 	possibleCons := n.contactBook.SelectWhitelist(int(n.activeOutboundCount-n.maxOutboundConnections) + 1)
 	//get an extra incase one doesn't want to connect
 	for i := 0; i <= len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {

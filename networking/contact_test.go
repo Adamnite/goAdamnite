@@ -15,7 +15,7 @@ func TestConnectionStatusMath(t *testing.T) {
 	conBook := NewContactBook(nil)
 	// testContacts[0] = &Contact{"1.2.3.4:1234", 1}
 	// testContacts[1] = &Contact{"1.2.3.4:1235", 2}
-	for i, _ := range testContacts {
+	for i := range testContacts {
 		add := common.Address{}
 		add.SetBytes(big.NewInt(int64(i)).Bytes())
 		testContacts[i] = &Contact{"1.2.3.4:" + fmt.Sprint(i), add}
