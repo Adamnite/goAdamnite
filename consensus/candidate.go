@@ -124,7 +124,6 @@ func (c *Candidate) handleActivate(data []byte) error {
 		Data:     certBytes,
 		Deadline:
 
-ChatGPT
 c.ConsensusParams.ActivationDeadline + uint64(time.Now().Unix()),
 }
 for _, peer := range c.ConsensusParams.Peers {
