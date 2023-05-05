@@ -49,10 +49,67 @@ func TestConnectionStatusMath(t *testing.T) {
 		conBook.GetAverageConnectionResponseTime(),
 		"Math for avg calculation must me off",
 	)
+	for i := 0; i < len(testContacts)-2; i++ {
+		if !assert.LessOrEqual(
+			t,
+			conBook.connections[i].getAverageResponseTime(),
+			conBook.connections[i+1].getAverageResponseTime(),
+			"sorting must be off.",
+		) {
+			t.Fail()
+		}
 
+	}
 	fmt.Println(conBook.GetContactList().NodeIDs)
 	fmt.Println(conBook.GetContactList().ConnectionStrings)
-	conBook.AddToBlacklist(testContacts[1])
+	conBook.AddToBlacklist(testContacts[0])
 	fmt.Println(conBook.GetContactList().NodeIDs)
 	fmt.Println(conBook.GetContactList().ConnectionStrings)
+
+}
+
+func TestWhitelistGeneration(t *testing.T) {
+	testContacts := make([]*Contact, 5000)
+	// testContacts := make([]*Contact, 500)
+	conBook := NewContactBook(nil)
+
+	for i := range testContacts {
+		add := common.Address{}
+		add.SetBytes(big.NewInt(int64(i)).Bytes())
+		testContacts[i] = &Contact{"1.2.3.4:" + fmt.Sprint(i), add}
+
+		if err := conBook.AddConnection(testContacts[i]); err != nil {
+			t.Fatalf(err.Error())
+		}
+		//each test node has a delay (in nanoseconds... so these appear REALLY fast) of their index.
+		conBook.connections[i].connectionAttempts = 1
+		conBook.connections[i].responseTimes = []int64{int64(i)}
+	}
+
+	// test connections. should average (eventually) to be in order by performance speed.
+	whiteListLength := 50
+	totalTimes := make([]int64, whiteListLength)
+	var attemptCount int64 = 200000
+	for i := 0; i < int(attemptCount); i++ {
+		// responses = append(responses, conBook.SelectWhitelist(len(conBook.connections)))
+		response := conBook.SelectWhitelist(whiteListLength)
+		for x, r := range response {
+			totalTimes[x] += conBook.connectionsByContact[r].getAverageResponseTime()
+		}
+	}
+
+	var outOfOrderCount int64 = 0
+	for i := 0; i < len(totalTimes)-1; i++ {
+		if totalTimes[i]/attemptCount > totalTimes[i+1]/attemptCount {
+			//you can assume some will be out of order (no matter how many times we test), i just want less than 5% out of order
+			outOfOrderCount += 1
+		}
+	}
+	assert.LessOrEqual(
+		t,
+		outOfOrderCount,
+		int64(whiteListLength/20),
+		fmt.Sprintf("%v%% of the average responses were out of order.",
+			float64(outOfOrderCount)/float64(whiteListLength)*100),
+	)
 }

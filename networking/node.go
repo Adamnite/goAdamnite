@@ -103,6 +103,44 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	}
 }
 
+func (n *NetNode) ResetConnections() error {
+	if err := n.DropAllConnections(); err != nil {
+		return err
+	}
+	return n.FillOpenConnections()
+}
+
+func (n *NetNode) FillOpenConnections() error {
+	possibleCons := n.contactBook.SelectWhitelist(int(n.activeOutboundCount-n.maxOutboundConnections) + 1)
+	//get an extra incase one doesn't want to connect
+	for i := 0; i <= len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {
+		if err := n.ConnectToContact(possibleCons[i]); err != nil {
+			switch err { //handle any handle-able errors directly here.
+			case ErrPreexistingConnection:
+				//since we have a recursion edge case, it is possible to attempt to call the same contact twice
+			case ErrDistrustedConnection:
+				// we tried connecting to them, and they stopped being truthful, well skip over them.
+			case ErrOutboundCapacityReached:
+				//someone probably ran this in an asynchronous thread, but our jobs done!
+				return nil
+			}
+		}
+	}
+	if n.activeOutboundCount < n.maxOutboundConnections {
+		return n.FillOpenConnections()
+	}
+	return nil
+}
+
+func (n *NetNode) DropAllConnections() error {
+	for key := range n.activeContactToClient {
+		if err := n.DropConnection(key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // return wether a connection is worth using.
 func (n *NetNode) testConnection(contact *Contact) (bool, error) {
 	if n.activeContactToClient[contact] == nil {

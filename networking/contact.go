@@ -2,6 +2,8 @@ package networking
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"sort"
 	"time"
 
@@ -110,7 +112,7 @@ func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 		for i := 0; i < len(cb.connections); i++ {
 			if cb.connections[i].contact == contact {
 				if i == 0 {
-					cb.connections = cb.connections[i:]
+					cb.connections = cb.connections[1:]
 				} else {
 					cb.connections = append(cb.connections[0:i-1], cb.connections[i:]...)
 				}
@@ -144,35 +146,67 @@ func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 
 	return passed
 }
-func (conns ContactBook) GetAverageConnectionResponseTime() int64 {
+func (cb ContactBook) GetAverageConnectionResponseTime() int64 {
 	var total uint64 = 0 //use uint64 to hav extra space to work with.
-	for _, x := range conns.connections {
+	for _, x := range cb.connections {
 		total += uint64(x.getAverageResponseTime())
 	}
-	return int64(total / uint64(len(conns.connections)))
+	return int64(total / uint64(len(cb.connections)))
 }
 
 // drops this percentage of the slowest responses. percentage should be passed as a range from 0-1
-func (conns *ContactBook) DropSlowestPercentage(percentage float32) {
-	cutoffCount := len(conns.connections) - int(float32(len(conns.connections))*(percentage))
+func (cb *ContactBook) DropSlowestPercentage(percentage float32) {
+	cutoffCount := len(cb.connections) - int(float32(len(cb.connections))*(percentage))
 	if percentage > 1 || percentage <= 0 || cutoffCount <= 0 {
 		//if its over 1(or 100%) or negative, an error happened. If its 0(or drop 0%), were done! or if the cutoff count is less than actually removing any.
 		return
 	}
 
 	if percentage == 1 { //drop all, so don't bother calculating order.
-		conns.connections = make([]*connectionStatus, 0)
-		conns.connectionsByContact = make(map[*Contact]*connectionStatus)
+		cb.connections = make([]*connectionStatus, 0)
+		cb.connectionsByContact = make(map[*Contact]*connectionStatus)
 		return
 	}
-	sort.Slice(conns.connections, func(i, j int) bool {
-		return conns.connections[i].getAverageResponseTime() < conns.connections[j].getAverageResponseTime()
-	})
+	cb.sortGreylist()
 
-	conns.connections = conns.connections[0:cutoffCount]
-	if conns.maxGreyList != 0 && len(conns.connections) > int(conns.maxGreyList) {
-		conns.connections = conns.connections[0:conns.maxGreyList]
+	cb.connections = cb.connections[0:cutoffCount]
+	if cb.maxGreyList != 0 && len(cb.connections) > int(cb.maxGreyList) {
+		cb.connections = cb.connections[0:cb.maxGreyList]
 	}
+}
+
+func (cb *ContactBook) SelectWhitelist(goalCount int) []*Contact {
+	cb.sortGreylist()
+	connectionsLength := len(cb.connections)
+	if goalCount*10 <= connectionsLength {
+		//we only consider 10x the goal count connections.
+		connectionsLength = goalCount * 10
+	} else if goalCount >= connectionsLength {
+		goalCount = connectionsLength
+	}
+	ansContacts := []*Contact{}
+	attemptedIndexes := make(map[int]common.Void)
+	for i := 0; len(ansContacts) < goalCount; i++ {
+
+		index := int(math.Pow(rand.Float64(), 4) * float64(connectionsLength))
+		if _, used := attemptedIndexes[index]; !used {
+			//this is, in fact, a new index.
+			ansContacts = append(ansContacts, cb.connections[index].contact)
+			attemptedIndexes[index] = common.Void{}
+		}
+	}
+	for k := range attemptedIndexes {
+		delete(attemptedIndexes, k)
+	}
+
+	return ansContacts
+}
+
+// sorts the contacts by their average response time
+func (cb *ContactBook) sortGreylist() {
+	sort.Slice(cb.connections, func(i, j int) bool {
+		return cb.connections[i].getAverageResponseTime() < cb.connections[j].getAverageResponseTime()
+	})
 }
 
 type connectionStatus struct {
