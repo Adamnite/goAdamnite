@@ -73,8 +73,7 @@ type GlobalSet struct {
 }
 
 func (op GlobalSet) doOp(m *Machine) error {
-	m.pushToStack(m.contractStorage[op.pointInStorage])
-
+	m.contractStorage[op.pointInStorage] = m.popFromStack()
 	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
@@ -88,7 +87,8 @@ type GlobalGet struct {
 }
 
 func (op GlobalGet) doOp(m *Machine) error {
-	m.contractStorage[op.pointInStorage] = m.popFromStack()
+	m.pushToStack(m.contractStorage[op.pointInStorage])
+
 	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
