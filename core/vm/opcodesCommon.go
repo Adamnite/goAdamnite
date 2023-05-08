@@ -10,6 +10,9 @@ type localGet struct {
 }
 
 func (op localGet) doOp(m *Machine) error {
+	if op.point == -1 { //use -1 to get it from the stack, since there cant be a negative index
+		op.point = int64(m.popFromStack())
+	}
 	m.pushToStack(m.locals[op.point]) //pushes the local value at index to the stack
 
 	if !m.useAte(op.gas) {
@@ -68,12 +71,21 @@ func (op Drop) doOp(m *Machine) error {
 }
 
 type GlobalSet struct {
-	pointInStorage uint32
+	pointInStorage int64
 	gas            uint64
 }
 
 func (op GlobalSet) doOp(m *Machine) error {
-	m.contractStorage[op.pointInStorage] = m.popFromStack()
+	if op.pointInStorage == -1 { //use -1 to get it from the stack, since there cant be a negative index
+		op.pointInStorage = int64(m.popFromStack())
+	}
+	newValue := m.popFromStack()
+	for len(m.contractStorage) <= int(op.pointInStorage) {
+		m.contractStorage = append(m.contractStorage, 0)
+	}
+	m.contractStorage[op.pointInStorage] = newValue
+	m.storageChanges[uint32(op.pointInStorage)] = newValue
+
 	if !m.useAte(op.gas) {
 		return ErrOutOfGas
 	}
@@ -82,11 +94,14 @@ func (op GlobalSet) doOp(m *Machine) error {
 }
 
 type GlobalGet struct {
-	pointInStorage uint32
+	pointInStorage int64
 	gas            uint64
 }
 
 func (op GlobalGet) doOp(m *Machine) error {
+	if op.pointInStorage == -1 { //use -1 to get it from the stack, since there cant be a negative index
+		op.pointInStorage = int64(m.popFromStack())
+	}
 	m.pushToStack(m.contractStorage[op.pointInStorage])
 
 	if !m.useAte(op.gas) {
