@@ -3,7 +3,10 @@ package VM
 //file for general VM types and constants.
 import (
 	"encoding/binary"
+	"fmt"
+	"log"
 	"math/big"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
@@ -49,11 +52,12 @@ type Machine struct {
 	pointInCode       uint64
 	contract          Contract
 	vmCode            []OperationCommon
-	vmStack           []uint64
-	contractStorage   []uint64       //the storage of the smart contracts data.
-	vmMemory          []byte         //i believe the agreed on stack size was
-	locals            []uint64       //local vals that the VM code can call
-	controlBlockStack []ControlBlock // Represents the labels indexes at which br, br_if can jump to
+	vmStack           []uint64          //the stack the VM uses
+	contractStorage   []uint64          //the storage of the smart contracts data.
+	storageChanges    map[uint32]uint64 //point to new value
+	vmMemory          []byte            //i believe the agreed on stack size was
+	locals            []uint64          //local vals that the VM code can call
+	controlBlockStack []ControlBlock    // Represents the labels indexes at which br, br_if can jump to
 	config            VMConfig
 	gas               uint64 // The allocated gas for the code execution
 	callStack         []*Frame
@@ -126,4 +130,31 @@ type Contract struct {
 	Storage       []uint64
 	Input         []byte // The bytes from `input` field of the transaction
 	Gas           uint64
+}
+
+type RuntimeChanges struct {
+	Caller            common.Address //who called this
+	CallTime          time.Time      //when was it called
+	ContractCalled    common.Address //what was called
+	ParametersPassed  []uint64       //what was passed on the call
+	GasLimit          uint64         //did they set a gas limit
+	ChangeStartPoints []uint64       //data from the results
+	Changed           [][]byte       //^
+	ErrorsEncountered error          //if anything went wrong at runtime
+}
+
+func (rtc RuntimeChanges) OutputChanges() {
+	for i, x := range rtc.ChangeStartPoints {
+		dataString := "\n"
+		for foo := 0; foo < len(rtc.Changed[i]); foo += 8 {
+			dataString = fmt.Sprintf(
+				"%v\t (%3v) \t0x % X  \n",
+				dataString, LE.Uint64(rtc.Changed[i][foo:foo+8]),
+				rtc.Changed[i][foo:foo+8],
+			)
+		}
+		log.Printf("change at real index %v, byte index: %v, changed to: %v", x/8, x, dataString)
+
+	}
+	log.Println()
 }

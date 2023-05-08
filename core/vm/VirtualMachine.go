@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
@@ -228,6 +230,7 @@ func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	mainFrame.CtrlStack = machine.controlBlockStack
 	mainFrame.Locals = machine.locals
 	machine.callStack = append(machine.callStack, mainFrame)
+	machine.storageChanges = map[uint32]uint64{}
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
@@ -570,4 +573,45 @@ func (m *Machine) getContractHash() common.Hash {
 func (m *Machine) UploadContract(APIEndpoint string) error {
 	//takes the contract (or just its changes) and uploads that to the DB at the APIEndpoint link
 	return UploadContract(APIEndpoint, m.contract)
+}
+
+// sort the changes from the method being ran, allowing this to be passed along the chain and to the OffChainDB efficiently
+func (m *Machine) GetChanges() RuntimeChanges {
+	// we want to return an array of the changes, with as few starts as possible,
+	changes := RuntimeChanges{
+		Caller:            m.contract.CallerAddress,
+		CallTime:          time.Now().UTC(), //this should not be used! this should be changed to the time at the start of the call.
+		ContractCalled:    m.contract.Address,
+		ParametersPassed:  m.locals,
+		ChangeStartPoints: []uint64{},
+		Changed:           [][]byte{},
+	}
+	keys := make([]uint32, 0, len(m.storageChanges))
+	for k := range m.storageChanges {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, point := range keys {
+		final := m.storageChanges[point]
+		finalBytes := LE.AppendUint64([]byte{}, final)
+		bytePoint := point * 8 //point stores relative to uint64s, this is using bytes, so we need to change that
+		if len(changes.ChangeStartPoints) > 0 &&
+			int(changes.ChangeStartPoints[len(changes.ChangeStartPoints)-1])+
+				len(changes.Changed[len(changes.Changed)-1]) ==
+				int(bytePoint) {
+
+			changes.Changed[len(changes.Changed)-1] = append(changes.Changed[len(changes.Changed)-1], finalBytes...)
+
+		} else {
+			changes.ChangeStartPoints = append(changes.ChangeStartPoints, uint64(bytePoint))
+			changes.Changed = append(changes.Changed, finalBytes)
+		}
+	}
+	if m.config.debugStack {
+		changes.OutputChanges()
+	}
+	return changes
 }
