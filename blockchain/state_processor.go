@@ -3,10 +3,10 @@ package blockchain
 import (
 	"math/big"
 
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
-	"github.com/adamnite/go-adamnite/core/VM"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
