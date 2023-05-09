@@ -2,6 +2,7 @@ package VM
 
 //file for general VM types and constants.
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -64,7 +65,6 @@ type Machine struct {
 	stopSignal        bool
 	currentFrame      int
 	BlockCtx          BlockContext
-	txCtx             TxContext
 	Statedb           *statedb.StateDB
 	chainConfig       *params.ChainConfig
 }
@@ -86,14 +86,6 @@ type BlockContext struct {
 	Time        *big.Int
 	Difficulty  *big.Int
 	BaseFee     *big.Int
-}
-
-// TxContext provides the AdamniteVM with information about a transaction.
-// All fields can change between transactions.
-type TxContext struct {
-	// Message information
-	Origin   common.Address
-	GasPrice *big.Int
 }
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
@@ -136,7 +128,7 @@ type RuntimeChanges struct {
 	Caller            common.Address //who called this
 	CallTime          time.Time      //when was it called
 	ContractCalled    common.Address //what was called
-	ParametersPassed  []uint64       //what was passed on the call
+	ParametersPassed  []byte         //what was passed on the call
 	GasLimit          uint64         //did they set a gas limit
 	ChangeStartPoints []uint64       //data from the results
 	Changed           [][]byte       //^
@@ -157,4 +149,42 @@ func (rtc RuntimeChanges) OutputChanges() {
 
 	}
 	log.Println()
+}
+
+// returns a copy without any changes. Ideal for running again to check consistency
+func (rtc RuntimeChanges) CleanCopy() *RuntimeChanges {
+	ans := RuntimeChanges{
+		Caller:            rtc.Caller,
+		ContractCalled:    rtc.ContractCalled,
+		GasLimit:          rtc.GasLimit,
+		ChangeStartPoints: []uint64{},
+		Changed:           [][]byte{},
+		ErrorsEncountered: nil,
+	}
+	return &ans
+}
+
+func (a RuntimeChanges) Equal(b RuntimeChanges) bool {
+	if bytes.Equal(a.Caller.Bytes(), b.Caller.Bytes()) &&
+		bytes.Equal(a.ContractCalled[:], b.ContractCalled[:]) &&
+		a.GasLimit == b.GasLimit && a.ErrorsEncountered == b.ErrorsEncountered &&
+		len(a.ChangeStartPoints) == len(b.ChangeStartPoints) &&
+		len(a.Changed) == len(b.Changed) {
+
+		//check the change start points
+		for i, aStart := range a.ChangeStartPoints {
+			if b.ChangeStartPoints[i] != aStart {
+				return false
+			}
+		}
+		//check the changed values
+		for i, aChanged := range a.Changed {
+			if !bytes.Equal(aChanged, b.Changed[i]) {
+				return false
+			}
+		}
+
+		return true
+	}
+	return false
 }

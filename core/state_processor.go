@@ -87,13 +87,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common
 	}
 
 	vmenv := VM.NewVM(
-		statedb,      //stateDB
-		blockContext, //blockContext
-		VM.TxContext{ //transaction context
-			Origin:   msg.From(),
-			GasPrice: gp},
-		&vmcfg, //vm config
-		config) //chain config
+		statedb, //stateDB
+		&vmcfg,  //vm config
+		config)  //chain config
 	// Apply the transaction to the current state (included in the env)
 	_, gas, _, err := ApplyMessage(vmenv, msg)
 	if err != nil {
