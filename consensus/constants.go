@@ -1,8 +1,10 @@
 package consensus
 
 import (
-	"github.com/adamnite/go-adamnite/blockchain"
+	"fmt"
+
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 type consensusHandlingTypes int8
@@ -20,5 +22,10 @@ const (
 
 type WitnessInfo struct {
 	address common.Address //TODO: review that this is the correct info for a witness.
-	voters  []blockchain.Voter
+	voters  []utils.Voter
 }
+
+var (
+	ErrNotBNode = fmt.Errorf("node is not setup to handle VM based operations")
+	ErrNotANode = fmt.Errorf("node is not setup to handle transaction based operations")
+)

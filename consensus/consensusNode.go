@@ -1,9 +1,9 @@
 package consensus
 
 import (
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core/VM"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 )

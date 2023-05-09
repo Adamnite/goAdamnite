@@ -157,6 +157,7 @@ func (rtc RuntimeChanges) CleanCopy() *RuntimeChanges {
 		Caller:            rtc.Caller,
 		ContractCalled:    rtc.ContractCalled,
 		GasLimit:          rtc.GasLimit,
+		ParametersPassed:  rtc.ParametersPassed,
 		ChangeStartPoints: []uint64{},
 		Changed:           [][]byte{},
 		ErrorsEncountered: nil,

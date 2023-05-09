@@ -29,7 +29,7 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 }
 func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
 	vm.Reset()
-	con, err := GetContractData(apiEndpoint, contract.String())
+	con, err := GetContractData(apiEndpoint, contract.Hex())
 	if err != nil {
 		return err
 	}
