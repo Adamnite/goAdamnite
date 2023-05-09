@@ -10,8 +10,8 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +45,7 @@ func setup() {
 	rootHash := stateDB.IntermediateRoot(false)
 	stateDB.Database().TrieDB().Commit(rootHash, false, nil)
 
-	blockchain, err := core.NewBlockchain(
+	blockchain, err := blockchain.NewBlockchain(
 		testDB,
 		chainConfig,
 		dpos.New(chainConfig, testDB),

@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type AdamniteServer struct {
 	stateDB         *statedb.StateDB
-	chain           *core.Blockchain
+	chain           *blockchain.Blockchain
 	hostingNodeID   common.Address
 	seenConnections map[common.Hash]common.Void
 
@@ -314,7 +314,7 @@ func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port uint32) *AdamniteServer {
+func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, port uint32) *AdamniteServer {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(AdamniteServer)

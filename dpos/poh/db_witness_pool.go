@@ -13,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/utils"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -60,7 +61,7 @@ func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float
 
 type DBWitnessInfo struct {
 	address common.Address
-	voters  []types.Voter
+	voters  []utils.Voter
 }
 
 type DBWitnessConfig struct {
@@ -73,7 +74,7 @@ var DefaultDBWitnessConfig = DBWitnessConfig{
 
 var WitnessList = []DBWitnessInfo{{
 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-	voters: []types.Voter{
+	voters: []utils.Voter{
 		{
 			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
@@ -82,7 +83,7 @@ var WitnessList = []DBWitnessInfo{{
 },
 	{
 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-		voters: []types.Voter{
+		voters: []utils.Voter{
 			{
 				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
@@ -109,28 +110,28 @@ var (
 )
 
 type PoHData struct {
-	Witnesses []types.Witness `json:"dbwitnesses"`
+	Witnesses []utils.Witness `json:"dbwitnesses"`
 
-	Votes map[common.Address]types.Voter `json:"dbvotes"`
+	Votes map[common.Address]utils.Voter `json:"dbvotes"`
 }
 
 type DBWitnessPool struct {
 	config      DBWitnessConfig
 	chainConfig *params.ChainConfig
 
-	witnessCandidates []types.Witness
+	witnessCandidates []utils.Witness
 	// vrfWeights        []float32
-	vrfMaps map[string]types.Witness
+	vrfMaps map[string]utils.Witness
 
-	Witnesses []types.Witness
+	Witnesses []utils.Witness
 	seed      []byte
-	Votes     map[common.Address]*types.Voter
+	Votes     map[common.Address]*utils.Voter
 	sigcache  *lru.ARCCache
 	Number    uint64
 	Hash      common.Hash
 }
 
-func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []types.Witness) *DBWitnessPool {
+func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []utils.Witness) *DBWitnessPool {
 
 	pool := &DBWitnessPool{
 		config:            config,
@@ -138,15 +139,15 @@ func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConf
 		sigcache:          sigcache,
 		Number:            number,
 		Hash:              hash,
-		vrfMaps:           make(map[string]types.Witness, 0),
-		witnessCandidates: make([]types.Witness, 0),
+		vrfMaps:           make(map[string]utils.Witness, 0),
+		witnessCandidates: make([]utils.Witness, 0),
 		Witnesses:         witnesses,
-		Votes:             map[common.Address]*types.Voter{},
+		Votes:             map[common.Address]*utils.Voter{},
 	}
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 		if number == 0 {
 			for _, w := range WitnessList {
-				witness := &types.WitnessImpl{
+				witness := &utils.WitnessImpl{
 					Address: w.address,
 					Voters:  w.voters,
 				}
@@ -190,7 +191,7 @@ func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConf
 				avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
 				avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
 				w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
-				pool.vrfMaps[string(w.GetPubKey())] = w
+				pool.vrfMaps[w.GetAddress().String()] = w
 			}
 		}
 
@@ -204,15 +205,15 @@ func NewDBWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig) *
 		config:      config,
 		chainConfig: chainConfig,
 
-		vrfMaps:           make(map[string]types.Witness, 0),
-		witnessCandidates: make([]types.Witness, 0),
+		vrfMaps:           make(map[string]utils.Witness, 0),
+		witnessCandidates: make([]utils.Witness, 0),
 
-		Votes: map[common.Address]*types.Voter{},
+		Votes: map[common.Address]*utils.Voter{},
 	}
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 
 		for _, w := range WitnessList {
-			witness := &types.WitnessImpl{
+			witness := &utils.WitnessImpl{
 				Address: w.address,
 				Voters:  w.voters,
 			}
@@ -256,14 +257,14 @@ func NewDBWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig) *
 			avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
 			avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
 			w.SetWeight(VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount))
-			pool.vrfMaps[string(w.GetPubKey())] = w
+			pool.vrfMaps[w.GetAddress().String()] = w
 		}
 
 	}
 	return pool
 }
 
-func (wp *DBWitnessPool) CalcWitnesses() []types.Witness {
+func (wp *DBWitnessPool) CalcWitnesses() []utils.Witness {
 	witnessCount := wp.config.WitnessCount
 	trustedWitnessCount := witnessCount/3*2 + 1
 
@@ -273,11 +274,11 @@ func (wp *DBWitnessPool) CalcWitnesses() []types.Witness {
 		maxVoterCount             int
 		maxElectedCount           uint64
 		vrfWeights                []float64
-		vrfMaps                   map[float64]types.Witness
-		witnesses                 []types.Witness
+		vrfMaps                   map[float64]utils.Witness
+		witnesses                 []utils.Witness
 	)
 
-	vrfMaps = make(map[float64]types.Witness)
+	vrfMaps = make(map[float64]utils.Witness)
 	maxStakingAmount = *big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
@@ -323,7 +324,7 @@ func (wp *DBWitnessPool) CalcWitnesses() []types.Witness {
 	return witnesses
 }
 
-func (cp *DBWitnessPool) SetWitnessCandidates(witnessCandidates []types.Witness) {
+func (cp *DBWitnessPool) SetWitnessCandidates(witnessCandidates []utils.Witness) {
 
 	cp.witnessCandidates = witnessCandidates
 }
@@ -408,31 +409,31 @@ func (wp *DBWitnessPool) DbWitnessPoolFromBlockHeader(headers []*types.BlockHead
 		if number%EpochBlockCount == 0 {
 			if number > 0 {
 
-				witnesspool.Votes = make(map[common.Address]*types.Voter)
-				witnesspool.witnessCandidates = make([]types.Witness, 0)
+				witnesspool.Votes = make(map[common.Address]*utils.Voter)
+				witnesspool.witnessCandidates = make([]utils.Witness, 0)
 			}
 			witnesspool.Witnesses = pohData.Witnesses
 		}
 		votes := pohData.Votes
 		for sender, vote := range votes {
 
-			witnesspool.Votes[sender] = &types.Voter{
+			witnesspool.Votes[sender] = &utils.Voter{
 				Address:       vote.Address,
 				StakingAmount: vote.StakingAmount,
 			}
 			count := 0
 			for _, wpCandidate := range witnesspool.witnessCandidates {
 				if wpCandidate.GetAddress() == vote.Address {
-					tmpVoters := append(wpCandidate.GetVoters(), types.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+					tmpVoters := append(wpCandidate.GetVoters(), utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
 					wpCandidate.SetVoters(tmpVoters)
 					count++
 				}
 			}
 
 			if count == 0 {
-				tmpVotes := make([]types.Voter, 0)
-				tmpVotes = append(tmpVotes, types.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
-				tmpWitness := &types.WitnessImpl{
+				tmpVotes := make([]utils.Voter, 0)
+				tmpVotes = append(tmpVotes, utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+				tmpWitness := &utils.WitnessImpl{
 					Address: sender,
 					Voters:  tmpVotes,
 				}

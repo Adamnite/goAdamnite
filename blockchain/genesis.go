@@ -1,4 +1,4 @@
-package core
+package blockchain
 
 import (
 	"errors"
@@ -13,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 type Genesis struct {
@@ -29,7 +30,7 @@ type Genesis struct {
 
 type GenesisWitnessInfo struct {
 	address common.Address
-	voters  []types.Voter
+	voters  []utils.Voter
 }
 
 type GenesisAlloc map[common.Address]GenesisAccount
@@ -102,7 +103,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 		WitnessList: []GenesisWitnessInfo{
 			{
 				address: common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-				voters: []types.Voter{
+				voters: []utils.Voter{
 					{
 						Address:       common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
@@ -111,7 +112,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 			},
 			{
 				address: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-				voters: []types.Voter{
+				voters: []utils.Voter{
 					{
 						Address:       common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
