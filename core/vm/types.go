@@ -164,7 +164,7 @@ func (rtc RuntimeChanges) CleanCopy() *RuntimeChanges {
 	return &ans
 }
 
-func (a RuntimeChanges) Equal(b RuntimeChanges) bool {
+func (a RuntimeChanges) Equal(b *RuntimeChanges) bool {
 	if bytes.Equal(a.Caller.Bytes(), b.Caller.Bytes()) &&
 		bytes.Equal(a.ContractCalled[:], b.ContractCalled[:]) &&
 		a.GasLimit == b.GasLimit && a.ErrorsEncountered == b.ErrorsEncountered &&

@@ -15,15 +15,23 @@ func NewBConsensus() (ConsensusNode, error) {
 }
 
 // run the claimed changes again to verify that we have the same results.
-func (bNode *ConsensusNode) VerifyRun(runtimeClaim VM.RuntimeChanges) (bool, error) {
+func (bNode *ConsensusNode) VerifyRun(runtimeClaim VM.RuntimeChanges) (bool, *VM.RuntimeChanges, error) {
+	ourChanges := runtimeClaim.CleanCopy()
+	err := bNode.ProcessRun(ourChanges)
+	trustable := runtimeClaim.Equal(ourChanges)
+	return trustable, ourChanges, err
+}
+
+// take an incomplete runtime claim, and handle the process. The answer is assigned to the claim.
+func (bNode *ConsensusNode) ProcessRun(claim *VM.RuntimeChanges) error {
 	if bNode.vm == nil {
 		vm, err := VM.NewVirtualMachineWithContract(bNode.ocdbLink, nil)
 		if err != nil {
-			return false, err
+			return err
 		}
 		bNode.vm = vm
 	}
-	ourChanges, err := bNode.vm.CallWith(bNode.ocdbLink, runtimeClaim.CleanCopy())
-
-	return runtimeClaim.Equal(*ourChanges), err
+	newClaim, err := bNode.vm.CallWith(bNode.ocdbLink, claim)
+	*claim = *newClaim
+	return err
 }
