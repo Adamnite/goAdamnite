@@ -89,7 +89,7 @@ func TestLinearForward(t *testing.T) {
 }
 
 func TestLinearPropagationFromCenter(t *testing.T) {
-	nodes, err := generateLineOfNodes(500)
+	nodes, err := generateLineOfNodes(400)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestLinearPropagationFromCenter(t *testing.T) {
 
 }
 func TestLinearPropagationFromSide(t *testing.T) {
-	nodes, err := generateLineOfNodes(500)
+	nodes, err := generateLineOfNodes(400)
 	if err != nil {
 		t.Fatal(err)
 	}

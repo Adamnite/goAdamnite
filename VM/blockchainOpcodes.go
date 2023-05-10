@@ -126,13 +126,13 @@ type gasPrice struct {
 }
 
 func (op gasPrice) doOp(m *Machine) error {
-	v := m.txCtx.GasPrice
+	// v := m.txCtx.GasPrice
 
-	m.pushToStack(balanceToArray(*v))
+	// m.pushToStack(balanceToArray(*v))
 
-	if !m.useAte(op.gas) {
-		return ErrOutOfGas
-	}
+	// if !m.useAte(op.gas) {
+	// 	return ErrOutOfGas
+	// }
 	return nil
 }
 

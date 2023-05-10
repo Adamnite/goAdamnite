@@ -55,7 +55,7 @@ func Test_f32Basics(t *testing.T) {
 		{10, -100},
 	}
 	for i := range testParams { //f32_add
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -66,7 +66,7 @@ func Test_f32Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	for i := range testParams { //f32_sub
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -77,7 +77,7 @@ func Test_f32Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[2].body)
 	for i := range testParams { //f32_mul
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -88,7 +88,7 @@ func Test_f32Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[3].body)
 	for i := range testParams { //f32_div
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -147,7 +147,7 @@ func Test_f64Basics(t *testing.T) {
 		{10, -100},
 	}
 	for i := range testParams { //f64_add
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -158,7 +158,7 @@ func Test_f64Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[1].body)
 	for i := range testParams { //f64_sub
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -169,7 +169,7 @@ func Test_f64Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[2].body)
 	for i := range testParams { //f64_mul
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()
@@ -180,7 +180,7 @@ func Test_f64Basics(t *testing.T) {
 
 	vm.vmCode, vm.controlBlockStack = parseBytes(module.codeSection[3].body)
 	for i := range testParams { //f64_div
-		vm.reset()
+		vm.Reset()
 		vm.AddLocal(testParams[i])
 		vm.callStack[0].Locals = vm.locals
 		vm.run()

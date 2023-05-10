@@ -3,8 +3,8 @@ package adampro
 import (
 	"time"
 
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
 )
 
@@ -13,7 +13,7 @@ type TxPool interface {
 }
 
 type AdamniteHandlerInterface interface {
-	Chain() *core.Blockchain
+	Chain() *blockchain.Blockchain
 	TxPool() TxPool
 	RunPeer(peer *Peer, handler Handler) error
 	Handle(peer *Peer, packet Packet) error

@@ -304,9 +304,9 @@ func ModuleToCodeStored(m *Module) []CodeStored {
 	cs := []CodeStored{}
 	for i := 0; i < len(m.functionSection); i++ {
 		cs = append(cs, CodeStored{
-			CodeParams: m.typeSection[i].params,
+			CodeParams:  m.typeSection[i].params,
 			CodeResults: m.typeSection[i].results,
-			CodeBytes: m.codeSection[i].body,
+			CodeBytes:   m.codeSection[i].body,
 		})
 	}
 

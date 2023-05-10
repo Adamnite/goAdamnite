@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
@@ -13,6 +15,49 @@ import (
 	"github.com/adamnite/go-adamnite/params"
 )
 
+func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
+
+	if contract == nil {
+		return vm, nil
+	}
+	if err := vm.ResetToContract(apiEndpoint, *contract); err != nil {
+		return nil, err
+	}
+
+	return vm, nil
+}
+func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
+	vm.Reset()
+	con, err := GetContractData(apiEndpoint, contract.Hex())
+	if err != nil {
+		return err
+	}
+	vm.contract = *con
+	return nil
+}
+func (vm *Machine) CallWith(apiEndpoint string, rt *RuntimeChanges) (*RuntimeChanges, error) {
+	if err := vm.ResetToContract(apiEndpoint, rt.ContractCalled); err != nil {
+		return nil, err
+	}
+	spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
+	//TODO: either way, cleanup here
+	vm.config.CodeGetter = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+		stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
+		if err != nil {
+			panic(err) //TODO: handle this better.
+		}
+		spoofer.AddSpoofedCode(hex.EncodeToString(hash), *stored)
+
+		return spoofer.GetCode(hash)
+	}
+	return vm.CallOnContractWith(rt)
+}
+func (vm *Machine) CallOnContractWith(rt *RuntimeChanges) (*RuntimeChanges, error) {
+	err := vm.Call2(rt.ParametersPassed, rt.GasLimit)
+	rt.ErrorsEncountered = err
+	return vm.UpdateChanges(rt), err
+}
 func newContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
@@ -35,15 +80,6 @@ func GetDefaultConfig() VMConfig {
 		CodeGetter:               defaultCodeGetter,
 		CodeBytesGetter:          GetCodeBytes2,
 		Uri:                      "https//default.uri",
-	}
-}
-
-func (m *Machine) step() {
-	//DANGER!!! Untested! No longer same as an individual Run step!
-	if m.pointInCode < uint64(len(m.vmCode)) {
-		op := m.vmCode[m.pointInCode]
-		op.doOp(m)
-		m.debugOutputStack()
 	}
 }
 
@@ -177,11 +213,11 @@ func initVMState(machine *Machine) {
 	// initMemoryWithDataSection(&machine.module, machine)
 }
 
-func NewVM(statedb *statedb.StateDB, bc BlockContext, txc TxContext, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
+func NewVM(statedb *statedb.StateDB, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
 	machine := new(Machine)
 	machine.Statedb = statedb
-	machine.BlockCtx = bc
-	machine.txCtx = txc
+	// machine.BlockCtx = ni
+	// machine.txCtx = txc
 	machine.chainConfig = chainConfig
 
 	if config != nil {
@@ -228,6 +264,7 @@ func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas
 	mainFrame.CtrlStack = machine.controlBlockStack
 	mainFrame.Locals = machine.locals
 	machine.callStack = append(machine.callStack, mainFrame)
+	machine.storageChanges = map[uint32]uint64{}
 
 	capacity := 20 * defaultPageSize
 	machine.vmMemory = make([]byte, capacity) // Initialize empty memory. (make creates array of 0)
@@ -356,7 +393,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 
 	if expectedParamCount != incomingParamCount {
 		fmt.Printf("Expecting: %v Got %v ", expectedParamCount, incomingParamCount)
-		panic("Call2 - Param counts mismatch")
+		return fmt.Errorf("Call2 - Param counts mismatch")
 	}
 
 	// Maybe Check the types of each params if they matches signature?
@@ -385,9 +422,9 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 		return nil, gas, ErrDepth
 	}
 
-	if value.Sign() != 0 && !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-		return nil, gas, ErrInsufficientBalance
-	}
+	// if value.Sign() != 0 && !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
+	// 	return nil, gas, ErrInsufficientBalance
+	// }
 
 	if !m.Statedb.Exist(addr) {
 		m.Statedb.CreateAccount(addr)
@@ -516,7 +553,7 @@ func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *
 	return m.create(caller, code, gas, value, contractAddr)
 }
 
-func (m *Machine) reset() {
+func (m *Machine) Reset() {
 	//resets the stack, locals, and point in code. Also resets back to main frame
 	m.locals = []uint64{}
 	m.pointInCode = 0
@@ -563,11 +600,57 @@ func (m *Machine) AddLocal(n interface{}) {
 	}
 }
 
-func (m *Machine) getContractHash() common.Hash {
+func (m *Machine) GetContractHash() common.Hash {
 	return m.contract.Hash()
 }
 
 func (m *Machine) UploadContract(APIEndpoint string) error {
 	//takes the contract (or just its changes) and uploads that to the DB at the APIEndpoint link
 	return UploadContract(APIEndpoint, m.contract)
+}
+
+// sort the changes from the method being ran, allowing this to be passed along the chain and to the OffChainDB efficiently
+func (m *Machine) GetChanges() RuntimeChanges {
+	// we want to return an array of the changes, with as few starts as possible,
+	changes := RuntimeChanges{
+		Caller:            m.contract.CallerAddress,
+		CallTime:          time.Now().UTC(), //this should not be used! this should be changed to the time at the start of the call.
+		ContractCalled:    m.contract.Address,
+		ChangeStartPoints: []uint64{},
+		Changed:           [][]byte{},
+	}
+	return *m.UpdateChanges(&changes)
+}
+
+func (m *Machine) UpdateChanges(changes *RuntimeChanges) *RuntimeChanges {
+	changes.Changed = [][]byte{}
+	changes.ChangeStartPoints = []uint64{}
+	keys := make([]uint32, 0, len(m.storageChanges))
+	for k := range m.storageChanges {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, point := range keys {
+		final := m.storageChanges[point]
+		finalBytes := LE.AppendUint64([]byte{}, final)
+		bytePoint := uint64(point) * 8 //point stores relative to uint64s, this is using bytes, so we need to change that
+		if len(changes.ChangeStartPoints) > 0 &&
+			int(changes.ChangeStartPoints[len(changes.ChangeStartPoints)-1])+
+				len(changes.Changed[len(changes.Changed)-1]) ==
+				int(bytePoint) {
+
+			changes.Changed[len(changes.Changed)-1] = append(changes.Changed[len(changes.Changed)-1], finalBytes...)
+
+		} else {
+			changes.ChangeStartPoints = append(changes.ChangeStartPoints, uint64(bytePoint))
+			changes.Changed = append(changes.Changed, finalBytes)
+		}
+	}
+	if m.config.debugStack {
+		changes.OutputChanges()
+	}
+	return changes
 }

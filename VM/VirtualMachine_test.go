@@ -110,3 +110,64 @@ func TestMultiDataSection(t *testing.T) {
 	fmt.Printf("s: %v\n", s)
 	assert.Equal(t, "Hello\x00World\x00", s)
 }
+
+func TestGettingFinalDataChanges(t *testing.T) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
+	const (
+		runCount          = 500
+		largeNumberOffset = 1100
+	)
+	// vm.config.debugStack = true
+	vm.callStack[0].Code = []OperationCommon{
+		localGet{0, 0},
+		localGet{0, 0},
+		GlobalSet{-1, 0},
+		i64Const{0xFFFF, 0}, //FFFF stands out pretty easily to check for
+		localGet{0, 0},
+		i64Const{largeNumberOffset, 0},
+		i64Mul{0},
+		GlobalSet{-1, 0},
+	}
+	for i := 0; i < runCount; i++ {
+		vm.currentFrame = 0
+		vm.callStack[0].Locals = []uint64{uint64(i)}
+		vm.callStack[0].Ip = 0
+		vm.pointInCode = 0
+		vm.run()
+	}
+	changes := vm.GetChanges()
+
+	//generate the version of the changes we *should* see
+	goalTotalChanges := runCount //runcount-1 for the *10 numbers, then 1 for the main
+	firstPointChanges := []byte{0xff, 0xFF, 0, 0, 0, 0, 0, 0}
+	for i := 1; i < runCount; i++ {
+		firstPointChanges = LE.AppendUint64(firstPointChanges, uint64(i))
+	}
+	assert.Equal(t,
+		goalTotalChanges,
+		len(changes.ChangeStartPoints),
+		"incorrect change count",
+	)
+	assert.Equal(t,
+		firstPointChanges,
+		changes.Changed[0],
+		"changes do not match theoretical",
+	)
+	for i, v := range changes.ChangeStartPoints {
+		if i == 0 {
+			assert.Equal(t,
+				uint64(0),
+				v,
+				"incorrect start",
+			)
+		} else {
+			assert.Equal(t,
+				uint64((i)*largeNumberOffset*8),
+				v,
+				"incorrect start on later values",
+			)
+		}
+
+	}
+	// changes.OutputChanges()
+}

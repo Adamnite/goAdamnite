@@ -384,7 +384,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_get_global")
 			}
 
-			ansOps = append(ansOps, GlobalGet{uint32(index), GasQuickStep})
+			ansOps = append(ansOps, GlobalGet{int64(index), GasQuickStep})
 			pointInBytes += int(count) + 1
 		case Op_set_global:
 			index, count, err := DecodeUint32(reader(bytes[pointInBytes+1:]))
@@ -393,7 +393,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 				panic("Error occurred while parsing label Op_set_global")
 			}
 
-			ansOps = append(ansOps, GlobalSet{uint32(index), GasQuickStep})
+			ansOps = append(ansOps, GlobalSet{int64(index), GasQuickStep})
 			pointInBytes += int(count) + 1
 		case Op_drop:
 			ansOps = append(ansOps, Drop{})

@@ -108,7 +108,7 @@ func UploadContract(apiEndpoint string, con Contract) error {
 func UploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]byte, error) {
 	functionsToUpload := []CodeStored{}
 	hashes := [][]byte{}
-	for x := range mod.functionSection {
+	for x := range mod.typeSection {
 		code := CodeStored{
 			CodeParams:  mod.typeSection[x].params,
 			CodeResults: mod.typeSection[x].results,
