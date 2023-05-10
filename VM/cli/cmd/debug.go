@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/adamnite/go-adamnite/core/VM"
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/spf13/cobra"
 )
 
