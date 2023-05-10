@@ -7,7 +7,7 @@ import (
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/vmihailenco/msgpack/v5"
+	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
 const clientPreface = "[Adamnite RPC client] %v \n"
@@ -32,7 +32,7 @@ func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte
 	log.Printf(clientPreface, "Forward Message")
 	// just pass this message along until someone who needs it finds it
 	// var forwardingBytes []byte
-	forwardingBytes, err := msgpack.Marshal(content)
+	forwardingBytes, err := encoding.Marshal(content)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		HostingServerPort string
 	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
 
-	addressBytes, err := msgpack.Marshal(sendingData)
+	addressBytes, err := encoding.Marshal(sendingData)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		log.Panicln(err)
 		return nil, err
 	}
-	if err := msgpack.Unmarshal(reply, &versionReceived); err != nil {
+	if err := encoding.Unmarshal(reply, &versionReceived); err != nil {
 		log.Println(err)
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 		log.Println(err)
 		return nil
 	}
-	if err := msgpack.Unmarshal(reply, &passed); err != nil {
+	if err := encoding.Unmarshal(reply, &passed); err != nil {
 		log.Println(err)
 		return nil
 	}
@@ -94,7 +94,7 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 
 	var output big.Int
 
-	if err := msgpack.Unmarshal(reply, &output); err != nil {
+	if err := encoding.Unmarshal(reply, &output); err != nil {
 		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 		Address string
 	}{Address: address.String()}
 
-	data, err := msgpack.Marshal(input)
+	data, err := encoding.Marshal(input)
 	if err != nil {
 		log.Fatalf(clientPreface, fmt.Sprintf("Encode error: %v", err))
 		return nil, err
@@ -123,7 +123,7 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 
 	var balance string
 
-	if err := msgpack.Unmarshal(reply, &balance); err != nil {
+	if err := encoding.Unmarshal(reply, &balance); err != nil {
 		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (a *AdamniteClient) GetAccounts() (*[]string, error) {
 		Accounts []string
 	}{}
 
-	if err := msgpack.Unmarshal(reply, &output); err != nil {
+	if err := encoding.Unmarshal(reply, &output); err != nil {
 		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
 		return nil, err
 	}

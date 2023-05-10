@@ -53,9 +53,15 @@ func NewNetNode(address common.Address) *NetNode {
 
 	return &n
 }
+func (n NetNode) GetOwnContact() Contact {
+	return n.thisContact
+}
 
 // spins up a server for this node.
 func (n *NetNode) AddServer() error {
+	if n.hostingServer != nil {
+		n.hostingServer.Close() //assume they want to restart the server then
+	}
 	admServer := rpc.NewAdamniteServer(nil, nil, 0) //TODO: pass more parameters to this.
 
 	admServer.GetContactsFunction = n.contactBook.GetContactList
