@@ -133,7 +133,7 @@ func NewWitnessPool(chainConfig *params.ChainConfig) *WitnessPool {
 		// 	pool.Witnesses = append(pool.Witnesses, witness)
 		// }
 
-		vrfMaps, _ := setVRFItems(pool.Witnesses)
+		vrfMaps, _ := SetVRFItems(pool.Witnesses)
 		for _, w := range vrfMaps {
 			pool.vrfMaps[w.GetAddress()] = &w
 		}
@@ -142,7 +142,7 @@ func NewWitnessPool(chainConfig *params.ChainConfig) *WitnessPool {
 	return pool
 }
 
-func setVRFItems(witnesses []Witness) (vrfMaps map[float64]Witness, vrfWeights []float64) {
+func SetVRFItems(witnesses []Witness) (vrfMaps map[float64]Witness, vrfWeights []float64) {
 	vrfMaps, vrfWeights = make(map[float64]Witness), []float64{} //variable assignment for clarity.
 
 	maxBlockValidationPercent, maxStakingAmount, maxVoterCount, maxElectedCount := getMaxesFrom(witnesses)
