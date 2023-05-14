@@ -19,6 +19,7 @@ type Account struct {
 	Address    common.Address
 	PublicKey  []byte
 	PrivateKey []byte
+	Balance    float64
 }
 
 func GenerateAccount() (*Account, error) {
@@ -32,6 +33,7 @@ func GenerateAccount() (*Account, error) {
 		Address   : createAddress(publicKey),
 		PublicKey : publicKey,
 		PrivateKey: privateKey,
+		Balance   : 0,
 	}, nil
 }
 

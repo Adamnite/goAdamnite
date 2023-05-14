@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/accounts"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
@@ -63,8 +62,6 @@ type AdamniteDPOS struct {
 	signatures *lru.ARCCache
 	poh        *poh.POH
 }
-
-type SignerFn func(accounts.Account, []byte) ([]byte, error)
 
 func New(config *params.ChainConfig, db adamnitedb.Database) *AdamniteDPOS {
 
