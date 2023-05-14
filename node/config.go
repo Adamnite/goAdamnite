@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/accounts/keystore"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
@@ -226,10 +225,7 @@ func (c *Config) NodeDB() string {
 	return c.ResolvePath(datadirNodeDatabase)
 }
 
-func (c *Config) AccountConfig() (int, int, string, error) {
-	scryptN := keystore.StandardScryptN
-	scryptP := keystore.StandardScryptP
-
+func (c *Config) AccountConfig() (string, error) {
 	var (
 		keydir string
 		err    error
@@ -248,5 +244,5 @@ func (c *Config) AccountConfig() (int, int, string, error) {
 		keydir, err = filepath.Abs(c.KeyStoreDir)
 	}
 
-	return scryptN, scryptP, keydir, err
+	return keydir, err
 }

@@ -3,7 +3,6 @@ package launcher
 import (
 	"fmt"
 
-	"github.com/adamnite/go-adamnite/accounts/keystore"
 	"github.com/adamnite/go-adamnite/internal/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -14,7 +13,6 @@ var (
 		Usage:    "Manage accounts",
 		Category: "ACCOUNT COMMANDS",
 		Description: `
-		
 Manage accounts, list all existing accounts, import a private key into a new account,
 create a new account or update an existing account.Aliases: 
 
@@ -32,7 +30,7 @@ Make sure you backup your keys regularly.`,
 				Action: utils.MigrateFlags(accountNew),
 				Flags:  []cli.Flag{},
 				Description: `
-				
+
 gnite account new
 
 Creates a new account and prints the address.`,
@@ -51,18 +49,13 @@ func accountNew(ctx *cli.Context) error {
 	}
 
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	scryptN, scryptP, keydir, err := cfg.Node.AccountConfig()
+	keydir, err := cfg.Node.AccountConfig()
 
 	if err != nil {
 		utils.Fatalf("Failed to read configuration: %v", err)
 	}
 
 	password := utils.GetPassPhraseWithList("Please give a password.", true, 0, utils.MakePasswordList(ctx))
-
-	account, err := keystore.StoreKey(keydir, password, scryptN, scryptP)
-	if err != nil {
-		utils.Fatalf("Failed to create account: %v", err)
-	}
 
 	fmt.Printf(`
 	Your new key was generated
