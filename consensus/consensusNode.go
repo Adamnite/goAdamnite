@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"log"
 	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
@@ -42,6 +43,7 @@ func newConsensus(hostingNode *networking.NetNode, state *statedb.StateDB, chain
 		chain:        chain,
 	}
 	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction); err != nil {
+		log.Printf("error:%v", err)
 		return ConsensusNode{}, err
 	}
 	return con, nil

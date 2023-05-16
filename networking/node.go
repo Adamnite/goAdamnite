@@ -66,6 +66,7 @@ func (n NetNode) GetOwnContact() Contact {
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
 func (n *NetNode) AddFullServer(state *statedb.StateDB, chain *blockchain.Blockchain, transactionHandler func(*utils.Transaction) error) error {
 	if n.hostingServer != nil {
+		log.Println("closing old server before adding new server")
 		n.hostingServer.Close() //assume they want to restart the server then
 	}
 	n.hostingServer = rpc.NewAdamniteServer(state, chain, 0)
@@ -77,6 +78,7 @@ func (n *NetNode) AddFullServer(state *statedb.StateDB, chain *blockchain.Blockc
 // spins up a server for this node.
 func (n *NetNode) AddServer() error {
 	if n.hostingServer != nil {
+		log.Println("closing old server before adding new server")
 		n.hostingServer.Close() //assume they want to restart the server then
 	}
 	n.hostingServer = rpc.NewAdamniteServer(nil, nil, 0)
