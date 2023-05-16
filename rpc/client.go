@@ -12,7 +12,17 @@ import (
 
 const clientPreface = "[Adamnite RPC client] %v \n"
 
+func (a *AdamniteClient) print(methodName string) {
+	if a.DebugOutput {
+		log.Printf(clientPreface, methodName)
+	}
+}
+func (a *AdamniteClient) printError(methodName string, err error) {
+	log.Printf(clientPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+}
+
 type AdamniteClient struct {
+	DebugOutput       bool
 	endpoint          string
 	client            rpc.Client
 	callerAddress     *common.Address
@@ -29,7 +39,7 @@ func (a *AdamniteClient) Close() {
 }
 
 func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte) error {
-	log.Printf(clientPreface, "Forward Message")
+	a.print("Forward Message")
 	// just pass this message along until someone who needs it finds it
 	// var forwardingBytes []byte
 	forwardingBytes, err := msgpack.Marshal(content)
@@ -40,7 +50,7 @@ func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte
 }
 
 func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
-	log.Printf(clientPreface, "Get Version")
+	a.print("Get Version")
 	var reply []byte = []byte{}
 	var versionReceived AdmVersionReply
 
@@ -69,7 +79,7 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 }
 
 func (a *AdamniteClient) GetContactList() *PassedContacts {
-	log.Printf(clientPreface, "Get Contact List")
+	a.print("Get Contact List")
 	var passed *PassedContacts
 	var reply []byte
 	if err := a.client.Call(getContactsListEndpoint, []byte{}, &reply); err != nil {
@@ -84,7 +94,7 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 }
 
 func (a *AdamniteClient) GetChainID() (*big.Int, error) {
-	log.Printf(clientPreface, "Get chain id")
+	a.print("Get chain id")
 	reply := []byte{}
 	err := a.client.Call(getChainIDEndpoint, []byte{}, &reply)
 	if err != nil {
@@ -95,7 +105,7 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	var output big.Int
 
 	if err := msgpack.Unmarshal(reply, &output); err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
+		a.printError("Get chain id", err)
 		return nil, err
 	}
 
@@ -103,7 +113,7 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 }
 
 func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
-	log.Printf(clientPreface, "Get balance")
+	a.print("Get balance")
 
 	input := struct {
 		Address string
@@ -111,31 +121,31 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 
 	data, err := msgpack.Marshal(input)
 	if err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("Encode error: %v", err))
+		a.printError("Get balance", err)
 		return nil, err
 	}
 
 	var reply []byte
 	if err := a.client.Call(getBalanceEndpoint, data, &reply); err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("Call error: %v", err))
+		a.printError("Get balance", err)
 		return nil, err
 	}
 
 	var balance string
 
 	if err := msgpack.Unmarshal(reply, &balance); err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
+		a.printError("Get balance", err)
 		return nil, err
 	}
 
 	return &balance, nil
 }
 func (a *AdamniteClient) GetAccounts() (*[]string, error) {
-	log.Printf(clientPreface, "Get block by hash")
+	a.print("Get Accounts")
 
 	var reply []byte
 	if err := a.client.Call(getAccountsEndpoint, nil, &reply); err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("Call error: %v", err))
+		a.printError("Get Accounts", err)
 		return nil, err
 	}
 
@@ -144,7 +154,7 @@ func (a *AdamniteClient) GetAccounts() (*[]string, error) {
 	}{}
 
 	if err := msgpack.Unmarshal(reply, &output); err != nil {
-		log.Fatalf(clientPreface, fmt.Sprintf("error: %v", err))
+		a.printError("Get Accounts", err)
 		return nil, err
 	}
 
@@ -158,7 +168,8 @@ func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
 		return AdamniteClient{}, err
 	}
 	return AdamniteClient{
-		endpoint: endpoint,
-		client:   *client,
+		DebugOutput: false,
+		endpoint:    endpoint,
+		client:      *client,
 	}, nil
 }
