@@ -215,7 +215,6 @@ func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionB
 			rpc.ForwardingContent{ //i don't love handling the forwarding generation here, but I'll live.
 				FinalEndpoint: rpc.SendTransactionEndpoint,
 				FinalParams:   *transactionBytes,
-				// FinalReply:    []byte{},
 				InitialSender: transaction.From,
 				Signature:     common.BytesToHash(transaction.Signature), // i think this works, but not 100% sure its right.
 			},
@@ -230,8 +229,6 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
 		for key, connection := range n.activeContactToClient {
 			if key.NodeID == *content.DestinationNode {
-
-				// err = connection.ForwardMessage(content, &reply)
 				return connection.ForwardMessage(content, reply)
 			}
 		}
