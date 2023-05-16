@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adamnite/go-adamnite/accounts"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/alitto/pond"
 )
 
@@ -85,7 +85,7 @@ func (this *POH) GeneratePOH(count uint64) {
 	var prevhash []byte
 
 	// TODO: Geneisis + wallet public-key + timestamp + rand number
-	genisis_hash := fmt.Sprintf("GENESIS_HASH-%d-%s", time.Now().UnixNano(), base64.StdEncoding.EncodeToString(this.Wallet.Accounts()[0].Address[:]))
+	genisis_hash := fmt.Sprintf("GENESIS_HASH-%d-%s", time.Now().UnixNano(), string(this.Wallet.Accounts[0].Address[:]))
 
 	h.Write([]byte(genisis_hash))
 	prevhash = h.Sum(nil)
@@ -106,7 +106,7 @@ func (this *POH) GeneratePOH(count uint64) {
 			h.Write(append(prevhash, data...))
 			prevhash = h.Sum(nil)
 
-			signature, _ := this.Wallet.SignData(this.Wallet.Accounts()[0], "", data)
+			signature, _ := this.Wallet.Accounts[0].Sign(data)
 
 			this.Mu.Lock()
 			this.POH[0].Entry = append(this.POH[0].Entry, POH_Entry{Hash: prevhash, Data: data, Seq: i, Signature: signature})
@@ -193,7 +193,7 @@ func (this *POH) VerifyPOH(cpu_cores int) (err error) {
 						h.Write(this.POH[0].Entry[n].Data)
 
 						// Verify the signature matches the publickey
-						verify, _ := this.Wallet.Verify(this.POH[0].Entry[n].Data, this.POH[0].Entry[n].Signature)
+						verify := this.Wallet.Accounts[0].Verify(this.POH[0].Entry[n].Data, this.POH[0].Entry[n].Signature)
 
 						fmt.Println(verify)
 

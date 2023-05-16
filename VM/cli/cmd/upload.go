@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core/VM"
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/spf13/cobra"
 )
 
