@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/ripemd160"
 
@@ -210,4 +211,59 @@ func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
 		return nil, errInvalidPubkey
 	}
 	return &ecdsa.PublicKey{Curve: Secp256k1(), X: x, Y: y}, nil
+}
+
+func zeroBytes(bytes []byte) {
+	for i := range bytes {
+		bytes[i] = 0
+	}
+}
+
+func B58encode(b []byte) (s string) {
+
+	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+	/* Convert big endian bytes to big int */
+	x := new(big.Int).SetBytes(b)
+
+	/* Initialize */
+	r := new(big.Int)
+	m := big.NewInt(58)
+	zero := big.NewInt(0)
+	s = ""
+
+	/* Convert big int to string */
+	for x.Cmp(zero) > 0 {
+		/* x, r = (x / 58, x % 58) */
+		x.QuoRem(x, m, r)
+		/* Prepend ASCII character */
+		s = string(NITE_BASE58_TABLE[r.Int64()]) + s
+	}
+
+	return s
+}
+
+func B58decode(s string) (b []byte, err error) {
+
+	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+	/* Initialize */
+	x := big.NewInt(0)
+	m := big.NewInt(58)
+
+	/* Convert string to big int */
+	for i := 0; i < len(s); i++ {
+		b58index := strings.IndexByte(NITE_BASE58_TABLE, s[i])
+		if b58index == -1 {
+			return nil, fmt.Errorf("Invalid base-58 character encountered: '%c', index %d.", s[i], i)
+		}
+		b58value := big.NewInt(int64(b58index))
+		x.Mul(x, m)
+		x.Add(x, b58value)
+	}
+
+	/* Convert big int to big endian bytes */
+	b = x.Bytes()
+
+	return b, nil
 }

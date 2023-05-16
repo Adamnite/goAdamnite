@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"fmt"
 
+	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto/secp256k1"
 )
 
@@ -21,7 +22,9 @@ func Sign(dataHash []byte, prv *ecdsa.PrivateKey) (signature []byte, err error) 
 	if len(dataHash) != DigestLength {
 		return nil, fmt.Errorf("hash length should be %d bytes (%d)", DigestLength, len(dataHash))
 	}
-	return secp256k1.Sign(dataHash, prv.D.Bytes())
+	secure_key := math.PaddedBigBytes(prv.D, prv.Params().BitSize/16)
+	defer zeroBytes(secure_key)
+	return secp256k1.Sign(dataHash, secure_key)
 }
 
 func VerifySignature(public_key, dataHash, signature []byte) bool {
