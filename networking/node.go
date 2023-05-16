@@ -2,11 +2,15 @@ package networking
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 //version packet needs to contain
@@ -39,6 +43,8 @@ type NetNode struct {
 	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
 	hostingServer *rpc.AdamniteServer
+
+	consensusTransactionHandler func(*utils.Transaction) error
 }
 
 func NewNetNode(address common.Address) *NetNode {
@@ -53,20 +59,41 @@ func NewNetNode(address common.Address) *NetNode {
 
 	return &n
 }
+func (n NetNode) GetOwnContact() Contact {
+	return n.thisContact
+}
+
+// spins up a RPC server with chain reference, and capability to properly propagate transactions
+func (n *NetNode) AddFullServer(state *statedb.StateDB, chain *blockchain.Blockchain, transactionHandler func(*utils.Transaction) error) error {
+	if n.hostingServer != nil {
+		log.Println("closing old server before adding new server")
+		n.hostingServer.Close() //assume they want to restart the server then
+	}
+	n.hostingServer = rpc.NewAdamniteServer(state, chain, 0)
+	n.updateServer()
+	n.consensusTransactionHandler = transactionHandler
+	return nil
+}
 
 // spins up a server for this node.
 func (n *NetNode) AddServer() error {
-	admServer := rpc.NewAdamniteServer(nil, nil, 0) //TODO: pass more parameters to this.
-
-	admServer.GetContactsFunction = n.contactBook.GetContactList
-	n.thisContact.connectionString = admServer.Addr()
-	admServer.SetHostingID(&n.thisContact.NodeID)
-	admServer.SetForwardFunc(n.handleForward)
-	admServer.SetNewConnectionFunc(n.versionCheck)
-	go admServer.Run()
-	n.hostingServer = admServer
-
+	if n.hostingServer != nil {
+		log.Println("closing old server before adding new server")
+		n.hostingServer.Close() //assume they want to restart the server then
+	}
+	n.hostingServer = rpc.NewAdamniteServer(nil, nil, 0)
+	n.updateServer()
 	return nil
+}
+
+func (n *NetNode) updateServer() {
+	n.hostingServer.GetContactsFunction = n.contactBook.GetContactList
+	n.hostingServer.SetHostingID(&n.thisContact.NodeID)
+	n.hostingServer.SetForwardFunc(n.handleForward)
+	n.hostingServer.SetNewConnectionFunc(n.versionCheck)
+	n.hostingServer.SetTransactionHandler(n.handleTransaction)
+	go n.hostingServer.Run()
+	n.thisContact.connectionString = n.hostingServer.Addr()
 }
 
 // use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
@@ -111,14 +138,19 @@ func (n *NetNode) ResetConnections() error {
 }
 
 func (n *NetNode) FillOpenConnections() error {
+	useRecursion := false
 	if len(n.contactBook.connections) >= int(n.maxOutboundConnections*3) {
 		if err := n.SprawlConnections(5, 0.01); err != nil {
-			return err
+			if err == errNoNewConnectionsMade {
+				useRecursion = true
+			} else {
+				return err
+			}
 		}
 	}
 	possibleCons := n.contactBook.SelectWhitelist(int(n.activeOutboundCount-n.maxOutboundConnections) + 1)
 	//get an extra incase one doesn't want to connect
-	for i := 0; i <= len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {
+	for i := 0; i < len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {
 		if err := n.ConnectToContact(possibleCons[i]); err != nil {
 			switch err { //handle any handle-able errors directly here.
 			case ErrPreexistingConnection:
@@ -131,7 +163,7 @@ func (n *NetNode) FillOpenConnections() error {
 			}
 		}
 	}
-	if n.activeOutboundCount < n.maxOutboundConnections {
+	if n.activeOutboundCount < n.maxOutboundConnections && useRecursion {
 		return n.FillOpenConnections()
 	}
 	return nil
@@ -177,16 +209,29 @@ func (n *NetNode) testConnection(contact *Contact) (bool, error) {
 
 	return true, nil
 }
+func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionBytes *[]byte) error {
+	if n.consensusTransactionHandler == nil {
+		//we can't verify this, so just propagate it out!
 
-func (n *NetNode) handleForward(content rpc.ForwardingContent, reply []byte) error {
-
+		return n.handleForward(
+			rpc.ForwardingContent{ //i don't love handling the forwarding generation here, but I'll live.
+				FinalEndpoint: rpc.SendTransactionEndpoint,
+				FinalParams:   *transactionBytes,
+				InitialSender: transaction.From,
+				Signature:     common.BytesToHash(transaction.Signature), // i think this works, but not 100% sure its right.
+			},
+			&[]byte{},
+		)
+	}
+	return n.consensusTransactionHandler(transaction)
+}
+func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) error {
+	log.Println("handling forwarding")
 	if content.DestinationNode != nil {
 		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
 		for key, connection := range n.activeContactToClient {
 			if key.NodeID == *content.DestinationNode {
-
-				// err = connection.ForwardMessage(content, &reply)
-				return connection.ForwardMessage(content, &reply)
+				return connection.ForwardMessage(content, reply)
 			}
 		}
 	}
@@ -194,6 +239,7 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply []byte) err
 	for _, element := range n.activeContactToClient {
 		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
 			if err.Error() != rpc.ErrAlreadyForwarded.Error() {
+				log.Println(err)
 				//networking errors sometimes get weird, check the err.Error()
 				//with a complex web, its likely one node already heard the message, no need to panic
 				return err
@@ -283,6 +329,9 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 	n.contactBook.DropSlowestPercentage(autoCutoff)
 	for _, contact := range startingConnections {
 		n.ConnectToContact(contact)
+	}
+	if len(talkedToContacts) == len(n.contactBook.connectionsByContact) {
+		return errNoNewConnectionsMade
 	}
 	return nil
 }

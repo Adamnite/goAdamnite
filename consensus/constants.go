@@ -16,12 +16,11 @@ const (
 )
 
 const (
-	prefixKeyOfWitnessPool = "witnesspool-" //whats this for?
-	maxWitnessNumber       = 27
+	maxWitnessNumber = 27
 )
 
 type WitnessInfo struct {
-	address common.Address //TODO: review that this is the correct info for a witness.
+	address common.Address
 	voters  []utils.Voter
 }
 

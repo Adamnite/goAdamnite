@@ -8,7 +8,7 @@ import (
 
 // for methods that only apply to the B chamber members
 func NewBConsensus(codeServer string) (ConsensusNode, error) {
-	conNode, err := newConsensus(networking.NewNetNode(common.Address{0}))
+	conNode, err := newConsensus(networking.NewNetNode(common.Address{}), nil, nil)
 	conNode.handlingType = SecondaryTransactions
 	conNode.ocdbLink = codeServer
 

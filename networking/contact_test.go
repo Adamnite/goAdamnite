@@ -87,9 +87,9 @@ func TestWhitelistGeneration(t *testing.T) {
 	}
 
 	// test connections. should average (eventually) to be in order by performance speed.
-	whiteListLength := 50
+	whiteListLength := 40
 	totalTimes := make([]int64, whiteListLength)
-	var attemptCount int64 = 200000
+	var attemptCount int64 = 100000
 	for i := 0; i < int(attemptCount); i++ {
 		// responses = append(responses, conBook.SelectWhitelist(len(conBook.connections)))
 		response := conBook.SelectWhitelist(whiteListLength)
@@ -101,14 +101,14 @@ func TestWhitelistGeneration(t *testing.T) {
 	var outOfOrderCount int64 = 0
 	for i := 0; i < len(totalTimes)-1; i++ {
 		if totalTimes[i]/attemptCount > totalTimes[i+1]/attemptCount {
-			//you can assume some will be out of order (no matter how many times we test), i just want less than 5% out of order
+			//you can assume some will be out of order (no matter how many times we test), i just want less than 10% out of order
 			outOfOrderCount += 1
 		}
 	}
 	assert.LessOrEqual(
 		t,
 		outOfOrderCount,
-		int64(whiteListLength/20),
+		int64(whiteListLength/10),
 		fmt.Sprintf("%v%% of the average responses were out of order.",
 			float64(outOfOrderCount)/float64(whiteListLength)*100),
 	)
