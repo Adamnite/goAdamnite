@@ -31,6 +31,7 @@ type AdamniteServer struct {
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(*utils.Transaction, *[]byte) error
 	Run                       func()
+	DebugOutput               bool
 }
 
 func (a *AdamniteServer) Addr() string {
@@ -61,10 +62,19 @@ func (a *AdamniteServer) Close() {
 
 const serverPreface = "[Adamnite RPC server] %v \n"
 
+func (a *AdamniteServer) print(methodName string) {
+	if a.DebugOutput {
+		log.Printf(serverPreface, methodName)
+	}
+}
+func (a *AdamniteServer) printError(methodName string, err error) {
+	log.Printf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+}
+
 const TestServerEndpoint = "AdamniteServer.TestServer"
 
 func (a *AdamniteServer) TestServer(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Test Server")
+	a.print("Test Server")
 	a.timesTestHasBeenCalled++
 	return nil
 }
@@ -75,7 +85,7 @@ func (a *AdamniteServer) GetTestsCount() int {
 const forwardMessageEndpoint = "AdamniteServer.ForwardMessage"
 
 func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Forward Message")
+	a.print("Forward Message")
 	if a.forwardingMessageReceived == nil {
 		return ErrNotSetupToHandleForwarding
 	}
@@ -117,7 +127,7 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 const getContactsListEndpoint = "AdamniteServer.GetContactList"
 
 func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
-	log.Printf(serverPreface, "Get Contact list")
+	a.print("Get Contact list")
 	contacts := a.GetContactsFunction()
 	*reply, err = encoding.Marshal(contacts)
 	return
@@ -126,14 +136,14 @@ func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err erro
 const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get Version")
+	a.print("Get Version")
 	// var receivedAddress common.Address //TODO, have the connection string passed as well.
 	receivedData := struct {
 		Address           common.Address
 		HostingServerPort string
 	}{}
 	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get Version", err)
 		return err
 	}
 	if a.newConnection != nil && a.mostRecentReceivedIP != "" && receivedData.HostingServerPort != "" {
@@ -151,7 +161,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	ans.Addr_from = a.hostingNodeID //TODO: pass the hosting address down to the RPC
 	// ans.Last_round = a.chain.CurrentBlock().Number()
 	if data, err := encoding.Marshal(ans); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get Version", err)
 		return err
 	} else {
 		*reply = data
@@ -162,14 +172,14 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 const getChainIDEndpoint = "AdamniteServer.GetChainID"
 
 func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get chain ID")
+	a.print("Get chain ID")
 	if a.chain == nil || a.chain.Config() == nil {
 		return ErrChainNotSet
 	}
 
 	data, err := encoding.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get chain ID", err)
 		return err
 	}
 
@@ -180,19 +190,19 @@ func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 const getBalanceEndpoint = "AdamniteServer.GetBalance"
 
 func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get balance")
+	a.print("Get balance")
 	input := struct {
 		Address string
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get balance", err)
 		return err
 	}
 
 	data, err := encoding.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get balance", err)
 		return err
 	}
 
@@ -203,11 +213,11 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 const getAccountsEndpoint = "AdamniteServer.GetAccounts"
 
 func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get accounts")
+	a.print("Get accounts")
 
 	data, err := encoding.Marshal(a.addresses)
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get accounts", err)
 		return err
 	}
 
@@ -218,20 +228,20 @@ func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
 const getBlockByHashEndpoint = "AdamniteServer.GetBlockByHash"
 
 func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get block by hash")
+	a.print("Get block by hash")
 
 	input := struct {
 		BlockHash common.Hash
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get block by hash", err)
 		return err
 	}
 
 	data, err := encoding.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get block by hash", err)
 		return err
 	}
 
@@ -243,20 +253,20 @@ func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 const getBlockByNumberEndpoint = "AdamniteServer.GetBlockByNumber"
 
 func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Get block by number")
+	a.print("Get block by number")
 
 	input := struct {
 		BlockNumber big.Int
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get block by number", err)
 		return err
 	}
 
 	data, err := encoding.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Get block by number", err)
 		return err
 	}
 
@@ -267,14 +277,14 @@ func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 const createAccountEndpoint = "AdamniteServer.CreateAccount"
 
 func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Create account")
+	a.print("Create account")
 
 	input := struct {
 		Address string
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Create account", err)
 		return err
 	}
 
@@ -290,7 +300,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 
 	data, err := encoding.Marshal(true)
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Create account", err)
 		return err
 	}
 
@@ -301,19 +311,19 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 const SendTransactionEndpoint = "AdamniteServer.SendTransaction"
 
 func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
-	log.Printf(serverPreface, "Send transaction")
+	a.print("Send transaction")
 	// if a.stateDB == nil {
 	// 	return ErrStateNotSet
 	// }
 	var input *utils.Transaction
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Send transaction", err)
 		return err
 	}
 	data, err := encoding.Marshal(true)
 	if err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("Send transaction", err)
 		return err
 	}
 	*reply = data
@@ -336,6 +346,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, p
 	adamnite.chain = chain
 	adamnite.timesTestHasBeenCalled = 0
 	adamnite.seenConnections = make(map[common.Hash]common.Void)
+	adamnite.DebugOutput = false
 
 	if err := rpcServer.Register(adamnite); err != nil {
 		log.Fatal(err)

@@ -37,7 +37,8 @@ func (t *Transaction) Sign(key ecdsa.PrivateKey) (err error) { //TODO: replace w
 func (t *Transaction) Hash() common.Hash {
 	data := append(t.From.Bytes(), t.To.Bytes()...)
 	data = append(data, t.Amount.Bytes()...)
-	return crypto.Sha512Hash(data)
+
+	return common.BytesToHash(crypto.Sha512(data))
 }
 
 // Verify that the signature used in the transaction is correct
