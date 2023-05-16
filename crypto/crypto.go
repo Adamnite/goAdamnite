@@ -189,11 +189,11 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
-	return common.BytesToAddress(b58encode(ripemd160Hash(Sha512(pubBytes[1:]))))
+	return common.BytesToAddress(ripemd160Hash(Sha512(pubBytes[1:])))
 }
 
 func PubkeyByteToAddress(p []byte) common.Address {
-	return common.BytesToAddress(b58encode(ripemd160Hash(Sha512(p[1:]))))
+	return common.BytesToAddress(ripemd160Hash(Sha512(p[1:])))
 }
 
 func ValidateSignatureValues(v byte, r, s *big.Int) bool {
@@ -210,28 +210,4 @@ func UnmarshalPubkey(pub []byte) (*ecdsa.PublicKey, error) {
 		return nil, errInvalidPubkey
 	}
 	return &ecdsa.PublicKey{Curve: Secp256k1(), X: x, Y: y}, nil
-}
-
-func b58encode(b []byte) []byte {
-
-	const NITE_BASE58_TABLE = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
-	/* Convert big endian bytes to big int */
-	x := new(big.Int).SetBytes(b)
-
-	/* Initialize */
-	r := new(big.Int)
-	m := big.NewInt(58)
-	zero := big.NewInt(0)
-	s := ""
-
-	/* Convert big int to string */
-	for x.Cmp(zero) > 0 {
-		/* x, r = (x / 58, x % 58) */
-		x.QuoRem(x, m, r)
-		/* Prepend ASCII character */
-		s = string(NITE_BASE58_TABLE[r.Int64()]) + s
-	}
-
-	return []byte(s)
 }

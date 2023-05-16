@@ -7,7 +7,6 @@ import (
 	"crypto/sha512"
 	"crypto/rand"
 	"log"
-	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 
@@ -66,31 +65,8 @@ func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
 
 func createAddress(publicKey []byte) common.Address {
 	var addr common.Address
-	addr.SetBytes(b58encode(ripemd160Hash(sha512Hash(publicKey[1:]))))
+	addr.SetBytes(ripemd160Hash(sha512Hash(publicKey[1:])))
 	return addr
-}
-
-func b58encode(data []byte) []byte {
-	const BASE58_CHARS = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
-	// convert big endian bytes to big int
-	x := new(big.Int).SetBytes(data)
-
-	// initialize
-	r := new(big.Int)
-	m := big.NewInt(58)
-	zero := big.NewInt(0)
-	s := ""
-
-	// convert big int to string/
-	for x.Cmp(zero) > 0 {
-		// x, r = (x / 58, x % 58)
-		x.QuoRem(x, m, r)
-		// prepend ASCII character
-		s = string(BASE58_CHARS[r.Int64()]) + s
-	}
-
-	return []byte(s)
 }
 
 func ripemd160Hash(data []byte) []byte {
