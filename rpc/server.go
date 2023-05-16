@@ -12,7 +12,8 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/vmihailenco/msgpack/v5"
+	"github.com/adamnite/go-adamnite/utils"
+	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
 type AdamniteServer struct {
@@ -27,19 +28,26 @@ type AdamniteServer struct {
 	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
 	timesTestHasBeenCalled    int
 	newConnection             func(string, common.Address)
-	forwardingMessageReceived func(ForwardingContent, []byte) error
+	forwardingMessageReceived func(ForwardingContent, *[]byte) error
+	newTransactionReceived    func(*utils.Transaction, *[]byte) error
 	Run                       func()
 }
 
 func (a *AdamniteServer) Addr() string {
 	return a.listener.Addr().String()
 }
-func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, []byte) error) {
+func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
 }
 func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
 	a.newConnection = newConn
 }
+
+// set a response point if we get asked to handle a transaction
+func (a *AdamniteServer) SetTransactionHandler(handler func(*utils.Transaction, *[]byte) error) {
+	a.newTransactionReceived = handler
+}
+
 func (a *AdamniteServer) SetHostingID(id *common.Address) {
 	if id == nil {
 		a.hostingNodeID = common.Address{0}
@@ -73,7 +81,7 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 	}
 
 	var content ForwardingContent
-	if err := msgpack.Unmarshal(*params, &content); err != nil {
+	if err := encoding.Unmarshal(*params, &content); err != nil {
 		return err
 	}
 	if _, exists := a.seenConnections[content.Signature]; exists {
@@ -84,17 +92,20 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 
 	if content.DestinationNode != nil && *content.DestinationNode != a.hostingNodeID {
 		//it's not for us, but it is for someone!
-		return a.forwardingMessageReceived(content, *reply)
+		return a.forwardingMessageReceived(content, reply)
 	}
 
 	if content.DestinationNode == nil {
 		//its for everyone, so we need to parse it and share it
-		if err := a.forwardingMessageReceived(content, *reply); err != nil {
+		if err := a.forwardingMessageReceived(content, reply); err != nil {
+			log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 			return err
 		}
 	}
 	//we need to call it on ourselves.
 	switch content.FinalEndpoint {
+	case SendTransactionEndpoint:
+		return a.SendTransaction(&content.FinalParams, &[]byte{})
 	case getContactsListEndpoint:
 		return a.GetContactList(&content.FinalParams, &content.FinalReply)
 	case TestServerEndpoint:
@@ -108,7 +119,7 @@ const getContactsListEndpoint = "AdamniteServer.GetContactList"
 func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
 	log.Printf(serverPreface, "Get Contact list")
 	contacts := a.GetContactsFunction()
-	*reply, err = msgpack.Marshal(contacts)
+	*reply, err = encoding.Marshal(contacts)
 	return
 }
 
@@ -121,7 +132,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 		Address           common.Address
 		HostingServerPort string
 	}{}
-	if err := msgpack.Unmarshal(*params, &receivedData); err != nil {
+	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
@@ -139,7 +150,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	ans.Addr_received = receivedData.Address
 	ans.Addr_from = a.hostingNodeID //TODO: pass the hosting address down to the RPC
 	// ans.Last_round = a.chain.CurrentBlock().Number()
-	if data, err := msgpack.Marshal(ans); err != nil {
+	if data, err := encoding.Marshal(ans); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	} else {
@@ -156,7 +167,7 @@ func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 		return ErrChainNotSet
 	}
 
-	data, err := msgpack.Marshal(a.chain.Config().ChainID.String())
+	data, err := encoding.Marshal(a.chain.Config().ChainID.String())
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -174,12 +185,12 @@ func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
 		Address string
 	}{}
 
-	if err := msgpack.Unmarshal(*params, &input); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
-	data, err := msgpack.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
+	data, err := encoding.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -194,7 +205,7 @@ const getAccountsEndpoint = "AdamniteServer.GetAccounts"
 func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
 	log.Printf(serverPreface, "Get accounts")
 
-	data, err := msgpack.Marshal(a.addresses)
+	data, err := encoding.Marshal(a.addresses)
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -213,12 +224,12 @@ func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 		BlockHash common.Hash
 	}{}
 
-	if err := msgpack.Unmarshal(*params, &input); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
-	data, err := msgpack.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
+	data, err := encoding.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -238,12 +249,12 @@ func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 		BlockNumber big.Int
 	}{}
 
-	if err := msgpack.Unmarshal(*params, &input); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
 
-	data, err := msgpack.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
+	data, err := encoding.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -262,7 +273,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 		Address string
 	}{}
 
-	if err := msgpack.Unmarshal(*params, &input); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
@@ -277,7 +288,7 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	a.stateDB.CreateAccount(common.HexToAddress(input.Address))
 	a.addresses = append(a.addresses, input.Address)
 
-	data, err := msgpack.Marshal(true)
+	data, err := encoding.Marshal(true)
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
@@ -287,31 +298,34 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const sendTransactionEndpoint = "AdamniteServer.SendTransaction"
+const SendTransactionEndpoint = "AdamniteServer.SendTransaction"
 
 func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	log.Printf(serverPreface, "Send transaction")
+	// if a.stateDB == nil {
+	// 	return ErrStateNotSet
+	// }
+	var input *utils.Transaction
 
-	input := struct {
-		Hash string
-		Raw  string
-	}{}
-
-	if err := msgpack.Unmarshal(*params, &input); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
-
-	// TODO: send transaction to blockchain node
-
-	data, err := msgpack.Marshal(true)
+	data, err := encoding.Marshal(true)
 	if err != nil {
 		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
 		return err
 	}
-
 	*reply = data
+
+	if a.newTransactionReceived != nil {
+		return a.newTransactionReceived(input, params)
+	} else {
+		//TODO: this node cant forward this transaction at all.
+	}
+
 	return nil
+
 }
 
 func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, port uint32) *AdamniteServer {
@@ -345,7 +359,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, p
 					}
 				}()
 				adamnite.mostRecentReceivedIP = conn.RemoteAddr().String()
-				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				// _ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 				rpcServer.ServeConn(conn)
 			}(conn)
 		}

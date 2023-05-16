@@ -13,6 +13,7 @@ var (
 	ErrContactBlacklisted      = fmt.Errorf("contact attempting to be added is already blacklisted")
 	ErrContactIsSelf           = fmt.Errorf("the contact you're trying to add is the owner of this contact list")
 	ErrDistrustedConnection    = fmt.Errorf("the contact attempting to connect to is untrustworthy")
+	errNoNewConnectionsMade    = fmt.Errorf("no new connections were actually made after sprawl")
 )
 
 var blacklisted common.Void
