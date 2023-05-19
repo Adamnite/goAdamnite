@@ -104,10 +104,9 @@ func TestLinearPropagationFromCenter(t *testing.T) {
 		FinalParams:     []byte{},
 		FinalReply:      []byte{},
 		InitialSender:   nodes[0].thisContact.NodeID,
-		Signature:       common.Hash{0},
 	}
 	for x := 0; x < 5; x++ {
-		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
+		propagateContent.FinalParams = []byte{byte(x)} //only works up to 255
 		if err := nodes[len(nodes)/2].handleForward(propagateContent, &[]byte{}); err != nil {
 			t.Fatal(err)
 		}
@@ -128,10 +127,9 @@ func TestLinearPropagationFromSide(t *testing.T) {
 		FinalParams:     []byte{},
 		FinalReply:      []byte{},
 		InitialSender:   nodes[0].thisContact.NodeID,
-		Signature:       common.Hash{0},
 	}
 	for x := 0; x < 5; x++ {
-		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
+		propagateContent.FinalParams = []byte{byte(x)} //only works up to 255
 		if err := nodes[0].handleForward(propagateContent, &[]byte{}); err != nil {
 			t.Fatal(err)
 		}
@@ -154,14 +152,14 @@ func TestTransactionPropagation(t *testing.T) {
 		// log.Panicln("have faith")
 		*ans = *foo
 		return nil
-	})
+	}, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
 	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
-	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil)
+	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
 	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {

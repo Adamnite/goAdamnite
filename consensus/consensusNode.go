@@ -1,8 +1,9 @@
 package consensus
 
 import (
+	"fmt"
 	"log"
-	"time"
+	"math/big"
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -11,38 +12,58 @@ import (
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
 // The node that can handle consensus systems.
 // Is built on top of a networking node, using a netNode to handle the networking interactions
 type ConsensusNode struct {
-	thisCandidate  *Candidate
-	candidatesSeen []*Candidate //should probably also have a mapping for efficiency.
-	netLogic       *networking.NetNode
-	handlingType   consensusHandlingTypes
-	//TODO: VRF keys, aka, the keyset used for applying for votes and whatnot. should have its own type upon implementation here
-	spendingKey crypto.PrivateKey // each consensus node is forced to have its own account to spend from.
-	state       *statedb.StateDB
-	chain       *blockchain.Blockchain //we need to keep the chain
-	ocdbLink    string                 //off chain database, if running the VM verification, this should be local.
-	vm          *VM.Machine
+	thisCandidate        *utils.Candidate
+	currentRound         uint64
+	votesSeen            map[string][]*utils.Voter   //candidate nodeID->voters array
+	candidates           map[string]*utils.Candidate //candidate nodeID->Candidate(just sorting by nodeID)
+	candidateStakeValues map[string]*big.Int         //using a mapping to keep track of how much has been staked into each candidate
+	netLogic             *networking.NetNode
+	handlingType         networking.NetworkTopLayerType
+
+	spendingKey   accounts.Account // each consensus node is forced to have its own account to spend from.
+	participation accounts.Account
+	vrfKey        accounts.Account
+	state         *statedb.StateDB
+	chain         *blockchain.Blockchain //we need to keep the chain
+	ocdbLink      string                 //off chain database, if running the VM verification, this should be local.
+	vm            *VM.Machine
+
+	autoVoteForNode *common.Address
+	autoVoteWith    *common.Address
+	autoStakeAmount *big.Int
 }
 
-func NewAConsensus() (ConsensusNode, error) {
+func NewAConsensus(spendingKey accounts.Account) (ConsensusNode, error) {
 	//TODO: setup the chain data and whatnot
-	conNode, err := newConsensus(networking.NewNetNode(common.Address{}), nil, nil)
-	conNode.handlingType = SecondaryTransactions
+	conNode, err := newConsensus(nil, nil)
+	conNode.spendingKey = spendingKey
+	conNode.handlingType = networking.SecondaryTransactions
 	return conNode, err
 }
 
-func newConsensus(hostingNode *networking.NetNode, state *statedb.StateDB, chain *blockchain.Blockchain) (ConsensusNode, error) {
-	con := ConsensusNode{
-		netLogic:     hostingNode,
-		handlingType: NetworkingOnly,
-		state:        state,
-		chain:        chain,
+func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (ConsensusNode, error) {
+	participation, err := accounts.GenerateAccount()
+	if err != nil {
+		return ConsensusNode{}, err
 	}
-	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction); err != nil {
+	hostingNode := networking.NewNetNode(participation.Address)
+	con := ConsensusNode{
+		netLogic:             hostingNode,
+		handlingType:         networking.NetworkingOnly,
+		state:                state,
+		chain:                chain,
+		participation:        *participation,
+		votesSeen:            make(map[string][]*utils.Voter),
+		candidateStakeValues: make(map[string]*big.Int),
+		candidates:           make(map[string]*utils.Candidate),
+	}
+	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy); err != nil {
 		log.Printf("error:%v", err)
 		return ConsensusNode{}, err
 	}
@@ -52,8 +73,67 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
 	return nil
 }
-func (con *ConsensusNode) ReviewCandidacy(proposed *Candidate) {
-	//TODO: this is how you would vote for a candidate.
+
+// review authenticity of a vote, as well as recording it for our own records. If no errors are returned, will propagate further
+func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
+	candidate, exists := con.candidates[string(crypto.PublicKey(vote.To))]
+	if !exists {
+		return fmt.Errorf("we dont have that account saved, we could throw an error, or check for that candidate first, maybe save unknown votes to check again at the end?")
+	}
+	//TODO: check the balance of these voters!
+	verified := candidate.VerifyVote(vote)
+	if !verified {
+		return fmt.Errorf("untrusted vote") //TODO: make these errors real
+	}
+	//assuming by here it is legit.
+	con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
+	con.candidateStakeValues[string(candidate.NodeID)].Add(con.candidateStakeValues[string(candidate.NodeID)], vote.StakingAmount)
+	return nil
+}
+
+// review a candidate proposal. The Consensus node may add a vote on. If no errors are returned, assume it is fine to forward along.
+func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
+	log.Println("reviewing!")
+	//review the base matches as we believe it should
+	if proposed.ConsensusPool != int8(con.handlingType) &&
+		proposed.Round != con.currentRound+1 {
+		return nil //should be an error
+	}
+	//review that the initial vote is signed correctly
+	if !proposed.VerifyVote(proposed.InitialVote) {
+		return fmt.Errorf("someone lied in a vote") //TODO: replace with real error
+	}
+	con.candidates[string(proposed.NodeID)] = &proposed
+	con.votesSeen[string(proposed.NodeID)] = []*utils.Voter{&proposed.InitialVote}
+	con.candidateStakeValues[string(proposed.NodeID)] = proposed.InitialVote.StakingAmount
+
+	//if we made it here, this is most likely a viable candidate
+	//TODO: check if we have this candidate in our contacts list, we should add them if we don't (perhaps tell them directly if we support them)
+
+	//if we want to auto vote, then we'll vote for them!
+	if (con.autoVoteWith != nil &&
+		*con.autoVoteWith == proposed.InitialVote.Address()) ||
+		(con.autoVoteForNode != nil &&
+			*con.autoVoteForNode == accounts.AccountFromPubBytes(proposed.NodeID).Address) {
+		//we have a reason to auto vote for this node
+		err := con.VoteFor(proposed.NodeID, con.autoStakeAmount)
+		return err
+	}
+	return nil
+}
+
+// used to vote for a candidate (normally ourselves)
+func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount *big.Int) error {
+	vote := utils.NewVote(con.spendingKey.PublicKey, stakeAmount)
+	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingKey)
+	if err != nil {
+		return err
+	}
+	con.votesSeen[string(candidateNodeID)] = append(con.votesSeen[string(candidateNodeID)], &vote)
+	con.candidateStakeValues[string(candidateNodeID)].Add(con.candidateStakeValues[string(candidateNodeID)], stakeAmount)
+
+	//TODO: propagate this vote across the network.
+	return nil
 }
 
 // propose this node as a witness for the network.
@@ -62,45 +142,27 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 		con.thisCandidate = con.generateCandidacy()
 	}
 	//TODO: update candidacy for this rounds
-	//TODO: propagate a proposal through the network
+
+	con.thisCandidate.InitialVote = utils.NewVote(con.spendingKey.PublicKey, big.NewInt(0)) //TODO: change this to a real staking amount
+	con.thisCandidate.Round = con.currentRound + 1
+	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingKey)
+
+	con.netLogic.ProposeCandidacy(*con.thisCandidate)
+
 	return nil
 }
 
 // generate a mostly blank self candidate proposal
-func (con *ConsensusNode) generateCandidacy() *Candidate {
+func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 
-	thisCandidate := Candidate{
-		Round: 0, //TODO: have the round numbers
-		// StartTime: nil,//TODO:
-		IsActive:      false,
-		Stake:         0, //how much do we want to stake
-		Votes:         0, //to start no ones voted for us.
-		Reputation:    0, //TODO: figure out how we calculate this
-		FastTimeout:   0, //TODO: figure out what this is for exactly
-		NetworkPoint:  con.netLogic.GetOwnContact(),
-		ConsensusPool: con.handlingType,
+	thisCandidate := utils.Candidate{
+		Round:         0, //TODO: have the round numbers
+		NodeID:        con.participation.PublicKey,
+		ConsensusPool: int8(con.handlingType),
+		VRFKey:        con.vrfKey.PublicKey,
+		NetworkString: con.netLogic.GetOwnContact().ConnectionString,
 	}
-	public, _ := con.spendingKey.Public()
-	thisCandidate.PublicKey = public
+	// public, _ := con.spendingKey.Public()
+	// thisCandidate.PublicKey = public
 	return &thisCandidate
-}
-
-type Candidate struct {
-	Round       uint64           //round number proposing for
-	StartTime   uint64           //when that round should start
-	IsActive    bool             //save the math, is this round still running
-	Stake       uint64           //how much we stake on ourselves
-	Votes       uint64           //how many votes are for us
-	Reputation  uint64           //our reputation
-	FastTimeout uint64           //?
-	Deadline    time.Time        //when this candidacy proposal expires?
-	PublicKey   crypto.PublicKey //our spending public key
-	// PrivateKey   *ecdsa.PrivateKey  //WHAT???
-	NetworkPoint  networking.Contact     //where this node is
-	ConsensusPool consensusHandlingTypes //do we want to offer support for VM
-	SeenMessages  map[string]bool        // to prevent duplicate messages (I don't quite get this yet)
-	// MessageChannel   chan Message //not sure why we would have a message channel?
-	// QuitChannel      chan bool	//what are these for?
-	// ConsensusParams  ConsensusParams//what parameters do we use?
-	ParticipationKey string // key used to sign activation certificate. VRF key
 }

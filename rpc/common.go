@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/ugorji/go/codec"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -22,11 +23,17 @@ type ForwardingContent struct {
 	FinalParams     []byte          //the params to be passed at the end
 	FinalReply      []byte          //ignored if DestinationNode is nill, otherwise will attempt to link back
 	InitialSender   common.Address  //who started this
-	Signature       common.Hash     //the senders signature
 }
 
-func (fc *ForwardingContent) Sign() {
-	//TODO: this should take a private key and sign the transaction.
+func (fc ForwardingContent) Hash() common.Hash {
+	byteForm := []byte(fc.FinalEndpoint)
+	if fc.DestinationNode != nil {
+		byteForm = append(byteForm, fc.DestinationNode.Bytes()...)
+	}
+	byteForm = append(byteForm, fc.FinalParams...)
+	byteForm = append(byteForm, fc.FinalReply...)
+
+	return common.BytesToHash(crypto.Sha512(byteForm))
 }
 
 func Encode(v interface{}) ([]byte, error) {
@@ -62,4 +69,5 @@ var (
 	ErrNoAccountSet               = errors.New("the account address has not been set")
 	ErrNotSetupToHandleForwarding = errors.New("this RPC host is not setup to handle message forwarding")
 	ErrAlreadyForwarded           = errors.New("message has already been forwarded")
+	ErrBadForward                 = errors.New("this message has been deemed unfit to be shared further")
 )

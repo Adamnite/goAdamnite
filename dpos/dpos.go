@@ -2,7 +2,6 @@ package dpos
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -381,9 +380,9 @@ walk:
 			if state.GetBalance(sender).Cmp(stakingAmount) <= 0 {
 				continue walk
 			}
-			vote.Address = *tx.To()
-			votes[sender] = vote
-			log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// vote.Address = *tx.To()
+			// votes[sender] = vote
+			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.VOTE_POH_TX:
@@ -399,9 +398,9 @@ walk:
 			if state.GetBalance(sender).Cmp(stakingAmount) <= 0 {
 				continue walk
 			}
-			vote.Address = *tx.To()
+			// vote.To = *tx.To()
 			votes[sender] = vote
-			log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.CONTRACT_TX:

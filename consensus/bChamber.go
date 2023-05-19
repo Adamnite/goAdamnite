@@ -2,21 +2,20 @@ package consensus
 
 import (
 	"github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
 )
 
 // for methods that only apply to the B chamber members
 func NewBConsensus(codeServer string) (ConsensusNode, error) {
-	conNode, err := newConsensus(networking.NewNetNode(common.Address{}), nil, nil)
-	conNode.handlingType = SecondaryTransactions
+	conNode, err := newConsensus(nil, nil)
+	conNode.handlingType = networking.SecondaryTransactions
 	conNode.ocdbLink = codeServer
 
 	return conNode, err
 }
 
 func (bNode *ConsensusNode) isBNode() bool {
-	return bNode.handlingType == SecondaryTransactions
+	return bNode.handlingType == networking.SecondaryTransactions
 }
 
 // run the claimed changes again to verify that we have the same results.
@@ -32,6 +31,9 @@ func (bNode *ConsensusNode) VerifyRun(runtimeClaim VM.RuntimeChanges) (bool, *VM
 
 // take an incomplete runtime claim, and handle the process. The answer is assigned to the claim.
 func (bNode *ConsensusNode) ProcessRun(claim *VM.RuntimeChanges) error {
+	if !bNode.isBNode() {
+		return ErrNotBNode
+	}
 	if bNode.vm == nil {
 		vm, err := VM.NewVirtualMachineWithContract(bNode.ocdbLink, nil)
 		if err != nil {

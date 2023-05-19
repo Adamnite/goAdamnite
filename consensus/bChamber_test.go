@@ -76,7 +76,7 @@ func TestProcessingRun(t *testing.T) {
 
 }
 func TestMain(m *testing.M) {
-	setup()
+	// setup()
 	code := m.Run()
 	os.Exit(code)
 }

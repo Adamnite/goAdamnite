@@ -76,7 +76,7 @@ var WitnessList = []DBWitnessInfo{{
 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 	voters: []utils.Voter{
 		{
-			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+			// Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 		},
 	},
@@ -85,7 +85,7 @@ var WitnessList = []DBWitnessInfo{{
 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 		voters: []utils.Voter{
 			{
-				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+				// Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
 			},
 		},
@@ -418,21 +418,21 @@ func (wp *DBWitnessPool) DbWitnessPoolFromBlockHeader(headers []*types.BlockHead
 		for sender, vote := range votes {
 
 			witnesspool.Votes[sender] = &utils.Voter{
-				Address:       vote.Address,
+				// Address:       vote.Address,
 				StakingAmount: vote.StakingAmount,
 			}
 			count := 0
-			for _, wpCandidate := range witnesspool.witnessCandidates {
-				if wpCandidate.GetAddress() == vote.Address {
-					tmpVoters := append(wpCandidate.GetVoters(), utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
-					wpCandidate.SetVoters(tmpVoters)
-					count++
-				}
-			}
+			// for _, wpCandidate := range witnesspool.witnessCandidates {
+			// 	// if wpCandidate.GetAddress() == vote.Address {
+			// 	// 	tmpVoters := append(wpCandidate.GetVoters(), utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+			// 	// 	wpCandidate.SetVoters(tmpVoters)
+			// 	// 	count++
+			// 	// }
+			// }
 
 			if count == 0 {
 				tmpVotes := make([]utils.Voter, 0)
-				tmpVotes = append(tmpVotes, utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+				// tmpVotes = append(tmpVotes, utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
 				tmpWitness := &utils.WitnessImpl{
 					Address: sender,
 					Voters:  tmpVotes,

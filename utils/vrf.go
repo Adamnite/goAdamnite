@@ -1,6 +1,8 @@
 package utils
 
-import "math/big"
+import (
+	"math/big"
+)
 
 var ( //not actually saved as constants, since it makes most sense to have them as big floats from the start
 	stakingAmountWeight          = big.NewFloat(15)

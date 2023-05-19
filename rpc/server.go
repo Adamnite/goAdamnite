@@ -30,12 +30,23 @@ type AdamniteServer struct {
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(*utils.Transaction, *[]byte) error
+	newCandidateReceived      func(utils.Candidate) error
 	Run                       func()
 	DebugOutput               bool
 }
 
 func (a *AdamniteServer) Addr() string {
 	return a.listener.Addr().String()
+}
+func (a *AdamniteServer) SetHandlers(
+	newForward func(ForwardingContent, *[]byte) error,
+	newConn func(string, common.Address),
+	newTransaction func(*utils.Transaction, *[]byte) error,
+	newCandidate func(utils.Candidate) error) {
+	a.forwardingMessageReceived = newForward
+	a.newConnection = newConn
+	a.newTransactionReceived = newTransaction
+	a.newCandidateReceived = newCandidate
 }
 func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
@@ -70,6 +81,28 @@ func (a *AdamniteServer) print(methodName string) {
 func (a *AdamniteServer) printError(methodName string, err error) {
 	log.Printf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
+func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
+	if _, exists := a.seenConnections[fc.Hash()]; exists {
+		return true //we've already seen it
+	}
+	a.seenConnections[fc.Hash()] = common.Void{} //this doesn't actually use any memory
+	return false
+}
+
+const NewCandidateEndpoint = "AdamniteServer.NewCandidate"
+
+func (a *AdamniteServer) NewCandidate(params *[]byte, reply *[]byte) error {
+	a.print("New Candidate")
+	if a.newCandidateReceived == nil {
+		return nil //we aren't setup to handle it, just forward it
+	}
+	var candidateProposed utils.Candidate
+	if err := encoding.Unmarshal(*params, &candidateProposed); err != nil {
+		a.printError("New Candidate", err)
+		return err
+	}
+	return a.newCandidateReceived(candidateProposed)
+}
 
 const TestServerEndpoint = "AdamniteServer.TestServer"
 
@@ -94,26 +127,28 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 	if err := encoding.Unmarshal(*params, &content); err != nil {
 		return err
 	}
-	if _, exists := a.seenConnections[content.Signature]; exists {
-		return ErrAlreadyForwarded //we've already seen it
-	} else {
-		a.seenConnections[content.Signature] = common.Void{} //this doesn't actually use any memory
+	if a.AlreadySeen(content) {
+		return ErrAlreadyForwarded
 	}
-
-	if content.DestinationNode != nil && *content.DestinationNode != a.hostingNodeID {
-		//it's not for us, but it is for someone!
-		return a.forwardingMessageReceived(content, reply)
-	}
-
-	if content.DestinationNode == nil {
-		//its for everyone, so we need to parse it and share it
-		if err := a.forwardingMessageReceived(content, reply); err != nil {
-			log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
-			return err
+	if content.DestinationNode != nil { //targeted
+		if *content.DestinationNode == a.hostingNodeID {
+			//its been relayed directly to us
+			return a.callOnSelf(content)
+		}
+		if *content.DestinationNode != a.hostingNodeID {
+			//it's not for us, but it is for someone!
+			return a.forwardingMessageReceived(content, reply)
 		}
 	}
-	//we need to call it on ourselves.
+	//for everyone, including us
+	return a.callOnSelfThenShare(content)
+}
+
+// directly handle the message on ourselves.
+func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
 	switch content.FinalEndpoint {
+	case NewCandidateEndpoint:
+		return a.NewCandidate(&content.FinalParams, &[]byte{})
 	case SendTransactionEndpoint:
 		return a.SendTransaction(&content.FinalParams, &[]byte{})
 	case getContactsListEndpoint:
@@ -122,6 +157,18 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 		return a.TestServer(&content.FinalParams, &content.FinalReply)
 	}
 	return nil
+}
+func (a *AdamniteServer) callOnSelfThenShare(content ForwardingContent) error {
+	err := a.callOnSelf(content)
+	if err != nil {
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		if err != ErrBadForward {
+			//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
+			return nil
+		}
+		return err
+	}
+	return a.forwardingMessageReceived(content, &content.FinalReply)
 }
 
 const getContactsListEndpoint = "AdamniteServer.GetContactList"
