@@ -163,7 +163,7 @@ func TestTransactionPropagation(t *testing.T) {
 	// outsideNode.contactBook.connectionsByContact
 	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
-	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.connectionString)
+	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {
 		t.Fatal(err)
 	}
