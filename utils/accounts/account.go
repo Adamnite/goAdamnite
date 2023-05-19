@@ -88,7 +88,7 @@ func (a *Account) Sign(data []byte) ([]byte, error) {
 }
 
 func (a *Account) Verify(data []byte, signature []byte) bool {
-	return secp256k1.VerifySignature(a.PublicKey, sha256Hash(data), signature)
+	return secp256k1.VerifySignature(a.PublicKey, sha256Hash(data), signature[:64])
 }
 
 func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
