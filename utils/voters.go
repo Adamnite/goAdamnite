@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -26,7 +25,7 @@ func (v *Voter) SignTo(candidate Candidate, signer accounts.Account) error {
 	candidateHash := candidate.Hash()
 	voteAndCandidateHash := append(candidateHash, v.StakingAmount.Bytes()...)
 	voteAndCandidateHash = append(voteAndCandidateHash, v.From...)
-	signature, err := signer.Sign(crypto.Sha512(voteAndCandidateHash))
+	signature, err := signer.Sign(voteAndCandidateHash)
 	if err != nil {
 		return err
 	}
