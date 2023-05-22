@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"math/big"
@@ -39,18 +40,18 @@ type ConsensusNode struct {
 	autoStakeAmount *big.Int
 }
 
-func NewAConsensus(spendingKey accounts.Account) (ConsensusNode, error) {
+func NewAConsensus(spendingKey accounts.Account) (*ConsensusNode, error) {
 	//TODO: setup the chain data and whatnot
 	conNode, err := newConsensus(nil, nil)
 	conNode.spendingKey = spendingKey
-	conNode.handlingType = networking.SecondaryTransactions
+	conNode.handlingType = networking.PrimaryTransactions
 	return conNode, err
 }
 
-func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (ConsensusNode, error) {
+func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*ConsensusNode, error) {
 	participation, err := accounts.GenerateAccount()
 	if err != nil {
-		return ConsensusNode{}, err
+		return nil, err
 	}
 	hostingNode := networking.NewNetNode(participation.Address)
 	con := ConsensusNode{
@@ -63,11 +64,11 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (Consens
 		candidateStakeValues: make(map[string]*big.Int),
 		candidates:           make(map[string]*utils.Candidate),
 	}
-	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy); err != nil {
+	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy, con.ReviewVote); err != nil {
 		log.Printf("error:%v", err)
-		return ConsensusNode{}, err
+		return nil, err
 	}
-	return con, nil
+	return &con, nil
 }
 func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {
 	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
@@ -78,7 +79,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
 	candidate, exists := con.candidates[string(crypto.PublicKey(vote.To))]
 	if !exists {
-		return fmt.Errorf("we dont have that account saved, we could throw an error, or check for that candidate first, maybe save unknown votes to check again at the end?")
+		return fmt.Errorf("we don't have that account saved, we could throw an error, or check for that candidate first, maybe save unknown votes to check again at the end?")
 	}
 	//TODO: check the balance of these voters!
 	verified := candidate.VerifyVote(vote)
@@ -93,14 +94,15 @@ func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
 
 // review a candidate proposal. The Consensus node may add a vote on. If no errors are returned, assume it is fine to forward along.
 func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
-	log.Println("reviewing!")
+	log.Println("reviewing candidate!")
 	//review the base matches as we believe it should
-	if proposed.ConsensusPool != int8(con.handlingType) &&
+	if proposed.ConsensusPool != int8(con.handlingType) ||
 		proposed.Round != con.currentRound+1 {
-		return nil //should be an error
+		return nil //TODO: should be an error
 	}
 	//review that the initial vote is signed correctly
 	if !proposed.VerifyVote(proposed.InitialVote) {
+		log.Println("someone lied in a vote")
 		return fmt.Errorf("someone lied in a vote") //TODO: replace with real error
 	}
 	con.candidates[string(proposed.NodeID)] = &proposed
@@ -124,6 +126,12 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 
 // used to vote for a candidate (normally ourselves)
 func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount *big.Int) error {
+	if con.thisCandidate != nil && bytes.Equal(con.thisCandidate.NodeID, candidateNodeID) {
+		return fmt.Errorf("cannot vote for self")
+	}
+	if _, exists := con.candidates[string(candidateNodeID)]; !exists {
+		return fmt.Errorf("candidate doesn't exist, we might want to save it locally in the future and see if we get the candidate later")
+	}
 	vote := utils.NewVote(con.spendingKey.PublicKey, stakeAmount)
 	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingKey)
 	if err != nil {
@@ -132,18 +140,18 @@ func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount 
 	con.votesSeen[string(candidateNodeID)] = append(con.votesSeen[string(candidateNodeID)], &vote)
 	con.candidateStakeValues[string(candidateNodeID)].Add(con.candidateStakeValues[string(candidateNodeID)], stakeAmount)
 
-	//TODO: propagate this vote across the network.
-	return nil
+	return con.netLogic.ProposeVote(vote)
 }
 
 // propose this node as a witness for the network.
 func (con *ConsensusNode) ProposeCandidacy() error {
+	log.Println("proposing self for candidacy")
 	if con.thisCandidate == nil {
 		con.thisCandidate = con.generateCandidacy()
 	}
 	//TODO: update candidacy for this rounds
 
-	con.thisCandidate.InitialVote = utils.NewVote(con.spendingKey.PublicKey, big.NewInt(0)) //TODO: change this to a real staking amount
+	con.thisCandidate.InitialVote = utils.NewVote(con.spendingKey.PublicKey, big.NewInt(1)) //TODO: change this to a real staking amount
 	con.thisCandidate.Round = con.currentRound + 1
 	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingKey)
 
@@ -154,15 +162,13 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 
 // generate a mostly blank self candidate proposal
 func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
-
+	foo := con.handlingType
 	thisCandidate := utils.Candidate{
 		Round:         0, //TODO: have the round numbers
 		NodeID:        con.participation.PublicKey,
-		ConsensusPool: int8(con.handlingType),
+		ConsensusPool: int8(foo),
 		VRFKey:        con.vrfKey.PublicKey,
 		NetworkString: con.netLogic.GetOwnContact().ConnectionString,
 	}
-	// public, _ := con.spendingKey.Public()
-	// thisCandidate.PublicKey = public
 	return &thisCandidate
 }

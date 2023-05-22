@@ -6,7 +6,7 @@ import (
 )
 
 // for methods that only apply to the B chamber members
-func NewBConsensus(codeServer string) (ConsensusNode, error) {
+func NewBConsensus(codeServer string) (*ConsensusNode, error) {
 	conNode, err := newConsensus(nil, nil)
 	conNode.handlingType = networking.SecondaryTransactions
 	conNode.ocdbLink = codeServer

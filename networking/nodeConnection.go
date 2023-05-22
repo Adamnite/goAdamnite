@@ -30,7 +30,7 @@ func (n *NetNode) FillOpenConnections() error {
 			}
 		}
 	}
-	possibleCons := n.contactBook.SelectWhitelist(int(n.activeOutboundCount-n.maxOutboundConnections) + 1)
+	possibleCons := n.contactBook.SelectWhitelist(int(n.maxOutboundConnections-n.activeOutboundCount) + 1)
 	//get an extra incase one doesn't want to connect
 	for i := 0; i < len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {
 		if err := n.ConnectToContact(possibleCons[i]); err != nil {

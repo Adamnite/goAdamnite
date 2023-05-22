@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 //version packet needs to contain
@@ -43,6 +42,7 @@ type NetNode struct {
 	hostingServer *rpc.AdamniteServer
 
 	consensusCandidateHandler   func(utils.Candidate) error
+	consensusVoteHandler        func(utils.Voter) error
 	consensusTransactionHandler func(*utils.Transaction) error
 }
 
@@ -63,13 +63,18 @@ func (n NetNode) GetOwnContact() Contact {
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
-func (n *NetNode) AddFullServer(state *statedb.StateDB, chain *blockchain.Blockchain, transactionHandler func(*utils.Transaction) error, candidateHandler func(utils.Candidate) error) error {
+func (n *NetNode) AddFullServer(
+	state *statedb.StateDB, chain *blockchain.Blockchain,
+	transactionHandler func(*utils.Transaction) error,
+	candidateHandler func(utils.Candidate) error,
+	voteHandler func(utils.Voter) error) error {
 	if n.hostingServer != nil {
 		log.Println("closing old server before adding new server")
 		n.hostingServer.Close() //assume they want to restart the server then
 	}
 	n.hostingServer = rpc.NewAdamniteServer(state, chain, 0)
 	n.consensusCandidateHandler = candidateHandler
+	n.consensusVoteHandler = voteHandler
 	n.updateServer()
 	n.consensusTransactionHandler = transactionHandler
 
@@ -94,7 +99,10 @@ func (n *NetNode) updateServer() {
 		n.handleForward,
 		n.versionCheck,
 		n.handleTransaction,
+	)
+	n.hostingServer.SetConsensusHandlers(
 		n.consensusCandidateHandler,
+		n.consensusVoteHandler,
 	)
 	go n.hostingServer.Run()
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
@@ -122,6 +130,7 @@ func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionB
 	return n.consensusTransactionHandler(transaction)
 }
 func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) error {
+	n.hostingServer.AlreadySeen(content) //just make sure (especially if we're calling this ourselves) we don't get a recalling of this.
 	log.Println("handling forwarding")
 	if content.DestinationNode != nil {
 		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
@@ -132,6 +141,7 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 		}
 	}
 	//this has been added to us, (and isn't called if the message is directly to us.)
+	log.Printf("forwarding to all %v known contacts", len(n.activeContactToClient))
 	for _, element := range n.activeContactToClient {
 		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
 			if err.Error() != rpc.ErrAlreadyForwarded.Error() {
@@ -185,19 +195,21 @@ func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
 	return nil
 }
 
-func (n *NetNode) ProposeCandidacy(candidate utils.Candidate) {
-	//steps to get this working
-	//1) convert the candidate to a forwarding message
-	//2) forward that message to everyone we can
-	//3) ...thats actually it for this method
-	b, err := msgpack.Marshal(&candidate)
+// share candidacy across the network
+func (n *NetNode) ProposeCandidacy(candidate utils.Candidate) error {
+	foo, err := rpc.CreateForwardToAll(candidate)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	foo := rpc.ForwardingContent{
-		FinalEndpoint: rpc.NewCandidateEndpoint, //this will be a new candidate endpoint
-		FinalParams:   b,                        //this will need to be the msgpack serialized version of the candidate
+	return n.handleForward(foo, nil)
+
+}
+
+// share vote across the network
+func (n *NetNode) ProposeVote(vote utils.Voter) error {
+	foo, err := rpc.CreateForwardToAll(vote)
+	if err != nil {
+		return err
 	}
-	n.hostingServer.AlreadySeen(foo) //so we don't try and add our own proposal to ourselves.
-	n.handleForward(foo, nil)
+	return n.handleForward(foo, nil)
 }
