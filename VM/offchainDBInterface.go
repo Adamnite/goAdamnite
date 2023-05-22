@@ -61,14 +61,14 @@ func UploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ans.StatusCode != 200 {
+		return nil, ErrConnectionRefused
+	}
+
 	byteResponse, err := ioutil.ReadAll(ans.Body)
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println("code upload response")
-	// fmt.Println(hex.EncodeToString(byteResponse))
-	// fmt.Println(byteResponse)
-	// fmt.Println(string(byteResponse))
 	hashInBytes, err := hex.DecodeString(string(byteResponse))
 	if err != nil {
 		return nil, err
@@ -99,6 +99,10 @@ func UploadContract(apiEndpoint string, con Contract) error {
 		return err
 	}
 	if ans.StatusCode != 200 {
+		if ans.StatusCode == 403 {
+			//this endpoint is forbidden
+			return ErrConnectionRefused
+		}
 		return fmt.Errorf("Host rejected the upload process with reason " + ans.Status)
 	}
 	return nil

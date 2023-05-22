@@ -43,9 +43,16 @@ func TestProcessingRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := VM.UploadMethod(apiEndpoint, addTwoCodeStored); err != nil {
+		if err == VM.ErrConnectionRefused {
+			t.Log("server is not running. Try again with the Offchain DB running")
+			t.Skip(err)
+		}
 		t.Fatal(err)
 	}
-	VM.UploadContract(apiEndpoint, testContract)
+	if err := VM.UploadContract(apiEndpoint, testContract); err != nil {
+		t.Fatal(err)
+	}
+	// if err= VM.E
 	claim := VM.RuntimeChanges{
 		Caller:            testAccount,
 		CallTime:          time.Now().UTC(),
