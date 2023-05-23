@@ -2,6 +2,8 @@ package VM
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
 )
 
 var (
@@ -20,3 +22,18 @@ var (
 	//offchain DB interaction errors
 	ErrConnectionRefused = errors.New("403 Forbidden. Server could not be connected to")
 )
+
+type ErrWithNetwork struct {
+	error
+	code int
+}
+
+func NewErrWithNetwork(code int) ErrWithNetwork {
+	return ErrWithNetwork{code: code}
+}
+func (e ErrWithNetwork) Is(code int) bool {
+	return e.code == code
+}
+func (e ErrWithNetwork) Error() string {
+	return fmt.Errorf("%v. Server could not be connected to", http.StatusText(e.code)).Error()
+}

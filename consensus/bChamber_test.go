@@ -22,30 +22,30 @@ var (
 	testAccount         = common.Address{0, 1, 2}
 )
 
-func setup() {
+func setup() error {
 	addTwoFunctionBytes, _ = hex.DecodeString(addTwoFunctionCode)
 	mod := VM.DecodeModule(addTwoFunctionBytes)
 	stored, _, err := VM.UploadModuleFunctions(apiEndpoint, mod)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	addTwoCodeStored = stored[0]
 	addTwoFunctionHash, _ = addTwoCodeStored.Hash()
 	testContract = VM.Contract{CallerAddress: common.Address{1}, Value: big.NewInt(0), Input: nil, Gas: 30000, CodeHashes: []string{hex.EncodeToString(addTwoFunctionHash)}}
-
+	return nil
 }
 func TestProcessingRun(t *testing.T) {
-	setup()
+	if err := setup(); err != nil {
+		t.Log("server is most likely not running. Try again with the Offchain DB running")
+		t.Skip(err)
+	}
+
 	bNode, err := NewBConsensus(apiEndpoint)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := VM.UploadMethod(apiEndpoint, addTwoCodeStored); err != nil {
-		if err == VM.ErrConnectionRefused {
-			t.Log("server is not running. Try again with the Offchain DB running")
-			t.Skip(err)
-		}
 		t.Fatal(err)
 	}
 	if err := VM.UploadContract(apiEndpoint, testContract); err != nil {
