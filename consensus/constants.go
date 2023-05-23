@@ -17,6 +17,8 @@ type WitnessInfo struct {
 }
 
 var (
-	ErrNotBNode = fmt.Errorf("node is not setup to handle VM based operations")
-	ErrNotANode = fmt.Errorf("node is not setup to handle transaction based operations")
+	ErrNotBNode               = fmt.Errorf("node is not setup to handle VM based operations")
+	ErrNotANode               = fmt.Errorf("node is not setup to handle transaction based operations")
+	ErrCandidateNotApplicable = fmt.Errorf("the candidate reviewed is not applicable for this pools recordings")
+	ErrVoteUnVerified         = fmt.Errorf("this vote could not be verified")
 )

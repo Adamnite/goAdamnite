@@ -171,7 +171,6 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	a.print("Get Version")
-	// var receivedAddress common.Address //TODO, have the connection string passed as well.
 	receivedData := struct {
 		Address           common.Address
 		HostingServerPort string
@@ -192,7 +191,7 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	// ans.Client_version = a.chain.Config().ChainID.String() //TODO: replace this with a better versioning system
 	ans.Timestamp = time.Now().UTC()
 	ans.Addr_received = receivedData.Address
-	ans.Addr_from = a.hostingNodeID //TODO: pass the hosting address down to the RPC
+	ans.Addr_from = a.hostingNodeID
 	// ans.Last_round = a.chain.CurrentBlock().Number()
 	if data, err := encoding.Marshal(ans); err != nil {
 		a.printError("Get Version", err)

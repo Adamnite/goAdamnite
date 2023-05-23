@@ -84,7 +84,7 @@ func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
 	//TODO: check the balance of these voters!
 	verified := candidate.VerifyVote(vote)
 	if !verified {
-		return fmt.Errorf("untrusted vote") //TODO: make these errors real
+		return ErrVoteUnVerified
 	}
 	//assuming by here it is legit.
 	con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
@@ -98,12 +98,12 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 	//review the base matches as we believe it should
 	if proposed.ConsensusPool != int8(con.handlingType) ||
 		proposed.Round != con.currentRound+1 {
-		return nil //TODO: should be an error
+		return ErrCandidateNotApplicable
 	}
 	//review that the initial vote is signed correctly
 	if !proposed.VerifyVote(proposed.InitialVote) {
 		log.Println("someone lied in a vote")
-		return fmt.Errorf("someone lied in a vote") //TODO: replace with real error
+		return ErrVoteUnVerified
 	}
 	con.candidates[string(proposed.NodeID)] = &proposed
 	con.votesSeen[string(proposed.NodeID)] = []*utils.Voter{&proposed.InitialVote}
