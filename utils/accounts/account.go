@@ -77,9 +77,10 @@ func GenerateAccount() (*Account, error) {
 	}, nil
 }
 
-// sign an array of data (bytes), and return a 65 byte array
-func (a *Account) Sign(data []byte) ([]byte, error) {
-	signature, err := secp256k1.Sign(sha256Hash(data), a.privateKey)
+// sign data, and return a 65 byte array. Data can be most interface types
+func (a *Account) Sign(data interface{}) ([]byte, error) {
+
+	signature, err := secp256k1.Sign(toHashedBytes(data), a.privateKey)
 	if err != nil {
 		log.Printf("Signing error: %s", err)
 		return nil, err
@@ -87,8 +88,48 @@ func (a *Account) Sign(data []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func (a *Account) Verify(data []byte, signature []byte) bool {
-	return secp256k1.VerifySignature(a.PublicKey, sha256Hash(data), signature[:64])
+// verify a signature is signed by this account, for the data passed
+func (a *Account) Verify(data interface{}, signature []byte) bool {
+	return secp256k1.VerifySignature(a.PublicKey, toHashedBytes(data), signature[:64])
+}
+
+// types that have a hash method that returns common.Hash
+type commonHashAble interface{ Hash() common.Hash }
+
+// types that have a hash method that returns bytes
+type hashAble interface{ Hash() []byte }
+
+type hasGetBytes interface{ Bytes() []byte }
+
+// for handling multiple interface types and getting the hash
+func toHashedBytes(data interface{}) []byte {
+	var dataBytes []byte = []byte{}
+	switch v := data.(type) {
+	case commonHashAble:
+		dataBytes = v.Hash().Bytes()
+	case hashAble:
+		dataBytes = v.Hash()
+	case hasGetBytes:
+		dataBytes = v.Bytes()
+	case string:
+		dataBytes = []byte(v)
+	case []byte:
+		dataBytes = v
+	case []commonHashAble:
+		for _, a := range v {
+			dataBytes = append(dataBytes, a.Hash().Bytes()...)
+		}
+	case []hashAble:
+		for _, a := range v {
+			dataBytes = append(dataBytes, a.Hash()...)
+		}
+	}
+
+	//insure that the dataBytes are of the correct length
+	if len(dataBytes) != 32 {
+		dataBytes = sha256Hash(dataBytes)
+	}
+	return dataBytes
 }
 
 func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
