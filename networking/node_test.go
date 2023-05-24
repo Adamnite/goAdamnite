@@ -45,7 +45,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 	}
 	wrongConnectionString := &Contact{
 		NodeID:           nodeA.thisContact.NodeID,
-		connectionString: "not a connection string",
+		ConnectionString: "not a connection string",
 	}
 
 	//test that it does throw an error!
@@ -57,7 +57,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 
 	wrongNodeID := &Contact{
 		NodeID:           common.Address{0, 1, 2, 3, 4, 5},
-		connectionString: nodeA.thisContact.connectionString,
+		ConnectionString: nodeA.thisContact.ConnectionString,
 	}
 
 	//test that it does throw an error!

@@ -104,15 +104,18 @@ func TestLinearPropagationFromCenter(t *testing.T) {
 		FinalParams:     []byte{},
 		FinalReply:      []byte{},
 		InitialSender:   nodes[0].thisContact.NodeID,
-		Signature:       common.Hash{0},
 	}
+	callingNodeIndex := len(nodes) / 2
 	for x := 0; x < 5; x++ {
-		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
-		if err := nodes[len(nodes)/2].handleForward(propagateContent, &[]byte{}); err != nil {
+		propagateContent.FinalParams = []byte{byte(x)} //only works up to 255
+		propagateContent.InitialTime = time.Now().UnixMilli()
+		if err := nodes[callingNodeIndex].handleForward(propagateContent, &[]byte{}); err != nil {
 			t.Fatal(err)
 		}
-		for _, node := range nodes {
-			assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+		for nodeIndex, node := range nodes {
+			if nodeIndex != callingNodeIndex { //shouldn't be calling on itself when forwarding alone
+				assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+			}
 		}
 	}
 
@@ -128,15 +131,17 @@ func TestLinearPropagationFromSide(t *testing.T) {
 		FinalParams:     []byte{},
 		FinalReply:      []byte{},
 		InitialSender:   nodes[0].thisContact.NodeID,
-		Signature:       common.Hash{0},
 	}
 	for x := 0; x < 5; x++ {
-		propagateContent.Signature = common.HexToHash(fmt.Sprintf("0x%X", x)) //this only works up to 99, and not well lol
+		propagateContent.FinalParams = []byte{byte(x)} //only works up to 255
+		propagateContent.InitialTime = time.Now().UnixMilli()
 		if err := nodes[0].handleForward(propagateContent, &[]byte{}); err != nil {
 			t.Fatal(err)
 		}
-		for _, node := range nodes {
-			assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+		for i, node := range nodes {
+			if i != 0 {
+				assert.Equal(t, x+1, node.hostingServer.GetTestsCount(), "not every node received the forward.")
+			}
 		}
 	}
 }
@@ -154,16 +159,16 @@ func TestTransactionPropagation(t *testing.T) {
 		// log.Panicln("have faith")
 		*ans = *foo
 		return nil
-	})
+	}, nil, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
 	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
-	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil)
+	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
-	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.connectionString)
+	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {
 		t.Fatal(err)
 	}

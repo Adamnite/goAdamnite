@@ -7,14 +7,6 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 )
 
-type consensusHandlingTypes int8
-
-const (
-	NetworkingOnly        consensusHandlingTypes = iota
-	PrimaryTransactions                          //representing chamber A, or main transactions
-	SecondaryTransactions                        //representing chamber B, or VM consensus
-)
-
 const (
 	maxWitnessNumber = 27
 )
@@ -25,6 +17,8 @@ type WitnessInfo struct {
 }
 
 var (
-	ErrNotBNode = fmt.Errorf("node is not setup to handle VM based operations")
-	ErrNotANode = fmt.Errorf("node is not setup to handle transaction based operations")
+	ErrNotBNode               = fmt.Errorf("node is not setup to handle VM based operations")
+	ErrNotANode               = fmt.Errorf("node is not setup to handle transaction based operations")
+	ErrCandidateNotApplicable = fmt.Errorf("the candidate reviewed is not applicable for this pools recordings")
+	ErrVoteUnVerified         = fmt.Errorf("this vote could not be verified")
 )

@@ -12,7 +12,7 @@ import (
 )
 
 type Contact struct { //the contacts list from this point.
-	connectionString string //ip and port for the specified endpoint.
+	ConnectionString string //ip and port for the specified endpoint.
 	NodeID           common.Address
 	//any other data needed about an endpoint would be stored here.
 }
@@ -54,7 +54,7 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 		//we check if this contact is already in the contact list. If it isn't, we add it. this comes with more edge cases than id care to admit.
 		//also, go doesn't allow bitwise manipulation from a boolean, so i cant convert this to more efficient(and fun looking) case.
 		for i := 0; i < len(cb.connections) && !caseFound; i++ {
-			switch sameConnectionString, sameNodeID := (contact.connectionString == cb.connections[i].contact.connectionString), (contact.NodeID == cb.connections[i].contact.NodeID); {
+			switch sameConnectionString, sameNodeID := (contact.ConnectionString == cb.connections[i].contact.ConnectionString), (contact.NodeID == cb.connections[i].contact.NodeID); {
 			case sameConnectionString && sameNodeID:
 				//the id, and connection string are the same, therefor this has already been added
 				// fmt.Println("identical contact added")
@@ -137,11 +137,11 @@ func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 	}
 	for _, x := range cb.connections {
 		passed.NodeIDs = append(passed.NodeIDs, x.contact.NodeID)
-		passed.ConnectionStrings = append(passed.ConnectionStrings, x.contact.connectionString)
+		passed.ConnectionStrings = append(passed.ConnectionStrings, x.contact.ConnectionString)
 	}
 	for _, x := range cb.blacklist {
 		passed.BlacklistIDs = append(passed.BlacklistIDs, x.NodeID)
-		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, x.connectionString)
+		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, x.ConnectionString)
 	}
 
 	return passed

@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestGenerateAccount(t *testing.T) {
 
 	assert.Equal(t, 28, len(account.Address), "Address should be 28 bytes long")
 	assert.Equal(t, 65, len(account.PublicKey), "Public key should be 65 bytes long")
-	assert.Equal(t, 32, len(account.PrivateKey), "Private key should be 32 bytes long")
+	assert.Equal(t, 32, len(account.privateKey), "Private key should be 32 bytes long")
 }
 
 func TestSignData(t *testing.T) {
@@ -30,4 +31,27 @@ func TestSignData(t *testing.T) {
 	}
 	assert.Equal(t, 65, len(signature), "Signature should be 65 bytes long")
 	assert.True(t, account.Verify(data, signature), "Signature should be verified")
+}
+
+func TestMultipleSignTypes(t *testing.T) {
+	bData := []byte("Test message")
+	signAndVerify(t, bData)
+	signAndVerify(t, "test string")
+	signAndVerify(t, big.NewInt(1))
+}
+
+func signAndVerify(t *testing.T, val interface{}) {
+	account, err := GenerateAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if signatures, err := account.Sign(val); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.True(
+			t,
+			account.Verify(val, signatures),
+			"bytes mismatch to signature",
+		)
+	}
 }

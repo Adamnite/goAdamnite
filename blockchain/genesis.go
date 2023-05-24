@@ -105,7 +105,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 				address: common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 				voters: []utils.Voter{
 					{
-						Address:       common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+						// From:          common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 					},
 				},
@@ -114,7 +114,7 @@ func DefaultTestnetGenesisBlock() *Genesis {
 				address: common.StringToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 				voters: []utils.Voter{
 					{
-						Address:       common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+						// From:          common.StringToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 						StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
 					},
 				},

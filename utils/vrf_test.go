@@ -13,7 +13,11 @@ func TestVrf(t *testing.T) {
 	for i := range witnesses {
 		witnesses[i] = &WitnessImpl{
 			Address: common.Address{byte(i)},
-			Voters:  []Voter{{common.Address{byte(i)}, big.NewInt(1)}},
+			Voters: []Voter{{
+				To:            []byte{byte(i)},
+				From:          []byte{byte(i)},
+				StakingAmount: big.NewInt(1),
+				Signature:     []byte{}}},
 
 			blocksApproved: 0,
 			blocksReviewed: 0,
@@ -21,7 +25,11 @@ func TestVrf(t *testing.T) {
 	}
 	witnesses = append(witnesses, &WitnessImpl{
 		Address: common.Address{0, 0, 1},
-		Voters:  []Voter{{common.Address{0, 0, 1}, big.NewInt(3)}},
+		Voters: []Voter{{
+			To:            []byte{0, 0, 1},
+			From:          []byte{0, 0, 1},
+			StakingAmount: big.NewInt(1),
+			Signature:     []byte{}}},
 
 		blocksApproved: 1,
 		blocksReviewed: 1,

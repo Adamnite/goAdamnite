@@ -24,3 +24,11 @@ const (
 	DISTRUST_CUTOFF                uint64 = 1000 //cutoff point where a connection is blacklisted
 	TRUSTFUL_BENEFIT               uint64 = 5    //the amount of trust given back per truthful connection.
 )
+
+type NetworkTopLayerType int8
+
+const (
+	NetworkingOnly        NetworkTopLayerType = iota
+	PrimaryTransactions                       //representing chamber A, or main transactions
+	SecondaryTransactions                     //representing chamber B, or VM consensus
+)

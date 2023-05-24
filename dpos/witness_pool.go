@@ -71,24 +71,24 @@ var DefaultDemoWitnessConfig = WitnessConfig{
 	WitnessCount: 3,
 }
 
-var WitnessList = []WitnessInfo{{
-	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-	voters: []utils.Voter{
-		{
-			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
-		},
-	},
-},
-	{
-		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-		voters: []utils.Voter{
-			{
-				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
-			},
-		},
-	}}
+// var WitnessList = []WitnessInfo{{
+// 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+// 	voters: []utils.Voter{
+// 		{
+// 			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+// 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
+// 		},
+// 	},
+// },
+// 	{
+// 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+// 		voters: []utils.Voter{
+// 			{
+// 				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+// 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
+// 			},
+// 		},
+// 	}}
 
 type WitnessPool struct {
 	config      WitnessConfig
@@ -121,23 +121,6 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 		Votes:             map[common.Address]*utils.Voter{},
 	}
 
-	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
-		if number == 0 {
-			for _, w := range WitnessList {
-				witness := &utils.WitnessImpl{
-					Address: w.address,
-					Voters:  w.voters,
-				}
-				pool.Witnesses = append(pool.Witnesses, witness)
-			}
-			vrfMaps, _ := setVRFItems(pool.Witnesses)
-			for _, w := range vrfMaps {
-				pool.vrfMaps[w.GetAddress().String()] = w
-			}
-		}
-
-	}
-
 	return pool
 }
 
@@ -154,14 +137,6 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 	}
 
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
-
-		for _, w := range WitnessList {
-			witness := &utils.WitnessImpl{
-				Address: w.address,
-				Voters:  w.voters,
-			}
-			pool.Witnesses = append(pool.Witnesses, witness)
-		}
 
 		vrfMaps, _ := setVRFItems(pool.Witnesses)
 		for _, w := range vrfMaps {
@@ -330,15 +305,6 @@ func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
 
 func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
 	if prevWitnessAddr == nil {
-		if wp.Witnesses == nil || len(wp.Witnesses) == 0 {
-			for _, w := range WitnessList {
-				witness := &utils.WitnessImpl{
-					Address: w.address,
-					Voters:  w.voters,
-				}
-				wp.Witnesses = append(wp.Witnesses, witness)
-			}
-		}
 		return wp.Witnesses[0].GetAddress()
 
 	}
@@ -417,21 +383,14 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 		for sender, vote := range votes {
 
 			witnesspool.Votes[sender] = &utils.Voter{
-				Address:       vote.Address,
+				// Address:       vote.Address,
 				StakingAmount: vote.StakingAmount,
 			}
 			count := 0
-			for _, wpCandidate := range witnesspool.witnessCandidates {
-				if wpCandidate.GetAddress() == vote.Address {
-					tmpVoters := append(wpCandidate.GetVoters(), utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
-					wpCandidate.SetVoters(tmpVoters)
-					count++
-				}
-			}
 
 			if count == 0 {
 				tmpVotes := make([]utils.Voter, 0)
-				tmpVotes = append(tmpVotes, utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
+				// tmpVotes = append(tmpVotes, utils.Voter{Address: vote.Address, StakingAmount: vote.StakingAmount})
 				tmpWitness := &utils.WitnessImpl{
 					Address: sender,
 					Voters:  tmpVotes,

@@ -3,22 +3,63 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/rand"
 	"log"
+	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/crypto/secp256k1"
 )
 
 type Account struct {
 	Address    common.Address
 	PublicKey  []byte
-	PrivateKey []byte
-	Balance    float64
+	privateKey []byte
+	Balance    *big.Int
+}
+
+func AccountFromPubBytes(pubKey []byte) Account {
+	return Account{
+		Address:   crypto.PubkeyByteToAddress(pubKey),
+		PublicKey: pubKey,
+	}
+}
+func AccountFromStorage(storagePoint string) (Account, error) {
+	priv, err := crypto.LoadECDSA(storagePoint)
+	if err != nil {
+		return Account{}, err
+	}
+	return AccountFromPrivEcdsa(priv), nil
+}
+func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
+	publicKey := privKey.PublicKey
+
+	return Account{
+		Address:    createAddress(publicKey.X.Bytes()),
+		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
+		privateKey: privKey.D.Bytes(),
+		Balance:    big.NewInt(0),
+	}
+
+}
+func AccountFromPrivBytes(privKey []byte) Account {
+	ePriv, err := crypto.ToECDSA(privKey)
+
+	publicKey := ePriv.PublicKey
+	if err != nil {
+		return Account{}
+	}
+	return Account{
+		Address:    createAddress(publicKey.X.Bytes()),
+		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
+		privateKey: privKey,
+		Balance:    big.NewInt(0),
+	}
 }
 
 func GenerateAccount() (*Account, error) {
@@ -29,15 +70,17 @@ func GenerateAccount() (*Account, error) {
 	}
 
 	return &Account{
-		Address   : createAddress(publicKey),
-		PublicKey : publicKey,
-		PrivateKey: privateKey,
-		Balance   : 0,
+		Address:    createAddress(publicKey),
+		PublicKey:  publicKey,
+		privateKey: privateKey,
+		Balance:    big.NewInt(0),
 	}, nil
 }
 
-func (a *Account) Sign(data []byte) ([]byte, error) {
-	signature, err := secp256k1.Sign(sha256Hash(data), a.PrivateKey)
+// sign data, and return a 65 byte array. Data can be most interface types
+func (a *Account) Sign(data interface{}) ([]byte, error) {
+
+	signature, err := secp256k1.Sign(toHashedBytes(data), a.privateKey)
 	if err != nil {
 		log.Printf("Signing error: %s", err)
 		return nil, err
@@ -45,8 +88,48 @@ func (a *Account) Sign(data []byte) ([]byte, error) {
 	return signature, nil
 }
 
-func (a *Account) Verify(data []byte, signature []byte) bool {
-	return secp256k1.VerifySignature(a.PublicKey, sha256Hash(data), signature)
+// verify a signature is signed by this account, for the data passed
+func (a *Account) Verify(data interface{}, signature []byte) bool {
+	return secp256k1.VerifySignature(a.PublicKey, toHashedBytes(data), signature[:64])
+}
+
+// types that have a hash method that returns common.Hash
+type commonHashAble interface{ Hash() common.Hash }
+
+// types that have a hash method that returns bytes
+type hashAble interface{ Hash() []byte }
+
+type hasGetBytes interface{ Bytes() []byte }
+
+// for handling multiple interface types and getting the hash
+func toHashedBytes(data interface{}) []byte {
+	var dataBytes []byte = []byte{}
+	switch v := data.(type) {
+	case commonHashAble:
+		dataBytes = v.Hash().Bytes()
+	case hashAble:
+		dataBytes = v.Hash()
+	case hasGetBytes:
+		dataBytes = v.Bytes()
+	case string:
+		dataBytes = []byte(v)
+	case []byte:
+		dataBytes = v
+	case []commonHashAble:
+		for _, a := range v {
+			dataBytes = append(dataBytes, a.Hash().Bytes()...)
+		}
+	case []hashAble:
+		for _, a := range v {
+			dataBytes = append(dataBytes, a.Hash()...)
+		}
+	}
+
+	//insure that the dataBytes are of the correct length
+	if len(dataBytes) != 32 {
+		dataBytes = sha256Hash(dataBytes)
+	}
+	return dataBytes
 }
 
 func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
