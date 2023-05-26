@@ -42,9 +42,11 @@ func CreateForwardToAll(finalMessage interface{}) (ForwardingContent, error) {
 		FinalParams: messageBytes,
 	}
 	switch finalMessage.(type) {
-	case utils.Candidate:
+	case utils.CaesarMessage, *utils.CaesarMessage:
+		forwardAns.FinalEndpoint = newMessageEndpoint
+	case utils.Candidate, *utils.Candidate:
 		forwardAns.FinalEndpoint = NewCandidateEndpoint
-	case utils.Voter:
+	case utils.Voter, *utils.Voter:
 		forwardAns.FinalEndpoint = NewVoteEndpoint
 	}
 	return forwardAns, nil

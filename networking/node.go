@@ -81,6 +81,13 @@ func (n *NetNode) AddFullServer(
 	return nil
 }
 
+func (n *NetNode) AddMessagingCapabilities(msgHandler func(*utils.CaesarMessage)) {
+	if n.hostingServer == nil {
+		n.AddServer()
+	}
+	n.hostingServer.SetCaesarMessagingHandlers(msgHandler)
+}
+
 // spins up a server for this node.
 func (n *NetNode) AddServer() error {
 	if n.hostingServer != nil {
@@ -195,19 +202,9 @@ func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
 	return nil
 }
 
-// share candidacy across the network
-func (n *NetNode) ProposeCandidacy(candidate utils.Candidate) error {
-	foo, err := rpc.CreateForwardToAll(candidate)
-	if err != nil {
-		return err
-	}
-	return n.handleForward(foo, nil)
-
-}
-
-// share vote across the network
-func (n *NetNode) ProposeVote(vote utils.Voter) error {
-	foo, err := rpc.CreateForwardToAll(vote)
+// share a forward-able message across the network
+func (n *NetNode) Propagate(v interface{}) error {
+	foo, err := rpc.CreateForwardToAll(v)
 	if err != nil {
 		return err
 	}
