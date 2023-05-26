@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -36,9 +37,14 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 		return nil, fmt.Errorf("i don't know how to handle the message type you sent") //TODO: replace with real error
 	}
 
-	//TODO: encrypt the message
-	ansMessage.Message = messageBytes
-	return &ansMessage, nil
+	ansBytes, err := to.Encrypt(messageBytes)
+	if err != nil {
+		return nil, err
+	}
+	ansMessage.Message = ansBytes
+
+	err = ansMessage.Sign()
+	return &ansMessage, err
 }
 
 // Hash the message
@@ -49,8 +55,7 @@ func (cm CaesarMessage) Hash() []byte {
 		panic(err)
 	}
 	ans = append(ans, timeByte...)
-	// return crypto.Sha512(ans)
-	return ans
+	return crypto.Sha512(ans)
 }
 
 // Sign the message with the From Account
@@ -66,7 +71,13 @@ func (cm CaesarMessage) Verify() bool {
 	return cm.From.Verify(cm, cm.Signature)
 }
 
-func (cm CaesarMessage) GetMessageString() string {
+// get the message contents by decrypting it
+func (cm CaesarMessage) GetMessage(recipient accounts.Account) ([]byte, error) {
+	return recipient.Decrypt(cm.Message)
+}
 
-	return string(cm.Message) //TODO: decrypt this
+// get the message contents by decrypting it
+func (cm CaesarMessage) GetMessageString(recipient accounts.Account) (string, error) {
+	msg, err := cm.GetMessage(recipient)
+	return string(msg), err
 }

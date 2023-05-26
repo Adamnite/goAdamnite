@@ -13,6 +13,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/crypto/ecies"
 	"github.com/adamnite/go-adamnite/crypto/secp256k1"
 )
 
@@ -91,6 +92,27 @@ func (a *Account) Sign(data interface{}) ([]byte, error) {
 // verify a signature is signed by this account, for the data passed
 func (a *Account) Verify(data interface{}, signature []byte) bool {
 	return secp256k1.VerifySignature(a.PublicKey, toHashedBytes(data), signature[:64])
+}
+
+// encrypt a message
+func (a *Account) Encrypt(msg []byte) ([]byte, error) {
+	pubKey := ecdsa.PublicKey{
+		Curve: secp256k1.S256(),
+	}
+	pubKey.X, pubKey.Y = elliptic.Unmarshal(pubKey, a.PublicKey)
+
+	eciesPub := ecies.ImportECDSAPublic(&pubKey)
+	return ecies.Encrypt(rand.Reader, eciesPub, msg, nil, nil)
+}
+
+// decrypt the message
+func (a *Account) Decrypt(msg []byte) ([]byte, error) {
+	ecdsaKey, err := crypto.ToECDSA(a.privateKey)
+	if err != nil {
+		return nil, err
+	}
+	priv := ecies.ImportECDSA(ecdsaKey)
+	return priv.Decrypt(msg, nil, nil)
 }
 
 // types that have a hash method that returns common.Hash
