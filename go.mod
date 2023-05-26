@@ -3,7 +3,8 @@ module github.com/adamnite/go-adamnite
 go 1.18
 
 require (
-	github.com/VictoriaMetrics/fastcache v1.12.1
+	github.com/VictoriaMetrics/fastcache v1.10.0
+	github.com/alitto/pond v1.8.2
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5
 	github.com/deckarep/golang-set v1.8.0
 	github.com/go-stack/stack v1.8.1
@@ -20,6 +21,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14
 	github.com/naoina/toml v0.1.1
 	github.com/peterh/liner v1.0.1-0.20180619022028-8c1271fcf47f
+	github.com/rs/cors v1.8.3
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
@@ -30,8 +32,6 @@ require (
 )
 
 require (
-	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
-	github.com/alitto/pond v1.8.2 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -43,7 +43,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/ramya-rao-a/go-outline v0.0.0-20210608161538-9736a4bde949 // indirect
-	github.com/rs/cors v1.8.3 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
