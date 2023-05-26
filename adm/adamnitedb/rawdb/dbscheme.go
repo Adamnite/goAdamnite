@@ -35,11 +35,6 @@ func encodeBlockNumber(number uint64) []byte {
 	return enc
 }
 
-// preimageKey = preimagePrefix + hash
-func preimageKey(hash common.Hash) []byte {
-	return append(preimagePrefix, hash[:]...)
-}
-
 func epochKey() []byte {
 	return epochPrefix
 }
