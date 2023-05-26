@@ -1,6 +1,7 @@
 package caesar
 
 import (
+	"math"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -53,5 +54,33 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 }
 
 func TestManyOpenMessages(t *testing.T) {
+	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	seedNode.AddServer()
+	seedContact := seedNode.GetOwnContact()
+
+	testingAccounts := []*accounts.Account{}
+	testingNodes := []*CaesarNode{}
+	for i := 0; i < 5; i++ {
+		a, b := setupTestCaesarNode(&seedContact)
+		testingAccounts = append(testingAccounts, a)
+		testingNodes = append(testingNodes, b)
+	}
+	for _, node := range testingNodes {
+		node.netHandler.SprawlConnections(3, 0)
+		node.netHandler.FillOpenConnections()
+	}
+	seedNode.FillOpenConnections()
+	for _, node := range testingNodes {
+		for _, target := range testingAccounts {
+			if err := node.Send(*target, "hi"); err != nil {
+				t.Fatal("error from node:%w to: %w with err:%w", node, target, err)
+			}
+		}
+	}
+
+	for _, node := range testingNodes {
+		//check everyone has the same messages, and all of them
+		assert.Equal(t, math.Pow(float64(len(testingNodes)), 2), float64(len(node.msgByHash)), "not all messages seen")
+	}
 
 }
