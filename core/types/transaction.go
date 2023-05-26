@@ -201,8 +201,7 @@ func (tx *Transaction) Hash() common.Hash {
 		return hash.(common.Hash)
 	}
 
-	var h common.Hash
-	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
+	h := prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
 }

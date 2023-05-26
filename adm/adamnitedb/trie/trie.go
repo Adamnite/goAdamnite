@@ -555,7 +555,7 @@ type prefixIterator struct {
 }
 
 func newPrefixIterator(trie *Trie, prefix []byte) NodeIterator {
-	if bytes.Compare(trie.Hash().Bytes(), emptyState[:32]) == 0 {
+	if bytes.Equal(trie.Hash().Bytes(), emptyState[:32]) {
 		return new(prefixIterator).nodeIterator
 	}
 	nodeIt := newNodeIterator(trie, prefix)

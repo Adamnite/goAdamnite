@@ -223,7 +223,3 @@ func (s *stateObject) setError(err error) {
 		s.dbErr = err
 	}
 }
-
-func (s *stateObject) EncodeSerialization(w io.Writer) error {
-	return msgpack.NewEncoder(w).Encode(s.data)
-}

@@ -134,7 +134,7 @@ func (e seekError) Error() string {
 }
 
 func newNodeIterator(trie *Trie, start []byte) NodeIterator {
-	if bytes.Compare(trie.Hash().Bytes(), emptyState[:]) == 0 {
+	if bytes.Equal(trie.Hash().Bytes(), emptyState[:]) {
 		return new(nodeIterator)
 	}
 	it := &nodeIterator{trie: trie}
@@ -251,7 +251,7 @@ func (it *nodeIterator) seek(prefix []byte) error {
 			return errIteratorEnd
 		} else if err != nil {
 			return seekError{prefix, err}
-		} else if bytes.Compare(path, key) >= 0 {
+		} else if bytes.Equal(path, key) {
 			return nil
 		}
 		it.push(state, parentIndex, path)
@@ -420,7 +420,7 @@ func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor common.H
 			return parent, it.path, false
 		}
 		// If the child we found is already past the seek position, just return it.
-		if bytes.Compare(path, key) >= 0 {
+		if bytes.Equal(path, key) {
 			parent.index = index - 1
 			return state, path, true
 		}
@@ -429,7 +429,7 @@ func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor common.H
 			nextChild, nextState, nextPath, nextIndex := findChild(n, index+1, it.path, ancestor)
 			// If we run out of children, or skipped past the target, return the
 			// previous one
-			if nextChild == nil || bytes.Compare(nextPath, key) >= 0 {
+			if nextChild == nil || bytes.Equal(nextPath, key) {
 				parent.index = index - 1
 				return state, path, true
 			}

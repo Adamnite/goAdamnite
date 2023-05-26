@@ -227,7 +227,7 @@ func (m *MerkleTree) Verify() (bool, error) {
 		return false, err
 	}
 
-	if bytes.Compare(m.Root.Hash, calculatedMerkleRoot) == 0 {
+	if bytes.Equal(m.Root.Hash, calculatedMerkleRoot) {
 		return true, nil
 	}
 	return false, nil
@@ -260,7 +260,7 @@ func (m *MerkleTree) VerifyData(data Data) (bool, error) {
 				if _, err := h.Write(append(leftBytes, rightBytes...)); err != nil {
 					return false, err
 				}
-				if bytes.Compare(h.Sum(nil), currentParent.Hash) != 0 {
+				if !bytes.Equal(h.Sum(nil), currentParent.Hash) {
 					return false, nil
 				}
 				currentParent = currentParent.Parent

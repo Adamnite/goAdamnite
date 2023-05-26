@@ -55,7 +55,7 @@ func TestNewTree(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error: %v", err)
 	}
-	if bytes.Compare(tree.Root.Hash, expectedHash) != 0 {
+	if !bytes.Equal(tree.Root.Hash, expectedHash) {
 		t.Errorf("Expected: %v, actual: %v", expectedHash, tree.Root.Hash)
 	}
 }
@@ -65,7 +65,7 @@ func TestNewTreeWithHashingStrategy(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error %v", err)
 	}
-	if bytes.Compare(tree.Root.Hash, expectedHash) != 0 {
+	if !bytes.Equal(tree.Root.Hash, expectedHash) {
 		t.Errorf("Expected: %v, actual: %v", expectedHash, tree.Root.Hash)
 	}
 }
@@ -75,7 +75,7 @@ func TestMerkleRoot(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error %v", err)
 	}
-	if bytes.Compare(tree.Root.Hash, expectedHash) != 0 {
+	if !bytes.Equal(tree.Root.Hash, expectedHash) {
 		t.Errorf("Expected: %v, actual: %v", expectedHash, tree.Root.Hash)
 	}
 }
@@ -89,7 +89,7 @@ func TestRebuildTree(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error %v", err)
 	}
-	if bytes.Compare(tree.Root.Hash, expectedHash) != 0 {
+	if !bytes.Equal(tree.Root.Hash, expectedHash) {
 		t.Errorf("Expected: %v, actual: %v", expectedHash, tree.Root.Hash)
 	}
 }
@@ -103,7 +103,7 @@ func TestRebuildTreeWith(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error %v", err)
 	}
-	if bytes.Compare(tree.Root.Hash, expectedHash) != 0 {
+	if !bytes.Equal(tree.Root.Hash, expectedHash) {
 		t.Errorf("Expected: %v, actual: %v", expectedHash, tree.Root.Hash)
 	}
 }
@@ -222,7 +222,7 @@ func TestMerklePath(t *testing.T) {
 				t.Errorf("Error %v", err)
 			}
 		}
-		if bytes.Compare(tree.Root.Hash, hash) != 0 {
+		if !bytes.Equal(tree.Root.Hash, hash) {
 			t.Errorf("Expected: %v, actual: %v", hash, tree.Root.Hash)
 		}
 	}

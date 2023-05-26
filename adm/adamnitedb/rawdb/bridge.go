@@ -20,41 +20,6 @@ func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Has
 	return common.BytesToHash(data), nil
 }
 
-func WriteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash, node []byte) {
-	if err := db.Insert(hash[:], node); err != nil {
-		log15.Crit("Failed to store trie node", "err", err)
-	}
-}
-
-// ReadTrieNode retrieves the trie node of the provided hash.
-func ReadTrieNode(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
-	data, _ := db.Get(hash[:])
-	return data
-}
-
-func DeleteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash) {
-	if err := db.Delete(hash[:]); err != nil {
-		log15.Crit("Failed to delete trie node", "err", err)
-	}
-}
-
-// ReadPreimage retrieves a single preimage of the provided hash.
-func ReadPreimage(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
-	data, _ := db.Get(preimageKey(hash))
-	return data
-}
-
-// WritePreimages writes the provided set of preimages to the database.
-func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[common.Hash][]byte) {
-	for hash, preimage := range preimages {
-		if err := db.Insert(preimageKey(hash), preimage); err != nil {
-			log15.Crit("Failed to store trie preimage", "err", err)
-		}
-	}
-	preimageCounter.Inc(int64(len(preimages)))
-	preimageHitCounter.Inc(int64(len(preimages)))
-}
-
 func WriteEpochNumber(db adamnitedb.AdamniteDBWriter, epochNum uint64) {
 	data, err := msgpack.Marshal(epochNum)
 	if err != nil {
@@ -64,25 +29,6 @@ func WriteEpochNumber(db adamnitedb.AdamniteDBWriter, epochNum uint64) {
 	if err := db.Insert(epochKey(), data); err != nil {
 		log15.Crit("Failed to store epoch number", "err", err)
 	}
-}
-
-func ReadEpochNumber(db adamnitedb.AdamniteDBReader) uint64 {
-	data, err := db.Get(epochKey())
-	if err != nil {
-		log15.Crit("Failed to get epoch number from store", "err", err)
-	}
-
-	if len(data) == 0 {
-		return 0
-	}
-
-	var epochNum uint64
-
-	if err := msgpack.Unmarshal(data, &epochNum); err != nil {
-		log15.Crit("Failed to decode epoch enc data", "err", err)
-	}
-
-	return epochNum
 }
 
 func WriteBlock(db adamnitedb.AdamniteDBWriter, block *types.Block) {

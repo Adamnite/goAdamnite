@@ -34,7 +34,6 @@ type Block struct {
 
 	//cache values
 	hash atomic.Value
-	size atomic.Value
 
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
