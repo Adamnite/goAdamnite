@@ -8,23 +8,25 @@ import (
 )
 
 type CaesarMessage struct {
-	To          accounts.Account //neither of these have the private key sent during serialization.
-	From        accounts.Account
-	InitialTime time.Time
-	Message     []byte
-	Signature   []byte
+	To               accounts.Account //neither of these have the private key sent during serialization.
+	From             accounts.Account
+	InitialTime      time.Time
+	Message          []byte
+	Signature        []byte
+	HasHostingServer bool //is this to a nodeID, who would have a server running directly (instead of needing to be shared to everyone)
 }
 
 func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interface{}) (*CaesarMessage, error) {
 	//format the message
 	ansMessage := CaesarMessage{
-		To:          to,
-		From:        from,
-		InitialTime: time.Now().UTC(),
+		To:               to,
+		From:             from,
+		InitialTime:      time.Now().UTC(),
+		HasHostingServer: false,
 	}
 
 	//get the message from a variance of types
-	messageBytes := []byte{}
+	var messageBytes []byte
 	switch v := saying.(type) {
 	case string:
 		messageBytes = []byte(v)
@@ -33,7 +35,9 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 	default:
 		return nil, fmt.Errorf("i don't know how to handle the message type you sent") //TODO: replace with real error
 	}
+
 	//TODO: encrypt the message
+	ansMessage.Message = messageBytes
 	return &ansMessage, nil
 }
 
