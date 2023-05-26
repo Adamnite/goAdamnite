@@ -26,7 +26,6 @@ type ContactBook struct {
 	connections          []*connectionStatus
 	connectionsByContact map[*Contact]*connectionStatus
 
-	blacklist    []*Contact
 	blacklistSet map[*Contact]common.Void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
 }
 
@@ -36,13 +35,19 @@ func NewContactBook(owner *Contact) ContactBook {
 		maxGreyList:          0,
 		connections:          make([]*connectionStatus, 0),
 		connectionsByContact: make(map[*Contact]*connectionStatus),
-		blacklist:            make([]*Contact, 0),
 		blacklistSet:         make(map[*Contact]common.Void),
 	}
 }
+func (cb *ContactBook) Erase(contact *Contact) {
+	if cb.ownerContact == contact {
+		return //don't try to erase yourself.
+	}
+	cb.AddToBlacklist(contact)       // find that connection, then blacklist them so we can easily a single copy.
+	delete(cb.blacklistSet, contact) //if they were blacklisted, now they aren't
+}
 
 func (cb *ContactBook) AddConnection(contact *Contact) error {
-	if contact == cb.ownerContact {
+	if cb.ownerContact == contact {
 		return ErrContactIsSelf //don't try to connect to yourself.
 	}
 	newConn := newConnectionStatus(contact)
@@ -108,7 +113,7 @@ func (cb *ContactBook) Distrust(contact *Contact, amount uint64) bool {
 }
 func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 	if cb.connectionsByContact[contact] != nil {
-		cb.connectionsByContact[contact] = nil
+		delete(cb.connectionsByContact, contact)
 		for i := 0; i < len(cb.connections); i++ {
 			if cb.connections[i].contact == contact {
 				if i == 0 {
@@ -125,7 +130,6 @@ func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 		//already stored.
 		return
 	}
-	cb.blacklist = append(cb.blacklist, contact)
 	cb.blacklistSet[contact] = blacklisted
 }
 func (cb *ContactBook) GetContactList() rpc.PassedContacts {
@@ -139,9 +143,9 @@ func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 		passed.NodeIDs = append(passed.NodeIDs, x.contact.NodeID)
 		passed.ConnectionStrings = append(passed.ConnectionStrings, x.contact.ConnectionString)
 	}
-	for _, x := range cb.blacklist {
-		passed.BlacklistIDs = append(passed.BlacklistIDs, x.NodeID)
-		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, x.ConnectionString)
+	for blv, _ := range cb.blacklistSet {
+		passed.BlacklistIDs = append(passed.BlacklistIDs, blv.NodeID)
+		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, blv.ConnectionString)
 	}
 
 	return passed
