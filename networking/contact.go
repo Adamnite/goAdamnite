@@ -63,6 +63,7 @@ func (cb *ContactBook) AddConnection(contact *Contact) error {
 			case sameConnectionString && sameNodeID:
 				//the id, and connection string are the same, therefor this has already been added
 				// fmt.Println("identical contact added")
+				*contact = *cb.connections[i].contact
 				return nil
 			case (!sameConnectionString && !sameNodeID) && i == len(cb.connections):
 				//we've gone through the list, and not found this yet, therefor this has to be new

@@ -30,9 +30,12 @@ require (
 )
 
 require (
+	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
 	github.com/alitto/pond v1.8.2 // indirect
 	github.com/btcsuite/btcutil v1.0.2 // indirect
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/flynn-archive/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
@@ -53,6 +56,7 @@ require (
 )
 
 require (
+	github.com/abiosoft/ishell v2.0.0+incompatible
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
 	github.com/apache/arrow/go/v7 v7.0.1 // indirect
 	github.com/benbjohnson/immutable v0.3.0 // indirect

@@ -82,5 +82,4 @@ func TestManyOpenMessages(t *testing.T) {
 		//check everyone has the same messages, and all of them
 		assert.Equal(t, math.Pow(float64(len(testingNodes)), 2), float64(len(node.msgByHash)), "not all messages seen")
 	}
-
 }

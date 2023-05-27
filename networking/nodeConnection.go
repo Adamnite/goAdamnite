@@ -24,7 +24,7 @@ func (n *NetNode) FillOpenConnections() error {
 	useRecursion := false
 	if len(n.contactBook.connections) >= int(n.maxOutboundConnections*3) {
 		if err := n.SprawlConnections(5, 0.01); err != nil {
-			if err == errNoNewConnectionsMade {
+			if err == ErrNoNewConnectionsMade {
 				useRecursion = true
 			} else {
 				return err
@@ -64,6 +64,7 @@ func (n *NetNode) ConnectToSeed(connectionPoint string) error {
 		return err
 	}
 	n.contactBook.Erase(&tempSeedContact) //we don't have the full seed node information, so it's best to drop that.
+	n.DropConnection(&tempSeedContact)
 
 	// do a full sprawl. This gets the seed node back and, given this is normally a part of the startup
 	// lets us take our time and really fill our network
@@ -187,7 +188,7 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 		n.ConnectToContact(contact)
 	}
 	if len(talkedToContacts) == len(n.contactBook.connectionsByContact) {
-		return errNoNewConnectionsMade
+		return ErrNoNewConnectionsMade
 	}
 	return nil
 }

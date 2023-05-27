@@ -34,7 +34,6 @@ type NetNode struct {
 	thisContact Contact
 	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxInboundConnections  uint                             //how many inbound connections can this reply to.
 	maxOutboundConnections uint                             //how many outbound connections can this reply to.
 	activeOutboundCount    uint                             //how many connections are active
 	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
@@ -49,7 +48,6 @@ type NetNode struct {
 func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
-		maxInboundConnections:  5,
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
@@ -60,6 +58,10 @@ func NewNetNode(address common.Address) *NetNode {
 }
 func (n NetNode) GetOwnContact() Contact {
 	return n.thisContact
+}
+
+func (n *NetNode) SetMaxConnections(newMax uint) {
+	n.maxOutboundConnections = newMax
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
@@ -168,6 +170,11 @@ func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
 		return
 	}
 	n.contactBook.AddConnection(&Contact{ConnectionString: remoteIP, NodeID: nodeID})
+	// newConnection := &Contact{ConnectionString: remoteIP, NodeID: nodeID}//a version of me less likely to loose it would like to work on this again.
+	// err := n.contactBook.AddConnection(newConnection)
+	// if n.activeOutboundCount < n.maxOutboundConnections && err == nil {
+	// 	n.ConnectToContact(newConnection)
+	// }
 }
 
 func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
