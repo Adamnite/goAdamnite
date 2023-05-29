@@ -182,11 +182,6 @@ func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
 		return
 	}
 	n.contactBook.AddConnection(&Contact{ConnectionString: remoteIP, NodeID: nodeID})
-	// newConnection := &Contact{ConnectionString: remoteIP, NodeID: nodeID}//a version of me less likely to loose it would like to work on this again.
-	// err := n.contactBook.AddConnection(newConnection)
-	// if n.activeOutboundCount < n.maxOutboundConnections && err == nil {
-	// 	n.ConnectToContact(newConnection)
-	// }
 }
 
 func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
