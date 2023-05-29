@@ -117,6 +117,18 @@ func (n *NetNode) updateServer() {
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
 }
 
+func (n *NetNode) Close() {
+	if n.hostingServer != nil {
+		n.hostingServer.Close()
+	}
+	for c := range n.activeContactToClient {
+		n.activeContactToClient[c].Close()
+		delete(n.activeContactToClient, c)
+	}
+	n.contactBook.Close()
+
+}
+
 // use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
 func (n *NetNode) SetMaxGreyList(maxLength uint) {
 	n.contactBook.maxGreyList = maxLength
