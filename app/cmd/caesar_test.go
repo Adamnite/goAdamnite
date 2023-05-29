@@ -1,32 +1,35 @@
 package cmd
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/abiosoft/ishell"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/networking"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCaesarMessaging(t *testing.T) {
-	seedNode := networking.NewNetNode(common.Address{0, 0, 0, 0})
-	seedNode.AddServer()
+	seedNode := NewSeedHandler()
+	seedShell := ishell.New()
+	seedShell.AddCmd(seedNode.GetSeedCommands())
+	seedShell.Process("seed")
+	seedString := seedNode.hosting.GetOwnContact().ConnectionString
 
 	a := NewCaesarHandler()
 	aShell := ishell.New()
 	aShell.AddCmd(a.GetCaesarCommands())
-	aShell.Process("caesar", "start", seedNode.GetOwnContact().ConnectionString)
-
+	aShell.Process("caesar", "start", seedString)
 	b := NewCaesarHandler()
 	bShell := ishell.New()
 	bShell.AddCmd(b.GetCaesarCommands())
-	bShell.Process("caesar", "start", seedNode.GetOwnContact().ConnectionString)
+	bShell.Process("caesar", "start", seedString)
 
 	aShell.Process("caesar", "talk", crypto.B58encode(b.thisUser.PublicKey), "hello!")
-	fmt.Println("\n\n\n ")
 	bShell.Process("caesar", "talk", crypto.B58encode(a.thisUser.PublicKey), "how are you?")
-
-
+	aLogs := a.chatLogs[b.thisUser.Address]
+	bLogs := b.chatLogs[a.thisUser.Address]
+	for i, aMsg := range aLogs {
+		bMsg := bLogs[i]
+		assert.Equal(t, aMsg.text, bMsg.text, "msgs did not have same text")
+	}
 }
