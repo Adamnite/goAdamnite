@@ -5,12 +5,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/abiosoft/ishell"
+	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/caesar"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/fatih/color"
 )
 
 type CaesarHandler struct {
@@ -18,7 +19,7 @@ type CaesarHandler struct {
 	thisUser            *accounts.Account
 	maxMessagesOnScreen int
 	chatLogs            map[common.Address][]*chatText //the chat history by mapping
-	showProgress        bool
+	HoldingFocus        bool
 }
 type chatText struct {
 	fromUs bool
@@ -39,21 +40,24 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 			time:   msg.InitialTime.Format(time.Kitchen),
 		})
 	} else {
-		if _, exists := ch.chatLogs[msg.From.Address]; !exists {
-			ch.chatLogs[msg.From.Address] = []*chatText{}
-		}
 		text, _ := msg.GetMessageString(*ch.thisUser)
-		ch.chatLogs[msg.From.Address] = append(ch.chatLogs[msg.To.Address], &chatText{
+		newMsg := chatText{
 			fromUs: false,
 			text:   text,
 			time:   msg.InitialTime.Format(time.Kitchen),
-		})
+		}
+		if _, exists := ch.chatLogs[msg.From.Address]; !exists {
+			ch.chatLogs[msg.From.Address] = []*chatText{&newMsg}
+		} else {
+			ch.chatLogs[msg.From.Address] = append(ch.chatLogs[msg.From.Address], &newMsg)
+		}
+
 	}
 }
 
 // get a Caesar chat handler
 func NewCaesarHandler() *CaesarHandler {
-	return &CaesarHandler{maxMessagesOnScreen: 10, chatLogs: make(map[common.Address][]*chatText), showProgress: true}
+	return &CaesarHandler{maxMessagesOnScreen: 10, chatLogs: make(map[common.Address][]*chatText), HoldingFocus: false}
 }
 func (ch CaesarHandler) isServerLive() bool {
 	return ch.server != nil
@@ -86,49 +90,37 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 		return
 	}
 	//TODO: have this check if they have a consensus node running, and if so, if they want to use that for the messaging too
-	var progBar ishell.ProgressBar
-	if ch.showProgress {
-		progBar = c.ProgressBar()
-		progBar.Prefix("starting up the server:")
-		progBar.Start()
-	}
+	progBar := c.ProgressBar()
+	progBar.Prefix("starting up the server:")
+	progBar.Start()
 	//TODO: this assume that no account was passed to local!
 	ch.thisUser, _ = accounts.GenerateAccount()
 	c.Println("Hosting from :", crypto.B58encode(ch.thisUser.PublicKey))
 	server := caesar.NewCaesarNode(ch.thisUser)
 	if err := server.Startup(); err != nil {
 		c.Println(err)
-		if ch.showProgress {
-			progBar.Stop()
-		}
+		progBar.Stop()
 		return
 	}
-	if ch.showProgress {
-		progBar.Progress(10)
-	}
+	progBar.Progress(10)
+
 	ch.server = server //if we've made it here, the servers probably gonna be working
 	if len(c.Args) >= 1 {
 		//test that we have enough arguments that a connection string *could* have been passed
 		if err := server.ConnectToNetworkFrom(c.Args[0]); err != nil {
 			c.Println(err)
-			if ch.showProgress {
-				progBar.Stop()
-			}
+			progBar.Stop()
 			return
 		}
 	}
+	progBar.Progress(40)
 
-	if ch.showProgress {
-		progBar.Progress(40)
-	}
 	server.FillNetworking(true) //TODO: only override if we don't already have a server running
 
 	// server should be up, and well connected now!
-	if ch.showProgress {
-		progBar.Final(fmt.Sprintf("\nserver is up and running!\n\tHosting connection from:%v", server.GetConnectionPoint()))
-		progBar.Progress(100)
-		progBar.Stop()
-	}
+	progBar.Final(fmt.Sprintf("\nserver is up and running!\n\tHosting connection from:%v", server.GetConnectionPoint()))
+	progBar.Progress(100)
+	progBar.Stop()
 }
 
 func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
@@ -137,7 +129,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		return
 	}
 	ch.server.FillNetworking(false)
-	if len(c.Args) < 1 {
+	if len(c.Args) == 0 {
 		c.Println("need to have someone to talk to!")
 		return
 	}
@@ -150,8 +142,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	target := accounts.AccountFromPubBytes(pubk)
 
 	//setup the texting display
-
-	// messagesDisplaying := ch.server.GetMessagesBetween(*ch.thisUser, target)
+	c.Println("\n\n\n")
 	breakFully := false
 	ch.server.NewMessageUpdater = func(msg *utils.CaesarMessage) {
 		if msg.To.Address == ch.thisUser.Address {
@@ -162,7 +153,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		}
 	}
 	//get all the logged messages we have
-	msgs := ch.server.GetMessagesBetween(*ch.thisUser, target)
+	msgs := ch.server.GetMessagesBetween(*ch.thisUser, target) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
 	for _, m := range msgs {
 		ch.addChatMsg(m)
 	}
@@ -172,7 +163,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	}
 	if len(c.Args) >= 2 { //then they're passing the message with the text (aka, debugging)
 		text := ""
-		for i := 2; i < len(c.Args); i++ {
+		for i := 1; i < len(c.Args); i++ {
 			text = text + c.Args[i]
 		}
 		ch.sendMessage(target, text)
@@ -183,52 +174,69 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		return
 
 	}
-	//TODO: get messages from here
-	c.ShowPrompt(false)
-	//I think this will auto break?
-	text := ""
-	for text != "\n" || err != nil {
+
+	c.SetPrompt("|msg|")
+	c.Println("\n\n\n")
+	ch.HoldingFocus = true
+	text := " "
+	for text != "" && err == nil {
 		text = c.ReadMultiLinesFunc(func(s string) bool {
+			if len(s) == 0 {
+				return false
+			}
 			return s[len(s)-1] == '\n'
 		})
 		ch.sendMessage(target, text)
+		c.Println("\n\n\n")
 		err = ch.updateChatScreen(c, target)
-		log.Println("text worked(?): ", text)
+		c.Println("")
 	}
-
+	if err != nil {
+		c.Println(err)
+	}
+	c.SetPrompt(">adm>")
+	ch.HoldingFocus = false
 }
 
 func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target accounts.Account) error {
+	c.Println("\n\n\n\n\n\n")
+	userMsgColor := color.New(color.BgGreen)
+	otherMsgColor := color.New(color.BgBlue)
 	messagesToDisplay := ch.chatLogs[target.Address]
 	c.ClearScreen()
-	c.Printf("%v \t\t\t(you)%v", crypto.B58encode(target.PublicKey), crypto.B58encode(ch.thisUser.PublicKey))
+	c.Printf("%v(them) \t\t(you)%v\n", otherMsgColor.Sprint(crypto.B58encode(target.PublicKey)), userMsgColor.Sprint(crypto.B58encode(ch.thisUser.PublicKey)))
 	if len(messagesToDisplay) > ch.maxMessagesOnScreen {
 		messagesToDisplay = messagesToDisplay[len(messagesToDisplay)-ch.maxMessagesOnScreen:]
 	}
+
 	for _, msg := range messagesToDisplay {
 		if msg.fromUs {
 			//then its on the left
-			c.Println(fmt.Sprintf("[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
+			c.Println(userMsgColor.Sprintf("[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
 		} else {
 			//on the right
 			//assume max characters on the screen per side to be 50(ish)
-			c.Println(fmt.Sprintf("\t\t[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
+			c.Println(otherMsgColor.Sprintf("[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
 
 		}
 	}
 	return nil
 }
 func (ch *CaesarHandler) sendMessage(target accounts.Account, text string) {
-	if _, exists := ch.chatLogs[target.Address]; !exists {
-		ch.chatLogs[target.Address] = []*chatText{}
-	}
+	//TODO: check the account is real, otherwise this will break
 	if err := ch.server.Send(target, text); err != nil {
+		log.Println(err)
 		return
 	}
-	ch.chatLogs[target.Address] = append(ch.chatLogs[target.Address], &chatText{
+	newMsg := chatText{
 		fromUs: true,
 		text:   text,
 		time:   time.Now().UTC().Format(time.Kitchen),
-	})
+	}
+	if _, exists := ch.chatLogs[target.Address]; !exists {
+		ch.chatLogs[target.Address] = []*chatText{&newMsg}
+	} else {
+		ch.chatLogs[target.Address] = append(ch.chatLogs[target.Address], &newMsg)
+	}
 
 }

@@ -56,7 +56,7 @@ require (
 )
 
 require (
-	github.com/abiosoft/ishell v2.0.0+incompatible
+	github.com/abiosoft/ishell/v2 v2.0.2
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
 	github.com/apache/arrow/go/v7 v7.0.1 // indirect
 	github.com/benbjohnson/immutable v0.3.0 // indirect
