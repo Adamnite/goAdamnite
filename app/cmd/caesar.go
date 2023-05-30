@@ -37,14 +37,14 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 		ch.chatLogs[msg.To.Address] = append(ch.chatLogs[msg.To.Address], &chatText{
 			fromUs: true,
 			text:   "*******",
-			time:   msg.InitialTime.Format(time.Kitchen),
+			time:   msg.GetTime().Format(time.Kitchen),
 		})
 	} else {
 		text, _ := msg.GetMessageString(*ch.thisUser)
 		newMsg := chatText{
 			fromUs: false,
 			text:   text,
-			time:   msg.InitialTime.Format(time.Kitchen),
+			time:   msg.GetTime().Format(time.Kitchen),
 		}
 		if _, exists := ch.chatLogs[msg.From.Address]; !exists {
 			ch.chatLogs[msg.From.Address] = []*chatText{&newMsg}
@@ -153,7 +153,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		}
 	}
 	//get all the logged messages we have
-	msgs := ch.server.GetMessagesBetween(*ch.thisUser, target) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
+	msgs := ch.server.GetMessagesBetween(ch.thisUser.Address, target.Address) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
 	for _, m := range msgs {
 		ch.addChatMsg(m)
 	}

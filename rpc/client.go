@@ -3,7 +3,6 @@ package rpc
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -60,7 +59,7 @@ func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte
 
 func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 	a.print("Get Version")
-	var reply []byte = []byte{}
+	reply := []byte{}
 	var versionReceived AdmVersionReply
 
 	if a.callerAddress == nil {
@@ -71,12 +70,12 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		HostingServerPort string
 	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
 
-	addressBytes, err := encoding.Marshal(sendingData)
+	sendingBytes, err := encoding.Marshal(sendingData)
 	if err != nil {
 		return nil, err
 	}
-	if err := a.client.Call(getVersionEndpoint, addressBytes, &reply); err != nil {
-		log.Panicln(err)
+	if err := a.client.Call(getVersionEndpoint, &sendingBytes, &reply); err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	if err := encoding.Unmarshal(reply, &versionReceived); err != nil {
@@ -102,23 +101,23 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	return passed
 }
 
-func (a *AdamniteClient) GetChainID() (*big.Int, error) {
+func (a *AdamniteClient) GetChainID() (string, error) {
 	a.print("Get chain id")
 	reply := []byte{}
 	err := a.client.Call(getChainIDEndpoint, []byte{}, &reply)
 	if err != nil {
 		log.Println(err)
-		return nil, err
+		return "", err
 	}
 
-	var output big.Int
+	var output string
 
 	if err := encoding.Unmarshal(reply, &output); err != nil {
 		a.printError("Get chain id", err)
-		return nil, err
+		return "", err
 	}
 
-	return &output, nil
+	return output, nil
 }
 
 func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
@@ -148,26 +147,6 @@ func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 	}
 
 	return &balance, nil
-}
-func (a *AdamniteClient) GetAccounts() (*[]string, error) {
-	a.print("Get Accounts")
-
-	var reply []byte
-	if err := a.client.Call(getAccountsEndpoint, nil, &reply); err != nil {
-		a.printError("Get Accounts", err)
-		return nil, err
-	}
-
-	output := struct {
-		Accounts []string
-	}{}
-
-	if err := encoding.Unmarshal(reply, &output); err != nil {
-		a.printError("Get Accounts", err)
-		return nil, err
-	}
-
-	return &output.Accounts, nil
 }
 
 func NewAdamniteClient(endpoint string) (AdamniteClient, error) {

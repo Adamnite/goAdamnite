@@ -39,6 +39,7 @@ type NetNode struct {
 	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
 	hostingServer *rpc.AdamniteServer
+	bouncerServer *rpc.BouncerServer //bouncer server is optional. Acting as the input for off chain interactions (eg, from web)
 
 	consensusCandidateHandler   func(utils.Candidate) error
 	consensusVoteHandler        func(utils.Voter) error
@@ -59,9 +60,39 @@ func NewNetNode(address common.Address) *NetNode {
 func (n NetNode) GetOwnContact() Contact {
 	return n.thisContact
 }
+func (n NetNode) GetConnectionString() string {
+	if n.hostingServer == nil {
+		return ""
+	}
+	return n.thisContact.ConnectionString
+}
+func (n NetNode) GetBouncerString() string {
+	if n.bouncerServer == nil {
+		return ""
+	}
+	return n.bouncerServer.Addr()
+
+}
 
 func (n *NetNode) SetMaxConnections(newMax uint) {
 	n.maxOutboundConnections = newMax
+}
+func (n *NetNode) SetBounceServerMessaging(getMsgs func(common.Address, common.Address) []*utils.CaesarMessage) {
+	if n.bouncerServer == nil {
+		return
+	}
+	n.bouncerServer.SetMessagingHandlers(getMsgs)
+}
+func (n *NetNode) AddBouncerServer(
+	state *statedb.StateDB, chain *blockchain.Blockchain,
+	hostPort uint32,
+) {
+	if n.bouncerServer != nil {
+		log.Println("closing old bouncer server before starting new")
+		n.bouncerServer.Close()
+	}
+	n.bouncerServer = rpc.NewBouncerServer(state, chain, hostPort)
+	n.bouncerServer.SetHandlers(n.handleForward)
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
@@ -74,7 +105,7 @@ func (n *NetNode) AddFullServer(
 		log.Println("closing old server before adding new server")
 		n.hostingServer.Close() //assume they want to restart the server then
 	}
-	n.hostingServer = rpc.NewAdamniteServer(state, chain, 0)
+	n.hostingServer = rpc.NewAdamniteServer(0)
 	n.consensusCandidateHandler = candidateHandler
 	n.consensusVoteHandler = voteHandler
 	n.updateServer()
@@ -96,7 +127,7 @@ func (n *NetNode) AddServer() error {
 		log.Println("closing old server before adding new server")
 		n.hostingServer.Close() //assume they want to restart the server then
 	}
-	n.hostingServer = rpc.NewAdamniteServer(nil, nil, 0)
+	n.hostingServer = rpc.NewAdamniteServer(0)
 	n.updateServer()
 	return nil
 }
@@ -120,6 +151,9 @@ func (n *NetNode) updateServer() {
 func (n *NetNode) Close() {
 	if n.hostingServer != nil {
 		n.hostingServer.Close()
+	}
+	if n.bouncerServer != nil {
+		n.bouncerServer.Close()
 	}
 	for c := range n.activeContactToClient {
 		n.activeContactToClient[c].Close()

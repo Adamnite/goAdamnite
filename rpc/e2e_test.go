@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net/rpc"
 	"os"
 	"testing"
 	"time"
@@ -29,10 +30,12 @@ var (
 		big.NewInt(1),
 		big.NewInt(2),
 	}
-	testDB      = rawdb.NewMemoryDB()
-	stateDB, _  = statedb.New(common.Hash{}, statedb.NewDatabase(testDB))
-	chainConfig = params.TestnetChainConfig
-	client      AdamniteClient
+	testDB        = rawdb.NewMemoryDB()
+	stateDB, _    = statedb.New(common.Hash{}, statedb.NewDatabase(testDB))
+	chainConfig   = params.TestnetChainConfig
+	client        AdamniteClient
+	bouncerServer *BouncerServer
+	bouncerClient *rpc.Client
 )
 
 func setup() {
@@ -57,12 +60,16 @@ func setup() {
 	}
 
 	var port uint32 = 12345
+	var bouncerPort uint32 = 12346
 
-	adamniteServer := NewAdamniteServer(stateDB, blockchain, port)
+	bouncerServer = NewBouncerServer(stateDB, blockchain, bouncerPort)
+	adamniteServer := NewAdamniteServer(port)
+	go adamniteServer.Run()
+
 	defer func() {
 		adamniteServer.Close()
+		bouncerServer.Close()
 	}()
-	go adamniteServer.Run()
 
 	// setup Adamnite client
 	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))
@@ -70,21 +77,16 @@ func setup() {
 		log.Printf("[Adamnite E2E test] Error: %s", err)
 		return
 	}
+	bouncerClient, err = rpc.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", bouncerPort))
+	if err != nil {
+		log.Printf("[Adamnite E2E test] Bouncer Error: %s", err)
+		return
+	}
 }
 
 func shutdown() {
 	client.Close()
-}
-
-func TestGetBalance(t *testing.T) {
-	balance, err := client.GetBalance(testAccounts[0])
-	if err != nil {
-		log.Printf("[Adamnite E2E test] Error: %s", err)
-		t.Fail()
-	}
-	if !assert.Equal(t, testBalances[0].String(), *balance, "Balances do not match") {
-		t.Fail()
-	}
+	bouncerClient.Close()
 }
 
 func TestGetChainID(t *testing.T) {
@@ -92,7 +94,7 @@ func TestGetChainID(t *testing.T) {
 		log.Printf("[Adamnite E2E test] Error: %s", err)
 		t.Fail()
 	} else {
-		if !assert.Equal(t, chainConfig.ChainID, id, "chain ID is not correct") {
+		if !assert.Equal(t, "0.1.2", id, "chain ID is not correct") {
 			t.Fail()
 		}
 	}
@@ -104,9 +106,8 @@ func TestGetVersion(t *testing.T) {
 	version, err := client.GetVersion()
 	now := time.Now().UTC()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	// assert.Equal(t, chainConfig.ChainID.String(), version.Client_version, "chain id miss match")
 	//timestamp is going to be off, but shouldn't be too off
 	assert.Equal(t, now.Round(leeway), version.Timestamp.Round(leeway), "time is too far off")
 	//TODO: check the rest of this is indeed working

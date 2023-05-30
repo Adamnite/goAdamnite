@@ -9,7 +9,6 @@ import (
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
-
 type CaesarNode struct {
 	netHandler        *networking.NetNode
 	signerSet         *accounts.Account
@@ -42,24 +41,30 @@ func (cn *CaesarNode) Startup() error {
 	)
 	return nil
 }
-func (cn CaesarNode) GetConnectionPoint() string {
-	return cn.netHandler.GetOwnContact().ConnectionString
+
+// adds a bouncer, so web based users can access messages through this
+func (cn *CaesarNode) StartBouncer() {
+	cn.netHandler.AddBouncerServer(nil, nil, 0)
+	cn.netHandler.SetBounceServerMessaging(cn.GetMessagesBetween)
 }
-func (cn CaesarNode) GetMessagesBetween(a, b accounts.Account) []*utils.CaesarMessage {
+func (cn CaesarNode) GetConnectionPoint() string {
+	return cn.netHandler.GetConnectionString()
+}
+func (cn CaesarNode) GetMessagesBetween(a, b common.Address) []*utils.CaesarMessage {
 	ansMessages := []*utils.CaesarMessage{}
-	for _, msg := range cn.msgBySender[a.Address] {
-		if msg.To.Address == b.Address {
+	for _, msg := range cn.msgBySender[a] {
+		if msg.To.Address == b {
 			ansMessages = append(ansMessages, msg)
 		}
 	}
-	for _, msg := range cn.msgBySender[b.Address] {
-		if msg.To.Address == a.Address {
+	for _, msg := range cn.msgBySender[b] {
+		if msg.To.Address == a {
 			ansMessages = append(ansMessages, msg)
 		}
 	}
 	//sort them to be in order, cause why not
 	sort.Slice(ansMessages, func(i, j int) bool {
-		return ansMessages[i].InitialTime.Before(ansMessages[j].InitialTime)
+		return ansMessages[i].InitialTime < ansMessages[j].InitialTime
 	}) //TODO: why not might be for important performance reasons...
 
 	return ansMessages

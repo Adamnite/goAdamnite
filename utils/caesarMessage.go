@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 type CaesarMessage struct {
 	To               accounts.Account //neither of these have the private key sent during serialization.
 	From             accounts.Account
-	InitialTime      time.Time
+	InitialTime      int64
 	Message          []byte
 	Signature        []byte
 	HasHostingServer bool //is this to a nodeID, who would have a server running directly (instead of needing to be shared to everyone)
@@ -22,7 +23,7 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 	ansMsg := CaesarMessage{
 		To:               to,
 		From:             from,
-		InitialTime:      time.Now().UTC(),
+		InitialTime:      time.Now().UnixMicro(),
 		HasHostingServer: false,
 	}
 
@@ -50,11 +51,7 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 // Hash the message
 func (cm CaesarMessage) Hash() []byte {
 	ans := append(cm.To.PublicKey, cm.From.PublicKey...)
-	timeByte, err := cm.InitialTime.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
-	ans = append(ans, timeByte...)
+	ans = binary.LittleEndian.AppendUint64(ans, uint64(cm.InitialTime))
 	return crypto.Sha512(ans)
 }
 
@@ -80,4 +77,7 @@ func (cm CaesarMessage) GetMessage(recipient accounts.Account) ([]byte, error) {
 func (cm CaesarMessage) GetMessageString(recipient accounts.Account) (string, error) {
 	msg, err := cm.GetMessage(recipient)
 	return string(msg), err
+}
+func (cm CaesarMessage) GetTime() time.Time {
+	return time.UnixMicro(cm.InitialTime)
 }

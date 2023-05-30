@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
@@ -17,12 +16,11 @@ import (
 )
 
 type AdamniteServer struct {
-	stateDB         *statedb.StateDB
 	chain           *blockchain.Blockchain
 	hostingNodeID   common.Address
 	seenConnections map[common.Hash]common.Void
+	Version         string
 
-	addresses                 []string
 	GetContactsFunction       func() PassedContacts
 	listener                  net.Listener
 	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
@@ -68,6 +66,10 @@ func (a *AdamniteServer) SetHostingID(id *common.Address) {
 	a.hostingNodeID = *id
 }
 func (a *AdamniteServer) Close() {
+	//TODO: clear all mappings!
+	for h := range a.seenConnections {
+		delete(a.seenConnections, h)
+	}
 	_ = a.listener.Close()
 }
 
@@ -209,51 +211,10 @@ const getChainIDEndpoint = "AdamniteServer.GetChainID"
 
 func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
 	a.print("Get chain ID")
-	if a.chain == nil || a.chain.Config() == nil {
-		return ErrChainNotSet
-	}
 
-	data, err := encoding.Marshal(a.chain.Config().ChainID.String())
+	data, err := encoding.Marshal(a.Version)
 	if err != nil {
 		a.printError("Get chain ID", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getBalanceEndpoint = "AdamniteServer.GetBalance"
-
-func (a *AdamniteServer) GetBalance(params *[]byte, reply *[]byte) error {
-	a.print("Get balance")
-	input := struct {
-		Address string
-	}{}
-
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		a.printError("Get balance", err)
-		return err
-	}
-
-	data, err := encoding.Marshal(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
-	if err != nil {
-		a.printError("Get balance", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getAccountsEndpoint = "AdamniteServer.GetAccounts"
-
-func (a *AdamniteServer) GetAccounts(params *[]byte, reply *[]byte) error {
-	a.print("Get accounts")
-
-	data, err := encoding.Marshal(a.addresses)
-	if err != nil {
-		a.printError("Get accounts", err)
 		return err
 	}
 
@@ -310,40 +271,6 @@ func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const createAccountEndpoint = "AdamniteServer.CreateAccount"
-
-func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
-	a.print("Create account")
-
-	input := struct {
-		Address string
-	}{}
-
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		a.printError("Create account", err)
-		return err
-	}
-
-	for _, address := range a.addresses {
-		if address == input.Address {
-			log.Printf(serverPreface, ErrPreExistingAccount)
-			return ErrPreExistingAccount
-		}
-	}
-
-	a.stateDB.CreateAccount(common.HexToAddress(input.Address))
-	a.addresses = append(a.addresses, input.Address)
-
-	data, err := encoding.Marshal(true)
-	if err != nil {
-		a.printError("Create account", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
 const SendTransactionEndpoint = "AdamniteServer.SendTransaction"
 
 func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
@@ -374,15 +301,14 @@ func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
 
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, port uint32) *AdamniteServer {
+func NewAdamniteServer(port uint32) *AdamniteServer {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(AdamniteServer)
-	adamnite.stateDB = stateDB
-	adamnite.chain = chain
 	adamnite.timesTestHasBeenCalled = 0
 	adamnite.seenConnections = make(map[common.Hash]common.Void)
 	adamnite.DebugOutput = false
+	adamnite.Version = "0.1.2"
 
 	if err := rpcServer.Register(adamnite); err != nil {
 		log.Fatal(err)

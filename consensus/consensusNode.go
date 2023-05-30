@@ -168,7 +168,7 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 		NodeID:        con.participation.PublicKey,
 		ConsensusPool: int8(foo),
 		VRFKey:        con.vrfKey.PublicKey,
-		NetworkString: con.netLogic.GetOwnContact().ConnectionString,
+		NetworkString: con.netLogic.GetConnectionString(),
 	}
 	return &thisCandidate
 }

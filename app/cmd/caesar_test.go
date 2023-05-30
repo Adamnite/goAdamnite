@@ -13,7 +13,7 @@ func TestCaesarMessaging(t *testing.T) {
 	seedShell := ishell.New()
 	seedShell.AddCmd(seedNode.GetSeedCommands())
 	seedShell.Process("seed")
-	seedString := seedNode.hosting.GetOwnContact().ConnectionString
+	seedString := seedNode.hosting.GetConnectionString()
 
 	a := NewCaesarHandler()
 	aShell := ishell.New()
