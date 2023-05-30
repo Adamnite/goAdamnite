@@ -67,13 +67,13 @@ func TestEncryption(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bytes.Equal(testMessageBytes, msg) {
-		fmt.Println("msg not changes")
+		fmt.Println("msg not changed")
 		t.Fail()
 	}
-	wrongAccount, _ := GenerateAccount()
-	ans, err := wrongAccount.Decrypt(msg)
-	if err == nil {
-		fmt.Println("no error returned from wrong key")
+	uninvolvedAccount, _ := GenerateAccount()
+	ans, err := uninvolvedAccount.Decrypt(msg)
+	if err == nil || bytes.Equal(ans, testMessageBytes) {
+		fmt.Println("successful message decryption with another account")
 		fmt.Println(ans)
 		t.Fail()
 	}

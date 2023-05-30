@@ -17,9 +17,9 @@ type CaesarMessage struct {
 	HasHostingServer bool //is this to a nodeID, who would have a server running directly (instead of needing to be shared to everyone)
 }
 
+// create a Caesar Message. "saying" can be of type byte or string
 func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interface{}) (*CaesarMessage, error) {
-	//format the message
-	ansMessage := CaesarMessage{
+	ansMsg := CaesarMessage{
 		To:               to,
 		From:             from,
 		InitialTime:      time.Now().UTC(),
@@ -27,24 +27,24 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 	}
 
 	//get the message from a variance of types
-	var messageBytes []byte
+	var msgBytes []byte
 	switch v := saying.(type) {
 	case string:
-		messageBytes = []byte(v)
+		msgBytes = []byte(v)
 	case []byte:
-		messageBytes = v
+		msgBytes = v
 	default:
 		return nil, fmt.Errorf("i don't know how to handle the message type you sent") //TODO: replace with real error
 	}
 
-	ansBytes, err := to.Encrypt(messageBytes)
+	ansBytes, err := to.Encrypt(msgBytes)
 	if err != nil {
 		return nil, err
 	}
-	ansMessage.Message = ansBytes
+	ansMsg.Message = ansBytes
 
-	err = ansMessage.Sign()
-	return &ansMessage, err
+	err = ansMsg.Sign()
+	return &ansMsg, err
 }
 
 // Hash the message
