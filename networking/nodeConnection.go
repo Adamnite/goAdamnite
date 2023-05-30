@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
@@ -23,7 +24,7 @@ func (n *NetNode) FillOpenConnections() error {
 	useRecursion := false
 	if len(n.contactBook.connections) >= int(n.maxOutboundConnections*3) {
 		if err := n.SprawlConnections(5, 0.01); err != nil {
-			if err == errNoNewConnectionsMade {
+			if err == ErrNoNewConnectionsMade {
 				useRecursion = true
 			} else {
 				return err
@@ -47,6 +48,28 @@ func (n *NetNode) FillOpenConnections() error {
 	}
 	if n.activeOutboundCount < n.maxOutboundConnections && useRecursion {
 		return n.FillOpenConnections()
+	}
+	return nil
+}
+func (n *NetNode) ConnectToSeed(connectionPoint string) error {
+	tempSeedContact := Contact{
+		ConnectionString: connectionPoint,
+		NodeID:           common.Address{0, 0, 0, 0}, //use the 0 address to test this
+	}
+	if err := n.ConnectToContact(&tempSeedContact); err != nil {
+		return err
+	}
+
+	if err := n.GetConnectionsContacts(&tempSeedContact); err != nil { //get the seed nodes info so we can connect to them again more easily
+		return err
+	}
+	n.contactBook.Erase(&tempSeedContact) //we don't have the full seed node information, so it's best to drop that.
+	n.DropConnection(&tempSeedContact)
+
+	// do a full sprawl. This gets the seed node back and, given this is normally a part of the startup
+	// lets us take our time and really fill our network
+	if err := n.SprawlConnections(5, 0.05); err != nil {
+		return err
 	}
 	return nil
 }
@@ -165,7 +188,7 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 		n.ConnectToContact(contact)
 	}
 	if len(talkedToContacts) == len(n.contactBook.connectionsByContact) {
-		return errNoNewConnectionsMade
+		return ErrNoNewConnectionsMade
 	}
 	return nil
 }

@@ -1,6 +1,8 @@
 package accounts
 
 import (
+	"bytes"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -53,5 +55,32 @@ func signAndVerify(t *testing.T, val interface{}) {
 			account.Verify(val, signatures),
 			"bytes mismatch to signature",
 		)
+	}
+}
+
+func TestEncryption(t *testing.T) {
+	a, _ := GenerateAccount()
+	senderAccount := AccountFromPubBytes(a.PublicKey)
+	testMessageBytes := []byte("Hello World!")
+	msg, err := senderAccount.Encrypt(testMessageBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(testMessageBytes, msg) {
+		fmt.Println("msg not changed")
+		t.Fail()
+	}
+	uninvolvedAccount, _ := GenerateAccount()
+	ans, err := uninvolvedAccount.Decrypt(msg)
+	if err == nil || bytes.Equal(ans, testMessageBytes) {
+		fmt.Println("successful message decryption with another account")
+		fmt.Println(ans)
+		t.Fail()
+	}
+
+	ans, err = a.Decrypt(msg)
+	if err != nil || !bytes.Equal(testMessageBytes, ans) {
+		fmt.Println("bytes were not equal, or")
+		t.Fatal(err)
 	}
 }

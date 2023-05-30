@@ -83,7 +83,7 @@ func TestLinearForward(t *testing.T) {
 	fmt.Println(forwardingCount)
 	for _, node := range nodes {
 
-		if err := node.SprawlConnections(int(math.Log(float64(len(nodes)))), 0); err != nil && err != errNoNewConnectionsMade {
+		if err := node.SprawlConnections(int(math.Log(float64(len(nodes)))), 0); err != nil && err != ErrNoNewConnectionsMade {
 			t.Fatal(err)
 		}
 	}
@@ -204,7 +204,6 @@ func generateLineOfNodes(count int) ([]*NetNode, error) {
 		if err := node.AddServer(); err != nil {
 			return nil, err
 		}
-		node.maxInboundConnections = 2
 		node.maxOutboundConnections = 2
 	}
 	nodes[0].ConnectToContact(&nodes[1].thisContact)

@@ -1,11 +1,11 @@
 package rpc
 
+// server items on the RPC side for consensus only
+
 import (
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
-
-// server items on the RPC side for consensus only
 
 func (a *AdamniteServer) SetConsensusHandlers(
 	newCandidate func(utils.Candidate) error,

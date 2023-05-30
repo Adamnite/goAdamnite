@@ -32,6 +32,7 @@ type AdamniteServer struct {
 	newTransactionReceived    func(*utils.Transaction, *[]byte) error
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
+	newMessageHandler         func(*utils.CaesarMessage)
 	Run                       func()
 	DebugOutput               bool
 }
@@ -142,6 +143,8 @@ func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
 		return a.GetContactList(&content.FinalParams, &content.FinalReply)
 	case TestServerEndpoint:
 		return a.TestServer(&content.FinalParams, &content.FinalReply)
+	case newMessageEndpoint:
+		return a.NewCaesarMessage(&content.FinalParams, &[]byte{})
 	}
 	return nil
 }

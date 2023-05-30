@@ -140,7 +140,7 @@ func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount 
 	con.votesSeen[string(candidateNodeID)] = append(con.votesSeen[string(candidateNodeID)], &vote)
 	con.candidateStakeValues[string(candidateNodeID)].Add(con.candidateStakeValues[string(candidateNodeID)], stakeAmount)
 
-	return con.netLogic.ProposeVote(vote)
+	return con.netLogic.Propagate(vote)
 }
 
 // propose this node as a witness for the network.
@@ -155,7 +155,7 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 	con.thisCandidate.Round = con.currentRound + 1
 	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingKey)
 
-	con.netLogic.ProposeCandidacy(*con.thisCandidate)
+	con.netLogic.Propagate(*con.thisCandidate)
 
 	return nil
 }

@@ -34,7 +34,6 @@ type NetNode struct {
 	thisContact Contact
 	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxInboundConnections  uint                             //how many inbound connections can this reply to.
 	maxOutboundConnections uint                             //how many outbound connections can this reply to.
 	activeOutboundCount    uint                             //how many connections are active
 	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
@@ -49,7 +48,6 @@ type NetNode struct {
 func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
-		maxInboundConnections:  5,
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
@@ -60,6 +58,10 @@ func NewNetNode(address common.Address) *NetNode {
 }
 func (n NetNode) GetOwnContact() Contact {
 	return n.thisContact
+}
+
+func (n *NetNode) SetMaxConnections(newMax uint) {
+	n.maxOutboundConnections = newMax
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
@@ -79,6 +81,13 @@ func (n *NetNode) AddFullServer(
 	n.consensusTransactionHandler = transactionHandler
 
 	return nil
+}
+
+func (n *NetNode) AddMessagingCapabilities(msgHandler func(*utils.CaesarMessage)) {
+	if n.hostingServer == nil {
+		n.AddServer()
+	}
+	n.hostingServer.SetCaesarMessagingHandlers(msgHandler)
 }
 
 // spins up a server for this node.
@@ -106,6 +115,18 @@ func (n *NetNode) updateServer() {
 	)
 	go n.hostingServer.Run()
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
+}
+
+func (n *NetNode) Close() {
+	if n.hostingServer != nil {
+		n.hostingServer.Close()
+	}
+	for c := range n.activeContactToClient {
+		n.activeContactToClient[c].Close()
+		delete(n.activeContactToClient, c)
+	}
+	n.contactBook.Close()
+
 }
 
 // use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
@@ -195,19 +216,9 @@ func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
 	return nil
 }
 
-// share candidacy across the network
-func (n *NetNode) ProposeCandidacy(candidate utils.Candidate) error {
-	foo, err := rpc.CreateForwardToAll(candidate)
-	if err != nil {
-		return err
-	}
-	return n.handleForward(foo, nil)
-
-}
-
-// share vote across the network
-func (n *NetNode) ProposeVote(vote utils.Voter) error {
-	foo, err := rpc.CreateForwardToAll(vote)
+// share a forward-able message across the network
+func (n *NetNode) Propagate(v interface{}) error {
+	foo, err := rpc.CreateForwardToAll(v)
 	if err != nil {
 		return err
 	}

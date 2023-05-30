@@ -24,7 +24,7 @@ type Candidate struct {
 func (c *Candidate) Hash() []byte {
 	byteForm := []byte{byte(c.Round)}
 	byteForm = append(byteForm, c.Seed...)
-	byteForm = append(byteForm, byte(c.StartTime))
+	byteForm = append(byteForm, byte(c.StartTime)) //TODO: change this to properly format it
 	byteForm = append(byteForm, c.VRFKey...)
 	byteForm = append(byteForm, c.NodeID...)
 	byteForm = append(byteForm, []byte(c.NetworkString)...)
