@@ -89,7 +89,7 @@ func (ah *AccountHandler) EditAccount(c *ishell.Context) {
 }
 
 func (ah *AccountHandler) SelectAccount(c *ishell.Context) *accountBeingHeld {
-	c.Println("\n") //adding empty space above helps prevent weird glitches that can happen with overlapping items
+	c.Println("\n\n") //adding empty space above helps prevent weird glitches that can happen with overlapping items
 	accountSelection := []string{
 		"add account",
 	}
