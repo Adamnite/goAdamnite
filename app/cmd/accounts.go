@@ -114,6 +114,7 @@ func (ah *AccountHandler) GetAnyAccount(c *ishell.Context) *accountBeingHeld {
 	}
 
 	accountSelection := []string{
+		"cancel",
 		"add account",
 	}
 	accountOptions := []*accountBeingHeld{}
@@ -122,11 +123,18 @@ func (ah *AccountHandler) GetAnyAccount(c *ishell.Context) *accountBeingHeld {
 		accountOptions = append(accountOptions, &ac)
 	}
 	selected := c.MultiChoice(accountSelection, "select account(or add one)")
-	if selected == 0 || selected == -1 {
+	if selected == 0 {
+		return nil
+	}
+	if selected == 1 || selected == -1 {
 		//add the
 		c.ShowPrompt(false)
 		c.Print("Enter the b58 encoded public key: ")
 		newPub := c.ReadLine()
+		if len(newPub) <= 5 {
+			//assume they're trying to exit
+			return nil
+		}
 		c.ShowPrompt(true)
 		if ac, err := ah.AddKnownAccountByB58(newPub); err != nil {
 			c.Print("Error adding that account: ")
@@ -137,7 +145,7 @@ func (ah *AccountHandler) GetAnyAccount(c *ishell.Context) *accountBeingHeld {
 			return &foo
 		}
 	}
-	return accountOptions[selected-1] //we have an option before the others
+	return accountOptions[selected-2] //we have two options before the others
 }
 
 func (ah *AccountHandler) GenerateAccount(c *ishell.Context) {
@@ -294,6 +302,9 @@ func (ah *AccountHandler) AddAccountByAccount(ac accounts.Account) error {
 // adding other contacts
 func (ah *AccountHandler) AddKnownAccountByB58(pk string) (*accounts.Account, error) {
 	pkb, err := crypto.B58decode(pk)
+	if len(pkb) >= 10 { //i dont remember how long a key should be
+		return nil, fmt.Errorf("clearly not a key")
+	}
 	if err != nil {
 		return nil, err
 	}
