@@ -154,7 +154,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	ch.server.FillNetworking(false)
 	var target *accountBeingHeld
 	if len(c.Args) == 0 {
-		c.Println("select someone you know to talk to then!")
+		c.Println("\nselect someone you know to talk to then!\n\n\n")
 		target = ch.accounts.GetAnyAccount(c)
 	} else {
 		pubk, _ := crypto.B58decode(c.Args[0])
@@ -166,7 +166,10 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 			}
 		}
 		target = ch.accounts.GetByPubkey(pubk)
-
+	}
+	if target == nil {
+		c.Println("appears something went wrong. Please try again!")
+		return
 	}
 
 	//setup the texting display
