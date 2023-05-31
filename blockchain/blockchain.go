@@ -104,11 +104,17 @@ func encodeBlockNumber(number uint64) []byte {
 }
 
 func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
-	return bc.blocksByHash[hash].Header()
+	if val, ok := bc.blocksByHash[hash]; ok {
+		return val.Header()
+	}
+	return nil
 }
 
 func (bc *Blockchain) GetHeaderByNumber(number *big.Int) *types.BlockHeader {
-	return bc.blocksByNumber[number].Header()
+	if val, ok := bc.blocksByNumber[number]; ok {
+		return val.Header()
+	}
+	return nil
 }
 
 func (bc *Blockchain) GetBlock(hash common.Hash, number *big.Int) *types.Block {
