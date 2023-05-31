@@ -24,15 +24,9 @@ type Account struct {
 	Balance    *big.Int
 }
 
-func AccountFromMessage(data interface{}, signature []byte) (*Account, error) {
-	pub, err := secp256k1.RecoverPubkey(toHashedBytes(data), signature)
-	if err != nil {
-		return nil, err
-	}
-	return AccountFromPubBytes(pub), nil
-}
-func AccountFromPubBytes(pubKey []byte) *Account {
-	return &Account{
+func AccountFromPubBytes(pubKey []byte) Account {
+	//TODO: should add an error for if the pubKey is invalid
+	return Account{
 		Address:   crypto.PubkeyByteToAddress(pubKey),
 		PublicKey: pubKey,
 	}
@@ -55,12 +49,18 @@ func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) *Account {
 	}
 
 }
-func AccountFromPrivBytes(privKey []byte) (*Account, error) {
+func AccountFromPrivBytes(privKey []byte) (Account, error) {
 	ePriv, err := crypto.ToECDSA(privKey)
 	if err != nil {
-		return nil, err
+		return Account{}, err
 	}
-	return AccountFromPrivEcdsa(ePriv), nil
+	publicKey := ePriv.PublicKey
+	return Account{
+		Address:    createAddress(publicKey.X.Bytes()),
+		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
+		privateKey: privKey,
+		Balance:    big.NewInt(0),
+	}, nil
 }
 
 func GenerateAccount() (*Account, error) {

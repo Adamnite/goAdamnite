@@ -103,8 +103,8 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 
 	//TODO: this assume that no account was passed to local!
 	c.Println("\n\n")
-	ch.accounts.SelectAccount(c)
-	ch.thisUser = ch.accounts.GetSelected()
+
+	ch.thisUser = ch.accounts.SelectAccount(c)
 
 	progBar := c.ProgressBar()
 	progBar.Prefix("starting up the server:")
