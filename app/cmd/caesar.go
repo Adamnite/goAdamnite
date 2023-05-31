@@ -103,7 +103,7 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 
 	//TODO: this assume that no account was passed to local!
 	c.Println("\n\n")
-
+	c.Println("account to host from")
 	ch.thisUser = ch.accounts.SelectAccount(c)
 
 	progBar := c.ProgressBar()
@@ -152,31 +152,30 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		return
 	}
 	ch.server.FillNetworking(false)
+	var target *accountBeingHeld
 	if len(c.Args) == 0 {
-		c.Println("need to have someone to talk to!")
-		return
-	}
-	pubk, _ := crypto.B58decode(c.Args[0])
-
-	if existing := ch.accounts.GetByPubkey(pubk); existing == nil {
-		if _, err := ch.accounts.AddKnownAccountByB58(c.Args[0]); err != nil {
-			c.Print("Err: ")
-			c.Println(err)
-			return
+		c.Println("select someone you know to talk to then!")
+		target = ch.accounts.GetAnyAccount(c)
+	} else {
+		pubk, _ := crypto.B58decode(c.Args[0])
+		if existing := ch.accounts.GetByPubkey(pubk); existing == nil {
+			if _, err := ch.accounts.AddKnownAccountByB58(c.Args[0]); err != nil {
+				c.Print("Err: ")
+				c.Println(err)
+				return
+			}
 		}
-	}
+		target = ch.accounts.GetByPubkey(pubk)
 
-	target := ch.accounts.GetByPubkey(pubk)
+	}
 
 	//setup the texting display
 	c.Println("\n\n\n")
-	breakFully := false
 	ch.server.NewMessageUpdater = func(msg *utils.CaesarMessage) {
 		if msg.To.Address == ch.thisUser.account.Address {
 			//only add messages *to* us, no point in adding messages from us, we cant decrypt them!
 			ch.addChatMsg(msg)
-			err := ch.updateChatScreen(c, target)
-			breakFully = err != nil
+			ch.updateChatScreen(c, target)
 		}
 	}
 	//get all the logged messages we have
@@ -185,7 +184,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		ch.addChatMsg(m)
 	}
 	err := ch.updateChatScreen(c, target)
-	if err != nil || breakFully {
+	if err != nil {
 		c.Println(err)
 		return
 	}
