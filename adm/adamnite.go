@@ -8,7 +8,7 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
@@ -19,8 +19,8 @@ import (
 type AdamniteImpl struct {
 	config *adamconfig.Config
 
-	blockchain *core.Blockchain
-	txPool     *core.TxPool
+	blockchain *blockchain.Blockchain
+	txPool     *blockchain.TxPool
 
 	witnessPool *dpos.WitnessPool
 
@@ -51,7 +51,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		return nil, err
 	}
 
-	chainConfig, genesisHash, err := core.WriteGenesisBlockWithOverride(chainDB, config.Genesis)
+	chainConfig, genesisHash, err := blockchain.WriteGenesisBlockWithOverride(chainDB, config.Genesis)
 	if err != nil {
 		return nil, err
 	}
@@ -68,12 +68,12 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		witness:    config.Validator.WitnessAddress,
 	}
 
-	adamnite.blockchain, err = core.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine)
+	adamnite.blockchain, err = blockchain.NewBlockchain(chainDB, chainConfig, adamnite.dposEngine)
 	if err != nil {
 		return nil, err
 	}
 
-	adamnite.txPool = core.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
+	adamnite.txPool = blockchain.NewTxPool(config.TxPool, chainConfig, adamnite.blockchain)
 	// adamnite.witnessPool = dpos.NewWitnessPool(config.Witness, chainConfig)
 
 	adamnite.handler, err = newHandler(&handlerParams{
@@ -106,8 +106,8 @@ func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 	return adampro.MakeProtocols(adam.handler, adam.config.NetworkId, adam.adamniteDialCandidates)
 }
 
-func (adam *AdamniteImpl) Blockchain() *core.Blockchain   { return adam.blockchain }
-func (adam *AdamniteImpl) TxPool() *core.TxPool           { return adam.txPool }
+func (adam *AdamniteImpl) Blockchain() *blockchain.Blockchain   { return adam.blockchain }
+func (adam *AdamniteImpl) TxPool() *blockchain.TxPool           { return adam.txPool }
 func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool { return adam.witnessPool }
 
 func (adam *AdamniteImpl) Start() error {

@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
@@ -75,15 +75,15 @@ type dposWorker struct {
 	chainConfig *params.ChainConfig
 	dposEngine  dpos.DPOS
 	adamnite    AdamniteImplInterface
-	chain       *core.Blockchain
+	chain       *blockchain.Blockchain
 
 	mux            *event.TypeMux
-	importBlockCh  chan core.ImportBlockEvent
+	importBlockCh  chan blockchain.ImportBlockEvent
 	importBlockSub event.Subscription
 
-	txsCh        chan core.NewTxsEvent
+	txsCh        chan blockchain.NewTxsEvent
 	txsSub       event.Subscription
-	chainHeadCh  chan core.ChainHeadEvent
+	chainHeadCh  chan blockchain.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	// channels
@@ -123,15 +123,15 @@ func newDposWorker(config *Config, chainConfig *params.ChainConfig, dpos dpos.DP
 		chain:       adamnite.Blockchain(),
 
 		mux:                mux,
-		txsCh:              make(chan core.NewTxsEvent, txChanSize),
-		chainHeadCh:        make(chan core.ChainHeadEvent, chainHeadChanSize),
+		txsCh:              make(chan blockchain.NewTxsEvent, txChanSize),
+		chainHeadCh:        make(chan blockchain.ChainHeadEvent, chainHeadChanSize),
 		newWorkCh:          make(chan *newWorkReq),
 		taskCh:             make(chan *task),
 		startCh:            make(chan struct{}),
 		exitCh:             make(chan struct{}),
 		genBlockCh:         make(chan *types.Block),
 		resultCh:           make(chan *types.Block, resultQueueSize),
-		importBlockCh:      make(chan core.ImportBlockEvent),
+		importBlockCh:      make(chan blockchain.ImportBlockEvent),
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, 10),
 	}
@@ -370,7 +370,7 @@ func (w *dposWorker) genBlockLoop() {
 				continue
 			}
 
-			w.mux.Post(core.NewBlockEvent{Block: block})
+			w.mux.Post(blockchain.NewBlockEvent{Block: block})
 
 			log15.Info("Created new block", "number", block.Number(), "witness", block.Header().Witness)
 		}

@@ -1,8 +1,6 @@
 package launcher
 
 import (
-	"fmt"
-
 	"github.com/adamnite/go-adamnite/internal/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -49,27 +47,5 @@ func accountNew(ctx *cli.Context) error {
 	}
 
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	keydir, err := cfg.Node.AccountConfig()
-
-	if err != nil {
-		utils.Fatalf("Failed to read configuration: %v", err)
-	}
-
-	password := utils.GetPassPhraseWithList("Please give a password.", true, 0, utils.MakePasswordList(ctx))
-
-	fmt.Printf(`
-	Your new key was generated
-	
-
-	Public address of the key:   %s
-	
-	Path of the secret key file: %s
-	
-
-	- You can share your public address with anyone. Others need it to interact with you.
-	- You must NEVER share the secret key with anyone! The key controls access to your funds!
-	- You must BACKUP your key file! Without the key, it's impossible to access account funds!
-	- You must REMEMBER your password! Without the password, it's impossible to decrypt the key!
-	`, account.Address.String(), account.URL.Path)
 	return nil
 }
