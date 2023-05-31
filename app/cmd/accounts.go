@@ -140,13 +140,6 @@ func (ah *AccountHandler) GetAnyAccount(c *ishell.Context) *accountBeingHeld {
 	return accountOptions[selected-1] //we have an option before the others
 }
 
-// returns nil if there isn't a currently selected account
-func (ah *AccountHandler) GetSelected() *accountBeingHeld {
-	if ah.selectedAccount == nil {
-		return nil
-	}
-	return ah.selectedAccount
-}
 func (ah *AccountHandler) GenerateAccount(c *ishell.Context) {
 	c.Println("Generating the new account now")
 	ac, _ := accounts.GenerateAccount()
@@ -214,6 +207,16 @@ func (ah *AccountHandler) AddAccount(c *ishell.Context) {
 func (ah *AccountHandler) RemoveAccount(ac *accounts.Account) {
 	delete(ah.ourAccounts, ac.Address)
 	delete(ah.knownAccounts, ac.Address)
+}
+func (ah AccountHandler) GetByPubkey(pub []byte) *accountBeingHeld {
+	ac := accounts.AccountFromPubBytes(pub)
+	if ans, exists := ah.ourAccounts[ac.Address]; exists {
+		return &ans
+	}
+	if ans, exists := ah.knownAccounts[ac.Address]; exists {
+		return &ans
+	}
+	return nil
 }
 func (ah AccountHandler) GetByNickname(name string) *accounts.Account {
 	for _, ac := range ah.ourAccounts {
