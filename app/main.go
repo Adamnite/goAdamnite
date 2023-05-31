@@ -38,7 +38,7 @@ func main() {
 
 	})
 	shell.SetPrompt(">adm>")
-	shell.Println("Welcome to Adamnite!")
+	shell.Println("Welcome to Adamnite! You can try 'help' to see available commands")
 
 	// run shell
 	shell.Run()
