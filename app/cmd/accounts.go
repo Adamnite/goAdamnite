@@ -130,6 +130,9 @@ func (ah *AccountHandler) GenerateAccount(c *ishell.Context) {
 	default:
 		c.Println("Private key is: ", ac.GetPrivateB58())
 	}
+	if err := ah.AddAccountByAccount(*ac); err != nil {
+		c.Println(err)
+	}
 }
 func (ah *AccountHandler) AddAccount(c *ishell.Context) {
 	keyType := c.MultiChoice(
@@ -205,10 +208,12 @@ func (ah AccountHandler) GetNickname(ac *accounts.Account) string {
 func (ah *AccountHandler) SetNickname(account accounts.Account, newName string) {
 	if acHeld, exists := ah.ourAccounts[account.Address]; exists {
 		acHeld.nickname = newName
+		ah.ourAccounts[account.Address] = acHeld
 		return
 	}
 	if acHeld, exists := ah.knownAccounts[account.Address]; exists {
 		acHeld.nickname = newName
+		ah.knownAccounts[account.Address] = acHeld
 	}
 }
 
