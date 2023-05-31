@@ -53,7 +53,7 @@ func (ah *AccountHandler) GetAccountCommands() *ishell.Cmd {
 	return &accountFuncs
 }
 func (ah *AccountHandler) EditAccount(c *ishell.Context) {
-	ah.SelectAccount(c)
+	selected := ah.GetAnyAccount(c)
 	editActions := []string{
 		"Get Public Key",
 		"Get Address",
@@ -61,7 +61,6 @@ func (ah *AccountHandler) EditAccount(c *ishell.Context) {
 		"remove account",
 		"exit",
 	}
-	selected := ah.selectedAccount
 	actionKey := c.MultiChoice(editActions, "Select action to take")
 	switch actionKey {
 	case 0: //get public key
@@ -86,9 +85,10 @@ func (ah *AccountHandler) EditAccount(c *ishell.Context) {
 	default:
 		return
 	}
+	c.ShowPrompt(true)
 }
 
-func (ah *AccountHandler) SelectAccount(c *ishell.Context) {
+func (ah *AccountHandler) SelectAccount(c *ishell.Context) *accountBeingHeld {
 	c.Println("\n") //adding empty space above helps prevent weird glitches that can happen with overlapping items
 	accountSelection := []string{
 		"add account",
@@ -102,9 +102,42 @@ func (ah *AccountHandler) SelectAccount(c *ishell.Context) {
 	if selected == 0 || selected == -1 {
 		//generate an account
 		ah.AddAccount(c)
-		return
+		return ah.selectedAccount
 	}
 	ah.selectedAccount = accountOptions[selected-1] //we have an option before the others
+	return ah.selectedAccount
+}
+
+func (ah *AccountHandler) GetAnyAccount(c *ishell.Context) *accountBeingHeld {
+	if i := c.MultiChoice([]string{"local", "other"}, "local or others account"); i != 1 {
+		return ah.SelectAccount(c)
+	}
+
+	accountSelection := []string{
+		"add account",
+	}
+	accountOptions := []*accountBeingHeld{}
+	for _, ac := range ah.knownAccounts {
+		accountSelection = append(accountSelection, ac.nickname)
+		accountOptions = append(accountOptions, &ac)
+	}
+	selected := c.MultiChoice(accountSelection, "select account(or add one)")
+	if selected == 0 || selected == -1 {
+		//add the
+		c.ShowPrompt(false)
+		c.Print("Enter the b58 encoded public key: ")
+		newPub := c.ReadLine()
+		c.ShowPrompt(true)
+		if ac, err := ah.AddKnownAccountByB58(newPub); err != nil {
+			c.Print("Error adding that account: ")
+			c.Println(err)
+			return nil
+		} else {
+			foo := ah.knownAccounts[ac.Address]
+			return &foo
+		}
+	}
+	return accountOptions[selected-1] //we have an option before the others
 }
 
 // returns nil if there isn't a currently selected account
@@ -229,7 +262,10 @@ func (ah *AccountHandler) AddAccountByB58(pk string) error {
 }
 
 func (ah *AccountHandler) AddAccountByPrivateByte(pk []byte) error {
-	ac := accounts.AccountFromPrivBytes(pk)
+	ac, err := accounts.AccountFromPrivBytes(pk)
+	if err != nil {
+		return err
+	}
 	for i := range pk {
 		pk[i] = 0 //clearing it by setting the pk bytes to 0s
 	}
@@ -253,17 +289,13 @@ func (ah *AccountHandler) AddAccountByAccount(ac accounts.Account) error {
 }
 
 // adding other contacts
-func (ah *AccountHandler) AddKnownAccountByB58(pk string) error {
+func (ah *AccountHandler) AddKnownAccountByB58(pk string) (*accounts.Account, error) {
 	pkb, err := crypto.B58decode(pk)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ah.AddKnownAccountByPublicByte(pkb)
-}
-
-func (ah *AccountHandler) AddKnownAccountByPublicByte(pk []byte) error {
-	ac := accounts.AccountFromPubBytes(pk)
-	return ah.AddKnownByAccount(ac)
+	ac := accounts.AccountFromPubBytes(pkb)
+	return &ac, ah.AddKnownByAccount(ac)
 }
 
 func (ah *AccountHandler) AddKnownByAccount(ac accounts.Account) error {
