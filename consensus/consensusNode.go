@@ -172,3 +172,7 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 	}
 	return &thisCandidate
 }
+
+func (con *ConsensusNode) ConnectTo(endpoint string) error {
+	return con.netLogic.ConnectToSeed(endpoint)
+}

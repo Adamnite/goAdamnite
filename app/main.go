@@ -17,10 +17,14 @@ func main() {
 	seedHandling := cmd.NewSeedHandler()
 	shell.AddCmd(seedHandling.GetSeedCommands())
 
+	conHandler := cmd.NewConsensusHandler(*accountHandler)
+	shell.AddCmd(conHandler.GetConsensusCommands())
+
 	shell.Interrupt(func(c *ishell.Context, count int, input string) {
 		if count == 2 {
 			msgHandling.Stop(c)
 			seedHandling.Stop(c)
+			conHandler.Stop(c)
 			shell.Close()
 			return
 		}
