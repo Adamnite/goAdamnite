@@ -9,7 +9,6 @@ import (
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
-
 type CaesarNode struct {
 	netHandler        *networking.NetNode
 	signerSet         *accounts.Account
@@ -41,6 +40,15 @@ func (cn *CaesarNode) Startup() error {
 		cn.AddMessage,
 	)
 	return nil
+}
+func (cn *CaesarNode) Close() {
+	cn.netHandler.Close()
+	//clear our mappings
+	for hash, msg := range cn.msgByHash {
+		delete(cn.msgByHash, hash)
+		delete(cn.msgByRecipient, msg.To.Address)
+		delete(cn.msgBySender, msg.From.Address)
+	}
 }
 func (cn CaesarNode) GetConnectionPoint() string {
 	return cn.netHandler.GetOwnContact().ConnectionString

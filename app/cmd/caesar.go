@@ -16,7 +16,8 @@ import (
 
 type CaesarHandler struct {
 	server              *caesar.CaesarNode
-	thisUser            *accounts.Account
+	accounts            *AccountHandler
+	thisUser            *accountBeingHeld
 	maxMessagesOnScreen int
 	chatLogs            map[common.Address][]*chatText //the chat history by mapping
 	HoldingFocus        bool
@@ -28,7 +29,7 @@ type chatText struct {
 }
 
 func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
-	if msg.From.Address == ch.thisUser.Address {
+	if msg.From.Address == ch.thisUser.account.Address {
 		if _, exists := ch.chatLogs[msg.To.Address]; !exists {
 			ch.chatLogs[msg.To.Address] = []*chatText{}
 		}
@@ -40,7 +41,7 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 			time:   msg.InitialTime.Format(time.Kitchen),
 		})
 	} else {
-		text, _ := msg.GetMessageString(*ch.thisUser)
+		text, _ := msg.GetMessageString(*ch.thisUser.account)
 		newMsg := chatText{
 			fromUs: false,
 			text:   text,
@@ -56,8 +57,13 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 }
 
 // get a Caesar chat handler
-func NewCaesarHandler() *CaesarHandler {
-	return &CaesarHandler{maxMessagesOnScreen: 10, chatLogs: make(map[common.Address][]*chatText), HoldingFocus: false}
+func NewCaesarHandler(accounts *AccountHandler) *CaesarHandler {
+	return &CaesarHandler{
+		accounts:            accounts,
+		maxMessagesOnScreen: 10,
+		chatLogs:            make(map[common.Address][]*chatText),
+		HoldingFocus:        false,
+	}
 }
 func (ch CaesarHandler) isServerLive() bool {
 	return ch.server != nil
@@ -70,11 +76,15 @@ func (ch *CaesarHandler) GetCaesarCommands() *ishell.Cmd {
 	}
 	caesarFuncs.AddCmd(&ishell.Cmd{
 		Name: "start",
-		Help: "start <seed Node Connection String> <sending private key>", //TODO: add loading of the key from storage so this actually works...
+		Help: "start <seed Node Connection String>", //TODO: add loading of the key from storage so this actually works...
 		LongHelp: "Start the messaging server up. Allows local logging of messages, as well as sending of messages\n" +
-			"\t <sending private key>\t: The key that signs messages sent from this server, if left blank, will be generated.\n" +
 			"\t <seed Node Connection String>\t: The connection string (EG'1.2.3.4:5678') of a node you know and trust to be running, that you can form a network from.",
 		Func: ch.Start,
+	})
+	caesarFuncs.AddCmd(&ishell.Cmd{
+		Name: "stop",
+		Help: "stop. Safely shutdown the Caesar server",
+		Func: ch.Stop,
 	})
 	caesarFuncs.AddCmd(&ishell.Cmd{
 		Name: "talk",
@@ -90,13 +100,17 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 		return
 	}
 	//TODO: have this check if they have a consensus node running, and if so, if they want to use that for the messaging too
+
+	//TODO: this assume that no account was passed to local!
+	c.Println("\n\n")
+	ch.accounts.SelectAccount(c)
+	ch.thisUser = ch.accounts.GetSelected()
+
 	progBar := c.ProgressBar()
 	progBar.Prefix("starting up the server:")
 	progBar.Start()
-	//TODO: this assume that no account was passed to local!
-	ch.thisUser, _ = accounts.GenerateAccount()
-	c.Println("Hosting from :", crypto.B58encode(ch.thisUser.PublicKey))
-	server := caesar.NewCaesarNode(ch.thisUser)
+	c.Println("Hosting from :", ch.thisUser.nickname)
+	server := caesar.NewCaesarNode(ch.thisUser.account)
 	if err := server.Startup(); err != nil {
 		c.Println(err)
 		progBar.Stop()
@@ -116,11 +130,24 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 	progBar.Progress(40)
 
 	server.FillNetworking(true) //TODO: only override if we don't already have a server running
-
+	defer func() {
+		log.Println("shutting down Caesar server")
+		ch.server.Close()
+	}()
 	// server should be up, and well connected now!
 	progBar.Final(fmt.Sprintf("\nserver is up and running!\n\tHosting connection from:%v", server.GetConnectionPoint()))
 	progBar.Progress(100)
 	progBar.Stop()
+}
+func (ch *CaesarHandler) Stop(c *ishell.Context) {
+	if !ch.isServerLive() {
+		c.Println("Caesar Server is shut down")
+		return
+	}
+	c.Println("Shutting down Caesar server")
+	ch.server.Close()
+	ch.server = nil
+	c.Println("Caesar Server is shut down")
 }
 
 func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
@@ -145,7 +172,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	c.Println("\n\n\n")
 	breakFully := false
 	ch.server.NewMessageUpdater = func(msg *utils.CaesarMessage) {
-		if msg.To.Address == ch.thisUser.Address {
+		if msg.To.Address == ch.thisUser.account.Address {
 			//only add messages *to* us, no point in adding messages from us, we cant decrypt them!
 			ch.addChatMsg(msg)
 			err := ch.updateChatScreen(c, target)
@@ -153,7 +180,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		}
 	}
 	//get all the logged messages we have
-	msgs := ch.server.GetMessagesBetween(*ch.thisUser, target) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
+	msgs := ch.server.GetMessagesBetween(*ch.thisUser.account, target) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
 	for _, m := range msgs {
 		ch.addChatMsg(m)
 	}
@@ -204,7 +231,7 @@ func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target accounts.Acc
 	otherMsgColor := color.New(color.BgBlue)
 	messagesToDisplay := ch.chatLogs[target.Address]
 	c.ClearScreen()
-	c.Printf("%v(them) \t\t(you)%v\n", otherMsgColor.Sprint(crypto.B58encode(target.PublicKey)), userMsgColor.Sprint(crypto.B58encode(ch.thisUser.PublicKey)))
+	c.Printf("%v(them) \t\t(you)%v\n", otherMsgColor.Sprint(crypto.B58encode(target.PublicKey)), userMsgColor.Sprint(ch.thisUser.nickname))
 	if len(messagesToDisplay) > ch.maxMessagesOnScreen {
 		messagesToDisplay = messagesToDisplay[len(messagesToDisplay)-ch.maxMessagesOnScreen:]
 	}

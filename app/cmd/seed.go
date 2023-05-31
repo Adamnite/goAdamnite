@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log"
+
 	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
@@ -48,16 +50,20 @@ func (sh *SeedHandler) Start(c *ishell.Context) {
 		c.Println(err)
 		return
 	}
+	defer func() {
+		log.Println("shutting down seed server")
+		sh.hosting.Close()
+	}()
 	c.Printf("Seed server has started up at %v\n", sh.hosting.GetOwnContact().ConnectionString)
 }
 func (sh *SeedHandler) Stop(c *ishell.Context) {
 	if sh.hosting == nil {
-		c.Println("server already shut down")
+		c.Println("seed server already shut down")
 		return
 	}
 	sh.hosting.Close()
 	sh.hosting = nil
-	c.Println("server has been stopped")
+	c.Println("seed server has been stopped")
 }
 func (sh *SeedHandler) ConnectTo(c *ishell.Context) {
 	if sh.hosting == nil {

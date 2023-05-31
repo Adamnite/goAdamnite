@@ -8,12 +8,19 @@ import (
 func main() {
 
 	shell := ishell.New()
-	msgHandling := cmd.NewCaesarHandler()
+	accountHandler := cmd.NewAccountHandler()
+	shell.AddCmd(accountHandler.GetAccountCommands())
+
+	msgHandling := cmd.NewCaesarHandler(accountHandler)
 	shell.AddCmd(msgHandling.GetCaesarCommands())
+
 	seedHandling := cmd.NewSeedHandler()
 	shell.AddCmd(seedHandling.GetSeedCommands())
+
 	shell.Interrupt(func(c *ishell.Context, count int, input string) {
 		if count == 2 {
+			msgHandling.Stop(c)
+			seedHandling.Stop(c)
 			shell.Close()
 			return
 		}
