@@ -54,6 +54,15 @@ func (cb *ContactBook) Close() {
 	}
 }
 
+func (cb ContactBook) GetContactByEndpoint(endpoint string) *Contact {
+	for c, _ := range cb.connectionsByContact {
+		if c.ConnectionString == endpoint {
+			return c
+		}
+	}
+	return nil
+}
+
 func (cb *ContactBook) AddConnection(contact *Contact) error {
 	if cb.ownerContact == contact {
 		return ErrContactIsSelf //don't try to connect to yourself.
