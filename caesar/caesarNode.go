@@ -41,11 +41,17 @@ func (cn *CaesarNode) Startup() error {
 	)
 	return nil
 }
-
-// adds a bouncer, so web based users can access messages through this
-func (cn *CaesarNode) StartBouncer() {
-	cn.netHandler.AddBouncerServer(nil, nil, 0)
-	cn.netHandler.SetBounceServerMessaging(cn.GetMessagesBetween)
+func (cn *CaesarNode) Close() {
+	cn.netHandler.Close()
+	//clear our mappings
+	for hash, msg := range cn.msgByHash {
+		delete(cn.msgByHash, hash)
+		delete(cn.msgByRecipient, msg.To.Address)
+		delete(cn.msgBySender, msg.From.Address)
+	}
+}
+func (cn CaesarNode) GetConnectionPoint() string {
+	return cn.netHandler.GetOwnContact().ConnectionString
 }
 func (cn CaesarNode) GetMessagesBetween(a, b *accounts.Account) []*utils.CaesarMessage {
 	ansMessages := []*utils.CaesarMessage{}
