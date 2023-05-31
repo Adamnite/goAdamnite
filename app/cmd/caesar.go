@@ -130,10 +130,6 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 	progBar.Progress(40)
 
 	server.FillNetworking(true) //TODO: only override if we don't already have a server running
-	defer func() {
-		log.Println("shutting down Caesar server")
-		ch.server.Close()
-	}()
 	// server should be up, and well connected now!
 	progBar.Final(fmt.Sprintf("\nserver is up and running!\n\tHosting connection from:%v", server.GetConnectionPoint()))
 	progBar.Progress(100)
@@ -160,13 +156,17 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		c.Println("need to have someone to talk to!")
 		return
 	}
-	pubk, err := crypto.B58decode(c.Args[0])
-	if err != nil {
-		c.Println("ERR")
-		c.Println(err)
-		return
+	pubk, _ := crypto.B58decode(c.Args[0])
+
+	if existing := ch.accounts.GetByPubkey(pubk); existing == nil {
+		if _, err := ch.accounts.AddKnownAccountByB58(c.Args[0]); err != nil {
+			c.Print("Err: ")
+			c.Println(err)
+			return
+		}
 	}
-	target := accounts.AccountFromPubBytes(pubk)
+
+	target := ch.accounts.GetByPubkey(pubk)
 
 	//setup the texting display
 	c.Println("\n\n\n")
@@ -180,11 +180,12 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		}
 	}
 	//get all the logged messages we have
-	msgs := ch.server.GetMessagesBetween(*ch.thisUser.account, target) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
+	msgs := ch.server.GetMessagesBetween(*ch.thisUser.account, *target.account) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
 	for _, m := range msgs {
 		ch.addChatMsg(m)
 	}
-	if err := ch.updateChatScreen(c, target); err != nil || breakFully {
+	err := ch.updateChatScreen(c, target)
+	if err != nil || breakFully {
 		c.Println(err)
 		return
 	}
@@ -193,7 +194,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		for i := 1; i < len(c.Args); i++ {
 			text = text + c.Args[i]
 		}
-		ch.sendMessage(target, text)
+		ch.sendMessage(*target.account, text)
 		err = ch.updateChatScreen(c, target)
 		if err != nil {
 			log.Println(err)
@@ -213,7 +214,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 			}
 			return s[len(s)-1] == '\n'
 		})
-		ch.sendMessage(target, text)
+		ch.sendMessage(*target.account, text)
 		c.Println("\n\n\n")
 		err = ch.updateChatScreen(c, target)
 		c.Println("")
@@ -225,13 +226,13 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	ch.HoldingFocus = false
 }
 
-func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target *accounts.Account) error {
+func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target *accountBeingHeld) error {
 	c.Println("\n\n\n\n\n\n")
 	userMsgColor := color.New(color.BgGreen)
 	otherMsgColor := color.New(color.BgBlue)
-	messagesToDisplay := ch.chatLogs[target.Address]
+	messagesToDisplay := ch.chatLogs[target.account.Address]
 	c.ClearScreen()
-	c.Printf("%v(them) \t\t(you)%v\n", otherMsgColor.Sprint(crypto.B58encode(target.PublicKey)), userMsgColor.Sprint(ch.thisUser.nickname))
+	c.Printf("%v(them) \t\t(you)%v\n", otherMsgColor.Sprint(target.nickname), userMsgColor.Sprint(ch.thisUser.nickname))
 	if len(messagesToDisplay) > ch.maxMessagesOnScreen {
 		messagesToDisplay = messagesToDisplay[len(messagesToDisplay)-ch.maxMessagesOnScreen:]
 	}
