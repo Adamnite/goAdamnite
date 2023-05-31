@@ -33,6 +33,11 @@ func (ch *ConsensusHandler) GetConsensusCommands() *ishell.Cmd {
 		Help: "stop shuts down the consensus handler server",
 		Func: ch.Stop,
 	})
+	conFuncs.AddCmd(&ishell.Cmd{
+		Name: "connect",
+		Help: "connect <endpoint(or to interact, ignore)> attempts to connect to a node at that endpoint and get its connections",
+		Func: ch.ConnectTo,
+	})
 
 	return &conFuncs
 }
@@ -66,18 +71,7 @@ func (ch *ConsensusHandler) StartSelectable(c *ishell.Context) {
 		return
 		// server, err := consensus.NewBConsensus()
 	}
-	c.Println("do you have a known seed node port to connect to?")
-	c.Print("node@: ")
-	c.ShowPrompt(false)
-	seed := c.ReadLine()
-	c.ShowPrompt(true)
-	if len(seed) > 8 { //needs at least 4 decimal places
-		if err := ch.server.ConnectTo(seed); err != nil {
-			c.Print("err connecting: ")
-			c.Println(err)
-			return
-		}
-	}
+	ch.ConnectTo(c)
 	c.Println("server is online!")
 }
 func (ch *ConsensusHandler) Stop(c *ishell.Context) {
@@ -86,4 +80,31 @@ func (ch *ConsensusHandler) Stop(c *ishell.Context) {
 		ch.server = nil
 	}
 	c.Println("consensus server closed")
+}
+
+func (ch *ConsensusHandler) ConnectTo(c *ishell.Context) {
+	var seed string
+	if len(c.Args) > 0 && c.Cmd.Name == "connect" {
+		//we're being called directly with a parameter
+		seed = c.Args[0]
+	} else {
+		c.Println("do you have a known seed node port to connect to?")
+		c.Print("node@: ")
+		c.ShowPrompt(false)
+		seed = c.ReadLine()
+		c.ShowPrompt(true)
+	}
+	if seed == "" {
+		return
+	}
+	if len(seed) < 8 { //needs at least 4 decimal places
+		c.Println("too short to be a connection string(should look like 8.8.8.8:1234)")
+		return
+	}
+	if err := ch.server.ConnectTo(seed); err != nil {
+		c.Print("err connecting: ")
+		c.Println(err)
+		return
+	}
+	c.Println("successfully connected!")
 }

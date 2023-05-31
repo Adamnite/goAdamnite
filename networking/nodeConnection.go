@@ -70,10 +70,10 @@ func (n *NetNode) ConnectToSeed(connectionPoint string) error {
 	if err := n.SprawlConnections(5, 0.05); err != nil {
 		return err
 	}
-	realContact := n.contactBook.GetContactByEndpoint(connectionPoint)
-	if n.activeOutboundCount < n.maxOutboundConnections {
-		return n.ConnectToContact(realContact) //try to keep them as an active contact
-	}
+	// realContact := n.contactBook.GetContactByEndpoint(connectionPoint)
+	// if n.activeOutboundCount < n.maxOutboundConnections {
+	// 	return n.ConnectToContact(realContact) //try to keep them as an active contact
+	// }
 	return nil
 }
 
