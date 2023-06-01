@@ -21,7 +21,7 @@ func TestMessaging(t *testing.T) {
 	}
 
 	assert.True(t, msg.Verify(), "could not verify to be true")
-	assert.NotEqual( //TODO: uncomment this once encryption is working
+	assert.NotEqual(
 		t,
 		[]byte(testMessage),
 		msg.Message,
@@ -58,7 +58,7 @@ func TestLongMessaging(t *testing.T) {
 	}
 
 	assert.True(t, msg.Verify(), "could not verify to be true")
-	assert.NotEqual( //TODO: uncomment this once encryption is working
+	assert.NotEqual(
 		t,
 		[]byte(testMessage),
 		msg.Message,

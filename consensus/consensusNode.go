@@ -75,49 +75,24 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	return &con, nil
 }
-
-// shuts down the consensus node, and prevents any further candidacy applications. If you have already run, this may cause issues.
-// Stop also closes any handling types currently running. This can be undone by calling the applicable node functions to add it back. EG con.AddAConsensus()
-func (con *ConsensusNode) Stop(stopNetwork bool) {
-	if stopNetwork {
-		//if were stopping the networking layer too, this might *really* cause some problems
-		con.netLogic.Close()
-		con.handlingType = 0
-	} else {
-		con.handlingType = networking.NetworkingOnly
-	}
-	con.ProposeCandidacy(1)
-}
-
-// unlike Stop, this cannot be undone and fully closes the node.
-func (con *ConsensusNode) Close(stopNetworking bool) {
-	con.Stop(stopNetworking)
-	if con.poolsA != nil && con.poolsA.asyncStopper != nil {
-		con.poolsA.asyncStopper()
-	}
-	if con.poolsB != nil && con.poolsB.asyncStopper != nil {
-		con.poolsB.asyncStopper()
-	}
-	con = nil
-}
-func (con ConsensusNode) CanReviewType(t networking.NetworkTopLayerType) bool {
-	return t.IsTypeIn(con.handlingType)
-}
-func (con ConsensusNode) CanReview(t int8) bool {
-	return networking.NetworkTopLayerType(t).IsTypeIn(con.handlingType)
-}
-func (con ConsensusNode) IsActiveWitnessLeadFor(processType networking.NetworkTopLayerType) bool {
-	if !con.CanReviewType(processType) {
-		//we aren't handling that processes type
-		return false
-	}
-	switch processType { //see what type of transaction it is
-	case networking.PrimaryTransactions:
-		return con.poolsA.IsActiveWitnessLead((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
-	case networking.SecondaryTransactions:
-		return con.poolsB.IsActiveWitnessLead((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
-	}
-	return false
+func (con *ConsensusNode) Close() {
+	//close all mappings
+	go func() {
+		for k := range con.votesSeen {
+			delete(con.votesSeen, k)
+		}
+	}()
+	go func() {
+		for k := range con.candidateStakeValues {
+			delete(con.candidateStakeValues, k)
+		}
+	}()
+	go func() {
+		for k := range con.candidates {
+			delete(con.candidates, k)
+		}
+	}()
+	con.netLogic.Close()
 }
 
 func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {

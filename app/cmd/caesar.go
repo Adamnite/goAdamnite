@@ -76,7 +76,7 @@ func (ch *CaesarHandler) GetCaesarCommands() *ishell.Cmd {
 	}
 	caesarFuncs.AddCmd(&ishell.Cmd{
 		Name: "start",
-		Help: "start <seed Node Connection String>", //TODO: add loading of the key from storage so this actually works...
+		Help: "start <seed Node Connection String>",
 		LongHelp: "Start the messaging server up. Allows local logging of messages, as well as sending of messages\n" +
 			"\t <seed Node Connection String>\t: The connection string (EG'1.2.3.4:5678') of a node you know and trust to be running, that you can form a network from.",
 		Func: ch.Start,
@@ -157,7 +157,11 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		c.Println("\nselect someone you know to talk to then!\n\n\n")
 		target = ch.accounts.GetAnyAccount(c)
 	} else {
-		pubk, _ := crypto.B58decode(c.Args[0])
+		pubk, err := crypto.B58decode(c.Args[0])
+		if err != nil {
+			c.Print("err: ")
+			c.Println(err)
+		}
 		if existing := ch.accounts.GetByPubkey(pubk); existing == nil {
 			if _, err := ch.accounts.AddKnownAccountByB58(c.Args[0]); err != nil {
 				c.Print("Err: ")
@@ -209,7 +213,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	c.Println("\n\n\n")
 	ch.HoldingFocus = true
 	text := " "
-	for text != "" && err == nil {
+	for text != "" && text != "\n" && err == nil {
 		text = c.ReadMultiLinesFunc(func(s string) bool {
 			if len(s) == 0 {
 				return false
@@ -241,12 +245,9 @@ func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target *accountBein
 
 	for _, msg := range messagesToDisplay {
 		if msg.fromUs {
-			//then its on the left
-			c.Println(userMsgColor.Sprintf("[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
+			c.Println(userMsgColor.Sprintf("[%v]%v", msg.time, msg.text))
 		} else {
-			//on the right
-			//assume max characters on the screen per side to be 50(ish)
-			c.Println(otherMsgColor.Sprintf("[%v]%v", msg.time, msg.text)) //TODO: space this so it'll look nice
+			c.Println(otherMsgColor.Sprintf("[%v]%v", msg.time, msg.text))
 
 		}
 	}

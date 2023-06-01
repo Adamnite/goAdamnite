@@ -76,7 +76,7 @@ func (ch *ConsensusHandler) StartSelectable(c *ishell.Context) {
 }
 func (ch *ConsensusHandler) Stop(c *ishell.Context) {
 	if ch.server != nil {
-		//TODO: properly close the server
+		ch.server.Close()
 		ch.server = nil
 	}
 	c.Println("consensus server closed")
