@@ -70,6 +70,26 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	return &con, nil
 }
+func (con *ConsensusNode) Close() {
+	//close all mappings
+	go func() {
+		for k := range con.votesSeen {
+			delete(con.votesSeen, k)
+		}
+	}()
+	go func() {
+		for k := range con.candidateStakeValues {
+			delete(con.candidateStakeValues, k)
+		}
+	}()
+	go func() {
+		for k := range con.candidates {
+			delete(con.candidates, k)
+		}
+	}()
+	con.netLogic.Close()
+}
+
 func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {
 	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
 	return nil

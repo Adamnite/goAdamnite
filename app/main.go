@@ -5,37 +5,51 @@ import (
 	"github.com/adamnite/go-adamnite/app/cmd"
 )
 
+type handlers struct {
+	accounts  *cmd.AccountHandler
+	caesar    *cmd.CaesarHandler
+	seeds     *cmd.SeedHandler
+	consensus *cmd.ConsensusHandler
+}
+
+func getHandlers() *handlers {
+	h := handlers{
+		accounts: cmd.NewAccountHandler(),
+	}
+	h.caesar = cmd.NewCaesarHandler(h.accounts)
+	h.consensus = cmd.NewConsensusHandler(*h.accounts)
+	return &h
+}
+func (h *handlers) setHandlerCmds(shell *ishell.Shell) {
+	shell.AddCmd(h.accounts.GetAccountCommands())
+	shell.AddCmd(h.caesar.GetCaesarCommands())
+	shell.AddCmd(h.consensus.GetConsensusCommands())
+}
+
 func main() {
 
 	shell := ishell.New()
-	accountHandler := cmd.NewAccountHandler()
-	shell.AddCmd(accountHandler.GetAccountCommands())
-
-	msgHandling := cmd.NewCaesarHandler(accountHandler)
-	shell.AddCmd(msgHandling.GetCaesarCommands())
+	handlers := getHandlers()
+	handlers.setHandlerCmds(shell)
 
 	seedHandling := cmd.NewSeedHandler()
 	shell.AddCmd(seedHandling.GetSeedCommands())
 
-	conHandler := cmd.NewConsensusHandler(*accountHandler)
-	shell.AddCmd(conHandler.GetConsensusCommands())
-
 	shell.Interrupt(func(c *ishell.Context, count int, input string) {
 		if count == 2 {
-			msgHandling.Stop(c)
-			seedHandling.Stop(c)
-			conHandler.Stop(c)
+			handlers.caesar.Stop(c)
+			handlers.seeds.Stop(c)
+			handlers.consensus.Stop(c)
 			shell.Close()
 			return
 		}
-		if msgHandling.HoldingFocus {
-			msgHandling.HoldingFocus = false
+		if handlers.caesar.HoldingFocus {
+			handlers.caesar.HoldingFocus = false
 			c.Println("exiting chat")
 			shell.SetPrompt(">adm>")
 			shell.Stop()
 			shell.Run()
 		}
-
 	})
 	shell.SetPrompt(">adm>")
 	shell.Println("Welcome to Adamnite! You can try 'help' to see available commands")

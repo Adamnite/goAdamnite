@@ -302,7 +302,7 @@ func (ah *AccountHandler) AddAccountByAccount(ac accounts.Account) error {
 // adding other contacts
 func (ah *AccountHandler) AddKnownAccountByB58(pk string) (*accounts.Account, error) {
 	pkb, err := crypto.B58decode(pk)
-	if len(pkb) >= 10 { //i dont remember how long a key should be
+	if len(pkb) <= 10 { //i dont remember how long a key should be
 		return nil, fmt.Errorf("clearly not a key")
 	}
 	if err != nil {
