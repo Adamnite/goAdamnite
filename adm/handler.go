@@ -5,7 +5,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/protocols/adampro"
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
@@ -14,7 +14,7 @@ import (
 type handlerParams struct {
 	Database adamnitedb.Database
 	TxPool   txPool
-	Chain    *core.Blockchain
+	Chain    *blockchain.Blockchain
 	ChainID  uint64
 	EventMux *event.TypeMux
 }
@@ -24,7 +24,7 @@ type handler struct {
 
 	database adamnitedb.Database
 	txpool   txPool
-	chain    *core.Blockchain
+	chain    *blockchain.Blockchain
 	maxPeers int
 
 	eventMux    *event.TypeMux
@@ -49,7 +49,7 @@ func newHandler(param *handlerParams) (*handler, error) {
 	return h, nil
 }
 
-func (h *handler) Chain() *core.Blockchain { return h.chain }
+func (h *handler) Chain() *blockchain.Blockchain { return h.chain }
 func (h *handler) TxPool() adampro.TxPool  { return h.txpool }
 func (h *handler) RunPeer(peer *adampro.Peer, handler adampro.Handler) error {
 	h.peerWG.Add(1)
@@ -69,7 +69,7 @@ func (h *handler) Start(maxPeers int) {
 	h.maxPeers = maxPeers
 
 	h.wg.Add(1)
-	h.newBlockSub = h.eventMux.Subscribe(core.NewBlockEvent{})
+	h.newBlockSub = h.eventMux.Subscribe(blockchain.NewBlockEvent{})
 	go h.newBlockBroadcastLoop()
 }
 
@@ -77,7 +77,7 @@ func (h *handler) newBlockBroadcastLoop() {
 	defer h.wg.Done()
 
 	for block := range h.newBlockSub.Chan() {
-		if event, ok := block.Data.(core.NewBlockEvent); ok {
+		if event, ok := block.Data.(blockchain.NewBlockEvent); ok {
 			h.BoradcastBlock(event.Block)
 		}
 	}
