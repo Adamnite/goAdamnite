@@ -1,6 +1,8 @@
 package consensus
 
 import (
+	"errors"
+
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -18,7 +20,7 @@ func (n *ConsensusNode) isANode() bool {
 	return n.handlingType == networking.PrimaryTransactions
 }
 
-func (n *ConsensusNode) VerifyBlock(block *Block) (bool, error) {
+func (n *ConsensusNode) ValidateBlock(block *Block) (bool, error) {
 	if !n.isANode() {
 		return false, ErrNotANode
 	}
@@ -26,6 +28,10 @@ func (n *ConsensusNode) VerifyBlock(block *Block) (bool, error) {
 	tmp := block
 	// iterate until the genesis block
 	for (tmp.Header.ParentBlockID != common.Hash{}) {
+		if n.chain == nil {
+			return false, errors.New("chain not set")
+		}
+
 		parentBlock := n.chain.GetBlockByHash(tmp.Header.ParentBlockID)
 		if parentBlock == nil {
 			// parent block does not exist on chain

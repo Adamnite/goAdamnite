@@ -49,14 +49,15 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	hostingNode := networking.NewNetNode(participation.Address)
 	con := ConsensusNode{
-		netLogic:             hostingNode,
-		handlingType:         networking.NetworkingOnly,
-		state:                state,
-		chain:                chain,
-		participation:        *participation,
-		votesSeen:            make(map[string][]*utils.Voter),
-		candidateStakeValues: make(map[string]*big.Int),
-		candidates:           make(map[string]*utils.Candidate),
+		netLogic:               hostingNode,
+		handlingType:           networking.NetworkingOnly,
+		state:                  state,
+		chain:                  chain,
+		participation:          *participation,
+		votesSeen:              make(map[string][]*utils.Voter),
+		candidateStakeValues:   make(map[string]*big.Int),
+		candidates:             make(map[string]*utils.Candidate),
+		untrustworthyWitnesses: make(map[common.Address]uint64),
 	}
 	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy, con.ReviewVote); err != nil {
 		log.Printf("error:%v", err)
