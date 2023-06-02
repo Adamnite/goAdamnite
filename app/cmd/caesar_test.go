@@ -10,6 +10,7 @@ import (
 )
 
 func TestCaesarMessaging(t *testing.T) {
+	nw := NewNetWorker()
 	accountH := NewAccountHandler()
 	seedNode := NewSeedHandler()
 	seedShell := ishell.New()
@@ -17,17 +18,17 @@ func TestCaesarMessaging(t *testing.T) {
 	seedShell.Process("seed")
 	seedString := seedNode.hosting.GetConnectionString()
 
-	a := NewCaesarHandler(accountH)
+	a := NewCaesarHandler(accountH, nw)
 	aUser, _ := accounts.GenerateAccount()
 	a.accounts.AddAccountByAccount(*aUser)
 	aShell := ishell.New()
-	aShell.AddCmd(a.GetCaesarCommands())
+	aShell.AddCmd(a.GetCommands())
 	aShell.Process("caesar", "start", seedString)
-	b := NewCaesarHandler(accountH)
+	b := NewCaesarHandler(accountH, nw)
 	bUser, _ := accounts.GenerateAccount()
 	a.accounts.AddAccountByAccount(*bUser)
 	bShell := ishell.New()
-	bShell.AddCmd(b.GetCaesarCommands())
+	bShell.AddCmd(b.GetCommands())
 	bShell.Process("caesar", "start", seedString)
 
 	aShell.Process("caesar", "talk", crypto.B58encode(bUser.PublicKey), "hello!")

@@ -5,4 +5,4 @@ known-peers.json
 /.vscode
 *.test
 *.out
-*__debug_bin
+*/__debug_bin

@@ -35,9 +35,9 @@ type NetNode struct {
 	thisContact Contact
 	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxOutboundConnections uint        //how many outbound connections can this reply to.
-	activeOutboundCount    uint        //how many connections are active
-	activeContactToClient  syncmap.Map //spin up a new client for each outbound connection. *contact -> *rpc.AdamniteClient
+	MaxOutboundConnections uint                             //how many outbound connections can this reply to.
+	activeOutboundCount    uint                             //how many connections are active
+	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
 	hostingServer *rpc.AdamniteServer
 	bouncerServer *rpc.BouncerServer //bouncer server is optional. Acting as the input for off chain interactions (eg, from web)
@@ -52,7 +52,7 @@ type NetNode struct {
 func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
-		maxOutboundConnections: 5,
+		MaxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  syncmap.Map{},
 	}
@@ -77,8 +77,22 @@ func (n NetNode) GetBouncerString() string {
 
 }
 
+func (n NetNode) GetActiveConnectionsCount() uint {
+	return n.activeOutboundCount
+}
+func (n NetNode) GetGreylistSize() int {
+	return len(n.contactBook.connections)
+}
+func (n NetNode) GetMaxGreylist() int {
+	return int(n.contactBook.maxGreyList)
+}
 func (n *NetNode) SetMaxConnections(newMax uint) {
-	n.maxOutboundConnections = newMax
+	n.MaxOutboundConnections = newMax
+}
+
+// use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
+func (n *NetNode) SetMaxGreyList(maxLength uint) {
+	n.contactBook.maxGreyList = maxLength
 }
 func (n *NetNode) SetBounceServerMessaging(getMsgs func(common.Address, common.Address) []*utils.CaesarMessage) {
 	if n.bouncerServer == nil {
@@ -168,19 +182,7 @@ func (n *NetNode) Close() {
 
 }
 
-// use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
-func (n *NetNode) SetMaxGreyList(maxLength uint) {
-	n.contactBook.maxGreyList = maxLength
-}
-func (n *NetNode) handleBlock(block utils.Block) error {
-	//TODO: if you wanted to log all blocks, even invalid ones, you would do so here
-	if n.consensusBlockHandler == nil {
-		return nil
-	}
-	return n.consensusBlockHandler(block)
-}
-func (n *NetNode) handleTransaction(transaction *utils.Transaction) error {
-	//TODO: here is where a logging method could be nice for anyone looking to track all transactions, including failed ones
+func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionBytes *[]byte) error {
 	if n.consensusTransactionHandler == nil {
 		//we can't verify this, so just propagate it out!
 		return nil

@@ -16,6 +16,7 @@ import (
 
 type CaesarHandler struct {
 	server              *caesar.CaesarNode
+	netWorker           *NetWorker
 	accounts            *AccountHandler
 	thisUser            *accountBeingHeld
 	maxMessagesOnScreen int
@@ -57,8 +58,9 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 }
 
 // get a Caesar chat handler
-func NewCaesarHandler(accounts *AccountHandler) *CaesarHandler {
+func NewCaesarHandler(accounts *AccountHandler, netWorker *NetWorker) *CaesarHandler {
 	return &CaesarHandler{
+		netWorker:           netWorker,
 		accounts:            accounts,
 		maxMessagesOnScreen: 10,
 		chatLogs:            make(map[common.Address][]*chatText),
@@ -69,7 +71,7 @@ func (ch CaesarHandler) isServerLive() bool {
 	return ch.server != nil
 }
 
-func (ch *CaesarHandler) GetCaesarCommands() *ishell.Cmd {
+func (ch *CaesarHandler) GetCommands() *ishell.Cmd {
 	caesarFuncs := ishell.Cmd{
 		Name: "caesar",
 		Help: "Caesar messaging platform, built on top of Adamnite!",
@@ -111,7 +113,7 @@ func (ch *CaesarHandler) Start(c *ishell.Context) {
 	progBar.Start()
 	c.Println("Hosting from :", ch.thisUser.nickname)
 	server := caesar.NewCaesarNode(ch.thisUser.account)
-	if err := server.Startup(); err != nil {
+	if err := server.Startup(ch.netWorker.GetNetNode()); err != nil {
 		c.Println(err)
 		progBar.Stop()
 		return
@@ -141,7 +143,7 @@ func (ch *CaesarHandler) Stop(c *ishell.Context) {
 		return
 	}
 	c.Println("Shutting down Caesar server")
-	ch.server.Close()
+	ch.server.Close(false)
 	ch.server = nil
 	c.Println("Caesar Server is shut down")
 }

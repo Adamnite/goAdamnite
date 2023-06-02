@@ -21,7 +21,7 @@ func (n *NetNode) ResetConnections() error {
 // make sure this node is running as many active connections as it can be
 func (n *NetNode) FillOpenConnections() error {
 	useRecursion := false
-	if len(n.contactBook.connections) >= int(n.maxOutboundConnections*3) {
+	if len(n.contactBook.connections) >= int(n.MaxOutboundConnections*3) {
 		if err := n.SprawlConnections(5, 0.01); err != nil {
 			if err == ErrNoNewConnectionsMade {
 				useRecursion = true
@@ -30,9 +30,9 @@ func (n *NetNode) FillOpenConnections() error {
 			}
 		}
 	}
-	possibleCons := n.contactBook.SelectWhitelist(int(n.maxOutboundConnections-n.activeOutboundCount) + 1)
+	possibleCons := n.contactBook.SelectWhitelist(int(n.MaxOutboundConnections-n.activeOutboundCount) + 1)
 	//get an extra incase one doesn't want to connect
-	for i := 0; i < len(possibleCons) && n.activeOutboundCount < n.maxOutboundConnections; i++ {
+	for i := 0; i < len(possibleCons) && n.activeOutboundCount < n.MaxOutboundConnections; i++ {
 		if err := n.ConnectToContact(possibleCons[i]); err != nil {
 			switch err { //handle any handle-able errors directly here.
 			case ErrPreexistingConnection:
@@ -45,7 +45,7 @@ func (n *NetNode) FillOpenConnections() error {
 			}
 		}
 	}
-	if n.activeOutboundCount < n.maxOutboundConnections && useRecursion {
+	if n.activeOutboundCount < n.MaxOutboundConnections && useRecursion {
 		return n.FillOpenConnections()
 	}
 	return nil
@@ -82,7 +82,7 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	_, preExisting := n.activeContactToClient.Load(contact)
 	if preExisting {
 		return ErrPreexistingConnection
-	} else if n.activeOutboundCount >= n.maxOutboundConnections {
+	} else if n.activeOutboundCount >= n.MaxOutboundConnections {
 		return ErrOutboundCapacityReached
 	} else if err := n.contactBook.AddConnection(contact); err != nil {
 		return err

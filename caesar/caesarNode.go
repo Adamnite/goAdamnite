@@ -35,20 +35,32 @@ func NewCaesarNode(sendingKey *accounts.Account) *CaesarNode {
 	return &cn
 }
 
-func (cn *CaesarNode) Startup() error {
+// add the server and start it up
+func (cn *CaesarNode) Startup(netNode *networking.NetNode) error {
+	if netNode == nil {
+		cn.netHandler = networking.NewNetNode(cn.signerSet.Address)
+	} else {
+		cn.netHandler = netNode
+	}
 	cn.netHandler.AddMessagingCapabilities(
 		cn.AddMessage,
 	)
 	return nil
 }
-func (cn *CaesarNode) Close() {
-	cn.netHandler.Close()
-	//clear our mappings
-	for hash, msg := range cn.msgByHash {
-		delete(cn.msgByHash, hash)
-		delete(cn.msgByRecipient, msg.To.Address)
-		delete(cn.msgBySender, msg.From.Address)
+
+// Close shuts down this Caesar Node, and could be set to nil afterwords. close Server decides if the netNode should be shutdown as well (eg, if everything's being shut down or not)
+func (cn *CaesarNode) Close(closeServer bool) {
+	if closeServer {
+		cn.netHandler.Close()
 	}
+	//clear our mappings
+	go func() {
+		for hash, msg := range cn.msgByHash {
+			delete(cn.msgByHash, hash)
+			delete(cn.msgByRecipient, msg.To.Address)
+			delete(cn.msgBySender, msg.From.Address)
+		}
+	}()
 }
 func (cn CaesarNode) GetConnectionPoint() string {
 	return cn.netHandler.GetOwnContact().ConnectionString
