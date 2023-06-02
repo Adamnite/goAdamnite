@@ -542,12 +542,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 
 // Create creates a new contract using code as deployment code.
 func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
-	addrBytes := caller.Bytes()
-	nonce := m.Statedb.GetNonce(caller)
-	addrBytes = append(addrBytes, byte(nonce))
-
-	contractKey, err := crypto.GenerateKey()
-
+	contractKey, _ := crypto.GenerateKey()
 	contractAddr = crypto.PubkeyToAddress(contractKey.PublicKey)
 
 	return m.create(caller, code, gas, value, contractAddr)

@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/fdutils"
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
 
@@ -63,9 +63,9 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 func SetAdamniteConfig(ctx *cli.Context, node *node.Node, cfg *adamconfig.Config) {
 	switch {
 	case ctx.Bool(MainnetFlag.Name):
-		cfg.Genesis = core.DefaultGenesisBlock()
+		cfg.Genesis = blockchain.DefaultGenesisBlock()
 	case ctx.Bool(TestnetFlag.Name):
-		cfg.Genesis = core.DefaultTestnetGenesisBlock()
+		cfg.Genesis = blockchain.DefaultTestnetGenesisBlock()
 
 	}
 
