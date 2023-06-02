@@ -27,25 +27,19 @@ type ConsensusNode struct {
 	netLogic             *networking.NetNode
 	handlingType         networking.NetworkTopLayerType
 
-	spendingKey   accounts.Account // each consensus node is forced to have its own account to spend from.
-	participation accounts.Account
-	vrfKey        accounts.Account
-	state         *statedb.StateDB
-	chain         *blockchain.Blockchain //we need to keep the chain
-	ocdbLink      string                 //off chain database, if running the VM verification, this should be local.
-	vm            *VM.Machine
+	spendingAccount accounts.Account // each consensus node is forced to have its own account to spend from.
+	participation   accounts.Account
+	vrfKey          accounts.Account
+	state           *statedb.StateDB
+	chain           *blockchain.Blockchain //we need to keep the chain
+	ocdbLink        string                 //off chain database, if running the VM verification, this should be local.
+	vm              *VM.Machine
 
 	autoVoteForNode *common.Address
 	autoVoteWith    *common.Address
 	autoStakeAmount *big.Int
-}
 
-func NewAConsensus(spendingKey accounts.Account) (*ConsensusNode, error) {
-	//TODO: setup the chain data and whatnot
-	conNode, err := newConsensus(nil, nil)
-	conNode.spendingKey = spendingKey
-	conNode.handlingType = networking.PrimaryTransactions
-	return conNode, err
+	untrustworthyWitnesses map[common.Address]uint64 //keep track of how many times witness was marked as untrustworthy
 }
 
 func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*ConsensusNode, error) {
@@ -132,8 +126,8 @@ func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount 
 	if _, exists := con.candidates[string(candidateNodeID)]; !exists {
 		return fmt.Errorf("candidate doesn't exist, we might want to save it locally in the future and see if we get the candidate later")
 	}
-	vote := utils.NewVote(con.spendingKey.PublicKey, stakeAmount)
-	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingKey)
+	vote := utils.NewVote(con.spendingAccount.PublicKey, stakeAmount)
+	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingAccount)
 	if err != nil {
 		return err
 	}
@@ -151,9 +145,9 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 	}
 	//TODO: update candidacy for this rounds
 
-	con.thisCandidate.InitialVote = utils.NewVote(con.spendingKey.PublicKey, big.NewInt(1)) //TODO: change this to a real staking amount
+	con.thisCandidate.InitialVote = utils.NewVote(con.spendingAccount.PublicKey, big.NewInt(1)) //TODO: change this to a real staking amount
 	con.thisCandidate.Round = con.currentRound + 1
-	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingKey)
+	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingAccount)
 
 	con.netLogic.Propagate(*con.thisCandidate)
 

@@ -36,10 +36,10 @@ func (c Candidate) VerifyVote(vote Voter) bool {
 	if vote.StakingAmount.Sign() != 1 {
 		return false
 	}
-	spendingKey := vote.Account()
+	spendingAccount := vote.Account()
 	candidateHash := c.Hash()
 
 	voteAndCandidateHash := append(candidateHash, vote.StakingAmount.Bytes()...)
 	voteAndCandidateHash = append(voteAndCandidateHash, vote.From...)
-	return spendingKey.Verify(voteAndCandidateHash, vote.Signature)
+	return spendingAccount.Verify(voteAndCandidateHash, vote.Signature)
 }
