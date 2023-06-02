@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/types"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
@@ -25,10 +26,22 @@ type Block struct {
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness common.Address, transactions []*Transaction) *Block {
-	header := &BlockHeader{time.Now().Unix(), parentBlockID, witness, common.Hash{}, common.Hash{}, common.Hash{}}
+func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, transactions []*Transaction) *Block {
+	header := &BlockHeader{time.Now().Unix(), parentBlockID, witness, witnessRoot, transactionRoot, stateRoot}
 	block := &Block{header, transactions}
 	return block
+}
+
+// ConvertBlock converts between old block structure and new one (temporary workaround)
+func ConvertBlock(block *types.Block) *Block {
+	return NewBlock(
+		block.Header().ParentHash,
+		block.Header().Witness,
+		block.Header().WitnessRoot,
+		block.Header().TransactionRoot,
+		block.Header().StateRoot,
+		ConvertTransactions(block.Body().Transactions),
+	)
 }
 
 // Hash hashes block header
