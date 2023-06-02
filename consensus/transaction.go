@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/types"
 )
 
 type TransactionType 	    int8
@@ -64,4 +65,21 @@ func NewTransactionWithData(transactionType TransactionType, from *common.Addres
 		gasLimit,
 		data,
 	}
+}
+
+// ConvertTransactions converts between old transaction structure and new one (temporary workaround)
+func ConvertTransactions(transactions []*types.Transaction) []*Transaction {
+	var ts []*Transaction
+	for _, t := range transactions {
+		ts = append(ts, convertTransaction(t))
+	}
+	return ts
+}
+
+func convertTransaction(t *types.Transaction) *Transaction {
+	return NewTransaction(
+		// TODO: convert following members from old transaction type
+		TRANSACTION_EOA,
+		nil, nil, nil, nil, nil,
+	)
 }
