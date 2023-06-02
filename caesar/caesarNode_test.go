@@ -14,7 +14,7 @@ import (
 func setupTestCaesarNode(autoConnectSeed *networking.Contact) (*accounts.Account, *CaesarNode) {
 	account, _ := accounts.GenerateAccount()
 	node := NewCaesarNode(account)
-	node.Startup()
+	node.Startup(nil)
 	if autoConnectSeed != nil {
 		node.netHandler.ConnectToContact(autoConnectSeed)
 	}

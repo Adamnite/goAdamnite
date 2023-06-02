@@ -6,6 +6,7 @@ import (
 )
 
 type handlers struct {
+	net       *cmd.NetWorker
 	accounts  *cmd.AccountHandler
 	caesar    *cmd.CaesarHandler
 	seeds     *cmd.SeedHandler
@@ -14,16 +15,18 @@ type handlers struct {
 
 func getHandlers() *handlers {
 	h := handlers{
+		net:      cmd.NewNetWorker(),
 		accounts: cmd.NewAccountHandler(),
 	}
-	h.caesar = cmd.NewCaesarHandler(h.accounts)
+	h.caesar = cmd.NewCaesarHandler(h.accounts, h.net)
 	h.consensus = cmd.NewConsensusHandler(*h.accounts)
 	return &h
 }
 func (h *handlers) setHandlerCmds(shell *ishell.Shell) {
 	shell.AddCmd(h.accounts.GetAccountCommands())
-	shell.AddCmd(h.caesar.GetCaesarCommands())
+	shell.AddCmd(h.caesar.GetCommands())
 	shell.AddCmd(h.consensus.GetConsensusCommands())
+	shell.AddCmd(h.net.GetCommands())
 }
 
 func main() {

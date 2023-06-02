@@ -204,7 +204,7 @@ func generateLineOfNodes(count int) ([]*NetNode, error) {
 		if err := node.AddServer(); err != nil {
 			return nil, err
 		}
-		node.maxOutboundConnections = 2
+		node.MaxOutboundConnections = 2
 	}
 	nodes[0].ConnectToContact(&nodes[1].thisContact)
 	for i := 1; i < len(nodes)-1; i++ {
@@ -228,7 +228,7 @@ func generateClusteredNodes(clusterCount, clusterSize int) ([][]*NetNode, error)
 		for y := 0; y < clusterSize; y++ {
 			node := NewNetNode(common.Address{byte(x), byte(y)})
 			nodeRow = append(nodeRow, node)
-			node.maxOutboundConnections = uint(clusterCount) + uint(clusterSize) //let one node connect to an entire row and column
+			node.MaxOutboundConnections = uint(clusterCount) + uint(clusterSize) //let one node connect to an entire row and column
 			if err := node.AddServer(); err != nil {
 				return nil, err
 			}
