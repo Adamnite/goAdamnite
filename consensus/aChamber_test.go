@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -33,6 +34,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		common.Hash{},
+		big.NewInt(1),
 		[]*Transaction{},
 	)
 
@@ -52,6 +54,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		common.Hash{},
+		big.NewInt(1),
 		[]*Transaction{},
 	)
 
