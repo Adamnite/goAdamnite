@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
@@ -18,6 +19,28 @@ func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 
 func (n *ConsensusNode) isANode() bool {
 	return n.handlingType == networking.PrimaryTransactions
+}
+
+func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) error {
+	if header == nil {
+		return errors.New("unknown block")
+	}
+
+	if header.Number.Cmp(big.NewInt(0)) == 0 {
+		// our header comes from genesis block
+		return nil
+	}
+
+	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID,  big.NewInt(0).Sub(header.Number, big.NewInt(1))))
+	if parentHeader == nil || parentHeader.Number.Cmp(big.NewInt(0).Sub(header.Number, big.NewInt(1))) != 0 || parentHeader.Hash() != header.ParentBlockID {
+		return errors.New("unknown parent block")
+	}
+
+	if parentHeader.Timestamp+interval > header.Timestamp {
+		return errors.New("invalid timestamp")
+	}
+
+	return nil
 }
 
 func (n *ConsensusNode) ValidateBlock(block *Block) (bool, error) {
