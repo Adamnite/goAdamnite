@@ -12,7 +12,7 @@ type ipcServer struct {
 	log    log15.Logger
 	port   uint32
 	mu     sync.Mutex
-	server *rpc.Adamnite
+	server *rpc.AdamniteServer
 }
 
 func newIPCServer(log log15.Logger, port uint32) *ipcServer {

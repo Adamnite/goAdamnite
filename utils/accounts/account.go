@@ -25,6 +25,7 @@ type Account struct {
 }
 
 func AccountFromPubBytes(pubKey []byte) Account {
+	//TODO: should add an error for if the pubKey is invalid
 	return Account{
 		Address:   crypto.PubkeyByteToAddress(pubKey),
 		PublicKey: pubKey,
@@ -48,19 +49,18 @@ func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
 	}
 
 }
-func AccountFromPrivBytes(privKey []byte) Account {
+func AccountFromPrivBytes(privKey []byte) (Account, error) {
 	ePriv, err := crypto.ToECDSA(privKey)
-
-	publicKey := ePriv.PublicKey
 	if err != nil {
-		return Account{}
+		return Account{}, err
 	}
+	publicKey := ePriv.PublicKey
 	return Account{
 		Address:    createAddress(publicKey.X.Bytes()),
 		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
 		privateKey: privKey,
 		Balance:    big.NewInt(0),
-	}
+	}, nil
 }
 
 func GenerateAccount() (*Account, error) {
@@ -76,6 +76,19 @@ func GenerateAccount() (*Account, error) {
 		privateKey: privateKey,
 		Balance:    big.NewInt(0),
 	}, nil
+}
+
+// ONLY USE THIS IN CLI! THIS IS NOT NORMALLY MEANT TO BE USED!
+func (a *Account) GetPrivateB58() string {
+	return crypto.B58encode(a.privateKey)
+}
+
+func (a *Account) Store(storagePoint string) error {
+	k, err := crypto.ToECDSA(a.privateKey)
+	if err != nil {
+		return err
+	}
+	return crypto.SaveECDSA(storagePoint, k)
 }
 
 // sign data, and return a 65 byte array. Data can be most interface types

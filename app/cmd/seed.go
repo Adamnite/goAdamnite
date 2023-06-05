@@ -52,12 +52,12 @@ func (sh *SeedHandler) Start(c *ishell.Context) {
 }
 func (sh *SeedHandler) Stop(c *ishell.Context) {
 	if sh.hosting == nil {
-		c.Println("server already shut down")
+		c.Println("seed server already shut down")
 		return
 	}
 	sh.hosting.Close()
 	sh.hosting = nil
-	c.Println("server has been stopped")
+	c.Println("seed server has been stopped")
 }
 func (sh *SeedHandler) ConnectTo(c *ishell.Context) {
 	if sh.hosting == nil {

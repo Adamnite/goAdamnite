@@ -45,6 +45,8 @@ func (cb *ContactBook) Erase(contact *Contact) {
 	cb.AddToBlacklist(contact)       // find that connection, then blacklist them so we can easily a single copy.
 	delete(cb.blacklistSet, contact) //if they were blacklisted, now they aren't
 }
+
+// clears all records held here and deletes reference to itself.
 func (cb *ContactBook) Close() {
 	for c := range cb.blacklistSet {
 		delete(cb.blacklistSet, c)
@@ -52,6 +54,16 @@ func (cb *ContactBook) Close() {
 	for c := range cb.connectionsByContact {
 		delete(cb.connectionsByContact, c)
 	}
+	cb = nil
+}
+
+func (cb ContactBook) GetContactByEndpoint(endpoint string) *Contact {
+	for c, _ := range cb.connectionsByContact {
+		if c.ConnectionString == endpoint {
+			return c
+		}
+	}
+	return nil
 }
 
 func (cb *ContactBook) AddConnection(contact *Contact) error {

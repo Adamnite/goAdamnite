@@ -34,8 +34,8 @@ type Node struct {
 	state         int
 	lock          sync.Mutex
 
-	adamniteServer *rpc.Adamnite
-	rpcAPIs        []rpc.Adamnite
+	adamniteServer *rpc.AdamniteServer
+	rpcAPIs        []rpc.AdamniteServer
 	services       []Service
 
 	openedDatabases map[*OpenedDB]struct{}

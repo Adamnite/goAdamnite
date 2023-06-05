@@ -34,7 +34,7 @@ type NetNode struct {
 	thisContact Contact
 	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxOutboundConnections uint                             //how many outbound connections can this reply to.
+	MaxOutboundConnections uint                             //how many outbound connections can this reply to.
 	activeOutboundCount    uint                             //how many connections are active
 	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
 
@@ -48,7 +48,7 @@ type NetNode struct {
 func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
-		maxOutboundConnections: 5,
+		MaxOutboundConnections: 5,
 		activeOutboundCount:    0,
 		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
 	}
@@ -60,8 +60,22 @@ func (n NetNode) GetOwnContact() Contact {
 	return n.thisContact
 }
 
+func (n NetNode) GetActiveConnectionsCount() uint {
+	return n.activeOutboundCount
+}
+func (n NetNode) GetGreylistSize() int {
+	return len(n.contactBook.connections)
+}
+func (n NetNode) GetMaxGreylist() int {
+	return int(n.contactBook.maxGreyList)
+}
 func (n *NetNode) SetMaxConnections(newMax uint) {
-	n.maxOutboundConnections = newMax
+	n.MaxOutboundConnections = newMax
+}
+
+// use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
+func (n *NetNode) SetMaxGreyList(maxLength uint) {
+	n.contactBook.maxGreyList = maxLength
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
@@ -117,6 +131,7 @@ func (n *NetNode) updateServer() {
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
 }
 
+// closes the network, deletes all mappings, and deletes the NetNode
 func (n *NetNode) Close() {
 	if n.hostingServer != nil {
 		n.hostingServer.Close()
@@ -126,12 +141,7 @@ func (n *NetNode) Close() {
 		delete(n.activeContactToClient, c)
 	}
 	n.contactBook.Close()
-
-}
-
-// use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
-func (n *NetNode) SetMaxGreyList(maxLength uint) {
-	n.contactBook.maxGreyList = maxLength
+	n = nil
 }
 
 func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionBytes *[]byte) error {
