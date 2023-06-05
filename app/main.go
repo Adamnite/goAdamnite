@@ -20,6 +20,7 @@ func getHandlers() *handlers {
 	}
 	h.caesar = cmd.NewCaesarHandler(h.accounts, h.net)
 	h.consensus = cmd.NewConsensusHandler(*h.accounts)
+	h.seeds = cmd.NewSeedHandler()
 	return &h
 }
 func (h *handlers) setHandlerCmds(shell *ishell.Shell) {
