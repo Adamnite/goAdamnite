@@ -43,7 +43,7 @@ func (ah *AccountHandler) GetAccountCommands() *ishell.Cmd {
 	accountFuncs.AddCmd(&ishell.Cmd{
 		Name: "add",
 		Help: "add an account",
-		Func: ah.AddAccount,
+		Func: ah.AddAccountCLI,
 	})
 	accountFuncs.AddCmd(&ishell.Cmd{
 		Name: "new",
@@ -101,7 +101,7 @@ func (ah *AccountHandler) SelectAccount(c *ishell.Context) *accountBeingHeld {
 	selected := c.MultiChoice(accountSelection, "select account(or generate a new one)")
 	if selected == 0 || selected == -1 {
 		//generate an account
-		ah.AddAccount(c)
+		ah.AddAccountCLI(c)
 		return ah.selectedAccount
 	}
 	ah.selectedAccount = accountOptions[selected-1] //we have an option before the others
@@ -164,11 +164,11 @@ func (ah *AccountHandler) GenerateAccount(c *ishell.Context) {
 	default:
 		c.Println("Private key is: ", ac.GetPrivateB58())
 	}
-	if err := ah.AddAccountByAccount(*ac); err != nil {
+	if err := ah.AddAccount(*ac); err != nil {
 		c.Println(err)
 	}
 }
-func (ah *AccountHandler) AddAccount(c *ishell.Context) {
+func (ah *AccountHandler) AddAccountCLI(c *ishell.Context) {
 	keyType := c.MultiChoice(
 		[]string{
 			"generate new",
@@ -202,7 +202,7 @@ func (ah *AccountHandler) AddAccount(c *ishell.Context) {
 			c.Println(err)
 			return
 		}
-		if err := ah.AddAccountByAccount(ac); err != nil {
+		if err := ah.AddAccount(ac); err != nil {
 			c.Println(err)
 			return
 		}
@@ -263,27 +263,23 @@ func (ah *AccountHandler) SetNickname(account accounts.Account, newName string) 
 
 // adding accounts
 
-func (ah *AccountHandler) AddAccountByB58(pk string) error {
-	pkb, err := crypto.B58decode(pk)
+func (ah *AccountHandler) AddAccountByB58(pubks string) error {
+	pubkb, err := crypto.B58decode(pubks)
 	if err != nil {
 		return err
 	}
-	pk = "      " //clearing the string
-	return ah.AddAccountByPrivateByte(pkb)
-}
-
-func (ah *AccountHandler) AddAccountByPrivateByte(pk []byte) error {
-	ac, err := accounts.AccountFromPrivBytes(pk)
+	pubks = "" //clearing the string
+	ac, err := accounts.AccountFromPrivBytes(pubkb)
 	if err != nil {
 		return err
 	}
-	for i := range pk {
-		pk[i] = 0 //clearing it by setting the pk bytes to 0s
+	for i := range pubkb {
+		pubkb[i] = 0 //clearing it by setting the pk bytes to 0s
 	}
-	return ah.AddAccountByAccount(ac)
+	return ah.AddAccount(ac)
 }
 
-func (ah *AccountHandler) AddAccountByAccount(ac accounts.Account) error {
+func (ah *AccountHandler) AddAccount(ac accounts.Account) error {
 	if _, exists := ah.ourAccounts[ac.Address]; exists {
 		return fmt.Errorf("account already added within us")
 	}
@@ -309,10 +305,10 @@ func (ah *AccountHandler) AddKnownAccountByB58(pk string) (*accounts.Account, er
 		return nil, err
 	}
 	ac := accounts.AccountFromPubBytes(pkb)
-	return &ac, ah.AddKnownByAccount(ac)
+	return &ac, ah.AddKnownAccount(ac)
 }
 
-func (ah *AccountHandler) AddKnownByAccount(ac accounts.Account) error {
+func (ah *AccountHandler) AddKnownAccount(ac accounts.Account) error {
 	if _, exists := ah.ourAccounts[ac.Address]; exists {
 		return fmt.Errorf("account already added within us")
 	}
