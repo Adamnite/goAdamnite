@@ -40,6 +40,9 @@ func (cn *CaesarNode) Startup(netNode *networking.NetNode) error {
 	if netNode == nil {
 		cn.netHandler = networking.NewNetNode(cn.signerSet.Address)
 	} else {
+		if cn.netHandler != nil && cn.netHandler != netNode { //check we aren't just leaving a NetNode running, but that we also don't delete the one we're assigning
+			cn.netHandler.Close()
+		}
 		cn.netHandler = netNode
 	}
 	cn.netHandler.AddMessagingCapabilities(

@@ -168,6 +168,7 @@ func (n *NetNode) updateServer() {
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
 }
 
+// closes the network, deletes all mappings, and deletes the NetNode
 func (n *NetNode) Close() {
 	if n.hostingServer != nil {
 		n.hostingServer.Close()
@@ -179,7 +180,7 @@ func (n *NetNode) Close() {
 		return true
 	})
 	n.contactBook.Close()
-
+	n = nil
 }
 
 func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionBytes *[]byte) error {
