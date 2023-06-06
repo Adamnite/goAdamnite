@@ -28,17 +28,19 @@ func TestBaseCandidacy(t *testing.T) {
 	if err := a.netLogic.ConnectToContact(&bcontact); err != nil {
 		t.Fatal(err)
 	}
+	a.autoStakeAmount = big.NewInt(1) //you need to have some stake amount
 	fmt.Println(b.netLogic.FillOpenConnections())
-	if err := a.ProposeCandidacy(); err != nil {
+	if err := a.ProposeCandidacy(0); err != nil {
 		t.Fatal(err)
 	}
 
 	// fmt.Println(b.candidates)
 	assert.Equal(t,
-		a.thisCandidate,
-		b.candidates[string(a.thisCandidate.NodeID)],
-		"candidacy not properly sending")
-	if err := b.VoteFor(a.thisCandidate.NodeID, big.NewInt(1)); err != nil {
+		a.thisCandidateA,
+		b.poolsA.GetCandidate(&a.thisCandidateA.NodeID),
+		"candidacy not properly sending",
+	)
+	if err := b.VoteFor(a.thisCandidateA, big.NewInt(1)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -64,6 +66,7 @@ func TestVoteForAllEqually(t *testing.T) {
 			if err := node.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
 			}
+			node.autoStakeAmount = big.NewInt(1)
 			candidates = append(candidates, node)
 		}
 		if i < voterTotal {
@@ -95,19 +98,19 @@ func TestVoteForAllEqually(t *testing.T) {
 	log.Println("\n\n\tstart of candidate proposal ")
 	//everyone's spun up and connected. Now the people who want to propose can.(in our case, all the candidates)
 	for _, can := range candidates {
-		if err := can.ProposeCandidacy(); err != nil {
+		if err := can.ProposeCandidacy(0); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for i, v := range voters {
-		candidateToVoteFor := candidates[i%candidateTotal].thisCandidate.NodeID
-		if err := v.VoteFor(candidateToVoteFor, big.NewInt(1)); err != nil {
+		candidateToVoteFor := candidates[i%candidateTotal]
+		if err := v.VoteFor(candidateToVoteFor.thisCandidateA, big.NewInt(1)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, c := range candidates {
-		if len(c.candidates)+1 != len(candidates) {
+		if len(c.poolsA.totalCandidates)+1 != len(candidates) {
 			log.Println("not recording all candidates")
 			t.Fail()
 		}

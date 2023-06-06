@@ -25,7 +25,7 @@ const (
 	TRUSTFUL_BENEFIT               uint64 = 5    //the amount of trust given back per truthful connection.
 )
 
-type NetworkTopLayerType int8
+type NetworkTopLayerType uint8
 
 const (
 	NetworkingOnly        NetworkTopLayerType = 1 << iota //00000001 networking only
@@ -33,3 +33,12 @@ const (
 	SecondaryTransactions                                 //00000100 representing chamber B, or VM consensus
 	CaesarHandling                                        //00001000 handling caesar forwarding
 )
+
+// call on type you are checking for, on the test value. EG, call  NetworkingOnly.IsIn(NetAndPrimary)
+func (nt NetworkTopLayerType) IsIn(test uint8) bool {
+	return uint8(nt)&test == uint8(nt)
+}
+
+func (nt NetworkTopLayerType) IsTypeIn(test NetworkTopLayerType) bool {
+	return uint8(nt)&uint8(test) == uint8(nt)
+}

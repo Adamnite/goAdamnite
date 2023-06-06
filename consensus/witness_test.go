@@ -18,8 +18,8 @@ func TestWitnessSelection(t *testing.T) {
 	witCans := []*utils.Candidate{}
 	seed := []byte{0, 1, 2, 3, 4, 5, 6}
 
-	pool := newWitnessPool(0, networking.PrimaryTransactions)
-	if err := pool.newRound(0, seed); err != nil {
+	pool, err := newWitnessPool(0, networking.PrimaryTransactions, seed)
+	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < witnessCount; i++ {
@@ -40,7 +40,7 @@ func TestWitnessSelection(t *testing.T) {
 	if len(selected) != witnessCount-1 {
 		t.Fail()
 	}
-	pool.nextRound(nextSeed)
+	pool.nextRound()
 	for i := 0; i < witnessCount; i++ {
 		oldCan := witCans[i]
 		can, err := oldCan.UpdatedCandidate(1, nextSeed, witVRFPrivs[i], 1, *witAccounts[i])
@@ -50,7 +50,7 @@ func TestWitnessSelection(t *testing.T) {
 		pool.AddCandidate(can)
 	}
 
-	selected, nextSeed = pool.selectWitnesses(1, 2)
+	selected, _ = pool.selectWitnesses(1, 2)
 	if len(selected) != 2 {
 		t.Fail()
 	}

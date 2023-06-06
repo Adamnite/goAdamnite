@@ -8,14 +8,23 @@ import (
 // for methods that only apply to the B chamber members
 func NewBConsensus(codeServer string) (*ConsensusNode, error) {
 	conNode, err := newConsensus(nil, nil)
-	conNode.handlingType = networking.SecondaryTransactions
-	conNode.ocdbLink = codeServer
-	conNode.poolsB = newWitnessPool(0, networking.SecondaryTransactions)
-	return conNode, err
+	if err != nil {
+		return conNode, err
+	}
+	return conNode, conNode.AddBConsensus(codeServer)
+}
+
+// for adding support for B chamber
+func (bNode *ConsensusNode) AddBConsensus(codeServer string) (err error) {
+	bNode.handlingType = bNode.handlingType ^ networking.SecondaryTransactions
+	bNode.ocdbLink = codeServer
+	bNode.poolsB, err = newWitnessPool(0, networking.SecondaryTransactions, []byte{})
+	//TODO: the genesis round is 0, with seed {}, we should get the current round and seed info from nodes we know
+	return err
 }
 
 func (bNode *ConsensusNode) isBNode() bool {
-	return bNode.handlingType == networking.SecondaryTransactions
+	return networking.SecondaryTransactions.IsTypeIn(bNode.handlingType)
 }
 
 // run the claimed changes again to verify that we have the same results.

@@ -12,15 +12,23 @@ import (
 func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 	//TODO: setup the chain data and whatnot
 	n, err := newConsensus(nil, nil)
+	if err != nil {
+		return n, err
+	}
 	n.spendingAccount = account
-	n.handlingType = networking.PrimaryTransactions
-	n.poolsA = newWitnessPool(0, networking.PrimaryTransactions)
-	n.poolsA.newRound(0, []byte{0}) //TODO: the genesis round is 0, with seed {0}, we should get the current round and seed info from nodes we know
-	return n, err
+
+	return n, n.AddAConsensus()
+}
+func (n *ConsensusNode) AddAConsensus() (err error) {
+	//adds primary transactions handling type
+	n.handlingType = n.handlingType ^ networking.PrimaryTransactions
+	n.poolsA, err = newWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	//TODO: the genesis round is 0, with seed {}, we should get the current round and seed info from nodes we know
+	return
 }
 
 func (n *ConsensusNode) isANode() bool {
-	return n.handlingType == networking.PrimaryTransactions
+	return networking.PrimaryTransactions.IsTypeIn(n.handlingType)
 }
 
 func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) error {

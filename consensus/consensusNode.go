@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
 	"log"
@@ -20,11 +19,10 @@ import (
 // The node that can handle consensus systems.
 // Is built on top of a networking node, using a netNode to handle the networking interactions
 type ConsensusNode struct {
-	thisCandidate *utils.Candidate
-	poolsA        *witness_pool
-	poolsB        *witness_pool
-	votesSeen     map[string][]*utils.Voter   //candidate nodeID->voters array
-	candidates    map[string]*utils.Candidate //candidate nodeID->Candidate(just sorting by nodeID)
+	thisCandidateA *utils.Candidate
+	thisCandidateB *utils.Candidate
+	poolsA         *witness_pool //store all the vote data for chamber a elections
+	poolsB         *witness_pool //store all the vote data for chamber b elections
 
 	netLogic     *networking.NetNode
 	handlingType networking.NetworkTopLayerType
@@ -56,8 +54,6 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 		state:                  state,
 		chain:                  chain,
 		participation:          *participation,
-		votesSeen:              make(map[string][]*utils.Voter),
-		candidates:             make(map[string]*utils.Candidate),
 		untrustworthyWitnesses: make(map[common.Address]uint64),
 	}
 	vrfKey, _ := crypto.GenerateVRFKey(rand.Reader)
@@ -75,17 +71,32 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 
 // review authenticity of a vote, as well as recording it for our own records. If no errors are returned, will propagate further
 func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
-	candidate, exists := con.candidates[string(crypto.PublicKey(vote.To))]
-	if !exists {
+	var pool *witness_pool
+	if !networking.NetworkTopLayerType(vote.PoolCategory).IsTypeIn(con.handlingType) {
+		//we aren't setup to handle this type
+		return fmt.Errorf("this consensus node does not have the ability to verify this vote")
+	}
+	if uint8(networking.PrimaryTransactions) == (vote.PoolCategory) {
+		//the vote is for pool A and we can handle it!
+		pool = con.poolsA
+	} else if uint8(networking.SecondaryTransactions) == (vote.PoolCategory) {
+		pool = con.poolsB
+
+	}
+	candidate := pool.GetCandidate((*crypto.PublicKey)(&vote.To))
+	if candidate == nil {
 		return fmt.Errorf("we don't have that account saved, we could throw an error, or check for that candidate first, maybe save unknown votes to check again at the end?")
 	}
-	//TODO: check the balance of these voters!
+
+	//TODO: check the balance of these voters as well as verify the vote!
 	verified := candidate.VerifyVote(vote)
 	if !verified {
 		return ErrVoteUnVerified
 	}
+
 	//assuming by here it is legit.
-	con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
+	pool.AddVote(candidate.Round, &vote)
+	// con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
 	return nil
 }
 
@@ -98,19 +109,15 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 		log.Println("someone lied in a vote")
 		return ErrVoteUnVerified
 	}
-
-	if proposed.ConsensusPool == int8(networking.PrimaryTransactions) && con.poolsA != nil {
+	if networking.PrimaryTransactions.IsIn(proposed.ConsensusPool) && con.poolsA != nil {
 		if err := con.poolsA.AddCandidate(&proposed); err != nil {
 			return err
 		}
-	} else if proposed.ConsensusPool == int8(networking.SecondaryTransactions) && con.poolsB != nil {
+	} else if networking.SecondaryTransactions.IsIn(proposed.ConsensusPool) && con.poolsB != nil {
 		if err := con.poolsB.AddCandidate(&proposed); err != nil {
 			return err
 		}
 	}
-
-	con.candidates[string(proposed.NodeID)] = &proposed
-	con.votesSeen[string(proposed.NodeID)] = []*utils.Voter{&proposed.InitialVote}
 
 	//if we made it here, this is most likely a viable candidate
 	//TODO: check if we have this candidate in our contacts list, we should add them if we don't (perhaps tell them directly if we support them)
@@ -121,52 +128,78 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 		(con.autoVoteForNode != nil &&
 			*con.autoVoteForNode == accounts.AccountFromPubBytes(proposed.NodeID).Address) {
 		//we have a reason to auto vote for this node
-		err := con.VoteFor(proposed.NodeID, con.autoStakeAmount)
+		err := con.VoteFor(&proposed, con.autoStakeAmount)
 		return err
 	}
 	return nil
 }
 
 // used to vote for a candidate (normally ourselves)
-func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount *big.Int) error {
-	if con.thisCandidate != nil && bytes.Equal(con.thisCandidate.NodeID, candidateNodeID) {
-		return fmt.Errorf("cannot vote for self")
-	}
-	if _, exists := con.candidates[string(candidateNodeID)]; !exists {
-		return fmt.Errorf("candidate doesn't exist, we might want to save it locally in the future and see if we get the candidate later")
-	}
+func (con *ConsensusNode) VoteFor(candidate *utils.Candidate, stakeAmount *big.Int) error {
 	vote := utils.NewVote(con.spendingAccount.PublicKey, stakeAmount)
-	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingAccount)
-
+	err := vote.SignTo(*candidate, con.spendingAccount)
 	if err != nil {
 		return err
 	}
-
-	con.poolsA.AddVote(con.candidates[string(candidateNodeID)].Round, &candidateNodeID, &vote)
-	con.votesSeen[string(candidateNodeID)] = append(con.votesSeen[string(candidateNodeID)], &vote)
-
-	return con.netLogic.Propagate(vote)
+	var pool *witness_pool
+	switch candidate.ConsensusPool {
+	case uint8(networking.PrimaryTransactions):
+		pool = con.poolsA
+	case uint8(networking.SecondaryTransactions):
+		pool = con.poolsB
+	}
+	if can := pool.GetCandidate(&candidate.NodeID); can == nil {
+		//check if we have that candidate saved, if not, add it!
+		if err := pool.AddCandidate(candidate); err != nil {
+			return err
+		}
+	}
+	return con.ReviewVote(vote)
 }
 
-// propose this node as a witness for the network.
-func (con *ConsensusNode) ProposeCandidacy() error {
+// propose this node as a witness for the network types listed. candidacyTypes should be passed as the mask of types you are applying for.
+// if you wish to apply to all types you are handling, pass 0
+func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	log.Println("proposing self for candidacy")
-	if con.thisCandidate == nil {
-		con.thisCandidate = con.generateCandidacy()
+	if err := con.updateAllOurCandidates(); err != nil {
+		return err
 	}
+	if candidacyTypes == 0 {
+		candidacyTypes = uint8(con.handlingType)
+	}
+	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
+		if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
+			return err
+		}
+	}
+	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
+		if err := con.netLogic.Propagate(*con.thisCandidateB); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (con *ConsensusNode) updateAllOurCandidates() (err error) {
 	if con.poolsA != nil {
-		//TODO: get the round start times!
-		con.thisCandidate, _ = con.thisCandidate.UpdatedCandidate(con.poolsA.currentRound+1, con.poolsA.getNextSeed(), con.vrfKey, 0, con.spendingAccount)
+		if con.thisCandidateA == nil {
+			con.thisCandidateA = con.generateCandidacy()
+			con.thisCandidateA.ConsensusPool = uint8(networking.PrimaryTransactions)
+		}
+		con.thisCandidateA, err = con.getUpdatedCandidacy(con.thisCandidateA, con.poolsA)
+		if err != nil {
+			return
+		}
 	}
-
-	//TODO: update candidacy for this rounds
-
-	con.thisCandidate.InitialVote = utils.NewVote(con.spendingAccount.PublicKey, big.NewInt(1)) //TODO: change this to a real staking amount
-	// con.thisCandidate.Round = con.currentRound + 1
-	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingAccount)
-
-	con.netLogic.Propagate(*con.thisCandidate)
-
+	if con.poolsB != nil {
+		if con.thisCandidateB == nil {
+			con.thisCandidateB = con.generateCandidacy()
+			con.thisCandidateB.ConsensusPool = uint8(networking.SecondaryTransactions)
+		}
+		con.thisCandidateB, err = con.getUpdatedCandidacy(con.thisCandidateB, con.poolsB)
+		if err != nil {
+			return
+		}
+	}
 	return nil
 }
 
@@ -178,4 +211,10 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 	}
 	thisCandidate, _ := utils.NewCandidate(0, []byte{}, con.vrfKey, 0, uint8(foo), con.netLogic.GetOwnContact().ConnectionString, con.participation.PublicKey, con.spendingAccount, con.autoStakeAmount)
 	return thisCandidate
+}
+
+// create an updated version of the candidacy provided
+func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *witness_pool) (*utils.Candidate, error) {
+	//TODO: get the round start time! right now it's set to 0
+	return candidacy.UpdatedCandidate(pool.currentRound, pool.getNextSeed(), con.vrfKey, 0, con.spendingAccount)
 }

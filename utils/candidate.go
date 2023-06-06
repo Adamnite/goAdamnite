@@ -18,7 +18,7 @@ type Candidate struct {
 
 	VRFKey crypto.PublicKey //our VRF public Key
 
-	ConsensusPool int8 //support type that this is being pitched for
+	ConsensusPool uint8 //support type that this is being pitched for
 	NetworkString string
 	NodeID        crypto.PublicKey
 
@@ -36,7 +36,7 @@ func NewCandidate(
 		Seed:          seed,
 		VRFKey:        pub,
 		StartTime:     startAt,
-		ConsensusPool: int8(targetPool),
+		ConsensusPool: uint8(targetPool),
 		NetworkString: netPoint,
 		NodeID:        nodeId,
 	}

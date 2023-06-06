@@ -43,21 +43,23 @@ func witnessFromCandidate(can *utils.Candidate) *witness {
 }
 
 type witness_pool struct {
-	totalCandidates map[*crypto.PublicKey]*witness //nodeID-> witness
-	rounds          map[uint64]*round_data         //round ID ->data
+	totalCandidates map[string]*utils.Candidate //nodeID->Candidate. Use for verifying votes
+	totalWitnesses  map[string]*witness         //nodeID-> witness
+	rounds          map[uint64]*round_data      //round ID ->data
 	currentRound    uint64
 	consensusType   uint8 //support type that this is being pitched for
 }
 
-func newWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayerType) *witness_pool {
+func newWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayerType, seed []byte) (*witness_pool, error) {
 	wp := witness_pool{
-		totalCandidates: make(map[*crypto.PublicKey]*witness),
+		totalCandidates: make(map[string]*utils.Candidate),
+		totalWitnesses:  make(map[string]*witness),
 		rounds:          map[uint64]*round_data{},
 		consensusType:   uint8(consensusType),
 		currentRound:    roundNumber,
 	}
-
-	return &wp
+	err := wp.newRound(roundNumber, seed)
+	return &wp, err
 }
 func (wp *witness_pool) newRound(roundID uint64, seed []byte) error {
 	if _, exists := wp.rounds[roundID]; exists {
@@ -75,39 +77,71 @@ func (wp *witness_pool) newRound(roundID uint64, seed []byte) error {
 	wp.rounds[roundID] = &newRound
 	return nil
 }
-func (wp *witness_pool) nextRound(seed []byte) {
-	wp.newRound(wp.currentRound+1, seed) //TODO: see if we can generate the seeds automatically
+
+// stats the next round.
+func (wp *witness_pool) nextRound() {
+	wp.newRound(wp.currentRound+1, wp.getNextSeed()) //TODO: see if we can generate the seeds automatically
+	wp.currentRound += 1
 }
+func (wp witness_pool) GetCandidate(nodeID *crypto.PublicKey) *utils.Candidate {
+	return wp.totalCandidates[string(*nodeID)]
+}
+
+// get the most recent sed needed to apply
 func (wp witness_pool) getNextSeed() []byte {
 	return wp.rounds[wp.currentRound].getNextRoundSeed()
 }
 func (wp *witness_pool) AddCandidate(can *utils.Candidate) error {
-	wit := wp.totalCandidates[&can.NodeID]
+	wit := wp.totalWitnesses[string(can.NodeID)]
 	if wit == nil {
 		//new candidate
 		wit = witnessFromCandidate(can)
-		wp.totalCandidates[&can.NodeID] = wit
+		wp.totalWitnesses[string(can.NodeID)] = wit
+		wp.totalCandidates[string(can.NodeID)] = can
 	}
+	//by only creating the witness if it's a new nodeID, we prevent changing of VRFKeys every round to get the best outcome
+
 	if rd, exists := wp.rounds[can.Round]; !exists || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
-		return nil
+		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
+	} else {
+		//we also verify their VRF
+		if !wit.vrfKey.Verify(rd.seed, can.VRFValue, can.VRFProof) {
+			//they lied about their VRFValue
+			return fmt.Errorf("candidate's VRF is unverifiable") //TODO: change to real error
+		}
 	}
 
 	wp.rounds[can.Round].addEligibleWitness(wit, can.VRFValue, can.VRFProof)
-	wp.rounds[can.Round].addVote(&can.NodeID, &can.InitialVote)
+	wp.rounds[can.Round].addVote(&can.InitialVote)
 
 	return nil
 }
-func (wp *witness_pool) AddVote(round uint64, to *crypto.PublicKey, v *utils.Voter) error {
-	if wp.currentRound+1 == round {
-		wp.nextRound(wp.rounds[wp.currentRound].getNextRoundSeed())
+func (wp *witness_pool) AddVoteForCurrent(to *crypto.PublicKey, vote *utils.Voter) error {
+	wp.rounds[wp.currentRound].addVote(vote)
+	return nil //TODO: return an error if the rounds system is broken
+}
+func (wp *witness_pool) AddVote(round uint64, v *utils.Voter) error {
+	if wp.rounds[round] == nil {
+		return fmt.Errorf("round selected is not recorded yet")
 	}
-	wp.rounds[round].addVote(to, v)
+	if !wp.rounds[round].openToApply {
+		return fmt.Errorf("round selected is not accepting votes")
+	}
+	wp.rounds[round].addVote(v)
 	return nil
 }
 
-func (wp *witness_pool) selectWitnesses(round uint64, goalCount int) ([]*witness, []byte) {
-	return wp.rounds[round].selectWitnesses(goalCount)
+// selects the witnesses for the current round
+func (wp *witness_pool) SelectCurrentWitnesses(goalCount int) ([]*witness, []byte) {
+	return wp.selectWitnesses(wp.currentRound, goalCount)
+}
+
+// select closes the current rounds submissions, and starts the submissions for the next round
+func (wp *witness_pool) selectWitnesses(round uint64, goalCount int) (witnesses []*witness, newSeed []byte) {
+	witnesses, newSeed = wp.rounds[round].selectWitnesses(goalCount)
+	wp.nextRound()
+	return
 }
 
 type round_data struct {
@@ -133,12 +167,14 @@ func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []b
 	if rd.votes[string(w.nodeID)] != nil {
 		return
 	}
+
 	rd.eligibleWitnesses = append(rd.eligibleWitnesses, w)
 	rd.vrfValues[string(w.nodeID)] = vrfVal
 	rd.vrfProofs[string(w.nodeID)] = vrfProof
 	rd.valueTotals[string(w.nodeID)] = big.NewInt(0)
 }
-func (rd *round_data) addVote(candidateId *crypto.PublicKey, v *utils.Voter) {
+func (rd *round_data) addVote(v *utils.Voter) {
+	candidateId := (*crypto.PublicKey)(&v.To)
 	if rd.votes[string(*candidateId)] == nil {
 		rd.votes[string(*candidateId)] = []*utils.Voter{}
 	}
@@ -171,7 +207,6 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		)
 		witnessVrfValueFloat[string(w.nodeID)] = witnessVRFValue
 		if rd.vrfCutoffs[string(w.nodeID)].Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
-			//TODO: check the VRF value given here then
 			passingWitnesses = append(passingWitnesses, w)
 		}
 	}

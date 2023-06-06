@@ -11,6 +11,7 @@ import (
 type Voter struct {
 	To            []byte
 	From          []byte
+	PoolCategory  uint8
 	StakingAmount *big.Int
 	Signature     []byte
 }
@@ -23,6 +24,7 @@ func NewVote(from []byte, amount *big.Int) Voter {
 }
 func (v *Voter) SignTo(candidate Candidate, signer accounts.Account) error {
 	v.To = candidate.NodeID
+	v.PoolCategory = candidate.ConsensusPool
 	candidateHash := candidate.Hash()
 	voteAndCandidateHash := append(candidateHash, v.Hash()...)
 	signature, err := signer.Sign(voteAndCandidateHash)
