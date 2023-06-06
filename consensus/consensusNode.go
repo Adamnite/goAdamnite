@@ -21,6 +21,8 @@ import (
 type ConsensusNode struct {
 	thisCandidate        *utils.Candidate
 	currentRound         uint64
+	poolsA               *witness_pool
+	poolsB               *witness_pool
 	votesSeen            map[string][]*utils.Voter   //candidate nodeID->voters array
 	candidates           map[string]*utils.Candidate //candidate nodeID->Candidate(just sorting by nodeID)
 	candidateStakeValues map[string]*big.Int         //using a mapping to keep track of how much has been staked into each candidate

@@ -8,7 +8,7 @@ import (
 	"github.com/adamnite/go-adamnite/core/types"
 )
 
-type TransactionType 	    int8
+type TransactionType int8
 type TransactionVersionType int8
 
 const (
@@ -27,7 +27,7 @@ type Transaction struct {
 	Version TransactionVersionType
 	Type    TransactionType
 
-	Timestamp int64
+	Timestamp int64 //in seconds (time.unix)
 
 	From *common.Address // sender's public address
 	To   *common.Address // receiver's public address

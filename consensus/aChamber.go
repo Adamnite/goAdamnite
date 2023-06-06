@@ -14,6 +14,7 @@ func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 	n, err := newConsensus(nil, nil)
 	n.spendingAccount = account
 	n.handlingType = networking.PrimaryTransactions
+	n.poolsA = newWitnessPool(0, networking.PrimaryTransactions)
 	return n, err
 }
 
@@ -31,7 +32,7 @@ func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) erro
 		return nil
 	}
 
-	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID,  big.NewInt(0).Sub(header.Number, big.NewInt(1))))
+	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID, big.NewInt(0).Sub(header.Number, big.NewInt(1))))
 	if parentHeader == nil || parentHeader.Number.Cmp(big.NewInt(0).Sub(header.Number, big.NewInt(1))) != 0 || parentHeader.Hash() != header.ParentBlockID {
 		return errors.New("unknown parent block")
 	}

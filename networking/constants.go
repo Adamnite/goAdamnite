@@ -28,7 +28,8 @@ const (
 type NetworkTopLayerType int8
 
 const (
-	NetworkingOnly        NetworkTopLayerType = iota
-	PrimaryTransactions                       //representing chamber A, or main transactions
-	SecondaryTransactions                     //representing chamber B, or VM consensus
+	NetworkingOnly        NetworkTopLayerType = 1 << iota //00000001 networking only
+	PrimaryTransactions                                   //00000010 representing chamber A, or main transactions
+	SecondaryTransactions                                 //00000100 representing chamber B, or VM consensus
+	CaesarHandling                                        //00001000 handling caesar forwarding
 )
