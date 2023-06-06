@@ -88,7 +88,6 @@ func (c Candidate) VerifyVote(vote Voter) bool {
 	spendingAccount := vote.Account()
 	candidateHash := c.Hash()
 
-	voteAndCandidateHash := append(candidateHash, vote.StakingAmount.Bytes()...)
-	voteAndCandidateHash = append(voteAndCandidateHash, vote.From...)
+	voteAndCandidateHash := append(candidateHash, vote.Hash()...)
 	return spendingAccount.Verify(voteAndCandidateHash, vote.Signature)
 }
