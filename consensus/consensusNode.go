@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"log"
 	"math/big"
@@ -19,19 +20,18 @@ import (
 // The node that can handle consensus systems.
 // Is built on top of a networking node, using a netNode to handle the networking interactions
 type ConsensusNode struct {
-	thisCandidate        *utils.Candidate
-	currentRound         uint64
-	poolsA               *witness_pool
-	poolsB               *witness_pool
-	votesSeen            map[string][]*utils.Voter   //candidate nodeID->voters array
-	candidates           map[string]*utils.Candidate //candidate nodeID->Candidate(just sorting by nodeID)
-	candidateStakeValues map[string]*big.Int         //using a mapping to keep track of how much has been staked into each candidate
-	netLogic             *networking.NetNode
-	handlingType         networking.NetworkTopLayerType
+	thisCandidate *utils.Candidate
+	poolsA        *witness_pool
+	poolsB        *witness_pool
+	votesSeen     map[string][]*utils.Voter   //candidate nodeID->voters array
+	candidates    map[string]*utils.Candidate //candidate nodeID->Candidate(just sorting by nodeID)
+
+	netLogic     *networking.NetNode
+	handlingType networking.NetworkTopLayerType
 
 	spendingAccount accounts.Account // each consensus node is forced to have its own account to spend from.
 	participation   accounts.Account
-	vrfKey          accounts.Account
+	vrfKey          crypto.PrivateKey
 	state           *statedb.StateDB
 	chain           *blockchain.Blockchain //we need to keep the chain
 	ocdbLink        string                 //off chain database, if running the VM verification, this should be local.
@@ -57,10 +57,11 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 		chain:                  chain,
 		participation:          *participation,
 		votesSeen:              make(map[string][]*utils.Voter),
-		candidateStakeValues:   make(map[string]*big.Int),
 		candidates:             make(map[string]*utils.Candidate),
 		untrustworthyWitnesses: make(map[common.Address]uint64),
 	}
+	vrfKey, _ := crypto.GenerateVRFKey(rand.Reader)
+	con.vrfKey = vrfKey
 	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy, con.ReviewVote); err != nil {
 		log.Printf("error:%v", err)
 		return nil, err
@@ -85,26 +86,31 @@ func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
 	}
 	//assuming by here it is legit.
 	con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
-	con.candidateStakeValues[string(candidate.NodeID)].Add(con.candidateStakeValues[string(candidate.NodeID)], vote.StakingAmount)
 	return nil
 }
 
 // review a candidate proposal. The Consensus node may add a vote on. If no errors are returned, assume it is fine to forward along.
 func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 	log.Println("reviewing candidate!")
-	//review the base matches as we believe it should
-	if proposed.ConsensusPool != int8(con.handlingType) ||
-		proposed.Round != con.currentRound+1 {
-		return ErrCandidateNotApplicable
-	}
+
 	//review that the initial vote is signed correctly
 	if !proposed.VerifyVote(proposed.InitialVote) {
 		log.Println("someone lied in a vote")
 		return ErrVoteUnVerified
 	}
+
+	if proposed.ConsensusPool == int8(networking.PrimaryTransactions) && con.poolsA != nil {
+		if err := con.poolsA.AddCandidate(&proposed); err != nil {
+			return err
+		}
+	} else if proposed.ConsensusPool == int8(networking.SecondaryTransactions) && con.poolsB != nil {
+		if err := con.poolsB.AddCandidate(&proposed); err != nil {
+			return err
+		}
+	}
+
 	con.candidates[string(proposed.NodeID)] = &proposed
 	con.votesSeen[string(proposed.NodeID)] = []*utils.Voter{&proposed.InitialVote}
-	con.candidateStakeValues[string(proposed.NodeID)] = proposed.InitialVote.StakingAmount
 
 	//if we made it here, this is most likely a viable candidate
 	//TODO: check if we have this candidate in our contacts list, we should add them if we don't (perhaps tell them directly if we support them)
@@ -131,11 +137,13 @@ func (con *ConsensusNode) VoteFor(candidateNodeID crypto.PublicKey, stakeAmount 
 	}
 	vote := utils.NewVote(con.spendingAccount.PublicKey, stakeAmount)
 	err := vote.SignTo(*con.candidates[string(candidateNodeID)], con.spendingAccount)
+
 	if err != nil {
 		return err
 	}
+
+	con.poolsA.AddVote(con.candidates[string(candidateNodeID)].Round, &candidateNodeID, &vote)
 	con.votesSeen[string(candidateNodeID)] = append(con.votesSeen[string(candidateNodeID)], &vote)
-	con.candidateStakeValues[string(candidateNodeID)].Add(con.candidateStakeValues[string(candidateNodeID)], stakeAmount)
 
 	return con.netLogic.Propagate(vote)
 }
@@ -146,10 +154,15 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 	if con.thisCandidate == nil {
 		con.thisCandidate = con.generateCandidacy()
 	}
+	if con.poolsA != nil {
+		//TODO: get the round start times!
+		con.thisCandidate, _ = con.thisCandidate.UpdatedCandidate(con.poolsA.currentRound+1, con.poolsA.getNextSeed(), con.vrfKey, 0, con.spendingAccount)
+	}
+
 	//TODO: update candidacy for this rounds
 
 	con.thisCandidate.InitialVote = utils.NewVote(con.spendingAccount.PublicKey, big.NewInt(1)) //TODO: change this to a real staking amount
-	con.thisCandidate.Round = con.currentRound + 1
+	// con.thisCandidate.Round = con.currentRound + 1
 	con.thisCandidate.InitialVote.SignTo(*con.thisCandidate, con.spendingAccount)
 
 	con.netLogic.Propagate(*con.thisCandidate)
@@ -160,12 +173,9 @@ func (con *ConsensusNode) ProposeCandidacy() error {
 // generate a mostly blank self candidate proposal
 func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 	foo := con.handlingType
-	thisCandidate := utils.Candidate{
-		Round:         0, //TODO: have the round numbers
-		NodeID:        con.participation.PublicKey,
-		ConsensusPool: int8(foo),
-		VRFKey:        con.vrfKey.PublicKey,
-		NetworkString: con.netLogic.GetOwnContact().ConnectionString,
+	if con.autoStakeAmount == nil {
+		con.autoStakeAmount = big.NewInt(0)
 	}
-	return &thisCandidate
+	thisCandidate, _ := utils.NewCandidate(0, []byte{}, con.vrfKey, 0, uint8(foo), con.netLogic.GetOwnContact().ConnectionString, con.participation.PublicKey, con.spendingAccount, con.autoStakeAmount)
+	return thisCandidate
 }

@@ -36,9 +36,22 @@ func TestWitnessSelection(t *testing.T) {
 		pool.AddCandidate(can)
 	}
 
-	selected := pool.selectWitnesses(0, witnessCount-1)
+	selected, nextSeed := pool.selectWitnesses(0, witnessCount-1)
 	if len(selected) != witnessCount-1 {
 		t.Fail()
 	}
+	pool.nextRound(nextSeed)
+	for i := 0; i < witnessCount; i++ {
+		oldCan := witCans[i]
+		can, err := oldCan.UpdatedCandidate(1, nextSeed, witVRFPrivs[i], 1, *witAccounts[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		pool.AddCandidate(can)
+	}
 
+	selected, nextSeed = pool.selectWitnesses(1, 2)
+	if len(selected) != 2 {
+		t.Fail()
+	}
 }

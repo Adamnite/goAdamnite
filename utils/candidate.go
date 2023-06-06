@@ -49,6 +49,25 @@ func NewCandidate(
 	can.InitialVote = v
 	return &can, nil
 }
+func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate crypto.PrivateKey, startAt uint64, spender accounts.Account) (*Candidate, error) {
+	can := Candidate{
+		Round:         round,
+		Seed:          newSeed,
+		VRFKey:        c.VRFKey,
+		StartTime:     startAt,
+		ConsensusPool: c.ConsensusPool,
+		NetworkString: c.NetworkString,
+		NodeID:        c.NodeID,
+	}
+	can.VRFValue, can.VRFProof = vrfPrivate.Prove(newSeed)
+	v := NewVote(spender.PublicKey, c.InitialVote.StakingAmount)
+	if err := v.SignTo(can, spender); err != nil {
+		return nil, err
+	}
+
+	can.InitialVote = v
+	return &can, nil
+}
 
 // get a hash of the candidate, but this does not include votes
 func (c *Candidate) Hash() []byte {

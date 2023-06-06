@@ -15,6 +15,7 @@ func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 	n.spendingAccount = account
 	n.handlingType = networking.PrimaryTransactions
 	n.poolsA = newWitnessPool(0, networking.PrimaryTransactions)
+	n.poolsA.newRound(0, []byte{0}) //TODO: the genesis round is 0, with seed {0}, we should get the current round and seed info from nodes we know
 	return n, err
 }
 

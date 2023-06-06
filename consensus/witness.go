@@ -78,7 +78,9 @@ func (wp *witness_pool) newRound(roundID uint64, seed []byte) error {
 func (wp *witness_pool) nextRound(seed []byte) {
 	wp.newRound(wp.currentRound+1, seed) //TODO: see if we can generate the seeds automatically
 }
-
+func (wp witness_pool) getNextSeed() []byte {
+	return wp.rounds[wp.currentRound].getNextRoundSeed()
+}
 func (wp *witness_pool) AddCandidate(can *utils.Candidate) error {
 	wit := wp.totalCandidates[&can.NodeID]
 	if wit == nil {
@@ -96,7 +98,15 @@ func (wp *witness_pool) AddCandidate(can *utils.Candidate) error {
 
 	return nil
 }
-func (wp *witness_pool) selectWitnesses(round uint64, goalCount int) []*witness {
+func (wp *witness_pool) AddVote(round uint64, to *crypto.PublicKey, v *utils.Voter) error {
+	if wp.currentRound+1 == round {
+		wp.nextRound(wp.rounds[wp.currentRound].getNextRoundSeed())
+	}
+	wp.rounds[round].addVote(to, v)
+	return nil
+}
+
+func (wp *witness_pool) selectWitnesses(round uint64, goalCount int) ([]*witness, []byte) {
 	return wp.rounds[round].selectWitnesses(goalCount)
 }
 
@@ -112,6 +122,12 @@ type round_data struct {
 	openToApply       bool
 }
 
+func (rd *round_data) getNextRoundSeed() []byte {
+	if len(rd.witnesses) == 0 {
+		return []byte{}
+	}
+	return rd.vrfValues[string(rd.witnesses[0].nodeID)]
+}
 func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []byte) {
 	//since every candidate needs a vote (from themselves) to run, we can check the vote count
 	if rd.votes[string(w.nodeID)] != nil {
@@ -123,6 +139,9 @@ func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []b
 	rd.valueTotals[string(w.nodeID)] = big.NewInt(0)
 }
 func (rd *round_data) addVote(candidateId *crypto.PublicKey, v *utils.Voter) {
+	if rd.votes[string(*candidateId)] == nil {
+		rd.votes[string(*candidateId)] = []*utils.Voter{}
+	}
 	rd.votes[string(*candidateId)] = append(rd.votes[string(*candidateId)], v)
 	if rd.valueTotals[string(*candidateId)] == nil {
 		rd.valueTotals[string(*candidateId)] = big.NewInt(0)
@@ -130,8 +149,8 @@ func (rd *round_data) addVote(candidateId *crypto.PublicKey, v *utils.Voter) {
 	rd.valueTotals[string(*candidateId)].Add(rd.valueTotals[string(*candidateId)], v.StakingAmount)
 }
 
-// select witnesses should be called only once all votes have been received, and the next round needs to start
-func (rd *round_data) selectWitnesses(goalCount int) []*witness {
+// select witnesses should be called only once all votes have been received, and the next round needs to start. Returns witnesses selected
+func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	if rd.openToApply { //close the applications and select the winning witnesses
 		rd.openToApply = false
 		maxBlockValidationPercent, maxStaking, maxVotes, maxElected := rd.getMaxes()
@@ -140,10 +159,7 @@ func (rd *round_data) selectWitnesses(goalCount int) []*witness {
 			rd.vrfCutoffs[string(w.nodeID)] = weight
 		}
 	}
-	if len(rd.eligibleWitnesses) <= goalCount { //we don't have enough witnesses to try and generate more
-		rd.witnesses = rd.eligibleWitnesses
-		return rd.witnesses
-	}
+
 	passingWitnesses := []*witness{}
 	witnessVrfValueFloat := make(map[string]*big.Float)
 	//32 bytes, all set to 255
@@ -159,16 +175,21 @@ func (rd *round_data) selectWitnesses(goalCount int) []*witness {
 			passingWitnesses = append(passingWitnesses, w)
 		}
 	}
-	if len(passingWitnesses) > goalCount {
+	if len(rd.eligibleWitnesses) <= goalCount { //we don't have enough witnesses to try and generate more
+		passingWitnesses = rd.eligibleWitnesses
+	}
+	//sort the passing witnesses based on the difference between the cutoff and their score
+	sort.Slice(passingWitnesses, func(i, j int) bool {
+		//we sort no matter what so that we can get the next rounds seed
+		aId := passingWitnesses[i].nodeID
+		bId := passingWitnesses[j].nodeID
+		aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
+		bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
+		return aDif.Cmp(bDif) == 1
+	})
+
+	if len(passingWitnesses) > goalCount && len(rd.eligibleWitnesses) >= goalCount {
 		//remove the lowest scorers
-		//sort the passing witnesses based on the difference between the cutoff and their score
-		sort.Slice(passingWitnesses, func(i, j int) bool {
-			aId := passingWitnesses[i].nodeID
-			bId := passingWitnesses[j].nodeID
-			aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
-			bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
-			return aDif.Cmp(bDif) == 1
-		})
 		passingWitnesses = passingWitnesses[:goalCount]
 	} else if len(passingWitnesses) < goalCount {
 		// get more witnesses
@@ -185,7 +206,7 @@ func (rd *round_data) selectWitnesses(goalCount int) []*witness {
 	}
 
 	rd.witnesses = passingWitnesses
-	return passingWitnesses
+	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].nodeID)]
 }
 func (rd round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
 	avgStakingAmount := float64(math.GetPercent(rd.valueTotals[string(w.nodeID)], maxStaking))
