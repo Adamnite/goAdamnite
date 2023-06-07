@@ -1,23 +1,72 @@
 package utils
 
 import (
+	"math/big"
+
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
 type Candidate struct {
 	// round specific data
 	Round     uint64 //round number proposing for
 	Seed      []byte //should be consistent between all candidates. I think using round N-1's lead signature works best
+	VRFValue  []byte
+	VRFProof  []byte
 	StartTime uint64 //when that round should start
 	// us specific data
 
 	VRFKey crypto.PublicKey //our VRF public Key
 
-	ConsensusPool int8 //support type that this is being pitched for
+	ConsensusPool uint8 //support type that this is being pitched for
 	NetworkString string
 	NodeID        crypto.PublicKey
 
 	InitialVote Voter //this is the list of people who voted for this candidate
+}
+
+func NewCandidate(
+	round uint64, seed []byte, vrfPrivate crypto.PrivateKey,
+	startAt uint64, targetPool uint8, netPoint string,
+	nodeId crypto.PublicKey, spender accounts.Account, stakeAmount *big.Int,
+) (*Candidate, error) {
+	pub, _ := vrfPrivate.Public()
+	can := Candidate{
+		Round:         round,
+		Seed:          seed,
+		VRFKey:        pub,
+		StartTime:     startAt,
+		ConsensusPool: uint8(targetPool),
+		NetworkString: netPoint,
+		NodeID:        nodeId,
+	}
+	can.VRFValue, can.VRFProof = vrfPrivate.Prove(seed)
+	v := NewVote(spender.PublicKey, stakeAmount)
+	if err := v.SignTo(can, spender); err != nil {
+		return nil, err
+	}
+
+	can.InitialVote = v
+	return &can, nil
+}
+func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate crypto.PrivateKey, startAt uint64, spender accounts.Account) (*Candidate, error) {
+	can := Candidate{
+		Round:         round,
+		Seed:          newSeed,
+		VRFKey:        c.VRFKey,
+		StartTime:     startAt,
+		ConsensusPool: c.ConsensusPool,
+		NetworkString: c.NetworkString,
+		NodeID:        c.NodeID,
+	}
+	can.VRFValue, can.VRFProof = vrfPrivate.Prove(newSeed)
+	v := NewVote(spender.PublicKey, c.InitialVote.StakingAmount)
+	if err := v.SignTo(can, spender); err != nil {
+		return nil, err
+	}
+
+	can.InitialVote = v
+	return &can, nil
 }
 
 // get a hash of the candidate, but this does not include votes
@@ -39,7 +88,6 @@ func (c Candidate) VerifyVote(vote Voter) bool {
 	spendingAccount := vote.Account()
 	candidateHash := c.Hash()
 
-	voteAndCandidateHash := append(candidateHash, vote.StakingAmount.Bytes()...)
-	voteAndCandidateHash = append(voteAndCandidateHash, vote.From...)
+	voteAndCandidateHash := append(candidateHash, vote.Hash()...)
 	return spendingAccount.Verify(voteAndCandidateHash, vote.Signature)
 }

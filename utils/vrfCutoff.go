@@ -19,7 +19,8 @@ func getWeightTotal() *big.Float {
 	return sum
 }
 
-func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {
+// pass stakingAmount relative to the other witnesses running
+func VRFCutoff(stakingAmount float64, blockValidationPercent float64, voterCount float64, electedCount float64) *big.Float {
 	bStakingAmount := big.NewFloat(stakingAmount)
 	bBlockValidationPercent := big.NewFloat(blockValidationPercent)
 	bVoterCount := big.NewFloat(voterCount)

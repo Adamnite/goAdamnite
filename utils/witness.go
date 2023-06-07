@@ -151,7 +151,7 @@ func SetVRFItems(witnesses []Witness) (vrfMaps map[float64]Witness, vrfWeights [
 		avgBlockValidationPercent := float64(w.GetBlockValidationPercents()) / float64(maxBlockValidationPercent)
 		avgVoterCount := float64(len(w.GetVoters())) / float64(maxVoterCount)
 		avgElectedCount := float64(w.GetElectedCount()) / float64(maxElectedCount)
-		weight := VRF(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
+		weight := VRFCutoff(avgStakingAmount, avgBlockValidationPercent, avgVoterCount, avgElectedCount)
 		w.SetWeight(weight)
 		weightVal, _ := weight.Float64()
 		vrfWeights = append(vrfWeights, weightVal)

@@ -134,10 +134,12 @@ func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
 
 // directly handle the message on ourselves.
 func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
-	log.Println("call on self")
+	a.print("call on self")
 	switch content.FinalEndpoint {
 	case NewCandidateEndpoint:
 		return a.NewCandidate(&content.FinalParams, &[]byte{})
+	case NewVoteEndpoint:
+		return a.NewVote(&content.FinalParams, &[]byte{})
 	case SendTransactionEndpoint:
 		return a.SendTransaction(&content.FinalParams, &[]byte{})
 	case getContactsListEndpoint:
@@ -146,13 +148,15 @@ func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
 		return a.TestServer(&content.FinalParams, &content.FinalReply)
 	case newMessageEndpoint:
 		return a.NewCaesarMessage(&content.FinalParams, &[]byte{})
+	default:
+		a.print("call on self, but no endpoint was found")
 	}
 	return nil
 }
 func (a *AdamniteServer) callOnSelfThenShare(content ForwardingContent) error {
-	log.Println("call on self and share")
+	a.print("call on self and share")
 	if err := a.callOnSelf(content); err != nil {
-		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		a.printError("call on self and share", err)
 		if err != ErrBadForward {
 			//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
 			return nil
