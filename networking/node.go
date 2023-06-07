@@ -186,7 +186,7 @@ func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionB
 }
 func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) error {
 	n.hostingServer.AlreadySeen(content) //just make sure (especially if we're calling this ourselves) we don't get a recalling of this.
-	log.Println("handling forwarding")
+	// log.Println("handling forwarding")//TODO: useful for debugging. When we setup a proper debugger, please fix this
 	if content.DestinationNode != nil {
 		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
 		for key, connection := range n.activeContactToClient {
@@ -196,7 +196,7 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 		}
 	}
 	//this has been added to us, (and isn't called if the message is directly to us.)
-	log.Printf("forwarding to all %v known contacts", len(n.activeContactToClient))
+	// log.Printf("forwarding to all %v known contacts", len(n.activeContactToClient)) //TODO: useful for debugging. When we setup a proper debugger, please fix this
 	for _, element := range n.activeContactToClient {
 		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
 			if err.Error() != rpc.ErrAlreadyForwarded.Error() {
