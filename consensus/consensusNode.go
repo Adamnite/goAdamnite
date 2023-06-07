@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -239,37 +238,6 @@ func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *
 
 func (con *ConsensusNode) selectLeader(witnesses []*utils.Candidate) *Block {
 	// select random leader
-	witnessSrc := rand.NewSource(time.Now().Unix())
-	witnessRand := rand.New(witnessSrc) // initialize pseudo-random generator
-
-	leaderIdx := witnessRand.Intn(len(witnesses))
-
-	// select block
-	// note: not sure if this is the right way to select the block
-	blockSrc := rand.NewSource(time.Now().Unix())
-	blockRand := rand.New(blockSrc) // initialize pseudo-random generator
-
-	blockIdx := blockRand.Intn(con.chain.BlocksCount())
-	block := con.chain.GetBlockByNumber(big.NewInt(int64(blockIdx)))
-
-	approvalCounter := 0
-	for i, _ := range witnesses {
-		if i == leaderIdx {
-			// skip leader in process of collecting approvals
-			continue
-		}
-
-		// TODO: Check how to verify block
-		// if w.VerifyBlock(block) {
-		// 	approvalCounter++
-		// }
-	}
-
-	threshold := 0.66
-	if float64(approvalCounter) >= (threshold * float64(len(witnesses))) {
-		// block is approved from 2/3 of the rest of witnesses
-		return ConvertBlock(block)
-	}
 
 	return nil
 }
