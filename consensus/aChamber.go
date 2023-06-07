@@ -12,13 +12,23 @@ import (
 func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 	//TODO: setup the chain data and whatnot
 	n, err := newConsensus(nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	n.spendingAccount = account
-	n.handlingType = networking.PrimaryTransactions
-	return n, err
+
+	return n, n.AddAConsensus()
+}
+func (n *ConsensusNode) AddAConsensus() (err error) {
+	//adds primary transactions handling type
+	n.handlingType = n.handlingType ^ networking.PrimaryTransactions
+	n.poolsA, err = newWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	//TODO: the genesis round is 0, with seed {}, we should get the current round and seed info from nodes we know
+	return
 }
 
 func (n *ConsensusNode) isANode() bool {
-	return n.handlingType == networking.PrimaryTransactions
+	return networking.PrimaryTransactions.IsTypeIn(n.handlingType)
 }
 
 func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) error {
@@ -31,7 +41,7 @@ func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) erro
 		return nil
 	}
 
-	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID,  big.NewInt(0).Sub(header.Number, big.NewInt(1))))
+	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID, big.NewInt(0).Sub(header.Number, big.NewInt(1))))
 	if parentHeader == nil || parentHeader.Number.Cmp(big.NewInt(0).Sub(header.Number, big.NewInt(1))) != 0 || parentHeader.Hash() != header.ParentBlockID {
 		return errors.New("unknown parent block")
 	}
