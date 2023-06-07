@@ -13,7 +13,7 @@ func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 	//TODO: setup the chain data and whatnot
 	n, err := newConsensus(nil, nil)
 	if err != nil {
-		return n, err
+		return nil, err
 	}
 	n.spendingAccount = account
 

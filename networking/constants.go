@@ -39,6 +39,7 @@ func (nt NetworkTopLayerType) IsIn(test uint8) bool {
 	return uint8(nt)&test == uint8(nt)
 }
 
+// IsTypeIn checks to see if the network type nt is in test.
 func (nt NetworkTopLayerType) IsTypeIn(test NetworkTopLayerType) bool {
 	return uint8(nt)&uint8(test) == uint8(nt)
 }

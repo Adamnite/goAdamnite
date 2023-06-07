@@ -40,14 +40,35 @@ func TestBaseCandidacy(t *testing.T) {
 		b.poolsA.GetCandidate(&a.thisCandidateA.NodeID),
 		"candidacy not properly sending",
 	)
+	assert.Equal(t,
+		a.thisCandidateA,
+		a.poolsA.GetCandidate(&a.thisCandidateA.NodeID),
+		"candidacy not saving on self properly sending",
+	)
 	if err := b.VoteFor(a.thisCandidateA, big.NewInt(1)); err != nil {
 		t.Fatal(err)
 	}
+	assert.Equal(t,
+		1, len(a.poolsA.rounds[0].votes),
+		"extra vote catagories compared to number of people running",
+	)
+	assert.Equal(t,
+		2, len(a.poolsA.rounds[0].votes[string(a.thisCandidateA.NodeID)]),
+		"not enough votes correctly registered",
+	)
+	assert.Equal(t,
+		1, len(b.poolsA.rounds[0].votes),
+		"extra vote catagories compared to number of people running",
+	)
+	assert.Equal(t,
+		2, len(b.poolsA.rounds[0].votes[string(a.thisCandidateA.NodeID)]),
+		"not enough votes correctly registered",
+	)
 }
 func TestVoteForAllEqually(t *testing.T) {
 	const (
 		candidateTotal int = 5
-		voterTotal     int = 5
+		voterTotal     int = 50
 	)
 	seedNode := networking.NewNetNode(common.Address{0, 0, 0})
 	if err := seedNode.AddServer(); err != nil {
@@ -61,8 +82,18 @@ func TestVoteForAllEqually(t *testing.T) {
 	//fill the voters and candidates
 	for i := 0; i < candidateTotal || i < voterTotal; i++ {
 		if i < candidateTotal {
-			account, _ := accounts.GenerateAccount()
-			node, _ := NewAConsensus(*account)
+			var account *accounts.Account
+			//there's a slight chance of an error happening at key gen. (which only really comes up in bulk running tests)
+			// To solve this we make sure to create an account until we, well, create one!
+			for account == nil {
+				account, _ = accounts.GenerateAccount()
+			}
+			node, err := NewAConsensus(*account)
+			for err != nil {
+				log.Println("error creating consensus node, trying again")
+				node.netLogic.Close() //close and try again any time theres an error
+				node, err = NewAConsensus(*account)
+			}
 			if err := node.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
 			}
@@ -70,8 +101,16 @@ func TestVoteForAllEqually(t *testing.T) {
 			candidates = append(candidates, node)
 		}
 		if i < voterTotal {
-			account, _ := accounts.GenerateAccount()
-			node, _ := NewAConsensus(*account)
+			var account *accounts.Account
+			for account == nil {
+				account, _ = accounts.GenerateAccount()
+			}
+			node, err := NewAConsensus(*account)
+			for err != nil {
+				log.Println("error creating consensus node, trying again")
+				node.netLogic.Close() //close and try again any time theres an error
+				node, err = NewAConsensus(*account)
+			}
 			if err := node.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
 			}
@@ -110,16 +149,21 @@ func TestVoteForAllEqually(t *testing.T) {
 		}
 	}
 	for _, c := range candidates {
-		if len(c.poolsA.totalCandidates)+1 != len(candidates) {
+		if len(c.poolsA.totalCandidates) != len(candidates) {
 			log.Println("not recording all candidates")
 			t.Fail()
 		}
-		for _, val := range c.votesSeen {
-			if len(val) != voterTotal/candidateTotal {
-				log.Println("incorrect vote tally recorded")
+		crd := c.poolsA.rounds[c.poolsA.currentRound]
+
+		for sNodeId, val := range crd.votes {
+			if len(val) != (voterTotal/candidateTotal)+1 { //cant forget that you vote for yourself!
+				log.Printf("incorrect vote tally recorded. Expected %v, got %v", voterTotal/candidateTotal, len(val))
+				t.Fail()
+			}
+			if crd.valueTotals[sNodeId].Cmp(big.NewInt(int64((voterTotal/candidateTotal)+1))) != 0 {
+				log.Printf("not the right vote total value. Expected %v, got %v", (voterTotal / candidateTotal), crd.valueTotals[sNodeId].Int64())
 				t.Fail()
 			}
 		}
 	}
-	// fmt.Println("hi")
 }

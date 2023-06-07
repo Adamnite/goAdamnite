@@ -117,7 +117,7 @@ func (wp *witness_pool) AddCandidate(can *utils.Candidate) error {
 
 	return nil
 }
-func (wp *witness_pool) AddVoteForCurrent(to *crypto.PublicKey, vote *utils.Voter) error {
+func (wp *witness_pool) AddVoteForCurrent(vote *utils.Voter) error {
 	wp.rounds[wp.currentRound].addVote(vote)
 	return nil //TODO: return an error if the rounds system is broken
 }

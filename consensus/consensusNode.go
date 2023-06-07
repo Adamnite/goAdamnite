@@ -95,18 +95,16 @@ func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
 	}
 
 	//assuming by here it is legit.
-	pool.AddVote(candidate.Round, &vote)
-	// con.votesSeen[string(candidate.NodeID)] = append(con.votesSeen[string(candidate.NodeID)], &vote)
-	return nil
+	return pool.AddVote(candidate.Round, &vote)
 }
 
 // review a candidate proposal. The Consensus node may add a vote on. If no errors are returned, assume it is fine to forward along.
 func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
-	log.Println("reviewing candidate!")
 
 	//review that the initial vote is signed correctly
 	if !proposed.VerifyVote(proposed.InitialVote) {
-		log.Println("someone lied in a vote")
+		// log.Println("someone lied in a vote")
+		//TODO: assume malicious attempt and distrust this witness
 		return ErrVoteUnVerified
 	}
 	if networking.PrimaryTransactions.IsIn(proposed.ConsensusPool) && con.poolsA != nil {
@@ -120,7 +118,7 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 	}
 
 	//if we made it here, this is most likely a viable candidate
-	//TODO: check if we have this candidate in our contacts list, we should add them if we don't (perhaps tell them directly if we support them)
+	//TODO: check if we have this candidate in our networking contacts list, we should add them if we don't (perhaps tell them directly if we support them)
 
 	//if we want to auto vote, then we'll vote for them!
 	if (con.autoVoteWith != nil &&
@@ -128,8 +126,7 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 		(con.autoVoteForNode != nil &&
 			*con.autoVoteForNode == accounts.AccountFromPubBytes(proposed.NodeID).Address) {
 		//we have a reason to auto vote for this node
-		err := con.VoteFor(&proposed, con.autoStakeAmount)
-		return err
+		return con.VoteFor(&proposed, con.autoStakeAmount)
 	}
 	return nil
 }
@@ -141,20 +138,30 @@ func (con *ConsensusNode) VoteFor(candidate *utils.Candidate, stakeAmount *big.I
 	if err != nil {
 		return err
 	}
-	var pool *witness_pool
-	switch candidate.ConsensusPool {
-	case uint8(networking.PrimaryTransactions):
-		pool = con.poolsA
-	case uint8(networking.SecondaryTransactions):
-		pool = con.poolsB
-	}
-	if can := pool.GetCandidate(&candidate.NodeID); can == nil {
-		//check if we have that candidate saved, if not, add it!
-		if err := pool.AddCandidate(candidate); err != nil {
-			return err
+
+	if networking.NetworkTopLayerType(candidate.ConsensusPool).IsTypeIn(con.handlingType) {
+		//check that we are running the network type of this candidate, and if so, store the candidate if we haven't already
+		var pool *witness_pool
+		switch candidate.ConsensusPool {
+		case uint8(networking.PrimaryTransactions):
+			pool = con.poolsA
+		case uint8(networking.SecondaryTransactions):
+			pool = con.poolsB
+		}
+		can := pool.GetCandidate(&candidate.NodeID)
+		if can == nil {
+			//check if we have that candidate saved, if not, add it!
+			if err := pool.AddCandidate(candidate); err != nil {
+				return err
+			}
 		}
 	}
-	return con.ReviewVote(vote)
+
+	err = con.ReviewVote(vote)
+	if err != nil {
+		return err
+	}
+	return con.netLogic.Propagate(vote)
 }
 
 // propose this node as a witness for the network types listed. candidacyTypes should be passed as the mask of types you are applying for.
@@ -168,11 +175,21 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		candidacyTypes = uint8(con.handlingType)
 	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
+		if tcs := con.poolsA.GetCandidate(&con.thisCandidateA.NodeID); tcs == nil {
+			if err := con.poolsA.AddCandidate(con.thisCandidateA); err != nil {
+				return err
+			}
+		}
 		if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
 			return err
 		}
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
+		if tcs := con.poolsB.GetCandidate(&con.thisCandidateB.NodeID); tcs == nil {
+			if err := con.poolsB.AddCandidate(con.thisCandidateB); err != nil {
+				return err
+			}
+		}
 		if err := con.netLogic.Propagate(*con.thisCandidateB); err != nil {
 			return err
 		}
