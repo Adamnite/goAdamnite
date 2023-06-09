@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -35,7 +36,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*Transaction{},
+		[]*utils.Transaction{},
 	)
 
 	if ok, _ := n.ValidateBlock(nextValidBlock); !ok {
@@ -55,7 +56,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*Transaction{},
+		[]*utils.Transaction{},
 	)
 
 	if ok, _ := n.ValidateBlock(nextInvalidBlock); ok {
