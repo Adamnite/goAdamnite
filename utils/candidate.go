@@ -49,6 +49,8 @@ func NewCandidate(
 	can.InitialVote = v
 	return &can, nil
 }
+
+// RETURNs the updated form of this candidate!
 func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate crypto.PrivateKey, startAt uint64, spender accounts.Account) (*Candidate, error) {
 	can := Candidate{
 		Round:         round,

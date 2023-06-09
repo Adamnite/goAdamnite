@@ -18,7 +18,7 @@ func NewBConsensus(codeServer string) (*ConsensusNode, error) {
 func (bNode *ConsensusNode) AddBConsensus(codeServer string) (err error) {
 	bNode.handlingType = bNode.handlingType ^ networking.SecondaryTransactions
 	bNode.ocdbLink = codeServer
-	bNode.poolsB, err = newWitnessPool(0, networking.SecondaryTransactions, []byte{})
+	bNode.poolsB, err = NewWitnessPool(0, networking.SecondaryTransactions, []byte{})
 	//TODO: the genesis round is 0, with seed {}, we should get the current round and seed info from nodes we know
 	return err
 }

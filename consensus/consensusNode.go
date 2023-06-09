@@ -21,8 +21,8 @@ import (
 type ConsensusNode struct {
 	thisCandidateA *utils.Candidate
 	thisCandidateB *utils.Candidate
-	poolsA         *witness_pool //store all the vote data for chamber a elections
-	poolsB         *witness_pool //store all the vote data for chamber b elections
+	poolsA         *Witness_pool //store all the vote data for chamber a elections
+	poolsB         *Witness_pool //store all the vote data for chamber b elections
 
 	netLogic     *networking.NetNode
 	handlingType networking.NetworkTopLayerType
@@ -71,7 +71,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 
 // review authenticity of a vote, as well as recording it for our own records. If no errors are returned, will propagate further
 func (con *ConsensusNode) ReviewVote(vote utils.Voter) error {
-	var pool *witness_pool
+	var pool *Witness_pool
 	if !networking.NetworkTopLayerType(vote.PoolCategory).IsTypeIn(con.handlingType) {
 		//we aren't setup to handle this type
 		return fmt.Errorf("this consensus node does not have the ability to verify this vote")
@@ -141,7 +141,7 @@ func (con *ConsensusNode) VoteFor(candidate *utils.Candidate, stakeAmount *big.I
 
 	if networking.NetworkTopLayerType(candidate.ConsensusPool).IsTypeIn(con.handlingType) {
 		//check that we are running the network type of this candidate, and if so, store the candidate if we haven't already
-		var pool *witness_pool
+		var pool *Witness_pool
 		switch candidate.ConsensusPool {
 		case uint8(networking.PrimaryTransactions):
 			pool = con.poolsA
@@ -231,9 +231,9 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 }
 
 // create an updated version of the candidacy provided
-func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *witness_pool) (*utils.Candidate, error) {
+func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *Witness_pool) (*utils.Candidate, error) {
 	//TODO: get the round start time! right now it's set to 0
-	return candidacy.UpdatedCandidate(pool.currentRound, pool.getNextSeed(), con.vrfKey, 0, con.spendingAccount)
+	return candidacy.UpdatedCandidate(pool.currentRound, pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
 }
 
 func (con *ConsensusNode) selectLeader(witnesses []*utils.Candidate) *Block {
