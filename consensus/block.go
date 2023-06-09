@@ -15,12 +15,13 @@ type BlockHeader struct {
 
 	ParentBlockID common.Hash    // Hash of the parent block
 	Witness       common.Address // Address of the witness who proposed the block
-
+	//TODO: change witnesses to be nodeID(pubkeys) in order!
 	WitnessMerkleRoot     common.Hash // Merkle tree root in which witnesses for this block are stored
 	TransactionMerkleRoot common.Hash // Merkle tree root in which transactions for this block are stored
 	StateMerkleRoot       common.Hash // Merkle tree root in which states for this block are stored
 
 	Number *big.Int
+	Round  uint64
 }
 
 type Block struct {
@@ -30,7 +31,15 @@ type Block struct {
 
 // NewBlock creates and returns Block
 func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*Transaction) *Block {
-	header := &BlockHeader{time.Now().Unix(), parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, number}
+	header := &BlockHeader{
+		Timestamp:             time.Now().Unix(),
+		ParentBlockID:         parentBlockID,
+		Witness:               witness,
+		WitnessMerkleRoot:     witnessRoot,
+		TransactionMerkleRoot: transactionRoot,
+		StateMerkleRoot:       stateRoot,
+		Number:                number,
+	}
 	block := &Block{header, transactions}
 	return block
 }
@@ -38,13 +47,13 @@ func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot com
 // ConvertHeader converts from the old block header structure to the new one (temporary workaround)
 func ConvertBlockHeader(header *types.BlockHeader) *BlockHeader {
 	return &BlockHeader{
-		int64(header.Time),
-		header.ParentHash,
-		header.Witness,
-		header.WitnessRoot,
-		header.TransactionRoot,
-		header.StateRoot,
-		header.Number,
+		Timestamp:             int64(header.Time),
+		ParentBlockID:         header.ParentHash,
+		Witness:               header.Witness,
+		WitnessMerkleRoot:     header.WitnessRoot,
+		TransactionMerkleRoot: header.TransactionRoot,
+		StateMerkleRoot:       header.StateRoot,
+		Number:                header.Number,
 	}
 }
 
