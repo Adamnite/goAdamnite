@@ -155,8 +155,6 @@ func TestTransactionPropagation(t *testing.T) {
 	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
 	var ans = &utils.Transaction{}
 	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
-		// log.Println("\nworking!!!!\n\nWORKING!!!")
-		// log.Panicln("have faith")
 		*ans = *foo
 		return nil
 	}, nil, nil)
