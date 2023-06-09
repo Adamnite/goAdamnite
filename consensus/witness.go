@@ -12,11 +12,6 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 )
 
-// TODO: change these to follow the white paper
-var maxTimePerRound = time.Minute * 10
-
-const maxBlocksPerRound = 1024
-
 type witness struct {
 	vrfKey crypto.PublicKey //our VRF public Key
 
@@ -93,6 +88,7 @@ func (wp *Witness_pool) CatchupTo(oldestUsefulRound uint64, block *Block, chain 
 	return nil
 }
 
+// starts a new thread to keep track of the round, primarily that it does not go over time
 func (wp *Witness_pool) StartAsyncTracking() error {
 	if wp.asyncTrackingRunning {
 		return fmt.Errorf("already has an async tracker going")
@@ -118,25 +114,21 @@ func (wp *Witness_pool) StopAsyncTracker() {
 }
 
 // call after a witness reviews a block. Call once per block
-func (wp *Witness_pool) ActiveWitnessReviewed(nodeIDs []*crypto.PublicKey, successful bool) error {
-	for _, nodeID := range nodeIDs {
-		wit := wp.totalWitnesses[string(*nodeID)]
-		if wit == nil {
-			return errors.New("witness is not stored locally") //TODO:change to real error
-		}
-		if _, wasRunning := wp.GetCurrentRound().witnessesMap[string(*nodeID)]; !wasRunning {
-			return fmt.Errorf("witness is not running in reviewed round")
-		}
+func (wp *Witness_pool) ActiveWitnessReviewed(nodeID *crypto.PublicKey, successful bool) error {
+	wit := wp.totalWitnesses[string(*nodeID)]
+	if wit == nil {
+		return errors.New("witness is not stored locally") //TODO:change to real error
+	}
+	if wp.IsActiveWitness(nodeID) {
+		return fmt.Errorf("witness is not running in reviewed round")
 	}
 
 	//by here, we know the witness is running in the round they say they are.
-	for _, nodeID := range nodeIDs {
-		wit := wp.totalWitnesses[string(*nodeID)]
-		wit.blocksReviewed += 1
-		if successful {
-			wit.blocksApproved += 1
-		}
+	wit.blocksReviewed += 1
+	if successful {
+		wit.blocksApproved += 1
 	}
+
 	wp.GetCurrentRound().blocksInRound += 1
 	return nil
 }
@@ -153,11 +145,11 @@ func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
 
 // stats the next round.
 func (wp *Witness_pool) nextRound() {
-	//TODO: call anyone who needs to know the round updated
 	wp.newRound(wp.currentRound+1, wp.GetCurrentRound().getNextRoundSeed())
 	wp.currentRound += 1
 
 	if wp.newRoundStartedCaller != nil {
+		//TODO: call anyone who needs to know the round updated
 		wp.newRoundStartedCaller()
 	}
 }
@@ -226,4 +218,25 @@ func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed 
 	witnesses, newSeed = wp.GetCurrentRound().selectWitnesses(wp.witnessGoal)
 	wp.nextRound()
 	return
+}
+
+// returns if the witness is in the calculating round (note, this does not show if the witness has applied to run again next round)
+func (wp Witness_pool) IsActiveWitness(nodeID *crypto.PublicKey) bool {
+	return wp.WasWitnessActive(wp.currentRound-1, nodeID)
+}
+func (wp Witness_pool) WasWitnessActive(roundID uint64, nodeID *crypto.PublicKey) bool {
+	if wp.totalCandidates[string(*nodeID)] == nil {
+		// might as well eliminate witnesses we don't have at all as quickly as possible
+		return false
+	}
+
+	rd, exists := wp.rounds[roundID]
+	if !exists ||
+		rd.openToApply {
+		//round didn't exist, so no way they could've been running
+		//if the round is open to applying, then there's no way that this round could've been verifying
+		return false
+	}
+	//TODO: for checking witnesses that were removed mid round, we will also need the block number
+	return rd.witnessesMap[string(*nodeID)] != nil
 }
