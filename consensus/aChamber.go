@@ -70,11 +70,15 @@ func (n *ConsensusNode) ValidateBlock(block *Block) (bool, error) {
 			// parent block does not exist on chain
 			// thus, proposed block is not valid so we mark the witness as untrustworthy
 			n.untrustworthyWitnesses[block.Header.Witness] += 1
+			// return false, n.poolsA.ActiveWitnessReviewed(block.Header.Witness, false)
+			//TODO:^is useful once witness is stored as a node ID instead of an address
 			return false, nil
 		}
 
 		// note: temporary adapter until we start using consensus structures across the rest of codebase
 		tmp = ConvertBlock(parentBlock)
 	}
+	// return true, n.poolsA.ActiveWitnessReviewed(block.Header.Witness, true)
+	//TODO:^is useful once witness is stored as a node ID instead of an address
 	return true, nil
 }

@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
@@ -10,6 +11,10 @@ import (
 const (
 	maxWitnessNumber = 27
 )
+
+// TODO: change these to follow the white paper
+var maxTimePerRound = time.Minute * 10
+var maxBlocksPerRound = 1024
 
 type WitnessInfo struct {
 	address common.Address
