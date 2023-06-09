@@ -11,7 +11,7 @@ import (
 )
 
 type BlockHeader struct {
-	Timestamp int64 // Timestamp at which the block was approved
+	Timestamp int64 // Timestamp at which the block was approved as Unix time stamp
 
 	ParentBlockID common.Hash    // Hash of the parent block
 	Witness       common.Address // Address of the witness who proposed the block
@@ -27,6 +27,7 @@ type BlockHeader struct {
 type Block struct {
 	Header       *BlockHeader
 	Transactions []*Transaction
+	Signature    []byte
 }
 
 // NewBlock creates and returns Block
@@ -40,7 +41,10 @@ func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot com
 		StateMerkleRoot:       stateRoot,
 		Number:                number,
 	}
-	block := &Block{header, transactions}
+	block := &Block{
+		Header:       header,
+		Transactions: transactions,
+	}
 	return block
 }
 
