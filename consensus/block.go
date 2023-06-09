@@ -7,6 +7,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
@@ -26,12 +27,12 @@ type BlockHeader struct {
 
 type Block struct {
 	Header       *BlockHeader
-	Transactions []*Transaction
+	Transactions []*utils.Transaction
 	Signature    []byte
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*Transaction) *Block {
+func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*utils.Transaction) *Block {
 	header := &BlockHeader{
 		Timestamp:             time.Now().Unix(),
 		ParentBlockID:         parentBlockID,
