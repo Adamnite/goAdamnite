@@ -1,1 +1,0 @@
-this is the main folder. It should have all the resources needed for things to work. If a node needs weird wrappers and setups to run, for say, the CLI, it will go here.
