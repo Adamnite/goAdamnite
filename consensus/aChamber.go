@@ -22,7 +22,7 @@ func NewAConsensus(account accounts.Account) (*ConsensusNode, error) {
 func (n *ConsensusNode) AddAConsensus() (err error) {
 	//adds primary transactions handling type
 	n.handlingType = n.handlingType ^ networking.PrimaryTransactions
-	n.poolsA, err = newWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	n.poolsA, err = NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
 	//TODO: the genesis round is 0, with seed {}, we should get the current round and seed info from nodes we know
 	return
 }
