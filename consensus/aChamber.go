@@ -3,9 +3,11 @@ package consensus
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -31,7 +33,7 @@ func (n *ConsensusNode) isANode() bool {
 	return networking.PrimaryTransactions.IsTypeIn(n.handlingType)
 }
 
-func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) error {
+func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader, interval int64) error {
 	if header == nil {
 		return errors.New("unknown block")
 	}
@@ -46,7 +48,7 @@ func (n *ConsensusNode) ValidateHeader(header *BlockHeader, interval int64) erro
 		return errors.New("unknown parent block")
 	}
 
-	if parentHeader.Timestamp+interval > header.Timestamp {
+	if parentHeader.Timestamp.Add(time.Duration(interval)).Before(header.Timestamp) {
 		return errors.New("invalid timestamp")
 	}
 
@@ -69,16 +71,12 @@ func (n *ConsensusNode) ValidateBlock(block *Block) (bool, error) {
 		if parentBlock == nil {
 			// parent block does not exist on chain
 			// thus, proposed block is not valid so we mark the witness as untrustworthy
-			n.untrustworthyWitnesses[block.Header.Witness] += 1
-			// return false, n.poolsA.ActiveWitnessReviewed(block.Header.Witness, false)
-			//TODO:^is useful once witness is stored as a node ID instead of an address
-			return false, nil
+			n.untrustworthyWitnesses[string(block.Header.Witness)] += 1
+			return false, n.poolsA.ActiveWitnessReviewed(&block.Header.Witness, false)
 		}
 
 		// note: temporary adapter until we start using consensus structures across the rest of codebase
 		tmp = ConvertBlock(parentBlock)
 	}
-	// return true, n.poolsA.ActiveWitnessReviewed(block.Header.Witness, true)
-	//TODO:^is useful once witness is stored as a node ID instead of an address
-	return true, nil
+	return true, n.poolsA.ActiveWitnessReviewed(&block.Header.Witness, true)
 }
