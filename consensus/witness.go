@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -15,8 +16,7 @@ import (
 type witness struct {
 	vrfKey crypto.PublicKey //our VRF public Key
 
-	networkString string
-	nodeID        crypto.PublicKey
+	spendingPub crypto.PublicKey
 
 	blocksReviewed uint64
 	blocksApproved uint64
@@ -31,9 +31,8 @@ func (w witness) validationPercent() float64 {
 }
 func witnessFromCandidate(can *utils.Candidate) *witness {
 	w := witness{
-		vrfKey:        can.VRFKey,
-		networkString: can.NetworkString,
-		nodeID:        can.NodeID,
+		vrfKey:      can.VRFKey,
+		spendingPub: *can.GetWitnessPub(),
 
 		blocksReviewed: 0,
 		blocksApproved: 0,
@@ -45,8 +44,8 @@ func witnessFromCandidate(can *utils.Candidate) *witness {
 
 type Witness_pool struct {
 	witnessGoal     int
-	totalCandidates map[string]*utils.Candidate //nodeID->Candidate. Use for verifying votes
-	totalWitnesses  map[string]*witness         //nodeID-> witness
+	totalCandidates map[string]*utils.Candidate //witID->Candidate. Use for verifying votes
+	totalWitnesses  map[string]*witness         //witID-> witness
 	rounds          map[uint64]*round_data      //round ID ->data
 	currentRound    uint64                      //the round that is currently accepting witness applications
 	consensusType   uint8                       //support type that this is being pitched for
@@ -114,12 +113,12 @@ func (wp *Witness_pool) StopAsyncTracker() {
 }
 
 // call after a witness reviews a block. Call once per block
-func (wp *Witness_pool) ActiveWitnessReviewed(nodeID *crypto.PublicKey, successful bool) error {
-	wit := wp.totalWitnesses[string(*nodeID)]
+func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successful bool) error {
+	wit := wp.totalWitnesses[string(*witID)]
 	if wit == nil {
 		return errors.New("witness is not stored locally") //TODO:change to real error
 	}
-	if wp.IsActiveWitness(nodeID) {
+	if wp.IsActiveWitness(witID) {
 		return fmt.Errorf("witness is not running in reviewed round")
 	}
 
@@ -153,8 +152,8 @@ func (wp *Witness_pool) nextRound() {
 		wp.newRoundStartedCaller()
 	}
 }
-func (wp Witness_pool) GetCandidate(nodeID *crypto.PublicKey) *utils.Candidate {
-	return wp.totalCandidates[string(*nodeID)]
+func (wp Witness_pool) GetCandidate(witID *crypto.PublicKey) *utils.Candidate {
+	return wp.totalCandidates[string(*witID)]
 }
 
 // get the most recent seed needed to apply.
@@ -173,14 +172,14 @@ func (wp Witness_pool) GetCurrentSeed() []byte {
 }
 
 func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
-	wit := wp.totalWitnesses[string(can.NodeID)]
-	if wit == nil {
+	wit := wp.totalWitnesses[can.GetWitnessString()]
+	if wit == nil || !bytes.Equal(wit.spendingPub, *can.GetWitnessPub()) {
 		//new candidate
 		wit = witnessFromCandidate(can)
-		wp.totalWitnesses[string(can.NodeID)] = wit
-		wp.totalCandidates[string(can.NodeID)] = can
+		wp.totalWitnesses[can.GetWitnessString()] = wit
+		wp.totalCandidates[can.GetWitnessString()] = can
 	}
-	//by only creating the witness if it's a new nodeID, we prevent changing of VRFKeys every round to get the best outcome
+	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 
 	if rd, exists := wp.rounds[can.Round]; !exists || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
@@ -221,11 +220,11 @@ func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed 
 }
 
 // returns if the witness is in the calculating round (note, this does not show if the witness has applied to run again next round)
-func (wp Witness_pool) IsActiveWitness(nodeID *crypto.PublicKey) bool {
-	return wp.WasWitnessActive(wp.currentRound-1, nodeID)
+func (wp Witness_pool) IsActiveWitness(witID *crypto.PublicKey) bool {
+	return wp.WasWitnessActive(wp.currentRound-1, witID)
 }
-func (wp Witness_pool) WasWitnessActive(roundID uint64, nodeID *crypto.PublicKey) bool {
-	if wp.totalCandidates[string(*nodeID)] == nil {
+func (wp Witness_pool) WasWitnessActive(roundID uint64, witID *crypto.PublicKey) bool {
+	if wp.totalCandidates[string(*witID)] == nil {
 		// might as well eliminate witnesses we don't have at all as quickly as possible
 		return false
 	}
@@ -238,5 +237,5 @@ func (wp Witness_pool) WasWitnessActive(roundID uint64, nodeID *crypto.PublicKey
 		return false
 	}
 	//TODO: for checking witnesses that were removed mid round, we will also need the block number
-	return rd.witnessesMap[string(*nodeID)] != nil
+	return rd.witnessesMap[string(*witID)] != nil
 }

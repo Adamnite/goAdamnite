@@ -77,9 +77,9 @@ func (con ConsensusNode) IsActiveWitnessFor(processType networking.NetworkTopLay
 	}
 	switch processType { //see what type of transaction it is
 	case networking.PrimaryTransactions:
-		return con.poolsA.IsActiveWitness((*crypto.PublicKey)(&con.participation.PublicKey))
+		return con.poolsA.IsActiveWitness((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
 	case networking.SecondaryTransactions:
-		return con.poolsB.IsActiveWitness((*crypto.PublicKey)(&con.participation.PublicKey))
+		return con.poolsB.IsActiveWitness((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
 	}
 	return false
 }
@@ -203,7 +203,7 @@ func (con *ConsensusNode) VoteFor(candidate *utils.Candidate, stakeAmount *big.I
 		case uint8(networking.SecondaryTransactions):
 			pool = con.poolsB
 		}
-		can := pool.GetCandidate(&candidate.NodeID)
+		can := pool.GetCandidate(candidate.GetWitnessPub())
 		if can == nil {
 			//check if we have that candidate saved, if not, add it!
 			if err := pool.AddCandidate(candidate); err != nil {
