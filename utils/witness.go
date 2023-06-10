@@ -1,13 +1,13 @@
 package utils
 
+//TODO: since witnesses are the local save version of a candidate proposal, they are not shared, and are stored in consensus
+//once all outdated uses of Witness is removed, this file can be as well
 import (
 	"crypto"
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
-	"github.com/adamnite/go-adamnite/params"
-	lru "github.com/hashicorp/golang-lru"
 )
 
 type Witness interface {
@@ -94,52 +94,6 @@ func (w *WitnessImpl) BlockReviewed(successful bool) {
 	if successful {
 		w.blocksApproved++
 	}
-}
-
-type WitnessPool struct {
-	chainConfig *params.ChainConfig
-
-	witnessCandidates []Witness
-	// vrfWeights        []float32
-	vrfMaps map[common.Address]*Witness //map the account address to the witness pointer (no need to re-save it)
-
-	Witnesses []Witness
-	seed      []byte
-	Votes     map[common.Address]*Voter
-	sigcache  *lru.ARCCache
-	Number    uint64
-	Hash      common.Hash
-	blacklist []Witness
-}
-
-func NewWitnessPool(chainConfig *params.ChainConfig) *WitnessPool {
-
-	pool := &WitnessPool{
-		chainConfig: chainConfig,
-
-		vrfMaps:           make(map[common.Address]*Witness),
-		witnessCandidates: []Witness{},
-
-		Votes: map[common.Address]*Voter{},
-	}
-
-	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
-
-		// for _, w := range DefaultTestnetGenesisBlock().WitnessList {
-		// 	witness := &WitnessImpl{
-		// 		Address: w.address,
-		// 		Voters:  w.voters,
-		// 	}
-		// 	pool.Witnesses = append(pool.Witnesses, witness)
-		// }
-
-		vrfMaps, _ := SetVRFItems(pool.Witnesses)
-		for _, w := range vrfMaps {
-			pool.vrfMaps[w.GetAddress()] = &w
-		}
-
-	}
-	return pool
 }
 
 func SetVRFItems(witnesses []Witness) (vrfMaps map[float64]Witness, vrfWeights []float64) {
