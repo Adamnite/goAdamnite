@@ -3,6 +3,7 @@ package consensus
 import (
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 // for methods that only apply to the B chamber members
@@ -28,7 +29,7 @@ func (bNode *ConsensusNode) isBNode() bool {
 }
 
 // run the claimed changes again to verify that we have the same results.
-func (bNode *ConsensusNode) VerifyRun(runtimeClaim VM.RuntimeChanges) (bool, *VM.RuntimeChanges, error) {
+func (bNode *ConsensusNode) VerifyRun(runtimeClaim utils.RuntimeChanges) (bool, *utils.RuntimeChanges, error) {
 	if !bNode.isBNode() {
 		return false, nil, ErrNotBNode
 	}
@@ -39,7 +40,7 @@ func (bNode *ConsensusNode) VerifyRun(runtimeClaim VM.RuntimeChanges) (bool, *VM
 }
 
 // take an incomplete runtime claim, and handle the process. The answer is assigned to the claim.
-func (bNode *ConsensusNode) ProcessRun(claim *VM.RuntimeChanges) error {
+func (bNode *ConsensusNode) ProcessRun(claim *utils.RuntimeChanges) error {
 	if !bNode.isBNode() {
 		return ErrNotBNode
 	}
