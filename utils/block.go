@@ -20,9 +20,9 @@ type BlockHeader struct {
 	WitnessMerkleRoot     common.Hash      // Merkle tree root in which witnesses for this block are stored
 	TransactionMerkleRoot common.Hash      // Merkle tree root in which transactions for this block are stored
 	StateMerkleRoot       common.Hash      // Merkle tree root in which states for this block are stored
-
-	Number *big.Int
-	Round  uint64
+	TransactionType       int8
+	Number                *big.Int
+	Round                 uint64
 }
 
 // Hash hashes block header
