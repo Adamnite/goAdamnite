@@ -236,7 +236,7 @@ func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *
 	return candidacy.UpdatedCandidate(pool.currentRound, pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
 }
 
-func (con *ConsensusNode) selectLeader(witnesses []*utils.Candidate) *Block {
+func (con *ConsensusNode) selectLeader(witnesses []*utils.Candidate) *utils.Block {
 	// select random leader
 
 	return nil

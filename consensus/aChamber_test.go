@@ -27,7 +27,7 @@ func TestVerifyBlock(t *testing.T) {
 	validWitness := accounts.AccountFromPubBytes([]byte{1, 2, 3})
 	invalidWitness := accounts.AccountFromPubBytes([]byte{4, 5, 6})
 
-	nextValidBlock := NewBlock(
+	nextValidBlock := utils.NewBlock(
 		// parent block is genesis block
 		common.Hash{},
 		validWitness.PublicKey,
@@ -47,7 +47,7 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal("Trustworthy witness should not be reported")
 	}
 
-	nextInvalidBlock := NewBlock(
+	nextInvalidBlock := utils.NewBlock(
 		// parent block is genesis block but we specify non-genesis hash as parent ID
 		common.HexToHash("0x095af5a356d055ed095af5a356d055ed095af5a356d055ed095af5a356d055ed"),
 		invalidWitness.PublicKey,
