@@ -68,7 +68,7 @@ func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayer
 	err := wp.newRound(roundNumber, seed)
 	return &wp, err
 }
-func (wp *Witness_pool) CatchupTo(oldestUsefulRound uint64, block *Block, chain *blockchain.Blockchain) error {
+func (wp *Witness_pool) CatchupTo(oldestUsefulRound uint64, block *utils.Block, chain *blockchain.Blockchain) error {
 	if chain == nil {
 		return errors.New("chain not set")
 	}
