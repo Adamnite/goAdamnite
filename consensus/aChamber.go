@@ -55,7 +55,7 @@ func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader, interval int64
 	return nil
 }
 
-func (n *ConsensusNode) ValidateBlock(block *Block) (bool, error) {
+func (n *ConsensusNode) ValidateBlock(block *utils.Block) (bool, error) {
 	if !n.isANode() {
 		return false, ErrNotANode
 	}
