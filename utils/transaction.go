@@ -19,13 +19,14 @@ const (
 )
 
 type Transaction struct {
-	Version   TransactionVersionType
-	From      common.Address
-	To        common.Address
-	Amount    *big.Int
-	GasLimit  *big.Int
-	Time      time.Time
-	Signature []byte
+	Version        TransactionVersionType
+	From           common.Address
+	To             common.Address
+	Amount         *big.Int
+	GasLimit       *big.Int
+	Time           time.Time
+	VMInteractions *RuntimeChanges //an optional value that would make this transaction require chamber B validation
+	Signature      []byte
 }
 
 func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int, gasLimit *big.Int) (*Transaction, error) {
@@ -55,6 +56,9 @@ func (t *Transaction) Hash() common.Hash {
 	data = append(data, t.Amount.Bytes()...)
 	timeBytes, _ := t.Time.MarshalBinary()
 	data = append(data, timeBytes...)
+	if t.VMInteractions != nil {
+		data = append(data, t.VMInteractions.Hash().Bytes()...)
+	}
 
 	return common.BytesToHash(crypto.Sha512(data))
 }
