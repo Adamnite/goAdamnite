@@ -42,6 +42,10 @@ func NewCandidate(
 	}
 	can.VRFValue, can.VRFProof = vrfPrivate.Prove(seed)
 	v := NewVote(spender.PublicKey, stakeAmount)
+	can.InitialVote = Voter{ //the initial vote is a vote for yourself
+		To:   spender.PublicKey,
+		From: spender.PublicKey,
+	}
 	if err := v.SignTo(can, spender); err != nil {
 		return nil, err
 	}
@@ -60,7 +64,9 @@ func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate cry
 		ConsensusPool: c.ConsensusPool,
 		NetworkString: c.NetworkString,
 		NodeID:        c.NodeID,
+		InitialVote:   c.InitialVote, //We temporarily throw this here so it is updated for the correct witness
 	}
+
 	can.VRFValue, can.VRFProof = vrfPrivate.Prove(newSeed)
 	v := NewVote(spender.PublicKey, c.InitialVote.StakingAmount)
 	if err := v.SignTo(can, spender); err != nil {
@@ -69,6 +75,12 @@ func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate cry
 
 	can.InitialVote = v
 	return &can, nil
+}
+func (c Candidate) GetWitnessPub() *crypto.PublicKey {
+	return (*crypto.PublicKey)(&c.InitialVote.To)
+}
+func (c Candidate) GetWitnessString() string {
+	return string(*c.GetWitnessPub())
 }
 
 // get a hash of the candidate, but this does not include votes
