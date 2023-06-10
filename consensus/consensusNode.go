@@ -64,8 +64,63 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	return &con, nil
 }
+func (con ConsensusNode) CanReviewType(t networking.NetworkTopLayerType) bool {
+	return t.IsTypeIn(con.handlingType)
+}
+func (con ConsensusNode) CanReview(t int8) bool {
+	return networking.NetworkTopLayerType(t).IsTypeIn(con.handlingType)
+}
+func (con ConsensusNode) IsActiveWitnessFor(processType networking.NetworkTopLayerType) bool {
+	if !con.CanReviewType(processType) {
+		//we aren't handling that processes type
+		return false
+	}
+	switch processType { //see what type of transaction it is
+	case networking.PrimaryTransactions:
+		return con.poolsA.IsActiveWitness((*crypto.PublicKey)(&con.participation.PublicKey))
+	case networking.SecondaryTransactions:
+		return con.poolsB.IsActiveWitness((*crypto.PublicKey)(&con.participation.PublicKey))
+	}
+	return false
+}
+
 func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {
 	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
+	var tReviewType networking.NetworkTopLayerType
+	if transaction.VMInteractions != nil {
+		//the call the VM
+		tReviewType = networking.SecondaryTransactions
+	} else {
+		tReviewType = networking.PrimaryTransactions
+	}
+	if !con.IsActiveWitnessFor(tReviewType) {
+		return nil //we aren't a witness, so no reason to review this transaction.
+	}
+	//TODO: review the transaction under the appropriate node method
+
+	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a transaction go past.
+	//an error will prevent the transaction from being propagated past us
+	return nil
+}
+
+func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
+	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
+	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a block go past.
+	//an error will prevent the transaction from being propagated past us
+	if !con.CanReview(block.Header.TransactionType) {
+		return nil //we aren't fit to review this at all. We therefor cant say if its good or bad, so we just share it
+	}
+	if block.Header.TransactionType == int8(networking.PrimaryTransactions) {
+		//TODO: also record this for our own records!
+		valid, err := con.ValidateBlock(block)
+		if !valid {
+			//TODO: this can be a false error if it's just because the chain isnt set (but then we shouldnt be reviewing...)
+			return err
+		} else {
+			return nil
+		}
+
+	}
 	return nil
 }
 
