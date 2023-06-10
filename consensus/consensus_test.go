@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -37,12 +38,12 @@ func TestBaseCandidacy(t *testing.T) {
 	// fmt.Println(b.candidates)
 	assert.Equal(t,
 		a.thisCandidateA,
-		b.poolsA.GetCandidate(&a.thisCandidateA.NodeID),
+		b.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
 		"candidacy not properly sending",
 	)
 	assert.Equal(t,
 		a.thisCandidateA,
-		a.poolsA.GetCandidate(&a.thisCandidateA.NodeID),
+		a.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
 		"candidacy not saving on self properly sending",
 	)
 	if err := b.VoteFor(a.thisCandidateA, big.NewInt(1)); err != nil {
@@ -53,7 +54,7 @@ func TestBaseCandidacy(t *testing.T) {
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(a.poolsA.rounds[0].votes[string(a.thisCandidateA.NodeID)]),
+		2, len(a.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
 		"not enough votes correctly registered",
 	)
 	assert.Equal(t,
@@ -61,7 +62,7 @@ func TestBaseCandidacy(t *testing.T) {
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(b.poolsA.rounds[0].votes[string(a.thisCandidateA.NodeID)]),
+		2, len(b.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
 		"not enough votes correctly registered",
 	)
 }
@@ -155,13 +156,13 @@ func TestVoteForAllEqually(t *testing.T) {
 		}
 		crd := c.poolsA.rounds[c.poolsA.currentRound]
 
-		for sNodeId, val := range crd.votes {
+		for witnessPub, val := range crd.votes {
 			if len(val) != (voterTotal/candidateTotal)+1 { //cant forget that you vote for yourself!
 				log.Printf("incorrect vote tally recorded. Expected %v, got %v", voterTotal/candidateTotal, len(val))
 				t.Fail()
 			}
-			if crd.valueTotals[sNodeId].Cmp(big.NewInt(int64((voterTotal/candidateTotal)+1))) != 0 {
-				log.Printf("not the right vote total value. Expected %v, got %v", (voterTotal / candidateTotal), crd.valueTotals[sNodeId].Int64())
+			if crd.valueTotals[witnessPub].Cmp(big.NewInt(int64((voterTotal/candidateTotal)+1))) != 0 {
+				log.Printf("not the right vote total value. Expected %v, got %v", (voterTotal / candidateTotal), crd.valueTotals[witnessPub].Int64())
 				t.Fail()
 			}
 		}

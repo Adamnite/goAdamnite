@@ -23,7 +23,7 @@ func NewVote(from []byte, amount *big.Int) Voter {
 	}
 }
 func (v *Voter) SignTo(candidate Candidate, signer accounts.Account) error {
-	v.To = candidate.NodeID
+	v.To = *candidate.GetWitnessPub()
 	v.PoolCategory = candidate.ConsensusPool
 	candidateHash := candidate.Hash()
 	voteAndCandidateHash := append(candidateHash, v.Hash()...)

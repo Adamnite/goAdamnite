@@ -14,11 +14,11 @@ type round_data struct {
 	eligibleWitnesses []*witness
 	witnesses         []*witness
 	witnessesMap      map[string]*witness
-	votes             map[string][]*utils.Voter //map[witnessNodeID]->votes for that witness, in that round
-	valueTotals       map[string]*big.Int       //map[witnessNodeID] -> total amount staked on them
-	vrfValues         map[string][]byte         //map[witnessNodeID]->vrf value
-	vrfProofs         map[string][]byte         //map[witnessNodeID]->vrf proof
-	vrfCutoffs        map[string]*big.Float     //map[witnessNodeID]->vrf cutoff value
+	votes             map[string][]*utils.Voter //map[witnessPub]->votes for that witness, in that round
+	valueTotals       map[string]*big.Int       //map[witnessPub] -> total amount staked on them
+	vrfValues         map[string][]byte         //map[witnessPub]->vrf value
+	vrfProofs         map[string][]byte         //map[witnessPub]->vrf proof
+	vrfCutoffs        map[string]*big.Float     //map[witnessPub]->vrf cutoff value
 	seed              []byte
 	openToApply       bool
 	roundStartTime    time.Time
@@ -43,18 +43,18 @@ func (rd *round_data) getNextRoundSeed() []byte {
 	if len(rd.witnesses) == 0 {
 		return []byte{}
 	}
-	return rd.vrfValues[string(rd.witnesses[0].nodeID)]
+	return rd.vrfValues[string(rd.witnesses[0].spendingPub)]
 }
 func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []byte) {
 	//since every candidate needs a vote (from themselves) to run, we can check the vote count
-	if rd.votes[string(w.nodeID)] != nil {
+	if rd.votes[string(w.spendingPub)] != nil {
 		return
 	}
 
 	rd.eligibleWitnesses = append(rd.eligibleWitnesses, w)
-	rd.vrfValues[string(w.nodeID)] = vrfVal
-	rd.vrfProofs[string(w.nodeID)] = vrfProof
-	rd.valueTotals[string(w.nodeID)] = big.NewInt(0)
+	rd.vrfValues[string(w.spendingPub)] = vrfVal
+	rd.vrfProofs[string(w.spendingPub)] = vrfProof
+	rd.valueTotals[string(w.spendingPub)] = big.NewInt(0)
 }
 func (rd *round_data) addVote(v *utils.Voter) {
 	candidateId := (*crypto.PublicKey)(&v.To)
@@ -75,7 +75,7 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		maxBlockValidationPercent, maxStaking, maxVotes, maxElected := rd.getMaxes()
 		for _, w := range rd.eligibleWitnesses {
 			weight := rd.getWeight(w, maxBlockValidationPercent, maxStaking, maxVotes, maxElected)
-			rd.vrfCutoffs[string(w.nodeID)] = weight
+			rd.vrfCutoffs[string(w.spendingPub)] = weight
 		}
 	}
 
@@ -85,11 +85,11 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	maxVRFVal := big.NewFloat(0).SetInt(big.NewInt(1).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}))
 	for _, w := range rd.eligibleWitnesses {
 		witnessVRFValue := big.NewFloat(0).Quo(
-			big.NewFloat(1).SetInt(big.NewInt(1).SetBytes(rd.vrfValues[string(w.nodeID)])),
+			big.NewFloat(1).SetInt(big.NewInt(1).SetBytes(rd.vrfValues[string(w.spendingPub)])),
 			maxVRFVal,
 		)
-		witnessVrfValueFloat[string(w.nodeID)] = witnessVRFValue
-		if rd.vrfCutoffs[string(w.nodeID)].Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
+		witnessVrfValueFloat[string(w.spendingPub)] = witnessVRFValue
+		if rd.vrfCutoffs[string(w.spendingPub)].Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
 			passingWitnesses = append(passingWitnesses, w)
 		}
 	}
@@ -99,8 +99,8 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	//sort the passing witnesses based on the difference between the cutoff and their score
 	sort.Slice(passingWitnesses, func(i, j int) bool {
 		//we sort no matter what so that we can get the next rounds seed
-		aId := passingWitnesses[i].nodeID
-		bId := passingWitnesses[j].nodeID
+		aId := passingWitnesses[i].spendingPub
+		bId := passingWitnesses[j].spendingPub
 		aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
 		bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
 		return aDif.Cmp(bDif) == 1
@@ -113,8 +113,8 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		// get more witnesses
 		sort.Slice(rd.eligibleWitnesses, func(i, j int) bool {
 			//sort the eligible witnesses so that the ones closest to passing are at the beginning
-			aId := rd.eligibleWitnesses[i].nodeID
-			bId := rd.eligibleWitnesses[j].nodeID
+			aId := rd.eligibleWitnesses[i].spendingPub
+			bId := rd.eligibleWitnesses[j].spendingPub
 			aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
 			bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
 			return aDif.Cmp(bDif) == 1
@@ -125,14 +125,14 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 
 	rd.witnesses = passingWitnesses
 	for _, w := range passingWitnesses {
-		rd.witnessesMap[string(w.nodeID)] = w
+		rd.witnessesMap[string(w.spendingPub)] = w
 	}
-	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].nodeID)]
+	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].spendingPub)]
 }
 func (rd round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
-	avgStakingAmount := float64(math.GetPercent(rd.valueTotals[string(w.nodeID)], maxStaking))
+	avgStakingAmount := float64(math.GetPercent(rd.valueTotals[string(w.spendingPub)], maxStaking))
 	avgBlockValidationPercent := float64(w.validationPercent()) / float64(maxBlockValidationPercent)
-	avgVoterCount := float64(len(rd.votes[string(w.nodeID)])) / float64(maxVotes)
+	avgVoterCount := float64(len(rd.votes[string(w.spendingPub)])) / float64(maxVotes)
 	var avgElectedCount float64
 	if maxElected == 0 {
 		avgElectedCount = 0
@@ -155,12 +155,12 @@ func (rd round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingAm
 			maxBlockValidationPercent = t
 		}
 
-		if t := rd.valueTotals[string(w.nodeID)]; maxStakingAmount.Cmp(t) == -1 {
+		if t := rd.valueTotals[string(w.spendingPub)]; maxStakingAmount.Cmp(t) == -1 {
 			maxStakingAmount = t
 		}
 
-		if maxVoterCount < len(rd.votes[string(w.nodeID)]) {
-			maxVoterCount = len(rd.votes[string(w.nodeID)])
+		if maxVoterCount < len(rd.votes[string(w.spendingPub)]) {
+			maxVoterCount = len(rd.votes[string(w.spendingPub)])
 		}
 
 		if maxElectedCount < w.timesElected {
