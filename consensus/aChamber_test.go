@@ -24,13 +24,13 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal("Failed to create A consensus node")
 	}
 
-	validWitnessAddress := common.StringToAddress("23m3Ho7PwouaFzU8iXMLygwuXNW7")
-	invalidWitnessAddress := common.StringToAddress("44m3Ho7PwouaFzU8iXMLygwuXN88")
+	validWitness := accounts.AccountFromPubBytes([]byte{1, 2, 3})
+	invalidWitness := accounts.AccountFromPubBytes([]byte{4, 5, 6})
 
 	nextValidBlock := NewBlock(
 		// parent block is genesis block
 		common.Hash{},
-		validWitnessAddress,
+		validWitness.PublicKey,
 		// dummy values irrelevant for the test
 		common.Hash{},
 		common.Hash{},
@@ -43,14 +43,14 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal("Block should be valid")
 	}
 
-	if _, ok := n.untrustworthyWitnesses[validWitnessAddress]; ok {
+	if _, ok := n.untrustworthyWitnesses[string(validWitness.PublicKey)]; ok {
 		t.Fatal("Trustworthy witness should not be reported")
 	}
 
 	nextInvalidBlock := NewBlock(
 		// parent block is genesis block but we specify non-genesis hash as parent ID
 		common.HexToHash("0x095af5a356d055ed095af5a356d055ed095af5a356d055ed095af5a356d055ed"),
-		invalidWitnessAddress,
+		invalidWitness.PublicKey,
 		// dummy values irrelevant for the test
 		common.Hash{},
 		common.Hash{},

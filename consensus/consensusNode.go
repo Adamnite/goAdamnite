@@ -39,7 +39,7 @@ type ConsensusNode struct {
 	autoVoteWith    *common.Address
 	autoStakeAmount *big.Int
 
-	untrustworthyWitnesses map[common.Address]uint64 //keep track of how many times witness was marked as untrustworthy
+	untrustworthyWitnesses map[string]uint64 //nodeID -> keep track of how many times witness was marked as untrustworthy
 }
 
 func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*ConsensusNode, error) {
@@ -54,7 +54,7 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 		state:                  state,
 		chain:                  chain,
 		participation:          *participation,
-		untrustworthyWitnesses: make(map[common.Address]uint64),
+		untrustworthyWitnesses: make(map[string]uint64),
 	}
 	vrfKey, _ := crypto.GenerateVRFKey(rand.Reader)
 	con.vrfKey = vrfKey

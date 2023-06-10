@@ -1,40 +1,25 @@
 package consensus
 
 import (
-	"crypto/sha256"
 	"math/big"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
-	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
-type BlockHeader struct {
-	Timestamp int64 // Timestamp at which the block was approved as Unix time stamp
-
-	ParentBlockID common.Hash    // Hash of the parent block
-	Witness       common.Address // Address of the witness who proposed the block
-	//TODO: change witnesses to be nodeID(pubkeys) in order!
-	WitnessMerkleRoot     common.Hash // Merkle tree root in which witnesses for this block are stored
-	TransactionMerkleRoot common.Hash // Merkle tree root in which transactions for this block are stored
-	StateMerkleRoot       common.Hash // Merkle tree root in which states for this block are stored
-
-	Number *big.Int
-	Round  uint64
-}
-
 type Block struct {
-	Header       *BlockHeader
+	Header       *utils.BlockHeader
 	Transactions []*utils.Transaction
 	Signature    []byte
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*utils.Transaction) *Block {
-	header := &BlockHeader{
-		Timestamp:             time.Now().Unix(),
+func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*utils.Transaction) *Block {
+	header := &utils.BlockHeader{
+		Timestamp:             time.Now().UTC(),
 		ParentBlockID:         parentBlockID,
 		Witness:               witness,
 		WitnessMerkleRoot:     witnessRoot,
@@ -50,11 +35,11 @@ func NewBlock(parentBlockID common.Hash, witness common.Address, witnessRoot com
 }
 
 // ConvertHeader converts from the old block header structure to the new one (temporary workaround)
-func ConvertBlockHeader(header *types.BlockHeader) *BlockHeader {
-	return &BlockHeader{
-		Timestamp:             int64(header.Time),
+func ConvertBlockHeader(header *types.BlockHeader) *utils.BlockHeader {
+	return &utils.BlockHeader{
+		Timestamp:             time.Unix(int64(header.Time), 0),
 		ParentBlockID:         header.ParentHash,
-		Witness:               header.Witness,
+		Witness:               crypto.PublicKey(header.Witness[:]), //TODO: this wont actually work, but enough to compile
 		WitnessMerkleRoot:     header.WitnessRoot,
 		TransactionMerkleRoot: header.TransactionRoot,
 		StateMerkleRoot:       header.StateRoot,
@@ -66,22 +51,13 @@ func ConvertBlockHeader(header *types.BlockHeader) *BlockHeader {
 func ConvertBlock(block *types.Block) *Block {
 	return NewBlock(
 		block.Header().ParentHash,
-		block.Header().Witness,
+		crypto.PublicKey(block.Header().Witness[:]), //TODO: this wont actually work, but enough to compile
 		block.Header().WitnessRoot,
 		block.Header().TransactionRoot,
 		block.Header().StateRoot,
 		block.Number(),
 		ConvertTransactions(block.Body().Transactions),
 	)
-}
-
-// Hash hashes block header
-func (h *BlockHeader) Hash() common.Hash {
-	bytes, _ := encoding.Marshal(h)
-
-	sha := sha256.New()
-	sha.Write(bytes)
-	return common.BytesToHash(sha.Sum(nil))
 }
 
 // Hash gets block's header hash
