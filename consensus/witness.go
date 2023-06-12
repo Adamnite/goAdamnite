@@ -129,6 +129,10 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	}
 
 	wp.GetCurrentRound().blocksInRound += 1
+	if wp.GetCurrentRound().blocksInRound >= maxBlocksPerRound {
+		//the round has reached its block limit.
+		wp.nextRound()
+	}
 	return nil
 }
 func (wp *Witness_pool) GetCurrentRound() *round_data {

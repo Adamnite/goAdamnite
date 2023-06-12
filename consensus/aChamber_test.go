@@ -39,7 +39,7 @@ func TestVerifyBlock(t *testing.T) {
 		[]*utils.Transaction{},
 	)
 
-	if ok, _ := n.ValidateBlock(nextValidBlock); !ok {
+	if ok, _ := n.ValidateChamberABlock(nextValidBlock); !ok {
 		t.Fatal("Block should be valid")
 	}
 
@@ -59,7 +59,7 @@ func TestVerifyBlock(t *testing.T) {
 		[]*utils.Transaction{},
 	)
 
-	if ok, _ := n.ValidateBlock(nextInvalidBlock); ok {
+	if ok, _ := n.ValidateChamberABlock(nextInvalidBlock); ok {
 		t.Fatal("Block should be invalid")
 	}
 
