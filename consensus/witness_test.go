@@ -52,15 +52,15 @@ func TestRoundSelections(t *testing.T) {
 	candidates := generateTestWitnesses(15)
 
 	//set the newRound caller to add the candidates again (as if people had reapplied in between rounds)
-	pool.newRoundStartedCaller = func() {
+	pool.newRoundStartedCaller = []func(){func() {
 		for _, can := range candidates {
 			can.updateCandidate(pool)
 			if err := pool.AddCandidate(can.candidacy); err != nil {
 				t.Fatal(err)
 			}
 		}
-	}
-	pool.newRoundStartedCaller()
+	}}
+	pool.newRoundStartedCaller[0]()
 	pool.SelectCurrentWitnesses()
 	if pool.currentRound != 1 {
 		fmt.Println("round did not increment correctly")
@@ -83,7 +83,7 @@ func TestRoundSelections(t *testing.T) {
 		t.FailNow()
 	}
 
-	pool.newRoundStartedCaller()
+	pool.newRoundStartedCaller[0]()
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
