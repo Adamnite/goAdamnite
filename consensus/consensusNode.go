@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"log"
@@ -35,7 +36,7 @@ type ConsensusNode struct {
 	ocdbLink        string                 //off chain database, if running the VM verification, this should be local.
 	vm              *VM.Machine
 
-	autoVoteForNode *common.Address
+	autoVoteForNode *crypto.PublicKey //the NodeID that is running the node
 	autoVoteWith    *common.Address
 	autoStakeAmount *big.Int
 
@@ -85,7 +86,7 @@ func (con ConsensusNode) IsActiveWitnessFor(processType networking.NetworkTopLay
 }
 
 func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {
-	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
+	//give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
 	var tReviewType networking.NetworkTopLayerType
 	if transaction.VMInteractions != nil {
 		//the call the VM
@@ -93,6 +94,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 	} else {
 		tReviewType = networking.PrimaryTransactions
 	}
+
 	if !con.IsActiveWitnessFor(tReviewType) {
 		return nil //we aren't a witness, so no reason to review this transaction.
 	}
@@ -179,7 +181,7 @@ func (con *ConsensusNode) ReviewCandidacy(proposed utils.Candidate) error {
 	if (con.autoVoteWith != nil &&
 		*con.autoVoteWith == proposed.InitialVote.Address()) ||
 		(con.autoVoteForNode != nil &&
-			*con.autoVoteForNode == accounts.AccountFromPubBytes(proposed.NodeID).Address) {
+			bytes.Equal(*con.autoVoteForNode, proposed.NodeID)) {
 		//we have a reason to auto vote for this node
 		return con.VoteFor(&proposed, con.autoStakeAmount)
 	}
@@ -230,24 +232,28 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		candidacyTypes = uint8(con.handlingType)
 	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
-		if tcs := con.poolsA.GetCandidate(&con.thisCandidateA.NodeID); tcs == nil {
+		newARoundActions := func() {
 			if err := con.poolsA.AddCandidate(con.thisCandidateA); err != nil {
-				return err
+				panic(err)
+			}
+			if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
+				panic(err)
 			}
 		}
-		if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
-			return err
-		}
+		newARoundActions()
+		con.poolsA.AddNewRoundCaller(newARoundActions)
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
-		if tcs := con.poolsB.GetCandidate(&con.thisCandidateB.NodeID); tcs == nil {
+		newBRoundActions := func() {
 			if err := con.poolsB.AddCandidate(con.thisCandidateB); err != nil {
-				return err
+				panic(err)
+			}
+			if err := con.netLogic.Propagate(*con.thisCandidateB); err != nil {
+				panic(err)
 			}
 		}
-		if err := con.netLogic.Propagate(*con.thisCandidateB); err != nil {
-			return err
-		}
+		newBRoundActions()
+		con.poolsB.AddNewRoundCaller(newBRoundActions)
 	}
 	return nil
 }
@@ -289,10 +295,4 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *Witness_pool) (*utils.Candidate, error) {
 	//TODO: get the round start time! right now it's set to 0
 	return candidacy.UpdatedCandidate(pool.currentRound, pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
-}
-
-func (con *ConsensusNode) selectLeader(witnesses []*utils.Candidate) *utils.Block {
-	// select random leader
-
-	return nil
 }

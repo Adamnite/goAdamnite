@@ -50,7 +50,7 @@ type Witness_pool struct {
 	currentRound    uint64                      //the round that is currently accepting witness applications
 	consensusType   uint8                       //support type that this is being pitched for
 
-	newRoundStartedCaller func()
+	newRoundStartedCaller []func()
 	asyncTrackingRunning  bool
 }
 
@@ -147,10 +147,13 @@ func (wp *Witness_pool) nextRound() {
 	wp.newRound(wp.currentRound+1, wp.GetCurrentRound().getNextRoundSeed())
 	wp.currentRound += 1
 
-	if wp.newRoundStartedCaller != nil {
+	for _, nextRoundFunc := range wp.newRoundStartedCaller {
 		//TODO: call anyone who needs to know the round updated
-		wp.newRoundStartedCaller()
+		nextRoundFunc()
 	}
+}
+func (wp *Witness_pool) AddNewRoundCaller(f func()) {
+	wp.newRoundStartedCaller = append(wp.newRoundStartedCaller, f)
 }
 func (wp Witness_pool) GetCandidate(witID *crypto.PublicKey) *utils.Candidate {
 	return wp.totalCandidates[string(*witID)]
