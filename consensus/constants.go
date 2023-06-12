@@ -3,9 +3,6 @@ package consensus
 import (
 	"fmt"
 	"time"
-
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/utils"
 )
 
 const (
@@ -14,12 +11,7 @@ const (
 
 // TODO: change these to follow the white paper
 var maxTimePerRound = time.Minute * 10
-var maxBlocksPerRound = 1024
-
-type WitnessInfo struct {
-	address common.Address
-	voters  []utils.Voter
-}
+var maxBlocksPerRound uint64 = 1024
 
 var (
 	ErrNotBNode               = fmt.Errorf("node is not setup to handle VM based operations")
