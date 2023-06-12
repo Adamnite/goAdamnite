@@ -6,10 +6,45 @@ import(
     "https://github.com/adamnite/go-adamnite/core/types"
 )
 
+//Note: Make POH work with new crypto package code.
+
 type StateTransition struct {
     ContractAddress string
     CallerAddress   string
     Input           []byte
+}
+
+
+type ProofOfHistory struct {
+	state  string
+	proofs []string
+}
+
+func NewProofOfHistory() *ProofOfHistory {
+	return &ProofOfHistory{}
+}
+
+func (poh *ProofOfHistory) ApplyChange(change string) {
+	poh.state += change
+	proof := poh.generateProof()
+	poh.proofs = append(poh.proofs, proof)
+}
+
+func (poh *ProofOfHistory) generateProof() string {
+	previousProof := ""
+	if len(poh.proofs) > 0 {
+		previousProof = poh.proofs[len(poh.proofs)-1]
+	}
+
+	proof := poh.computeProof(poh.state, previousProof)
+	time.Sleep(time.Duration(len(poh.state)) * time.Millisecond * DelayFactor)
+	return proof
+}
+
+func (poh *ProofOfHistory) computeProof(state string, previousProof string) string {
+	hash := sha512.Sum512([]byte(state + previousProof))
+	proof := hex.EncodeToString(hash[:])
+	return proof
 }
 
 
@@ -49,7 +84,8 @@ func applyStateTransitions(transitions []*StateTransition, POHTable map[int][]by
             return fmt.Errorf("unknown state transition type")
         }
         // Create new POH record for this state transition
-        pohData := []byte(fmt.Sprintf("%d:%x", transition.Timestamp, sha256.Sum256([]byte(transition.String()))))
+        //TODO: Change this use the function already created
+        pohData := []byte(fmt.Sprintf("%d:%x", transition.Timestamp, sha512.Sum256([]byte(transition.String()))))
         POHTable[transition.Timestamp] = pohData
     }
     return nil
@@ -58,76 +94,83 @@ func applyStateTransitions(transitions []*StateTransition, POHTable map[int][]by
 
 
 func (ap *AgreementProtocol) processStateTransitions(transitions []*StateTransition) error {
-    // Generate POH table and final state
-    pohTable := make(map[int]Hash)
-    currentState := ap.CurrentBlock.LastState
-    for i, t := range transitions {
-        // Apply state transition
-        err := applyStateTransition(currentState, t)
-        if err != nil {
-            return fmt.Errorf("error applying state transition %d: %s", i, err)
-        }
-        // Generate hash and update POH table
-        hash := generateHash(currentState)
-        pohTable[i] = hash
-        currentState = hash
-    }
+	// Generate POH table and final state
+	pohTable := make(map[int][]byte)
+	currentState := ap.CurrentBlock.LastState
+	poh := NewProofOfHistory()
 
-    // Split state transitions into packets
-    packets := splitIntoPackets(transitions)
+	for i, t := range transitions {
+		// Apply state transition
+		err := applyStateTransition(currentState, t)
+		if err != nil {
+			return fmt.Errorf("error applying state transition %d: %s", i, err)
+		}
+		// Generate hash and update POH table
+		hash := generateHash(currentState)
+		pohTable[i] = hash
+		currentState = hash
 
-    // Send packets to witnesses
-    for _, packet := range packets {
-        // Select witness
-        witness, err := ap.WitnessPool.SelectWitness()
-        if err != nil {
-            return fmt.Errorf("error selecting witness: %s", err)
-        }
-        // Send packet and POH table to witness
-        err = gossip.SendTo(witness.Address, encodePacketAndPOH(packet, pohTable))
-        if err != nil {
-            return fmt.Errorf("error sending packet to witness %s: %s", witness.Address, err)
-        }
-    }
+		// Apply change to the Proof of History
+		poh.ApplyChange(t.String())
+	}
 
-    // Wait for certificates from witnesses
-    certificates := make(map[string]Certificate)
-    for i := 0; i < len(packets); i++ {
-        response, err := gossip.ReceiveWait(time.Second)
-        if err != nil {
-            return fmt.Errorf("error waiting for certificate: %s", err)
-        }
-        parts := strings.Split(string(response), ":")
-        if len(parts) != 2 || parts[0] != "CERTIFICATE" {
-            return fmt.Errorf("invalid response from witness: %s", response)
-        }
-        addr := parts[1]
-        certificates[addr] = Certificate{Signature: parts[2]}
-    }
+	// Split state transitions into packets
+	packets := splitIntoPackets(transitions)
 
-    // Check if all witnesses approved the state transitions
-    if len(certificates) < len(ap.WitnessPool.AllWitnesses) {
-        return fmt.Errorf("not all witnesses approved the state transitions")
-    }
+	// Send packets to witnesses
+	for _, packet := range packets {
+		// Select witness
+		witness, err := ap.WitnessPool.SelectWitness()
+		if err != nil {
+			return fmt.Errorf("error selecting witness: %s", err)
+		}
+		// Send packet and POH table to witness
+		err = gossip.SendTo(witness.Address, encodePacketAndPOH(packet, pohTable))
+		if err != nil {
+			return fmt.Errorf("error sending packet to witness %s: %s", witness.Address, err)
+		}
+	}
 
-    // Create signed batch
-    batch := &SignedBatch{
-        Certificates: certificates,
-        StateTransitions: transitions,
-    }
-    err := signBatch(batch)
-    if err != nil {
-        return fmt.Errorf("error signing batch: %s", err)
-    }
+	// Wait for certificates from witnesses
+	certificates := make(map[string]Certificate)
+	for i := 0; i < len(packets); i++ {
+		response, err := gossip.ReceiveWait(time.Second)
+		if err != nil {
+			return fmt.Errorf("error waiting for certificate: %s", err)
+		}
+		parts := strings.Split(string(response), ":")
+		if len(parts) != 2 || parts[0] != "CERTIFICATE" {
+			return fmt.Errorf("invalid response from witness: %s", response)
+		}
+		addr := parts[1]
+		certificates[addr] = Certificate{Signature: parts[2]}
+	}
 
-    // Broadcast batch to all witnesses
-    err = gossip.Broadcast(encodeBatch(batch))
-    if err != nil {
-        return fmt.Errorf("error broadcasting batch: %s", err)
-    }
+	// Check if all witnesses approved the state transitions
+	if len(certificates) < len(ap.WitnessPool.AllWitnesses) {
+		return fmt.Errorf("not all witnesses approved the state transitions")
+	}
 
-    return nil
+	// Create signed batch
+	batch := &SignedBatch{
+		Certificates:      certificates,
+		StateTransitions:  transitions,
+		ProofOfHistory:    pohTable,
+	}
+	err := signBatch(batch)
+	if err != nil {
+		return fmt.Errorf("error signing batch: %s", err)
+	}
+
+	// Broadcast batch to all witnesses
+	err = gossip.Broadcast(encodeBatch(batch))
+	if err != nil {
+		return fmt.Errorf("error broadcasting batch: %s", err)
+	}
+
+	return nil
 }
+
 
 
 
@@ -224,6 +267,20 @@ func sortBasedOnDependencies(transitions []*StateTransition) ([]*StateTransition
     return sortedTransitions, nil
 }
 
+const (
+	maxPacketSize = 1024 // Set the maximum packet size as desired
+)
+
 func exceedsPacketSize(packet *Packet, transition *StateTransition) bool {
-    // TODO: Implement check if adding the transition will cause the packet to exceed the maximum packet size
+	// Calculate the current packet size
+	currentSize := 0
+	for _, t := range packet.Transitions {
+		currentSize += len(t.String()) // Adjust the calculation based on the actual size of each transition
+	}
+
+	// Calculate the size of the new transition
+	newSize := len(transition.String()) // Adjust the calculation based on the actual size of the transition
+
+	// Check if adding the new transition will exceed the maximum packet size
+	return currentSize+newSize > maxPacketSize
 }
