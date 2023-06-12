@@ -2,8 +2,6 @@ package consensus
 
 import (
 	"errors"
-	"math/big"
-	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
@@ -33,29 +31,7 @@ func (n *ConsensusNode) isANode() bool {
 	return networking.PrimaryTransactions.IsTypeIn(n.handlingType)
 }
 
-func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader, interval int64) error {
-	if header == nil {
-		return errors.New("unknown block")
-	}
-
-	if header.Number.Cmp(big.NewInt(0)) == 0 {
-		// our header comes from genesis block
-		return nil
-	}
-
-	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID, big.NewInt(0).Sub(header.Number, big.NewInt(1))))
-	if parentHeader == nil || parentHeader.Number.Cmp(big.NewInt(0).Sub(header.Number, big.NewInt(1))) != 0 || parentHeader.Hash() != header.ParentBlockID {
-		return errors.New("unknown parent block")
-	}
-
-	if parentHeader.Timestamp.Add(time.Duration(interval)).Before(header.Timestamp) {
-		return errors.New("invalid timestamp")
-	}
-
-	return nil
-}
-
-func (n *ConsensusNode) ValidateBlock(block *utils.Block) (bool, error) {
+func (n *ConsensusNode) ValidateChamberABlock(block *utils.Block) (bool, error) {
 	if !n.isANode() {
 		return false, ErrNotANode
 	}
