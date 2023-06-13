@@ -37,6 +37,7 @@ func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int,
 		Version:  TRANSACTION_V0,
 		From:     sender.Address,
 		To:       to,
+		Time:     time.Now().UTC(),
 		Amount:   value,
 		GasLimit: gasLimit.Abs(gasLimit), //sanitizing the gas limit passed.
 	}
