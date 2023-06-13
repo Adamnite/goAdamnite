@@ -21,7 +21,7 @@ type BlockHeader struct {
 	TransactionMerkleRoot common.Hash      // Merkle tree root in which transactions for this block are stored
 	StateMerkleRoot       common.Hash      // Merkle tree root in which states for this block are stored
 	TransactionType       int8
-	Number                *big.Int
+	Number                *big.Int //the block number
 	Round                 uint64
 }
 
