@@ -117,24 +117,6 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 
 	con.transactionQueue.AddToQueue(transaction)
 	return nil
-
-	//TODO: review the transaction under the appropriate node method
-	//im thinking we basically can add a "dibs" error, meaning we get dibs on this? IDK, i think having transactions sent to a specific witness might make the most sense
-	//but ideally, it should be shared with all of the witnesses...  The transaction to blocks part is whats most confusing ATM. Maybe have transactions go to the wit lead
-	//and the wit lead shares directly based on that? or with 27 witnesses, maybe take the last bit of the hash of a transaction, and use that to decide who should handle it?
-
-	//active game plan
-	//basically, each transaction gets shared to everyone, when it reaches the witness it should go to (* i still need to settle how to select its target witness)
-	//once a transaction is approved, it gets added to a 'working block', once a working block is completed, we verify that ourselves (seems best to check our own work again?)
-	//once we have a working block, we send that to another witness we know is selected this round (pick at random). The witness verifying signs if its good (possibly sending again to someone else)
-	//then, propagate it again across the network, but as a real block. A block is shared to everyone, and added to all records (hence why you need to check your own block after completing it)
-	//
-	//*the current plan i have for selecting a witness that should handle a transaction, I think the best plan is mod the signature of a transaction?
-	//maybe do a weird selection based on how close the signature is to the VRF value of the witnesses?
-
-	//maybe have a go routine that starts when it is selected as witness, pops values from an queue of transactions. Transactions get removed as soon as soon as we see them in a valid block.
-	//this go routine gets stopped when we are no longer a witness
-	//
 	//actual way
 	//witness's all receive the transactions, each witness has a turn in the witness order, and through that turn, takes the transaction
 	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a transaction go past.
