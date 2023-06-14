@@ -47,6 +47,7 @@ func TestRoundSelections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pool.StopAsyncTracker()
 	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
 
 	candidates := generateTestWitnesses(15)

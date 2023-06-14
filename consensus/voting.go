@@ -122,12 +122,14 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 			if err := con.poolsA.AddCandidate(con.thisCandidateA); err != nil {
 				panic(err)
 			}
+
 			if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
 				panic(err)
 			}
 		}
 		newARoundActions()
 		con.poolsA.AddNewRoundCaller(newARoundActions)
+		con.poolsA.AddNewRoundCaller(con.continuosHandler)
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
 		newBRoundActions := func() {

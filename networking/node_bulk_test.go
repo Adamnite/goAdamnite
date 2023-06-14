@@ -13,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -157,29 +158,36 @@ func TestTransactionPropagation(t *testing.T) {
 	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
 		*ans = *foo
 		return nil
-	}, nil, nil)
+	}, nil, nil, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
 	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
-	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil)
+	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
-	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
+	client := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0x00})
+	err = client.AddFullServer(nil, nil, nil, nil, nil, nil)
+	client.ConnectToContact(&outsideNode.thisContact)
+	// client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {
 		t.Fatal(err)
 	}
-	transaction := utils.Transaction{
-		From:      common.Address{0xA, 1, 2, 3, 4, 5},
-		To:        common.Address{0xB, 1, 2, 3, 4, 5},
-		Amount:    big.NewInt(1000),
-		Time:      time.Now(),
-		Signature: []byte{1, 2, 3, 4, 5},
+	sender, _ := accounts.GenerateAccount()
+	transaction, err := utils.NewTransaction(
+		sender,
+		common.Address{0xB, 1, 2, 3, 4, 5},
+		big.NewInt(1000),
+		big.NewInt(1000),
+	)
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
 	}
 	log.Println("\n\nInfo")
 
-	if err := client.SendTransaction(&transaction); err != nil {
+	if err := client.Propagate(transaction); err != nil {
 		t.Fatal(err)
 	}
 
@@ -189,7 +197,7 @@ func TestTransactionPropagation(t *testing.T) {
 	// log.Println(ans.Time)
 	// log.Println(ans.Signature)
 	// log.Println(ans.Equal(transaction))
-	assert.True(t, ans.Equal(transaction), "failed to return equal transaction")
+	assert.True(t, ans.Equal(*transaction), "failed to return equal transaction")
 	// assert.Equal(t, transaction, *ans, "not equal")
 }
 

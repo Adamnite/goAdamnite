@@ -35,7 +35,6 @@ func TestBaseCandidacy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// fmt.Println(b.candidates)
 	assert.Equal(t,
 		a.thisCandidateA,
 		b.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
@@ -147,6 +146,7 @@ func TestVoteForAllEqually(t *testing.T) {
 		candidateToVoteFor := candidates[i%candidateTotal]
 		if err := v.VoteFor(candidateToVoteFor.thisCandidateA, big.NewInt(1)); err != nil {
 			t.Fatal(err)
+			t.FailNow()
 		}
 	}
 	for _, c := range candidates {

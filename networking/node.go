@@ -43,6 +43,7 @@ type NetNode struct {
 	consensusCandidateHandler   func(utils.Candidate) error
 	consensusVoteHandler        func(utils.Voter) error
 	consensusTransactionHandler func(*utils.Transaction) error
+	consensusBlockHandler       func(utils.Block) error
 }
 
 func NewNetNode(address common.Address) *NetNode {
@@ -68,6 +69,7 @@ func (n *NetNode) SetMaxConnections(newMax uint) {
 func (n *NetNode) AddFullServer(
 	state *statedb.StateDB, chain *blockchain.Blockchain,
 	transactionHandler func(*utils.Transaction) error,
+	blockHandler func(utils.Block) error,
 	candidateHandler func(utils.Candidate) error,
 	voteHandler func(utils.Voter) error) error {
 	if n.hostingServer != nil {
@@ -79,6 +81,7 @@ func (n *NetNode) AddFullServer(
 	n.consensusVoteHandler = voteHandler
 	n.updateServer()
 	n.consensusTransactionHandler = transactionHandler
+	n.consensusBlockHandler = blockHandler
 
 	return nil
 }
@@ -108,6 +111,7 @@ func (n *NetNode) updateServer() {
 		n.handleForward,
 		n.versionCheck,
 		n.handleTransaction,
+		n.handleBlock,
 	)
 	n.hostingServer.SetConsensusHandlers(
 		n.consensusCandidateHandler,
@@ -133,20 +137,18 @@ func (n *NetNode) Close() {
 func (n *NetNode) SetMaxGreyList(maxLength uint) {
 	n.contactBook.maxGreyList = maxLength
 }
-
-func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionBytes *[]byte) error {
+func (n *NetNode) handleBlock(block utils.Block) error {
+	//TODO: if you wanted to log all blocks, even invalid ones, you would do so here
+	if n.consensusBlockHandler == nil {
+		return nil
+	}
+	return n.consensusBlockHandler(block)
+}
+func (n *NetNode) handleTransaction(transaction *utils.Transaction) error {
+	//TODO: here is where a logging method could be nice for anyone looking to track all transactions, including failed ones
 	if n.consensusTransactionHandler == nil {
 		//we can't verify this, so just propagate it out!
-
-		return n.handleForward(
-			rpc.ForwardingContent{ //i don't love handling the forwarding generation here, but I'll live.
-				FinalEndpoint: rpc.SendTransactionEndpoint,
-				FinalParams:   *transactionBytes,
-				InitialSender: transaction.From,
-				// Signature:     common.BytesToHash(transaction.Signature), // i think this works, but not 100% sure its right.
-			},
-			&[]byte{},
-		)
+		return nil
 	}
 	return n.consensusTransactionHandler(transaction)
 }

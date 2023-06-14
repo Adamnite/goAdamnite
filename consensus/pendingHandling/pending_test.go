@@ -47,4 +47,9 @@ func TestSorting(t *testing.T) {
 		fmt.Println("popping the wrong value after sorting")
 		t.Fail()
 	}
+	tq.RemoveAll(transactions)
+	if tq.Pop() != nil {
+		fmt.Println("popping found non existent transaction")
+		t.Fail()
+	}
 }

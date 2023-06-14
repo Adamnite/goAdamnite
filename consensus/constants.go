@@ -11,7 +11,8 @@ const (
 
 // TODO: change these to follow the white paper
 var maxTimePerRound = time.Minute * 10
-var maxBlocksPerRound uint64 = 1024
+var maxBlocksPerRound uint64 = 27 * 6
+var maxTransactionsPerBlock int = 255
 
 var (
 	ErrNotBNode               = fmt.Errorf("node is not setup to handle VM based operations")

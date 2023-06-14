@@ -29,7 +29,8 @@ type AdamniteServer struct {
 	timesTestHasBeenCalled    int
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
-	newTransactionReceived    func(*utils.Transaction, *[]byte) error
+	newTransactionReceived    func(*utils.Transaction) error
+	newBlockReceived          func(utils.Block) error
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
 	newMessageHandler         func(*utils.CaesarMessage)
@@ -43,21 +44,18 @@ func (a *AdamniteServer) Addr() string {
 func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
 	newConn func(string, common.Address),
-	newTransaction func(*utils.Transaction, *[]byte) error) {
+	newTransaction func(*utils.Transaction) error,
+	newBlock func(utils.Block) error) {
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
 	a.newTransactionReceived = newTransaction
+	a.newBlockReceived = newBlock
 }
 func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
 }
 func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
 	a.newConnection = newConn
-}
-
-// set a response point if we get asked to handle a transaction
-func (a *AdamniteServer) SetTransactionHandler(handler func(*utils.Transaction, *[]byte) error) {
-	a.newTransactionReceived = handler
 }
 
 func (a *AdamniteServer) SetHostingID(id *common.Address) {
@@ -139,8 +137,10 @@ func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
 		return a.NewCandidate(&content.FinalParams, &[]byte{})
 	case NewVoteEndpoint:
 		return a.NewVote(&content.FinalParams, &[]byte{})
-	case SendTransactionEndpoint:
-		return a.SendTransaction(&content.FinalParams, &[]byte{})
+	case NewTransactionEndpoint:
+		return a.NewTransaction(&content.FinalParams, &[]byte{})
+	case NewBlockEndpoint:
+		return a.NewBlock(&content.FinalParams, &[]byte{})
 	case getContactsListEndpoint:
 		return a.GetContactList(&content.FinalParams, &content.FinalReply)
 	case TestServerEndpoint:
@@ -348,34 +348,45 @@ func (a *AdamniteServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-const SendTransactionEndpoint = "AdamniteServer.SendTransaction"
+const NewBlockEndpoint = "AdamniteServer.NewBlock"
 
-func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
-	a.print("Send transaction")
-	// if a.stateDB == nil {
-	// 	return ErrStateNotSet
-	// }
+func (a *AdamniteServer) NewBlock(params, reply *[]byte) error {
+	a.print("New Block")
+	if a.newBlockReceived == nil {
+		//we aren't involved in blocks, so just pass it on
+		data, err := encoding.Marshal(true)
+		*reply = data
+		return err
+	}
+	var block utils.Block
+	if err := encoding.Unmarshal(*params, block); err != nil {
+		return err
+	}
+	return a.newBlockReceived(block)
+}
+
+const NewTransactionEndpoint = "AdamniteServer.NewTransaction"
+
+func (a *AdamniteServer) NewTransaction(params *[]byte, reply *[]byte) error {
+	a.print("New Transaction")
 	var input *utils.Transaction
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
-		a.printError("Send transaction", err)
+		a.printError("New Transaction", err)
 		return err
 	}
 	data, err := encoding.Marshal(true)
 	if err != nil {
-		a.printError("Send transaction", err)
+		a.printError("New Transaction", err)
 		return err
 	}
 	*reply = data
 
 	if a.newTransactionReceived != nil {
-		return a.newTransactionReceived(input, params)
-	} else {
-		//TODO: this node cant forward this transaction at all.
+		return a.newTransactionReceived(input)
 	}
 
 	return nil
-
 }
 
 func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, port uint32) *AdamniteServer {

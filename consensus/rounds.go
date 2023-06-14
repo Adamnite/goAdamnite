@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"math/big"
 	"sort"
 	"time"
@@ -13,7 +14,12 @@ import (
 type round_data struct {
 	eligibleWitnesses []*witness
 	witnesses         []*witness
+	leadWitnessOrder  []*witness
+	blocksPerWitness  []uint64
+	currentLeadIndex  int
+	blocksThisLead    uint64
 	witnessesMap      map[string]*witness
+	removedWitnesses  map[string]uint64         //map[witnessPub]->the block number that they were removed in
 	votes             map[string][]*utils.Voter //map[witnessPub]->votes for that witness, in that round
 	valueTotals       map[string]*big.Int       //map[witnessPub] -> total amount staked on them
 	vrfValues         map[string][]byte         //map[witnessPub]->vrf value
@@ -27,15 +33,17 @@ type round_data struct {
 
 func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
-		witnessesMap:   make(map[string]*witness),
-		votes:          make(map[string][]*utils.Voter),
-		valueTotals:    make(map[string]*big.Int),
-		vrfValues:      make(map[string][]byte),
-		vrfProofs:      make(map[string][]byte),
-		vrfCutoffs:     make(map[string]*big.Float),
-		openToApply:    true,
-		seed:           seed,
-		roundStartTime: time.Now().UTC(),
+		witnessesMap:     make(map[string]*witness),
+		removedWitnesses: make(map[string]uint64),
+		votes:            make(map[string][]*utils.Voter),
+		valueTotals:      make(map[string]*big.Int),
+		vrfValues:        make(map[string][]byte),
+		vrfProofs:        make(map[string][]byte),
+		vrfCutoffs:       make(map[string]*big.Float),
+		openToApply:      true,
+		seed:             seed,
+		roundStartTime:   time.Now().UTC(),
+		blocksInRound:    0,
 	}
 	return &newRound
 }
@@ -66,6 +74,14 @@ func (rd *round_data) addVote(v *utils.Voter) {
 		rd.valueTotals[string(*candidateId)] = big.NewInt(0)
 	}
 	rd.valueTotals[string(*candidateId)].Add(rd.valueTotals[string(*candidateId)], v.StakingAmount)
+}
+func (rd *round_data) BlockReviewed() {
+	rd.blocksInRound += 1
+	rd.blocksThisLead += 1
+	if rd.blocksPerWitness[rd.currentLeadIndex] >= rd.blocksThisLead {
+		rd.blocksThisLead = 0
+		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % len(rd.leadWitnessOrder)
+	}
 }
 
 // select witnesses should be called only once all votes have been received, and the next round needs to start. Returns witnesses selected
@@ -124,11 +140,54 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	}
 
 	rd.witnesses = passingWitnesses
+	copy(rd.leadWitnessOrder, passingWitnesses)
+	//create and copy the witnesses, then sorts it by their vrf values
+	sort.Slice(rd.leadWitnessOrder, func(i, j int) bool {
+		a := rd.leadWitnessOrder[i].spendingPub
+		b := rd.leadWitnessOrder[j].spendingPub
+		return bytes.Compare(rd.vrfValues[string(a)], rd.vrfValues[string(b)]) == -1
+	})
 	for _, w := range passingWitnesses {
 		rd.witnessesMap[string(w.spendingPub)] = w
 	}
 	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].spendingPub)]
 }
+
+func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {
+	//TODO: check that the witness is able to be removed from this round without error
+	rd.removedWitnesses[string(wit.spendingPub)] = blockID
+	delete(rd.witnessesMap, string(wit.spendingPub))
+	//assume they can be removed safely
+
+	//now we need to change the upcoming order for the witnesses.
+	if bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, wit.spendingPub) {
+		//they're actively the one running
+		extraBlocks := rd.blocksPerWitness[rd.currentLeadIndex] - rd.blocksThisLead
+		rd.blocksPerWitness[rd.currentLeadIndex] = rd.blocksThisLead // stop them at whatever block they're at now
+		//if they're last, the first person gets all of the blocks, otherwise everyone after them gets them
+		if rd.currentLeadIndex == len(rd.leadWitnessOrder)-1 {
+			//set the first lead back to where they were, then have them pick up where they were.
+			rd.currentLeadIndex = 0
+			rd.blocksThisLead = rd.blocksPerWitness[0]
+			rd.blocksPerWitness[0] += extraBlocks
+			return nil
+		}
+		//assume they weren't the last, so we add the blocks in order to everyone next
+		rd.currentLeadIndex += 1
+		remaining := len(rd.leadWitnessOrder) - rd.currentLeadIndex
+		for i := 0; i < int(extraBlocks); i++ {
+			rd.blocksPerWitness[(i%remaining)+rd.currentLeadIndex] += 1
+		}
+		return nil
+	}
+	//TODO: test, and figure out this edge case
+	//we know how many blocks we have left
+	return nil
+}
+func (rd round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	return bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, *witID)
+}
+
 func (rd round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
 	avgStakingAmount := float64(math.GetPercent(rd.valueTotals[string(w.spendingPub)], maxStaking))
 	avgBlockValidationPercent := float64(w.validationPercent()) / float64(maxBlockValidationPercent)

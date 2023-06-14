@@ -45,7 +45,7 @@ func (a *AdamniteClient) SendTransaction(transaction *utils.Transaction) error {
 		return err
 	}
 
-	return a.client.Call(SendTransactionEndpoint, &data, &[]byte{})
+	return a.client.Call(NewTransactionEndpoint, &data, &[]byte{})
 }
 func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte) error {
 	a.print("Forward Message")

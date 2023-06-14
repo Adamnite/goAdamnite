@@ -20,7 +20,7 @@ const (
 
 type Transaction struct {
 	Version        TransactionVersionType
-	From           common.Address
+	From           *accounts.Account
 	To             common.Address
 	Amount         *big.Int
 	GasLimit       *big.Int
@@ -35,7 +35,7 @@ func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int,
 	}
 	t := Transaction{
 		Version:  TRANSACTION_V0,
-		From:     sender.Address,
+		From:     sender,
 		To:       to,
 		Time:     time.Now().UTC(),
 		Amount:   value,
@@ -45,6 +45,9 @@ func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int,
 	t.Signature = sig
 	return &t, err
 }
+func (t Transaction) FromAddress() common.Address {
+	return t.From.Address
+}
 
 var (
 	ErrNegativeAmount  = fmt.Errorf("attempt to send negative funds")
@@ -53,7 +56,7 @@ var (
 
 // does not use the time in the hash value, as that is used for the random source value.
 func (t *Transaction) Hash() common.Hash {
-	data := append(t.From.Bytes(), t.To.Bytes()...)
+	data := append(t.From.PublicKey, t.To.Bytes()...)
 	data = append(data, t.Amount.Bytes()...)
 	timeBytes, _ := t.Time.MarshalBinary()
 	data = append(data, timeBytes...)
@@ -74,7 +77,7 @@ func (t *Transaction) VerifySignature(signer accounts.Account) (ok bool, err err
 
 // Test equality between two transactions
 func (a Transaction) Equal(b Transaction) bool {
-	return bytes.Equal(a.From.Bytes(), b.From.Bytes()) &&
+	return bytes.Equal(a.From.PublicKey, b.From.PublicKey) &&
 		bytes.Equal(a.To.Bytes(), b.To.Bytes()) &&
 		a.Amount.Cmp(b.Amount) == 0 &&
 		bytes.Equal(a.Signature, b.Signature)

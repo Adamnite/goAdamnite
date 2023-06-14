@@ -1,12 +1,16 @@
 package consensus
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVerifyBlock(t *testing.T) {
@@ -67,4 +71,96 @@ func TestVerifyBlock(t *testing.T) {
 	// if _, ok := n.untrustworthyWitnesses[invalidWitnessAddress]; !ok {
 	// 	t.Fatal("Untrustworthy witness should be reported")
 	// }
+}
+
+func TestTransactions(t *testing.T) {
+	testNodeCount := 5
+	seed := networking.NewNetNode(common.Address{0})
+	// seed.AddServer()
+	transactionsSeen := []*utils.Transaction{}
+	blocksSeen := []utils.Block{}
+	seed.AddFullServer(
+		nil,
+		nil,
+		func(pt *utils.Transaction) error {
+			//the transactions seen logger
+			transactionsSeen = append(transactionsSeen, pt)
+			return nil
+		}, func(b utils.Block) error {
+			blocksSeen = append(blocksSeen, b)
+			//the blocks seen logger
+			return nil
+		},
+		nil,
+		nil,
+	)
+
+	seedContact := seed.GetOwnContact()
+	maxTimePerRound = time.Second * 2
+	conAccounts := []*accounts.Account{}
+	conNodes := []*ConsensusNode{}
+	for i := 0; i < testNodeCount; i++ {
+		if ac, err := accounts.GenerateAccount(); err != nil {
+			i -= 1
+		} else {
+			conAccounts = append(conAccounts, ac)
+			cn, err := NewAConsensus(*ac)
+			if err != nil {
+				t.Fatal(err)
+			}
+			conNodes = append(conNodes, cn)
+			if err := cn.netLogic.ConnectToContact(&seedContact); err != nil {
+				t.Fatal(err)
+			}
+
+			cn.netLogic.ResetConnections()
+			cn.autoStakeAmount = big.NewInt(1)
+
+		}
+	}
+	for _, cn := range conNodes {
+		cn.netLogic.SprawlConnections(3, 0)
+		cn.netLogic.ResetConnections()
+		if err := cn.ProposeCandidacy(0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(conNodes[1].poolsA.totalCandidates) < testNodeCount-1 {
+		fmt.Println("nodes arent talking to each other")
+		fmt.Println(len(conNodes[0].poolsA.totalCandidates))
+		t.Fail()
+	}
+	//we now have x candidates
+	maxTransactionsPerBlock = 5
+	maxBlocksPerRound = 5
+	seed.FillOpenConnections()
+	transactions := []*utils.Transaction{}
+	for i := 0; i < 25; i++ {
+		testTransaction, err := utils.NewTransaction(conAccounts[0], conAccounts[1].Address, big.NewInt(1), big.NewInt(1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := seed.Propagate(testTransaction); err != nil {
+			t.Fatal(err)
+		}
+		transactions = append(transactions, testTransaction)
+	}
+
+	// maxTimePerRound = time.Second
+	<-time.After(maxTimePerRound)
+	//everything *should* be reviewed by now.
+	assert.Equal(
+		t,
+		len(transactions),
+		len(transactionsSeen),
+		"wrong number of unique transactions passed the seed node",
+	)
+	assert.Equal(
+		t,
+		int(len(transactionsSeen)/maxTransactionsPerBlock),
+		len(blocksSeen),
+		"wrong number of blocks went past this node",
+	)
+
+	// maxTimePerRound = 5 * time.Second
 }

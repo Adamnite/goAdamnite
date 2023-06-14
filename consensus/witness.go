@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/adamnite/go-adamnite/blockchain"
@@ -65,7 +66,10 @@ func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayer
 		asyncTrackingRunning: false,
 	}
 	err := wp.newRound(roundNumber, seed)
-	return &wp, err
+	if err != nil {
+		return nil, err
+	}
+	return &wp, wp.StartAsyncTracking()
 }
 func (wp *Witness_pool) CatchupTo(oldestUsefulRound uint64, block *utils.Block, chain *blockchain.Blockchain) error {
 	if chain == nil {
@@ -113,7 +117,7 @@ func (wp *Witness_pool) StopAsyncTracker() {
 }
 
 // call after a witness reviews a block. Call once per block
-func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successful bool) error {
+func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successful bool, blockID uint64) error {
 	wit := wp.totalWitnesses[string(*witID)]
 	if wit == nil {
 		return errors.New("witness is not stored locally") //TODO:change to real error
@@ -126,9 +130,12 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	wit.blocksReviewed += 1
 	if successful {
 		wit.blocksApproved += 1
+	} else {
+		//the block seems to be faulty. Assume this witness misbehaved, remove them, and ignore the block
+		return wp.rounds[wp.currentRound-1].RemoveSelectedWitness(wit, blockID)
 	}
 
-	wp.GetCurrentRound().blocksInRound += 1
+	wp.GetCurrentRound().BlockReviewed()
 	if wp.GetCurrentRound().blocksInRound >= maxBlocksPerRound {
 		//the round has reached its block limit.
 		wp.nextRound()
@@ -148,8 +155,8 @@ func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
 
 // stats the next round.
 func (wp *Witness_pool) nextRound() {
+	wp.GetCurrentRound().openToApply = false
 	wp.newRound(wp.currentRound+1, wp.GetCurrentRound().getNextRoundSeed())
-	wp.currentRound += 1
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
 		//TODO: call anyone who needs to know the round updated
@@ -190,6 +197,9 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 
 	if rd, exists := wp.rounds[can.Round]; !exists || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
+		log.Println(exists)
+		log.Println(can.Round)
+		log.Println(len(wp.rounds))
 		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
 	} else {
 		//we also verify their VRF
@@ -224,6 +234,15 @@ func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed 
 	witnesses, newSeed = wp.GetCurrentRound().selectWitnesses(wp.witnessGoal)
 	wp.nextRound()
 	return
+}
+
+// returns if this is not only an active witness this round, but if they are the lead witness
+func (wp Witness_pool) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	if !wp.IsActiveWitness(witID) {
+		//if they aren't active rn, then we know they they cant be the lead
+		return false
+	}
+	return wp.rounds[wp.currentRound-1].IsActiveWitnessLead(witID)
 }
 
 // returns if the witness is in the calculating round (note, this does not show if the witness has applied to run again next round)
