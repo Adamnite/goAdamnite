@@ -9,19 +9,33 @@ import (
 )
 
 type TransactionQueue struct {
-	pendingQueue   []*utils.Transaction
-	pendingRemoval syncmap.Map
-	//uses the hash of the transaction to decide if it is set to be removed
+	pendingQueue        []*utils.Transaction
+	pendingRemoval      syncmap.Map //uses the hash of the transaction to decide if it is set to be removed
+	newTransactionsOnly bool        //if transactions that have already been reviewed be ignored when attempting to add them
+	previouslySeen      syncmap.Map //hash of the transaction to if its new
 }
 
-func NewQueue() *TransactionQueue {
+func NewQueue(newOnly bool) *TransactionQueue {
 	tq := TransactionQueue{
-		pendingRemoval: sync.Map{},
+		pendingRemoval:      sync.Map{},
+		previouslySeen:      sync.Map{},
+		newTransactionsOnly: newOnly,
 	}
 	return &tq
 }
 func (tq *TransactionQueue) AddToQueue(transaction *utils.Transaction) {
+	if tq.newTransactionsOnly {
+		//this is to ignore anything that's already been seen
+		_, previouslySeen := tq.previouslySeen.LoadOrStore(transaction.Hash(), true)
+		if previouslySeen {
+			return
+		}
+	}
+	tq.AddIgnoringPast(transaction)
+}
 
+// even if this has been reviewed, ignore that and add it
+func (tq *TransactionQueue) AddIgnoringPast(transaction *utils.Transaction) {
 	if _, exists := tq.pendingRemoval.Load(transaction.Hash()); exists {
 		//this already is awaiting processing, or has already been seen
 		return
@@ -51,12 +65,14 @@ func (tq *TransactionQueue) Pop() *utils.Transaction {
 // remove doesn't actually remove it from memory. But does make it so that it'll be removed next time there is a pop
 func (tq *TransactionQueue) Remove(t *utils.Transaction) {
 	tq.pendingRemoval.Store(t.Hash(), true)
+	tq.previouslySeen.Store(t.Hash(), true)
 }
 
 // removes all matching transactions from the queue
 func (tq *TransactionQueue) RemoveAll(transactions []*utils.Transaction) {
 	for _, t := range transactions {
 		tq.pendingRemoval.Store(t.Hash(), true)
+		tq.previouslySeen.Store(t.Hash(), true)
 	}
 }
 
@@ -66,7 +82,7 @@ func (tq *TransactionQueue) SortQueue() {
 		//TODO: move the ones awaiting removal to the front, then the oldest to newest
 		toRemove, store := tq.pendingRemoval.Load(tq.pendingQueue[i].Hash())
 		if !store || toRemove.(bool) {
-			//put the ones that need to be removed(or arent stored) first
+			//put the ones that need to be removed(or aren't stored) first
 			return true
 		}
 		return tq.pendingQueue[i].Time.Before(tq.pendingQueue[j].Time)

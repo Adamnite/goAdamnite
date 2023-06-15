@@ -190,7 +190,6 @@ func (wp *Witness_pool) nextRound() {
 	wp.GetWorkingRound().roundStartTime = time.Now().UTC().Truncate(maxTimePrecision)
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
-		//TODO: call anyone who needs to know the round updated
 		nextRoundFunc()
 	}
 }
@@ -267,13 +266,11 @@ func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
 
 // select closes the current rounds submissions, and starts the submissions for the next round
 func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed []byte) {
-	if wp.currentWorkingRoundID == 0 {
-		return nil, []byte{}
-	}
 	applyingRound := wp.GetApplyingRound()
 	if applyingRound == nil {
-		panic("AHHH the applying round doesn't exist")
+		return nil, []byte{}
 	}
+
 	witnesses, newSeed = wp.GetApplyingRound().selectWitnesses(wp.witnessGoal)
 	return
 }

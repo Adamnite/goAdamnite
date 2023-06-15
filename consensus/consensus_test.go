@@ -9,12 +9,14 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBaseCandidacy(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	aAccount, _ := accounts.GenerateAccount()
 	a, err := NewAConsensus(*aAccount)
 	if err != nil {
@@ -68,6 +70,7 @@ func TestBaseCandidacy(t *testing.T) {
 	)
 }
 func TestVoteForAllEqually(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	const (
 		candidateTotal int = 5
 		voterTotal     int = 50

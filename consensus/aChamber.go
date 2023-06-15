@@ -41,7 +41,7 @@ func (n *ConsensusNode) ValidateChamberABlock(block *utils.Block) (bool, error) 
 	if err != nil {
 		return valid, err
 	}
-	//the block is good, check that the transactions we have saved as pending arent in here (and if they are, remove them)
+	//the block is good, check that the transactions we have saved as pending aren't in here (and if they are, remove them)
 	//however, this cleanup isn't necessary for if this is valid, so we'll do it in its own thread
 	go n.transactionQueue.RemoveAll(block.Transactions)
 	return valid, n.poolsA.ActiveWitnessReviewed(&block.Header.Witness, valid, block.Header.Number.Uint64())
@@ -96,7 +96,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 				}
 				//t can on occasion actually be a VM transaction instead of one intended for us, so just put it back and start again
 				if t.VMInteractions != nil {
-					aCon.transactionQueue.AddToQueue(t)
+					aCon.transactionQueue.AddIgnoringPast(t)
 					continue
 				}
 				//verify that the transaction is legit. If not, we ditch it

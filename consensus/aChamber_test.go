@@ -12,6 +12,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,7 @@ func TestVerifyBlock(t *testing.T) {
 }
 
 func TestTransactions(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	testNodeCount := 5
 	seed := networking.NewNetNode(common.Address{0})
 	// seed.AddServer()
@@ -104,6 +106,7 @@ func TestTransactions(t *testing.T) {
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
 	maxTimePerRound = time.Second * 5
+	maxTimePrecision = time.Millisecond * 50
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
 			i -= 1
@@ -154,7 +157,7 @@ func TestTransactions(t *testing.T) {
 	}
 
 	if len(conNodes[1].poolsA.totalCandidates) < testNodeCount-1 {
-		fmt.Println("nodes arent talking to each other")
+		fmt.Println("nodes aren't talking to each other")
 		fmt.Println(len(conNodes[0].poolsA.totalCandidates))
 		t.Fail()
 	}
@@ -180,7 +183,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound * 3)
+	<-time.After(maxTimePerRound * 2)
 	// maxTimePerRound = time.Second * 100
 
 	//everything *should* be reviewed by now.

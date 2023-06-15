@@ -18,6 +18,7 @@ import (
 )
 
 func TestLotsOfNodes(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	seedNode := NewNetNode(common.Address{0})
 	seedNode.AddServer()
 
@@ -204,6 +205,7 @@ func TestTransactionPropagation(t *testing.T) {
 
 // generates a line where each node is connected to the one in front, and behind itself.
 func generateLineOfNodes(count int) ([]*NetNode, error) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodes := make([]*NetNode, count)
 	for i := range nodes {
 		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
@@ -229,6 +231,7 @@ func generateLineOfNodes(count int) ([]*NetNode, error) {
 
 // generate clusters of nodes
 func generateClusteredNodes(clusterCount, clusterSize int) ([][]*NetNode, error) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodes := make([][]*NetNode, clusterCount)
 	for x := 0; x < clusterCount; x++ {
 		nodeRow := []*NetNode{}

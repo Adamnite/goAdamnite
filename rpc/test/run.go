@@ -66,7 +66,7 @@ func main() {
 	defer func() {
 		adamniteServer.Close()
 	}()
-	go adamniteServer.Run()
+	adamniteServer.Start()
 
 	RPCServerAddr = new(string)
 	*RPCServerAddr = adamniteServer.Addr()

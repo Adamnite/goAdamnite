@@ -52,7 +52,7 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	hostingNode := networking.NewNetNode(participation.Address)
 	con := ConsensusNode{
-		transactionQueue:       pendingHandling.NewQueue(),
+		transactionQueue:       pendingHandling.NewQueue(true),
 		netLogic:               hostingNode,
 		handlingType:           networking.NetworkingOnly,
 		state:                  state,

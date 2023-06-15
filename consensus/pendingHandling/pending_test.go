@@ -12,7 +12,7 @@ import (
 )
 
 func TestPendingTransactions(t *testing.T) {
-	tq := NewQueue()
+	tq := NewQueue(false)
 	sender, _ := accounts.GenerateAccount()
 	recipient, _ := accounts.GenerateAccount()
 	testTransaction, _ := utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
@@ -32,7 +32,7 @@ func TestPendingTransactions(t *testing.T) {
 }
 
 func TestSorting(t *testing.T) {
-	tq := NewQueue()
+	tq := NewQueue(false)
 	sender, _ := accounts.GenerateAccount()
 	recipient, _ := accounts.GenerateAccount()
 	transactions := []*utils.Transaction{}

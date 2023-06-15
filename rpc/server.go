@@ -2,9 +2,11 @@ package rpc
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net"
+	"net/http"
 	"net/rpc"
 	"strings"
 	"time"
@@ -17,16 +19,17 @@ import (
 	"golang.org/x/sync/syncmap"
 )
 
+var USE_LOCAL_IP bool = false //set to true if you are testing locally and dont want to deal with 200 nodes trying to get the same IP
 type AdamniteServer struct {
 	stateDB         *statedb.StateDB
 	chain           *blockchain.Blockchain
 	hostingNodeID   common.Address
+	externalIP      string
 	seenConnections syncmap.Map // map[common.Hash]common.Void
 
 	addresses                 []string
 	GetContactsFunction       func() PassedContacts
 	listener                  net.Listener
-	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
 	timesTestHasBeenCalled    int
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
@@ -35,12 +38,13 @@ type AdamniteServer struct {
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
 	newMessageHandler         func(*utils.CaesarMessage)
-	Run                       func()
+	run                       func()
+	currentlyRunning          bool
 	DebugOutput               bool
 }
 
 func (a *AdamniteServer) Addr() string {
-	return a.listener.Addr().String()
+	return a.externalIP
 }
 func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
@@ -67,6 +71,7 @@ func (a *AdamniteServer) SetHostingID(id *common.Address) {
 	a.hostingNodeID = *id
 }
 func (a *AdamniteServer) Close() {
+	a.currentlyRunning = false
 	_ = a.listener.Close()
 }
 
@@ -177,17 +182,16 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	a.print("Get Version")
 	receivedData := struct {
-		Address           common.Address
-		HostingServerPort string
+		Address                 common.Address
+		HostingServerConnection string
 	}{}
 	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
 		a.printError("Get Version", err)
 		return err
 	}
-	if a.newConnection != nil && a.mostRecentReceivedIP != "" && receivedData.HostingServerPort != "" {
+	if a.newConnection != nil && receivedData.HostingServerConnection != "" {
 		//format it correctly to use the right port
-		foo := strings.Split(a.mostRecentReceivedIP, ":")
-		a.newConnection(fmt.Sprintf("%v:%v", foo[0], receivedData.HostingServerPort), receivedData.Address)
+		a.newConnection(receivedData.HostingServerConnection, receivedData.Address)
 	}
 	// if a.chain == nil {//leave this commented out until RPC consistently has a chain passed to it
 	// 	return ErrChainNotSet
@@ -402,7 +406,12 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, p
 	}
 
 	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	log.Printf(serverPreface, fmt.Sprint("Endpoint: ", listener.Addr().String()))
+	if USE_LOCAL_IP {
+		adamnite.externalIP = listener.Addr().String()
+	} else {
+		adamnite.externalIP = fmt.Sprintf("%s:%s", getExternalIP(), strings.Split(listener.Addr().String(), ":")[1])
+	}
+	log.Printf(serverPreface, fmt.Sprint("Endpoint: ", adamnite.externalIP))
 
 	runFunc := func() {
 		for {
@@ -413,18 +422,51 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, p
 			}
 
 			go func(conn net.Conn) {
+				conn.RemoteAddr()
 				defer func() {
 					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 						log.Println(err)
 					}
 				}()
-				adamnite.mostRecentReceivedIP = conn.RemoteAddr().String()
+				// adamnite.mostRecentReceivedIP = conn.RemoteAddr().String()
+				//TODO: it is useful to get the IP of whoevers calling us, but god hates us, so nope...
+
 				// _ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 				rpcServer.ServeConn(conn)
 			}(conn)
 		}
 	}
 	adamnite.listener = listener
-	adamnite.Run = runFunc
+	adamnite.run = runFunc
+	adamnite.currentlyRunning = false
 	return adamnite
+}
+func (a *AdamniteServer) Start() {
+	if a.currentlyRunning {
+		//we don't want to just keep having the server run again and again
+		return
+	}
+	a.currentlyRunning = true
+	go a.run()
+}
+
+func getExternalIP() string {
+	// url := "https://api.ipify.org" // we are using a pulib IP API, we're using ipify here, below are some others
+	url := "http://myexternalip.com/raw"
+	// http://myexternalip.com
+	// http://api.ident.me
+	// http://whatismyipaddress.com/api
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println("error getting our IP")
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	ip, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		log.Println("error reading our IP")
+		log.Fatal(err)
+	}
+	return string(ip)
 }

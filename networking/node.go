@@ -47,6 +47,7 @@ type NetNode struct {
 	consensusBlockHandler       func(utils.Block) error
 }
 
+// TODO: we should add a port option so that people can allow forwarding on that port
 func NewNetNode(address common.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
@@ -58,7 +59,7 @@ func NewNetNode(address common.Address) *NetNode {
 
 	return &n
 }
-func (n NetNode) GetOwnContact() Contact {
+func (n *NetNode) GetOwnContact() Contact {
 	return n.thisContact
 }
 
@@ -118,7 +119,7 @@ func (n *NetNode) updateServer() {
 		n.consensusCandidateHandler,
 		n.consensusVoteHandler,
 	)
-	go n.hostingServer.Run()
+	n.hostingServer.Start()
 	n.thisContact.ConnectionString = n.hostingServer.Addr()
 }
 

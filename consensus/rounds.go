@@ -115,6 +115,10 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	// 	//no need to do the work again
 	// 	return rd.witnesses, crypto.Sha512(rd.vrfValues[string(rd.witnesses[0].spendingPub)])
 	// }
+	if len(rd.eligibleWitnesses) == 0 {
+		//trying to prevent a null pointer error from happening if no one applied
+		return nil, nil
+	}
 
 	passingWitnesses := []*witness{}
 	witnessVrfValueFloat := make(map[string]*big.Float)
@@ -191,12 +195,8 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	for _, w := range passingWitnesses {
 		rd.witnessesMap.Store(string(w.spendingPub), w)
 	}
-	val, exists := rd.vrfValues.Load(rd.witnesses[0].spendingPubString())
-	if !exists {
-		return passingWitnesses, []byte{}
-	}
 
-	return passingWitnesses, crypto.Sha512(val.([]byte))
+	return passingWitnesses, rd.getNextRoundSeed()
 }
 
 func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {

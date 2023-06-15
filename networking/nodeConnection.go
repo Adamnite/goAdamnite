@@ -2,7 +2,6 @@ package networking
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -92,7 +91,7 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	} else {
 		newClient.SetAddressAndHostingPort(
 			&n.thisContact.NodeID,
-			strings.Split(n.hostingServer.Addr(), ":")[1],
+			n.hostingServer.Addr(),
 		)
 		n.activeContactToClient.Store(contact, &newClient)
 		n.activeOutboundCount++

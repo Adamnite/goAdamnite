@@ -23,16 +23,16 @@ func (a *AdamniteClient) printError(methodName string, err error) {
 }
 
 type AdamniteClient struct {
-	DebugOutput       bool
-	endpoint          string
-	client            rpc.Client
-	callerAddress     *common.Address
-	hostingServerPort string //the string version of the port that our Server is running on.
+	DebugOutput            bool
+	endpoint               string
+	client                 rpc.Client
+	callerAddress          *common.Address
+	hostingServerConnector string //the string version of the port that our Server is running on.
 }
 
 func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPort string) {
 	a.callerAddress = add
-	a.hostingServerPort = hostingPort
+	a.hostingServerConnector = hostingPort
 }
 
 func (a *AdamniteClient) Close() {
@@ -67,9 +67,9 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		return nil, ErrNoAccountSet
 	}
 	sendingData := struct {
-		Address           common.Address
-		HostingServerPort string
-	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
+		Address                 common.Address
+		HostingServerConnection string
+	}{Address: *a.callerAddress, HostingServerConnection: a.hostingServerConnector}
 
 	addressBytes, err := encoding.Marshal(sendingData)
 	if err != nil {
