@@ -43,7 +43,7 @@ func newRoundData(seed []byte) *round_data {
 		vrfCutoffs:       syncmap.Map{},
 		openToApply:      true,
 		seed:             seed,
-		roundStartTime:   time.Now().UTC().Truncate(maxTimePrecision),
+		roundStartTime:   time.Now().UTC().Add(maxTimePrecision).Truncate(maxTimePrecision),
 		//truncate the rounds start time to the closest reliable precision we can use.
 		blocksInRound: 0,
 	}
@@ -110,11 +110,10 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 			weight := rd.getWeight(w, maxBlockValidationPercent, maxStaking, maxVotes, maxElected)
 			rd.vrfCutoffs.Store(w.spendingPubString(), weight)
 		}
+	} else {
+		//no need to do the work again
+		return rd.witnesses, rd.getNextRoundSeed()
 	}
-	// else {
-	// 	//no need to do the work again
-	// 	return rd.witnesses, crypto.Sha512(rd.vrfValues[string(rd.witnesses[0].spendingPub)])
-	// }
 	if len(rd.eligibleWitnesses) == 0 {
 		//trying to prevent a null pointer error from happening if no one applied
 		return nil, nil
@@ -133,7 +132,8 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		)
 		witnessVrfValueFloat[string(w.spendingPub)] = witnessVRFValue
 		vrfCut, _ := rd.vrfCutoffs.Load(w.spendingPubString())
-		if vrfCut.(*big.Float).Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
+		var vrfCutFloat *big.Float = vrfCut.(*big.Float)
+		if vrfCutFloat.Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
 			passingWitnesses = append(passingWitnesses, w)
 		}
 	}

@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"log"
 	"math/big"
 	"testing"
 	"time"
@@ -105,7 +106,7 @@ func TestTransactions(t *testing.T) {
 
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
-	maxTimePerRound = time.Second * 5
+	maxTimePerRound = time.Second * 10
 	maxTimePrecision = time.Millisecond * 50
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
@@ -205,5 +206,6 @@ func TestTransactions(t *testing.T) {
 		blockTransactions = append(blockTransactions, b.Transactions...)
 	}
 	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
-
+	log.Printf("current round is %v", conNodes[0].poolsA.currentWorkingRoundID)
+	//should be 2
 }

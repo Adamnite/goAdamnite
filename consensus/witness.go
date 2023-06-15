@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -58,6 +59,7 @@ type Witness_pool struct {
 
 	newRoundStartedCaller []func()
 	asyncTrackingRunning  bool
+	asyncStopper          context.CancelFunc
 }
 
 func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayerType, seed []byte) (*Witness_pool, error) {
@@ -103,26 +105,38 @@ func (wp *Witness_pool) StartAsyncTracking() error {
 	if wp.asyncTrackingRunning {
 		return fmt.Errorf("already has an async tracker going")
 	}
+	ctx, canceler := context.WithCancel(context.Background())
+
+	wp.asyncStopper = canceler
 	wp.asyncTrackingRunning = true
 	//run our continuos loop that checks every time the last round should've stopped.
-	go func() {
-		for wp.asyncTrackingRunning {
+	go func(ctx context.Context) {
+		for {
 			roundEndTime := wp.GetWorkingRound().roundStartTime.Truncate(maxTimePrecision).Add(maxTimePerRound)
 			roundThatStartedThis := wp.currentWorkingRoundID
-			//wait until the max end point of the last round
-			<-time.After(time.Until(roundEndTime))
-			//double check it waited the correct time (and a new round wasn't started without us noticing)
-			if time.Now().After(roundEndTime) && wp.asyncTrackingRunning && wp.currentWorkingRoundID == roundThatStartedThis {
-				//there's a lot of time between rounds. something could've canceled this without us noticing
-				//the time has actually elapsed. Meaning that round took the max time
-				wp.nextRound()
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Until(roundEndTime)):
+				//wait until the max end point of the last round
+				//double check it waited the correct time (and a new round wasn't started without us noticing)
+				if time.Now().After(roundEndTime) && wp.asyncTrackingRunning && wp.currentWorkingRoundID == roundThatStartedThis {
+					//there's a lot of time between rounds. something could've canceled this without us noticing
+					//the time has actually elapsed. Meaning that round took the max time
+					wp.nextRound()
+				}
 			}
 		}
-	}()
+	}(ctx)
 	return nil
 }
 func (wp *Witness_pool) StopAsyncTracker() {
 	wp.asyncTrackingRunning = false
+	if wp.asyncStopper != nil {
+		wp.asyncStopper()
+		wp.asyncStopper = nil
+	}
+
 }
 
 // call after a witness reviews a block. Call once per block

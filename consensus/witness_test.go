@@ -49,12 +49,17 @@ func TestWitnessSelection(t *testing.T) {
 	}
 }
 func TestRoundSelections(t *testing.T) {
+	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	maxTimePrecision = time.Millisecond * 10
 	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	pool.StopAsyncTracker()
-	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	if pool.currentWorkingRoundID != 0 {
+		fmt.Println("round incremented right away")
+		t.Fail()
+	}
 
 	candidates := generateTestWitnesses(15)
 
@@ -67,6 +72,10 @@ func TestRoundSelections(t *testing.T) {
 			}
 		}
 	}}
+	if pool.currentWorkingRoundID != 0 {
+		fmt.Println("round is incremented before call")
+		t.Fail()
+	}
 	pool.newRoundStartedCaller[0]()
 	pool.SelectCurrentWitnesses()
 	pool.nextRound()
@@ -74,7 +83,7 @@ func TestRoundSelections(t *testing.T) {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
-	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound).Add(5 * time.Millisecond) //give it a hair over the time
+	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound).Add(maxTimePrecision) //give it a hair over the time
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
