@@ -49,19 +49,19 @@ func TestBaseCandidacy(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t,
-		1, len(a.poolsA.rounds[0].votes),
+		1, len(a.poolsA.GetApplyingRound().votes),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(a.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
+		2, len(a.poolsA.GetApplyingRound().votes[string(a.spendingAccount.PublicKey)]),
 		"not enough votes correctly registered",
 	)
 	assert.Equal(t,
-		1, len(b.poolsA.rounds[0].votes),
+		1, len(b.poolsA.GetApplyingRound().votes),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(b.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
+		2, len(b.poolsA.GetApplyingRound().votes[string(a.spendingAccount.PublicKey)]),
 		"not enough votes correctly registered",
 	)
 }
@@ -154,7 +154,7 @@ func TestVoteForAllEqually(t *testing.T) {
 			log.Println("not recording all candidates")
 			t.Fail()
 		}
-		crd := c.poolsA.rounds[c.poolsA.currentRound]
+		crd := c.poolsA.rounds[c.poolsA.currentWorkingRound]
 
 		for witnessPub, val := range crd.votes {
 			if len(val) != (voterTotal/candidateTotal)+1 { //cant forget that you vote for yourself!

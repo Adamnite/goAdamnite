@@ -96,9 +96,10 @@ func TestTransactions(t *testing.T) {
 	)
 
 	seedContact := seed.GetOwnContact()
-	maxTimePerRound = time.Second * 2
+
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
+	maxTimePerRound = time.Second * 5
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
 			i -= 1
@@ -118,13 +119,17 @@ func TestTransactions(t *testing.T) {
 
 		}
 	}
+	round0StartTime := time.Now().UTC().Add(time.Second)
+
 	for _, cn := range conNodes {
 		cn.netLogic.SprawlConnections(3, 0)
 		cn.netLogic.ResetConnections()
 		if err := cn.ProposeCandidacy(0); err != nil {
 			t.Fatal(err)
 		}
+		cn.poolsA.GetApplyingRound().roundStartTime = round0StartTime
 	}
+
 	if len(conNodes[1].poolsA.totalCandidates) < testNodeCount-1 {
 		fmt.Println("nodes arent talking to each other")
 		fmt.Println(len(conNodes[0].poolsA.totalCandidates))
@@ -135,19 +140,26 @@ func TestTransactions(t *testing.T) {
 	maxBlocksPerRound = 5
 	seed.FillOpenConnections()
 	transactions := []*utils.Transaction{}
+	<-time.After(maxTimePerRound + time.Second)
+	assert.Equal(
+		t,
+		uint64(1),
+		conNodes[0].poolsA.currentWorkingRound,
+		"round is not correct",
+	)
 	for i := 0; i < 25; i++ {
 		testTransaction, err := utils.NewTransaction(conAccounts[0], conAccounts[1].Address, big.NewInt(1), big.NewInt(1))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := seed.Propagate(testTransaction); err != nil {
+		if err := conNodes[0].netLogic.Propagate(testTransaction); err != nil {
 			t.Fatal(err)
 		}
 		transactions = append(transactions, testTransaction)
 	}
-
-	// maxTimePerRound = time.Second
 	<-time.After(maxTimePerRound)
+	// maxTimePerRound = time.Second * 100
+
 	//everything *should* be reviewed by now.
 	assert.Equal(
 		t,

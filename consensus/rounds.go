@@ -42,8 +42,9 @@ func newRoundData(seed []byte) *round_data {
 		vrfCutoffs:       make(map[string]*big.Float),
 		openToApply:      true,
 		seed:             seed,
-		roundStartTime:   time.Now().UTC(),
-		blocksInRound:    0,
+		roundStartTime:   time.Now().UTC().Truncate(maxTimePrecision),
+		//truncate the rounds start time to the closest reliable precision we can use.
+		blocksInRound: 0,
 	}
 	return &newRound
 }
@@ -51,7 +52,7 @@ func (rd *round_data) getNextRoundSeed() []byte {
 	if len(rd.witnesses) == 0 {
 		return []byte{}
 	}
-	return rd.vrfValues[string(rd.witnesses[0].spendingPub)]
+	return crypto.Sha512(rd.vrfValues[string(rd.witnesses[0].spendingPub)])
 }
 func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []byte) {
 	//since every candidate needs a vote (from themselves) to run, we can check the vote count
@@ -78,7 +79,7 @@ func (rd *round_data) addVote(v *utils.Voter) {
 func (rd *round_data) BlockReviewed() {
 	rd.blocksInRound += 1
 	rd.blocksThisLead += 1
-	if rd.blocksPerWitness[rd.currentLeadIndex] >= rd.blocksThisLead {
+	if rd.blocksPerWitness[rd.currentLeadIndex] <= rd.blocksThisLead {
 		rd.blocksThisLead = 0
 		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % len(rd.leadWitnessOrder)
 	}
@@ -94,6 +95,10 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 			rd.vrfCutoffs[string(w.spendingPub)] = weight
 		}
 	}
+	// else {
+	// 	//no need to do the work again
+	// 	return rd.witnesses, crypto.Sha512(rd.vrfValues[string(rd.witnesses[0].spendingPub)])
+	// }
 
 	passingWitnesses := []*witness{}
 	witnessVrfValueFloat := make(map[string]*big.Float)
@@ -140,6 +145,7 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	}
 
 	rd.witnesses = passingWitnesses
+	rd.leadWitnessOrder = make([]*witness, len(passingWitnesses))
 	copy(rd.leadWitnessOrder, passingWitnesses)
 	//create and copy the witnesses, then sorts it by their vrf values
 	sort.Slice(rd.leadWitnessOrder, func(i, j int) bool {
@@ -147,10 +153,20 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		b := rd.leadWitnessOrder[j].spendingPub
 		return bytes.Compare(rd.vrfValues[string(a)], rd.vrfValues[string(b)]) == -1
 	})
+	perWitness := maxBlocksPerRound / uint64(len(rd.eligibleWitnesses))
+	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(len(rd.eligibleWitnesses)))
+	rd.blocksPerWitness = make([]uint64, len(rd.leadWitnessOrder))
+	for i := range rd.leadWitnessOrder {
+		if i == 0 {
+			rd.blocksPerWitness[0] = roundingCutoff
+		} else {
+			rd.blocksPerWitness[i] = perWitness
+		}
+	}
 	for _, w := range passingWitnesses {
 		rd.witnessesMap[string(w.spendingPub)] = w
 	}
-	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].spendingPub)]
+	return passingWitnesses, crypto.Sha512(rd.vrfValues[string(passingWitnesses[0].spendingPub)])
 }
 
 func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {
@@ -185,6 +201,11 @@ func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error 
 	return nil
 }
 func (rd round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	if rd.openToApply {
+		//if you can still apply, then you obviously cant have a lead for this round yet
+		return false
+	}
+	// log.Printf("if this is above an error, the round is %v", rd)
 	return bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, *witID)
 }
 

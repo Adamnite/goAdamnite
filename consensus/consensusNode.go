@@ -117,6 +117,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 
 	con.transactionQueue.AddToQueue(transaction)
 	return nil
+	//TODO: delete the rest of my notes to self
 	//actual way
 	//witness's all receive the transactions, each witness has a turn in the witness order, and through that turn, takes the transaction
 	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a transaction go past.
