@@ -180,7 +180,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound * 50)
+	<-time.After(maxTimePerRound * 5)
 	// maxTimePerRound = time.Second * 100
 
 	//everything *should* be reviewed by now.

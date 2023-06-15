@@ -51,7 +51,7 @@ func CreateForwardToAll(finalMessage interface{}) (ForwardingContent, error) {
 	case utils.Transaction, *utils.Transaction:
 		forwardAns.FinalEndpoint = NewTransactionEndpoint
 	case utils.Block, *utils.Block:
-		// forwardAns.FinalEndpoint =
+		forwardAns.FinalEndpoint = NewBlockEndpoint
 	}
 	return forwardAns, nil
 }

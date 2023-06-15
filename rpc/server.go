@@ -357,7 +357,7 @@ func (a *AdamniteServer) NewBlock(params, reply *[]byte) error {
 		return err
 	}
 	var block utils.Block
-	if err := encoding.Unmarshal(*params, block); err != nil {
+	if err := encoding.Unmarshal(*params, &block); err != nil {
 		return err
 	}
 	return a.newBlockReceived(block)
