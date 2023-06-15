@@ -25,6 +25,10 @@ type witness struct {
 	timesElected   uint64
 }
 
+func (w witness) spendingPubString() string {
+	return string(w.spendingPub)
+}
+
 func (w witness) validationPercent() float64 {
 	if w.blocksReviewed == 0 {
 		return 1
@@ -49,10 +53,8 @@ type Witness_pool struct {
 	totalCandidates       map[string]*utils.Candidate //witID->Candidate. Use for verifying votes
 	totalWitnesses        map[string]*witness         //witID-> witness
 	rounds                syncmap.Map                 //round ID ->data
-	currentApplyingRound  *round_data
-	currentWorkingRound   *round_data
-	currentWorkingRoundID uint64 //the round that is currently working. Next round should be accepting
-	consensusType         uint8  //support type that this is being pitched for
+	currentWorkingRoundID uint64                      //the round that is currently working. Next round should be accepting
+	consensusType         uint8                       //support type that this is being pitched for
 
 	newRoundStartedCaller []func()
 	asyncTrackingRunning  bool
@@ -70,10 +72,6 @@ func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayer
 	}
 	wp.newRound(roundNumber, seed)
 	wp.newRound(roundNumber+1, seed)
-	foo, _ := wp.rounds.Load(roundNumber)
-	wp.currentWorkingRound = foo.(*round_data)
-	foo, _ = wp.rounds.Load(roundNumber + 1)
-	wp.currentApplyingRound = foo.(*round_data)
 	// if err := wp.newRound(roundNumber, seed); err != nil {
 	// 	return nil, err
 	// }
@@ -156,12 +154,14 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 
 // gets the current round accepting votes
 func (wp *Witness_pool) GetApplyingRound() *round_data {
-	return wp.currentApplyingRound
+	rd, _ := wp.rounds.Load(wp.currentWorkingRoundID + 1)
+	return rd.(*round_data)
 }
 
 // gets the working round. AKA, the one with the active witnesses
 func (wp *Witness_pool) GetWorkingRound() *round_data {
-	return wp.currentWorkingRound
+	rd, _ := wp.rounds.Load(wp.currentWorkingRoundID)
+	return rd.(*round_data)
 }
 func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
 	if _, exists := wp.rounds.Load(roundID); exists {
@@ -186,10 +186,6 @@ func (wp *Witness_pool) nextRound() {
 		//add a new applying round
 		log.Println(err)
 	}
-	foo, _ := wp.rounds.Load(wp.currentWorkingRoundID)
-	wp.currentWorkingRound = foo.(*round_data)
-	foo, _ = wp.rounds.Load(wp.currentWorkingRoundID + 1)
-	wp.currentApplyingRound = foo.(*round_data)
 
 	wp.GetWorkingRound().roundStartTime = time.Now().UTC().Truncate(maxTimePrecision)
 

@@ -135,6 +135,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 					// workingBlock
 					transactions = []*utils.Transaction{}
 					if ok, err := aCon.ValidateChamberABlock(workingBlock); ok {
+						// aCon.chain.WriteBlock()//TODO: we should like, be able to save blocks...
 						aCon.netLogic.Propagate(workingBlock)
 					} else {
 						//TODO: we should try and see what went wrong and see if we can fix it
