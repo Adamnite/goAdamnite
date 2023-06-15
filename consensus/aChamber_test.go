@@ -6,8 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/params"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -103,6 +107,7 @@ func TestTransactions(t *testing.T) {
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
 			i -= 1
+			continue
 		} else {
 			conAccounts = append(conAccounts, ac)
 			cn, err := NewAConsensus(*ac)
@@ -113,6 +118,24 @@ func TestTransactions(t *testing.T) {
 			if err := cn.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
 			}
+			//now we need to add the statedb
+			db := rawdb.NewMemoryDB()
+			stateDB, _ := statedb.New(common.Hash{}, statedb.NewDatabase(db))
+
+			rootHash := stateDB.IntermediateRoot(false)
+			stateDB.Database().TrieDB().Commit(rootHash, false, nil)
+			blockchain, _ := blockchain.NewBlockchain(
+				db,
+				params.TestnetChainConfig,
+			)
+			stateDB.AddBalance(conAccounts[0].Address, big.NewInt(int64(testNodeCount)*5))
+			//add the balance so that this 0th account can send all the test transaction
+			_, err = stateDB.Commit(false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cn.state = stateDB
+			cn.chain = blockchain
 
 			cn.netLogic.ResetConnections()
 			cn.autoStakeAmount = big.NewInt(1)
@@ -137,18 +160,18 @@ func TestTransactions(t *testing.T) {
 	}
 	//we now have x candidates
 	maxTransactionsPerBlock = 5
-	maxBlocksPerRound = 5
+	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
 	transactions := []*utils.Transaction{}
 	<-time.After(maxTimePerRound + time.Second)
 	assert.Equal(
 		t,
 		uint64(1),
-		conNodes[0].poolsA.currentWorkingRound,
+		conNodes[0].poolsA.currentWorkingRoundID,
 		"round is not correct",
 	)
 	for i := 0; i < 25; i++ {
-		testTransaction, err := utils.NewTransaction(conAccounts[0], conAccounts[1].Address, big.NewInt(1), big.NewInt(1))
+		testTransaction, err := utils.NewTransaction(conAccounts[0], conAccounts[i%testNodeCount].Address, big.NewInt(1), big.NewInt(int64(i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +180,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound)
+	<-time.After(maxTimePerRound * 50)
 	// maxTimePerRound = time.Second * 100
 
 	//everything *should* be reviewed by now.
@@ -174,5 +197,4 @@ func TestTransactions(t *testing.T) {
 		"wrong number of blocks went past this node",
 	)
 
-	// maxTimePerRound = 5 * time.Second
 }

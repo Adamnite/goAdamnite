@@ -8,6 +8,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
+	"golang.org/x/sync/syncmap"
 )
 
 //version packet needs to contain
@@ -34,9 +35,9 @@ type NetNode struct {
 	thisContact Contact
 	contactBook ContactBook //list of known contacts. Assume this to be gray.
 
-	maxOutboundConnections uint                             //how many outbound connections can this reply to.
-	activeOutboundCount    uint                             //how many connections are active
-	activeContactToClient  map[*Contact]*rpc.AdamniteClient //spin up a new client for each outbound connection.
+	maxOutboundConnections uint        //how many outbound connections can this reply to.
+	activeOutboundCount    uint        //how many connections are active
+	activeContactToClient  syncmap.Map //spin up a new client for each outbound connection. *contact -> *rpc.AdamniteClient
 
 	hostingServer *rpc.AdamniteServer
 
@@ -51,7 +52,7 @@ func NewNetNode(address common.Address) *NetNode {
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
 		maxOutboundConnections: 5,
 		activeOutboundCount:    0,
-		activeContactToClient:  make(map[*Contact]*rpc.AdamniteClient),
+		activeContactToClient:  syncmap.Map{},
 	}
 	n.contactBook = NewContactBook(&n.thisContact)
 
@@ -125,10 +126,12 @@ func (n *NetNode) Close() {
 	if n.hostingServer != nil {
 		n.hostingServer.Close()
 	}
-	for c := range n.activeContactToClient {
-		n.activeContactToClient[c].Close()
-		delete(n.activeContactToClient, c)
-	}
+	n.activeContactToClient.Range(func(key, value any) bool {
+		active := value.(*rpc.AdamniteClient)
+		active.Close()
+		n.activeContactToClient.Delete(key)
+		return true
+	})
 	n.contactBook.Close()
 
 }
@@ -157,25 +160,33 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 	// log.Println("handling forwarding")//TODO: useful for debugging. When we setup a proper debugger, please fix this
 	if content.DestinationNode != nil {
 		//see if we're actively connected to them, then send it as a direct call to them. (still use forward)
-		for key, connection := range n.activeContactToClient {
-			if key.NodeID == *content.DestinationNode {
-				return connection.ForwardMessage(content, reply)
+		var ansErr error
+		n.activeContactToClient.Range(func(key, value any) bool {
+			if key.(*Contact).NodeID == *content.DestinationNode {
+				ansErr = value.(*rpc.AdamniteClient).ForwardMessage(content, reply)
+				return false
 			}
-		}
+			return true
+		})
+		return ansErr
 	}
 	//this has been added to us, (and isn't called if the message is directly to us.)
 	// log.Printf("forwarding to all %v known contacts", len(n.activeContactToClient)) //TODO: useful for debugging. When we setup a proper debugger, please fix this
-	for _, element := range n.activeContactToClient {
+	var errs error = nil
+	n.activeContactToClient.Range(func(key, value any) bool {
+		element := value.(*rpc.AdamniteClient)
 		if err := element.ForwardMessage(content, &[]byte{}); err != nil {
 			if err.Error() != rpc.ErrAlreadyForwarded.Error() {
 				log.Println(err)
 				//networking errors sometimes get weird, check the err.Error()
 				//with a complex web, its likely one node already heard the message, no need to panic
-				return err
+				errs = err
+				return false
 			}
 		}
-	}
-	return nil
+		return true
+	})
+	return errs
 }
 
 // TODO: eventually this will also make sure versioning is the same, or will be renamed.
@@ -187,14 +198,15 @@ func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
 }
 
 func (n *NetNode) GetConnectionsContacts(contact *Contact) error {
-	if n.activeContactToClient[contact] == nil {
+	connection, preexisting := n.activeContactToClient.Load(contact)
+	if !preexisting {
 		if err := n.ConnectToContact(contact); err != nil {
 			return err
 		}
+		connection, _ = n.activeContactToClient.Load(contact)
 	}
 	//we can assume we always have a *working* connection from here onwards.
-	connection := n.activeContactToClient[contact]
-	contactListGiven := connection.GetContactList()
+	contactListGiven := connection.(*rpc.AdamniteClient).GetContactList()
 	if len(contactListGiven.NodeIDs) != len(contactListGiven.ConnectionStrings) || len(contactListGiven.BlacklistIDs) != len(contactListGiven.BlacklistConnectionStrings) {
 		//the node has given an inaccurate node list/blacklist.
 		if n.contactBook.Distrust(contact, 500) {

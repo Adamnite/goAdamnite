@@ -14,13 +14,14 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
+	"golang.org/x/sync/syncmap"
 )
 
 type AdamniteServer struct {
 	stateDB         *statedb.StateDB
 	chain           *blockchain.Blockchain
 	hostingNodeID   common.Address
-	seenConnections map[common.Hash]common.Void
+	seenConnections syncmap.Map // map[common.Hash]common.Void
 
 	addresses                 []string
 	GetContactsFunction       func() PassedContacts
@@ -80,11 +81,8 @@ func (a *AdamniteServer) printError(methodName string, err error) {
 	log.Printf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
-	if _, exists := a.seenConnections[fc.Hash()]; exists {
-		return true //we've already seen it
-	}
-	a.seenConnections[fc.Hash()] = common.Void{} //this doesn't actually use any memory
-	return false
+	_, exists := a.seenConnections.LoadOrStore(fc.Hash(), true)
+	return exists
 }
 
 const TestServerEndpoint = "AdamniteServer.TestServer"
@@ -396,7 +394,7 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, p
 	adamnite.stateDB = stateDB
 	adamnite.chain = chain
 	adamnite.timesTestHasBeenCalled = 0
-	adamnite.seenConnections = make(map[common.Hash]common.Void)
+	adamnite.seenConnections = syncmap.Map{}
 	adamnite.DebugOutput = false
 
 	if err := rpcServer.Register(adamnite); err != nil {

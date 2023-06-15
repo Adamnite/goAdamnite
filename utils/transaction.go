@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"time"
@@ -55,11 +56,11 @@ var (
 )
 
 // does not use the time in the hash value, as that is used for the random source value.
-func (t *Transaction) Hash() common.Hash {
+func (t Transaction) Hash() common.Hash {
 	data := append(t.From.PublicKey, t.To.Bytes()...)
 	data = append(data, t.Amount.Bytes()...)
-	timeBytes, _ := t.Time.MarshalBinary()
-	data = append(data, timeBytes...)
+
+	data = append(data, binary.LittleEndian.AppendUint64([]byte{}, uint64(t.Time.UnixMilli()))...)
 	if t.VMInteractions != nil {
 		data = append(data, t.VMInteractions.Hash().Bytes()...)
 	}
@@ -68,11 +69,11 @@ func (t *Transaction) Hash() common.Hash {
 }
 
 // Verify that the signature used in the transaction is correct
-func (t *Transaction) VerifySignature(signer accounts.Account) (ok bool, err error) {
+func (t Transaction) VerifySignature() (ok bool, err error) {
 	if t.Amount.Sign() != 1 {
 		return false, ErrNegativeAmount
 	}
-	return signer.Verify(t, t.Signature), nil
+	return t.From.Verify(t, t.Signature), nil
 }
 
 // Test equality between two transactions

@@ -154,7 +154,7 @@ func TestVoteForAllEqually(t *testing.T) {
 			log.Println("not recording all candidates")
 			t.Fail()
 		}
-		crd := c.poolsA.rounds[c.poolsA.currentWorkingRound]
+		crd := c.poolsA.GetWorkingRound()
 
 		for witnessPub, val := range crd.votes {
 			if len(val) != (voterTotal/candidateTotal)+1 { //cant forget that you vote for yourself!

@@ -81,26 +81,37 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 	//please only call on nodes setup to handle a consensus...
 	go func() {
 		//TODO: for the love of god clean this up
+		aCon.transactionQueue.SortQueue()
 		for aCon.poolsA.IsActiveWitness((*crypto.PublicKey)(&aCon.spendingAccount.PublicKey)) {
 			//we want to keep this going while we aren't the leader...
 			transactions := []*utils.Transaction{}
-			aCon.transactionQueue.SortQueue()
+
 			//TODO: get the trie base point
 			for aCon.IsActiveWitnessLeadFor(networking.PrimaryTransactions) {
 				//TODO: replace this with an "is active witness leader"
 				t := aCon.transactionQueue.Pop()
+				if t == nil {
+					//we're out of transactions and need to wait for a new transaction to be sent
+					continue
+				}
 				//t can on occasion actually be a VM transaction instead of one intended for us, so just put it back and start again
 				if t.VMInteractions != nil {
 					aCon.transactionQueue.AddToQueue(t)
 					continue
 				}
 				//verify that the transaction is legit. If not, we ditch it
-				if signatureOk, err := t.VerifySignature(*t.From); !signatureOk {
+				if signatureOk, err := t.VerifySignature(); !signatureOk {
+					//if no error is passed, then the signature just doesn't line up
 					log.Println("error with transactions signature: ", err)
 					continue
 				}
-				if t.Time.After(time.Now().UTC()) || //could not have possibly sent this in the future
-					aCon.state.GetBalance(t.FromAddress()).Cmp(t.Amount) == -1 { //doesn't have the balance to actually send that
+				if t.Time.After(time.Now().UTC()) {
+					//could not have possibly sent this in the future
+					log.Println("transaction is attempting to be sent from the future")
+					continue
+				}
+				if aCon.state.GetBalance(t.FromAddress()).Cmp(t.Amount) == -1 { //doesn't have the balance to actually send that
+					log.Println("sender does not have the cash to make this transaction")
 					continue
 				}
 				aCon.state.SubBalance(t.FromAddress(), t.Amount)

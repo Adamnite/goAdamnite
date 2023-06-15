@@ -74,7 +74,8 @@ func TestLinearForward(t *testing.T) {
 		FinalReply:      getLastNodeContactsReply,
 		InitialSender:   nodes[0].thisContact.NodeID,
 	}
-	if err := nodes[0].activeContactToClient[(&nodes[1].thisContact)].ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
+	con, _ := nodes[0].activeContactToClient.Load((&nodes[1].thisContact))
+	if err := con.(*rpc.AdamniteClient).ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
 		if err.Error() != rpc.ErrAlreadyForwarded.Error() {
 			t.Fatal(err)
 		}

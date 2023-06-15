@@ -70,7 +70,7 @@ func TestRoundSelections(t *testing.T) {
 	pool.newRoundStartedCaller[0]()
 	pool.SelectCurrentWitnesses()
 	pool.nextRound()
-	if pool.currentWorkingRound != 1 {
+	if pool.currentWorkingRoundID != 1 {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
@@ -81,7 +81,7 @@ func TestRoundSelections(t *testing.T) {
 	assert.Equal(
 		t,
 		1,
-		int(pool.currentWorkingRound),
+		int(pool.currentWorkingRoundID),
 		"new round started too soon",
 	)
 	<-time.After(time.Until(nextRoundStartTime))
@@ -89,7 +89,7 @@ func TestRoundSelections(t *testing.T) {
 	assert.Equal(
 		t,
 		2,
-		int(pool.currentWorkingRound),
+		int(pool.currentWorkingRoundID),
 		"new round must have started too late(or like, *way* too early)",
 	)
 
@@ -131,7 +131,7 @@ func TestLongTermPoolCalculations(t *testing.T) {
 	assert.Equal(
 		t,
 		goal+1, //plus one since we need to start it!
-		int(pool.currentWorkingRound),
+		int(pool.currentWorkingRoundID),
 		"timing for new round generation must be wrong",
 	)
 }
@@ -199,11 +199,11 @@ func TestWitnessLeadSelection(t *testing.T) {
 	assert.Equal(
 		t,
 		3,
-		int(pool.currentWorkingRound),
+		int(pool.currentWorkingRoundID),
 		"adding blocks till round was filled did not automatically increment round",
 	)
 	wrd = pool.GetWorkingRound()
-	for i := 0; pool.currentWorkingRound == 3; i = (i + 1) % len(candidates) {
+	for i := 0; pool.currentWorkingRoundID == 3; i = (i + 1) % len(candidates) {
 		blocksFaked += 1
 		testCan := candidates[i].candidacy
 		if wrd.IsActiveWitnessLead(testCan.GetWitnessPub()) {
@@ -254,7 +254,7 @@ func newTestCandidate(seed []byte, stakeAmount *big.Int) *testingCandidate {
 	return &tc
 }
 func (tc *testingCandidate) updateCandidate(pool *Witness_pool) {
-	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(pool.currentWorkingRound+1, pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetApplyingRound().roundStartTime.Unix()), *tc.spender)
+	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(pool.currentWorkingRoundID+1, pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetApplyingRound().roundStartTime.Unix()), *tc.spender)
 }
 
 func generateTestWitnesses(count int) []*testingCandidate {

@@ -9,6 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
+	"golang.org/x/sync/syncmap"
 )
 
 type round_data struct {
@@ -18,7 +19,7 @@ type round_data struct {
 	blocksPerWitness  []uint64
 	currentLeadIndex  int
 	blocksThisLead    uint64
-	witnessesMap      map[string]*witness
+	witnessesMap      syncmap.Map               //map[witnessPub]->*witness
 	removedWitnesses  map[string]uint64         //map[witnessPub]->the block number that they were removed in
 	votes             map[string][]*utils.Voter //map[witnessPub]->votes for that witness, in that round
 	valueTotals       map[string]*big.Int       //map[witnessPub] -> total amount staked on them
@@ -33,7 +34,7 @@ type round_data struct {
 
 func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
-		witnessesMap:     make(map[string]*witness),
+		witnessesMap:     syncmap.Map{},
 		removedWitnesses: make(map[string]uint64),
 		votes:            make(map[string][]*utils.Voter),
 		valueTotals:      make(map[string]*big.Int),
@@ -164,7 +165,7 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		}
 	}
 	for _, w := range passingWitnesses {
-		rd.witnessesMap[string(w.spendingPub)] = w
+		rd.witnessesMap.Store(string(w.spendingPub), w)
 	}
 	return passingWitnesses, crypto.Sha512(rd.vrfValues[string(passingWitnesses[0].spendingPub)])
 }
@@ -172,7 +173,7 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {
 	//TODO: check that the witness is able to be removed from this round without error
 	rd.removedWitnesses[string(wit.spendingPub)] = blockID
-	delete(rd.witnessesMap, string(wit.spendingPub))
+	rd.witnessesMap.Delete(string(wit.spendingPub))
 	//assume they can be removed safely
 
 	//now we need to change the upcoming order for the witnesses.
