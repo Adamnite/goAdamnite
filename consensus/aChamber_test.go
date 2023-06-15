@@ -180,7 +180,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound * 5)
+	<-time.After(maxTimePerRound * 3)
 	// maxTimePerRound = time.Second * 100
 
 	//everything *should* be reviewed by now.
@@ -196,5 +196,11 @@ func TestTransactions(t *testing.T) {
 		len(blocksSeen),
 		"wrong number of blocks went past this node",
 	)
+	blockTransactions := []*utils.Transaction{}
+	for _, b := range blocksSeen {
+		assert.Equal(t, maxTransactionsPerBlock, len(b.Transactions), "god why")
+		blockTransactions = append(blockTransactions, b.Transactions...)
+	}
+	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
 
 }
