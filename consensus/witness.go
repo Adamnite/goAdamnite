@@ -165,23 +165,33 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	}
 	return nil
 }
+func (wp *Witness_pool) getRound(roundID uint64) *round_data {
+	rd, exists := wp.rounds.Load(roundID)
+	if exists {
+		return rd.(*round_data)
+	}
+	//the round isn't stored locally, but i believe it's easiest to just create it then and store it
+	newRD := newRoundData([]byte{}) //we cant know the seed, as such, the seed should be instead updated each round
+	wp.rounds.Store(roundID, newRD)
+	return newRD
+}
 
 // gets the current round accepting votes
 func (wp *Witness_pool) GetApplyingRound() *round_data {
-	rd, _ := wp.rounds.Load(wp.currentWorkingRoundID + 1)
-	return rd.(*round_data)
+	return wp.getRound(wp.currentWorkingRoundID + 1)
 }
 
 // gets the working round. AKA, the one with the active witnesses
 func (wp *Witness_pool) GetWorkingRound() *round_data {
-	rd, _ := wp.rounds.Load(wp.currentWorkingRoundID)
-	return rd.(*round_data)
+	return wp.getRound(wp.currentWorkingRoundID)
 }
 func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
-	if _, exists := wp.rounds.Load(roundID); exists {
-		return fmt.Errorf("round already logged locally")
+	newRD := wp.getRound(roundID) //this way, if that round already existed, instead we are updating it
+	newRD.seed = seed
+	if roundID <= wp.currentWorkingRoundID {
+		//just make sure that loading old rounds cant receive more votes or anything
+		newRD.openToApply = false
 	}
-	wp.rounds.Store(roundID, newRoundData(seed))
 	return nil
 }
 
@@ -225,7 +235,7 @@ func (wp *Witness_pool) GetCurrentSeed() []byte {
 	} else {
 		//the current round must be in error, as it's already closed. Start the next round
 		log.Println("get current seed was called on a round that is not accepting candidates")
-		wp.nextRound()
+		wp.nextRound() //TODO: this seems like it's a bad idea, right?
 	}
 
 	return wp.GetCurrentSeed()
@@ -242,23 +252,21 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 	}
 	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 
-	if rd, exists := wp.rounds.Load(can.Round); !exists || !rd.(*round_data).openToApply {
+	if rd := wp.getRound(can.Round); rd == nil || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
-		log.Println(exists)
-		log.Println(can.Round)
-		log.Println(wp.currentWorkingRoundID)
+		log.Printf("unable to apply for that round, the candidate is proposing for round %v, and the current working roundID is %v", can.Round, wp.currentWorkingRoundID)
 		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
 	} else {
 		//we also verify their VRF
-		if !wit.vrfKey.Verify(rd.(*round_data).seed, can.VRFValue, can.VRFProof) {
+		if !wit.vrfKey.Verify(rd.seed, can.VRFValue, can.VRFProof) {
 			//they lied about their VRFValue
 			return fmt.Errorf("candidate's VRF is unverifiable") //TODO: change to real error
 		}
 	}
 
-	rd, _ := wp.rounds.Load(can.Round)
-	rd.(*round_data).addEligibleWitness(wit, can.VRFValue, can.VRFProof)
-	rd.(*round_data).addVote(&can.InitialVote)
+	rd := wp.getRound(can.Round)
+	rd.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
+	rd.addVote(&can.InitialVote)
 
 	return nil
 }
@@ -267,14 +275,11 @@ func (wp *Witness_pool) AddVoteForCurrent(vote *utils.Voter) error {
 	return nil //TODO: return an error if the rounds system is broken
 }
 func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
-	rd, exists := wp.rounds.Load(round)
-	if !exists {
-		return fmt.Errorf("round selected is not recorded yet")
-	}
-	if !rd.(*round_data).openToApply {
+	rd := wp.getRound(round)
+	if !rd.openToApply {
 		return fmt.Errorf("round selected is not accepting votes")
 	}
-	rd.(*round_data).addVote(v)
+	rd.addVote(v)
 	return nil
 }
 

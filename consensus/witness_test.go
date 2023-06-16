@@ -297,7 +297,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 					log.Printf("the missing candidate is index %v", j)
 				}
 			}
-			t.Fail()
+			t.FailNow() //if you don't fail now, the next step will give a LONG error list
 		}
 		assert.EqualValues(
 			t,
