@@ -3,12 +3,14 @@ package consensus
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -87,18 +89,18 @@ func TestRoundSelections(t *testing.T) {
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(
+	assert.EqualValues(
 		t,
 		1,
-		int(pool.currentWorkingRoundID),
+		pool.currentWorkingRoundID,
 		"new round started too soon",
 	)
 	<-time.After(time.Until(nextRoundStartTime))
 	pool.StopAsyncTracker()
-	assert.Equal(
+	assert.EqualValues(
 		t,
 		2,
-		int(pool.currentWorkingRoundID),
+		pool.currentWorkingRoundID,
 		"new round must have started too late(or like, *way* too early)",
 	)
 
@@ -137,10 +139,10 @@ func TestLongTermPoolCalculations(t *testing.T) {
 		fmt.Println("round after now")
 		t.Fail()
 	}
-	assert.Equal(
+	assert.EqualValues(
 		t,
 		goal+1, //plus one since we need to start it!
-		int(pool.currentWorkingRoundID),
+		pool.currentWorkingRoundID,
 		"timing for new round generation must be wrong",
 	)
 }
@@ -205,10 +207,10 @@ func TestWitnessLeadSelection(t *testing.T) {
 		blocksFaked,
 		"blocks faked appears to not be accurate to the max block limit",
 	)
-	assert.Equal(
+	assert.EqualValues(
 		t,
 		3,
-		int(pool.currentWorkingRoundID),
+		pool.currentWorkingRoundID,
 		"adding blocks till round was filled did not automatically increment round",
 	)
 	wrd = pool.GetWorkingRound()
@@ -234,6 +236,113 @@ func TestWitnessLeadSelection(t *testing.T) {
 			)
 		}
 		//go through the witnesses until the round rollover
+
+	}
+}
+
+// test the longevity of the witness selection
+func TestLongTermLeadSelection(t *testing.T) {
+	rpc.USE_LOCAL_IP = true           //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	// maxTimePerRound = time.Second * 50       //change the time between rounds for debugging.
+	maxTimePrecision = time.Millisecond * 50 //the error tolerance we can handle
+	testCandidateCount := 5
+	round0Start := time.Now().UTC().Add(maxTimePrecision)
+	candidates := []*ConsensusNode{}
+	for i := 0; i < testCandidateCount; i++ {
+		ac, _ := accounts.GenerateAccount()
+		newCan, err := NewAConsensus(*ac)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i != 0 {
+			targetContact := candidates[i-1].netLogic.GetOwnContact()
+			if err := newCan.netLogic.ConnectToContact(&targetContact); err != nil {
+				t.Fatal(err)
+			}
+			if i == 1 {
+				//also get 0 to connect to us
+				targetContact = newCan.netLogic.GetOwnContact()
+				candidates[0].netLogic.ConnectToContact(&targetContact)
+			}
+		}
+		newCan.poolsA.GetWorkingRound().roundStartTime = round0Start
+		newCan.autoStakeAmount = big.NewInt(1) //TODO: because of this, in future this test will need the chain data and states
+		candidates = append(candidates, newCan)
+	}
+	//all nodes are now connected to the network, so next we'll sprawl our networks, and propose our candidacy
+	for _, can := range candidates {
+		can.netLogic.SprawlConnections(3, 0)
+		if err := can.netLogic.FillOpenConnections(); err != nil {
+			t.Fatal(err)
+		}
+		if err := can.ProposeCandidacy(0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	//candidates should all be proposed, so now let's check everyone's candidates list to make sure they have all of them
+	for i, can := range candidates {
+		canPool := can.poolsA
+		if !assert.Equal( //they have the right number of lines
+			t,
+			testCandidateCount,
+			len(canPool.totalCandidates),
+			"candidate does not have all other candidates listed",
+		) {
+			//this is helpful for seeing why something breaks.
+			//if you don't have the networks spread enough, a candidate proposal wont spread to everyone right away
+			log.Printf("candidate index %v did not have all it's candidates in order.", i)
+			for j, candidate := range candidates {
+				if _, exists := canPool.totalCandidates[string(candidate.spendingAccount.PublicKey)]; !exists {
+					log.Printf("the missing candidate is index %v", j)
+				}
+			}
+			t.Fail()
+		}
+		assert.EqualValues(
+			t,
+			0,
+			canPool.currentWorkingRoundID,
+			"a candidate started their round too soon",
+		)
+		assert.Equal(
+			t,
+			0,
+			canPool.GetWorkingRound().currentLeadIndex,
+			"candidate lead index has moved unexpectedly",
+		)
+	}
+	roundsToWait := 10
+	<-time.After(maxTimePerRound * time.Duration(roundsToWait))
+	//wait 5 rounds
+	for _, can := range candidates {
+		cwr := can.poolsA.GetWorkingRound()
+		assert.EqualValues(
+			t,
+			roundsToWait,
+			can.poolsA.currentWorkingRoundID,
+			"rounds are off",
+		)
+		assert.EqualValues(
+			t,
+			0,
+			cwr.currentLeadIndex,
+			"witness lead has started indexing",
+		)
+		for _, otherCan := range candidates {
+			assert.Equal(
+				t,
+				cwr.leadWitnessOrder,
+				otherCan.poolsA.GetWorkingRound().leadWitnessOrder,
+				"witness lead order differed between candidates",
+			)
+			assert.Equal(
+				t,
+				cwr.roundStartTime,
+				otherCan.poolsA.GetWorkingRound().roundStartTime,
+				"round start times are our of sync by a noticeable amount",
+			)
+		}
 
 	}
 }

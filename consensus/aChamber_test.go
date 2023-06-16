@@ -106,7 +106,7 @@ func TestTransactions(t *testing.T) {
 
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
-	maxTimePerRound = time.Second * 10
+	maxTimePerRound = time.Second * 1
 	maxTimePrecision = time.Millisecond * 50
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
@@ -167,10 +167,10 @@ func TestTransactions(t *testing.T) {
 	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
 	transactions := []*utils.Transaction{}
-	<-time.After(maxTimePerRound + time.Second)
-	assert.Equal(
+	<-time.After(maxTimePerRound)
+	assert.EqualValues(
 		t,
-		uint64(1),
+		1,
 		conNodes[0].poolsA.currentWorkingRoundID,
 		"round is not correct",
 	)
@@ -184,8 +184,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound * 2)
-	// maxTimePerRound = time.Second * 100
+	<-time.After(maxTimePerRound)
 
 	//everything *should* be reviewed by now.
 	assert.Equal(
@@ -193,7 +192,7 @@ func TestTransactions(t *testing.T) {
 		len(transactions),
 		len(transactionsSeen),
 		"wrong number of unique transactions passed the seed node",
-	)
+	) //if this returns, then its propagation of transactions that isn't working
 	assert.Equal(
 		t,
 		int(len(transactionsSeen)/maxTransactionsPerBlock),

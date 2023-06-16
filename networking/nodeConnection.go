@@ -189,7 +189,6 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 				talkedToContacts[con.contact] = true
 			}
 		}
-		n.contactBook.DropSlowestPercentage(autoCutoff / (float32(layers) + 1)) //take half per layer, don't worry, the full removal happens at the end.
 	}
 	n.contactBook.DropSlowestPercentage(autoCutoff)
 	for _, contact := range startingConnections {
