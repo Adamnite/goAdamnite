@@ -3,6 +3,6 @@ known-peers.json
 ./server_test/**
 /cmd/gnite/*.exe
 /.vscode
-/tests/__debug_bin.exe
 *.test
 *.out
+*__debug_bin

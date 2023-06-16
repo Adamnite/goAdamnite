@@ -2,8 +2,10 @@ package consensus
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/adamnite/go-adamnite/blockchain"
@@ -11,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
+	"golang.org/x/sync/syncmap"
 )
 
 type witness struct {
@@ -21,6 +24,10 @@ type witness struct {
 	blocksReviewed uint64
 	blocksApproved uint64
 	timesElected   uint64
+}
+
+func (w witness) spendingPubString() string {
+	return string(w.spendingPub)
 }
 
 func (w witness) validationPercent() float64 {
@@ -43,29 +50,35 @@ func witnessFromCandidate(can *utils.Candidate) *witness {
 }
 
 type Witness_pool struct {
-	witnessGoal     int
-	totalCandidates map[string]*utils.Candidate //witID->Candidate. Use for verifying votes
-	totalWitnesses  map[string]*witness         //witID-> witness
-	rounds          map[uint64]*round_data      //round ID ->data
-	currentRound    uint64                      //the round that is currently accepting witness applications
-	consensusType   uint8                       //support type that this is being pitched for
+	witnessGoal           int
+	totalCandidates       map[string]*utils.Candidate //witID->Candidate. Use for verifying votes
+	totalWitnesses        map[string]*witness         //witID-> witness
+	rounds                syncmap.Map                 //round ID ->data
+	currentWorkingRoundID uint64                      //the round that is currently working. Next round should be accepting
+	consensusType         uint8                       //support type that this is being pitched for
 
 	newRoundStartedCaller []func()
 	asyncTrackingRunning  bool
+	asyncStopper          context.CancelFunc
 }
 
 func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayerType, seed []byte) (*Witness_pool, error) {
 	wp := Witness_pool{
-		witnessGoal:          27,
-		totalCandidates:      make(map[string]*utils.Candidate),
-		totalWitnesses:       make(map[string]*witness),
-		rounds:               map[uint64]*round_data{},
-		consensusType:        uint8(consensusType),
-		currentRound:         roundNumber,
-		asyncTrackingRunning: false,
+		witnessGoal:           27,
+		totalCandidates:       make(map[string]*utils.Candidate),
+		totalWitnesses:        make(map[string]*witness),
+		rounds:                syncmap.Map{},
+		consensusType:         uint8(consensusType),
+		currentWorkingRoundID: roundNumber,
+		asyncTrackingRunning:  false,
 	}
-	err := wp.newRound(roundNumber, seed)
-	return &wp, err
+	wp.newRound(roundNumber, seed)
+	wp.newRound(roundNumber+1, seed)
+	// if err := wp.newRound(roundNumber, seed); err != nil {
+	// 	return nil, err
+	// }
+
+	return &wp, wp.StartAsyncTracking()
 }
 func (wp *Witness_pool) CatchupTo(oldestUsefulRound uint64, block *utils.Block, chain *blockchain.Blockchain) error {
 	if chain == nil {
@@ -92,33 +105,47 @@ func (wp *Witness_pool) StartAsyncTracking() error {
 	if wp.asyncTrackingRunning {
 		return fmt.Errorf("already has an async tracker going")
 	}
+	ctx, canceler := context.WithCancel(context.Background())
+
+	wp.asyncStopper = canceler
 	wp.asyncTrackingRunning = true
 	//run our continuos loop that checks every time the last round should've stopped.
-	go func() {
-		for wp.asyncTrackingRunning {
-			roundEndTime := wp.GetCurrentRound().roundStartTime.Add(maxTimePerRound)
-			//wait until the max end point of the last round
-			<-time.After(time.Until(roundEndTime))
-			//double check it waited the correct time (and a new round wasn't started without us noticing)
-			if time.Now().After(roundEndTime) && wp.asyncTrackingRunning { //there's a lot of time between rounds. something could've canceled this without us noticing
-				//the time has actually elapsed. Meaning that round took the max time
-				wp.SelectCurrentWitnesses()
+	go func(ctx context.Context) {
+		for {
+			roundEndTime := wp.GetWorkingRound().roundStartTime.Truncate(maxTimePrecision).Add(maxTimePerRound)
+			roundThatStartedThis := wp.currentWorkingRoundID
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Until(roundEndTime)):
+				//wait until the max end point of the last round
+				//double check it waited the correct time (and a new round wasn't started without us noticing)
+				if time.Now().After(roundEndTime) && wp.asyncTrackingRunning && wp.currentWorkingRoundID == roundThatStartedThis {
+					//there's a lot of time between rounds. something could've canceled this without us noticing
+					//the time has actually elapsed. Meaning that round took the max time
+					wp.nextRound()
+				}
 			}
 		}
-	}()
+	}(ctx)
 	return nil
 }
 func (wp *Witness_pool) StopAsyncTracker() {
 	wp.asyncTrackingRunning = false
+	if wp.asyncStopper != nil {
+		wp.asyncStopper()
+		wp.asyncStopper = nil
+	}
+
 }
 
 // call after a witness reviews a block. Call once per block
-func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successful bool) error {
+func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successful bool, blockID uint64) error {
 	wit := wp.totalWitnesses[string(*witID)]
 	if wit == nil {
 		return errors.New("witness is not stored locally") //TODO:change to real error
 	}
-	if wp.IsActiveWitness(witID) {
+	if !wp.IsActiveWitnessLead(witID) {
 		return fmt.Errorf("witness is not running in reviewed round")
 	}
 
@@ -126,55 +153,92 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	wit.blocksReviewed += 1
 	if successful {
 		wit.blocksApproved += 1
+	} else {
+		//the block seems to be faulty. Assume this witness misbehaved, remove them, and ignore the block
+		return wp.GetWorkingRound().RemoveSelectedWitness(wit, blockID)
 	}
 
-	wp.GetCurrentRound().blocksInRound += 1
-	if wp.GetCurrentRound().blocksInRound >= maxBlocksPerRound {
+	wp.GetWorkingRound().BlockReviewed()
+	if wp.GetWorkingRound().blocksInRound >= maxBlocksPerRound {
 		//the round has reached its block limit.
 		wp.nextRound()
 	}
 	return nil
 }
-func (wp *Witness_pool) GetCurrentRound() *round_data {
-	return wp.rounds[wp.currentRound]
+func (wp *Witness_pool) getRound(roundID uint64) *round_data {
+	rd, exists := wp.rounds.Load(roundID)
+	if exists {
+		return rd.(*round_data)
+	}
+	//the round isn't stored locally, but i believe it's easiest to just create it then and store it
+	newRD := newRoundData([]byte{}) //we cant know the seed, as such, the seed should be instead updated each round
+	wp.rounds.Store(roundID, newRD)
+	return newRD
+}
+
+// gets the current round accepting votes
+func (wp *Witness_pool) GetApplyingRound() *round_data {
+	return wp.getRound(wp.currentWorkingRoundID + 1)
+}
+
+// gets the working round. AKA, the one with the active witnesses
+func (wp *Witness_pool) GetWorkingRound() *round_data {
+	return wp.getRound(wp.currentWorkingRoundID)
 }
 func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
-	if _, exists := wp.rounds[roundID]; exists {
-		return fmt.Errorf("round already logged locally")
+	newRD := wp.getRound(roundID) //this way, if that round already existed, instead we are updating it
+	newRD.seed = seed
+	if roundID <= wp.currentWorkingRoundID {
+		//just make sure that loading old rounds cant receive more votes or anything
+		newRD.openToApply = false
 	}
-	wp.rounds[roundID] = newRoundData(seed)
 	return nil
 }
 
 // stats the next round.
 func (wp *Witness_pool) nextRound() {
-	wp.newRound(wp.currentRound+1, wp.GetCurrentRound().getNextRoundSeed())
-	wp.currentRound += 1
+	var nextSeed []byte
+	if wp.currentWorkingRoundID == 0 {
+		nextSeed = []byte{} //seeds from the initial round is 0
+		wp.GetApplyingRound().openToApply = false
+	} else {
+		_, nextSeed = wp.SelectCurrentWitnesses()
+	}
+
+	wp.currentWorkingRoundID += 1
+	if err := wp.newRound(wp.currentWorkingRoundID+1, nextSeed); err != nil {
+		//add a new applying round
+		log.Println(err)
+	}
+
+	wp.GetWorkingRound().roundStartTime = time.Now().UTC().Truncate(maxTimePrecision)
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
-		//TODO: call anyone who needs to know the round updated
 		nextRoundFunc()
 	}
 }
 func (wp *Witness_pool) AddNewRoundCaller(f func()) {
 	wp.newRoundStartedCaller = append(wp.newRoundStartedCaller, f)
 }
-func (wp Witness_pool) GetCandidate(witID *crypto.PublicKey) *utils.Candidate {
+func (wp *Witness_pool) GetCandidate(witID *crypto.PublicKey) *utils.Candidate {
 	return wp.totalCandidates[string(*witID)]
 }
 
 // get the most recent seed needed to apply.
-func (wp Witness_pool) GetCurrentSeed() []byte {
-	rd := wp.GetCurrentRound()
+func (wp *Witness_pool) GetCurrentSeed() []byte {
+	rd := wp.GetApplyingRound()
 	if rd == nil {
 		return []byte{} //
 	}
 	if rd.openToApply {
 		return rd.seed
+	} else {
+		//the current round must be in error, as it's already closed. Start the next round
+		log.Println("get current seed was called on a round that is not accepting candidates")
+		wp.nextRound() //TODO: this seems like it's a bad idea, right?
 	}
 
-	wp.currentRound += 1
-	return rd.getNextRoundSeed()
+	return wp.GetCurrentSeed()
 
 }
 
@@ -188,8 +252,9 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 	}
 	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 
-	if rd, exists := wp.rounds[can.Round]; !exists || !rd.openToApply {
+	if rd := wp.getRound(can.Round); rd == nil || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
+		log.Printf("unable to apply for that round, the candidate is proposing for round %v, and the current working roundID is %v", can.Round, wp.currentWorkingRoundID)
 		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
 	} else {
 		//we also verify their VRF
@@ -199,50 +264,51 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 		}
 	}
 
-	wp.rounds[can.Round].addEligibleWitness(wit, can.VRFValue, can.VRFProof)
-	wp.rounds[can.Round].addVote(&can.InitialVote)
+	rd := wp.getRound(can.Round)
+	rd.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
+	rd.addVote(&can.InitialVote)
 
 	return nil
 }
 func (wp *Witness_pool) AddVoteForCurrent(vote *utils.Voter) error {
-	wp.GetCurrentRound().addVote(vote)
+	wp.GetApplyingRound().addVote(vote)
 	return nil //TODO: return an error if the rounds system is broken
 }
 func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
-	if wp.rounds[round] == nil {
-		return fmt.Errorf("round selected is not recorded yet")
-	}
-	if !wp.rounds[round].openToApply {
+	rd := wp.getRound(round)
+	if !rd.openToApply {
 		return fmt.Errorf("round selected is not accepting votes")
 	}
-	wp.rounds[round].addVote(v)
+	rd.addVote(v)
 	return nil
 }
 
 // select closes the current rounds submissions, and starts the submissions for the next round
 func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed []byte) {
-	witnesses, newSeed = wp.GetCurrentRound().selectWitnesses(wp.witnessGoal)
-	wp.nextRound()
+	applyingRound := wp.GetApplyingRound()
+	if applyingRound == nil {
+		return nil, []byte{}
+	}
+
+	witnesses, newSeed = wp.GetApplyingRound().selectWitnesses(wp.witnessGoal)
 	return
 }
 
-// returns if the witness is in the calculating round (note, this does not show if the witness has applied to run again next round)
-func (wp Witness_pool) IsActiveWitness(witID *crypto.PublicKey) bool {
-	return wp.WasWitnessActive(wp.currentRound-1, witID)
+// returns if this is not only an active witness this round, but if they are the lead witness
+func (wp *Witness_pool) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	if !wp.IsActiveWitness(witID) {
+		//if they aren't active rn, then we know they they cant be the lead
+		return false
+	}
+	return wp.GetWorkingRound().IsActiveWitnessLead(witID)
 }
-func (wp Witness_pool) WasWitnessActive(roundID uint64, witID *crypto.PublicKey) bool {
+
+// returns if the witness is in the calculating round (note, this does not show if the witness has applied to run again next round)
+func (wp *Witness_pool) IsActiveWitness(witID *crypto.PublicKey) bool {
 	if wp.totalCandidates[string(*witID)] == nil {
 		// might as well eliminate witnesses we don't have at all as quickly as possible
 		return false
 	}
-
-	rd, exists := wp.rounds[roundID]
-	if !exists ||
-		rd.openToApply {
-		//round didn't exist, so no way they could've been running
-		//if the round is open to applying, then there's no way that this round could've been verifying
-		return false
-	}
-	//TODO: for checking witnesses that were removed mid round, we will also need the block number
-	return rd.witnessesMap[string(*witID)] != nil
+	_, exists := wp.GetWorkingRound().witnessesMap.Load(string(*witID))
+	return exists
 }

@@ -5,13 +5,16 @@ import (
 	"errors"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
@@ -19,13 +22,13 @@ import (
 // The node that can handle consensus systems.
 // Is built on top of a networking node, using a netNode to handle the networking interactions
 type ConsensusNode struct {
-	thisCandidateA *utils.Candidate
-	thisCandidateB *utils.Candidate
-	poolsA         *Witness_pool //store all the vote data for chamber a elections
-	poolsB         *Witness_pool //store all the vote data for chamber b elections
-
-	netLogic     *networking.NetNode
-	handlingType networking.NetworkTopLayerType
+	thisCandidateA   *utils.Candidate
+	thisCandidateB   *utils.Candidate
+	poolsA           *Witness_pool //store all the vote data for chamber a elections
+	poolsB           *Witness_pool //store all the vote data for chamber b elections
+	transactionQueue *pendingHandling.TransactionQueue
+	netLogic         *networking.NetNode
+	handlingType     networking.NetworkTopLayerType
 
 	spendingAccount accounts.Account // each consensus node is forced to have its own account to spend from.
 	participation   accounts.Account
@@ -49,6 +52,7 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	hostingNode := networking.NewNetNode(participation.Address)
 	con := ConsensusNode{
+		transactionQueue:       pendingHandling.NewQueue(true),
 		netLogic:               hostingNode,
 		handlingType:           networking.NetworkingOnly,
 		state:                  state,
@@ -58,7 +62,14 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	vrfKey, _ := crypto.GenerateVRFKey(rand.Reader)
 	con.vrfKey = vrfKey
-	if err := hostingNode.AddFullServer(state, chain, con.ReviewTransaction, con.ReviewCandidacy, con.ReviewVote); err != nil {
+	if err := hostingNode.AddFullServer(
+		state,
+		chain,
+		con.ReviewTransaction,
+		con.ReviewBlock,
+		con.ReviewCandidacy,
+		con.ReviewVote,
+	); err != nil {
 		log.Printf("error:%v", err)
 		return nil, err
 	}
@@ -70,16 +81,16 @@ func (con ConsensusNode) CanReviewType(t networking.NetworkTopLayerType) bool {
 func (con ConsensusNode) CanReview(t int8) bool {
 	return networking.NetworkTopLayerType(t).IsTypeIn(con.handlingType)
 }
-func (con ConsensusNode) IsActiveWitnessFor(processType networking.NetworkTopLayerType) bool {
+func (con ConsensusNode) IsActiveWitnessLeadFor(processType networking.NetworkTopLayerType) bool {
 	if !con.CanReviewType(processType) {
 		//we aren't handling that processes type
 		return false
 	}
 	switch processType { //see what type of transaction it is
 	case networking.PrimaryTransactions:
-		return con.poolsA.IsActiveWitness((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
+		return con.poolsA.IsActiveWitnessLead((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
 	case networking.SecondaryTransactions:
-		return con.poolsB.IsActiveWitness((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
+		return con.poolsB.IsActiveWitnessLead((*crypto.PublicKey)(&con.spendingAccount.PublicKey))
 	}
 	return false
 }
@@ -93,19 +104,28 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 	} else {
 		tReviewType = networking.PrimaryTransactions
 	}
-
-	if !con.IsActiveWitnessFor(tReviewType) {
-		return nil //we aren't a witness, so no reason to review this transaction.
+	//TODO: sending nite and calling a VM should check that they are calling to the same target. And will need further input on it's processing
+	if !con.CanReviewType(tReviewType) {
+		//see if we're able to handle this type of transaction
+		return nil
 	}
-	//TODO: review the transaction under the appropriate node method
+	//check if the transaction is expired (signature verification should be done when balance is checked)
+	if transaction.Time.Add(maxTimePerRound).Before(time.Now().UTC()) {
+		//the transaction expired
+		return rpc.ErrBadForward
+	}
 
+	con.transactionQueue.AddToQueue(transaction)
+	return nil
+	//TODO: delete the rest of my notes to self
+	//actual way
+	//witness's all receive the transactions, each witness has a turn in the witness order, and through that turn, takes the transaction
 	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a transaction go past.
 	//an error will prevent the transaction from being propagated past us
-	return nil
 }
 
-func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
-	//TODO: give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
+// called when a new block is received over the network. We review it, and only return an error if we aren't setup to handle it
+func (con *ConsensusNode) ReviewBlock(block utils.Block) error {
 	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a block go past.
 	//an error will prevent the transaction from being propagated past us
 	if !con.CanReview(block.Header.TransactionType) {
@@ -113,10 +133,14 @@ func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
 	}
 	if block.Header.TransactionType == int8(networking.PrimaryTransactions) {
 		//TODO: also record this for our own records!
-		valid, err := con.ValidateChamberABlock(block)
+		valid, err := con.ValidateChamberABlock(&block)
 		if !valid {
-			//TODO: this can be a false error if it's just because the chain isnt set (but then we shouldnt be reviewing...)
-			return err
+			//TODO: this can be a false error if it's just because the chain isn't set (but then we shouldn't be reviewing...)
+			// return err
+			log.Println("error with block validity")
+			log.Println(err)
+			//TODO: no, we want to throw this error!!!
+			return nil
 		} else {
 			return nil
 		}
@@ -126,24 +150,24 @@ func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
 }
 
 // validates if a header is truthful and can be traced back to the genesis block
-func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader) error {
+func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader) (bool, error) {
 	if header == nil {
-		return errors.New("unknown block")
+		return false, errors.New("unknown block")
 	}
 
 	if header.Number.Cmp(big.NewInt(0)) == 0 {
 		// our header comes from genesis block
-		return nil
+		return true, nil
 	}
 
 	parentHeader := ConvertBlockHeader(n.chain.GetHeader(header.ParentBlockID, big.NewInt(0).Sub(header.Number, big.NewInt(1))))
 	if parentHeader == nil || parentHeader.Number.Cmp(big.NewInt(0).Sub(header.Number, big.NewInt(1))) != 0 || parentHeader.Hash() != header.ParentBlockID {
-		return errors.New("unknown parent block")
+		return false, errors.New("unknown parent block")
 	}
 
 	if parentHeader.Timestamp.Add(maxTimePerRound).Before(header.Timestamp) {
-		return errors.New("invalid timestamp")
+		return false, errors.New("invalid timestamp")
 	}
 
-	return nil
+	return true, nil
 }

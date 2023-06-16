@@ -68,6 +68,7 @@ func setup() {
 		adamniteServer.Close()
 		bouncerServer.Close()
 	}()
+	adamniteServer.Start()
 
 	// setup Adamnite client
 	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))
