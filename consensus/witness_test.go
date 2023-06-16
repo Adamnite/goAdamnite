@@ -3,20 +3,24 @@ package consensus
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWitnessSelection(t *testing.T) {
 	witnessCount := 10
 
 	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	pool.nextRound()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,9 +33,12 @@ func TestWitnessSelection(t *testing.T) {
 	}
 	pool.witnessGoal = witnessCount - 1
 	selected, _ := pool.SelectCurrentWitnesses()
-	if len(selected) != witnessCount-1 {
-		t.Fail()
-	}
+	assert.Equal(
+		t,
+		witnessCount-1,
+		len(selected),
+		"wrong number of witnesses selected",
+	)
 	for _, w := range witnesses {
 		w.updateCandidate(pool)
 		pool.AddCandidate(w.candidacy)
@@ -39,15 +46,22 @@ func TestWitnessSelection(t *testing.T) {
 	pool.witnessGoal = 2
 	selected, _ = pool.SelectCurrentWitnesses()
 	if len(selected) != 2 {
+		fmt.Println("wrong number selected")
 		t.Fail()
 	}
 }
 func TestRoundSelections(t *testing.T) {
+	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	maxTimePrecision = time.Millisecond * 10
 	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	pool.StopAsyncTracker()
+	if pool.currentWorkingRoundID != 0 {
+		fmt.Println("round incremented right away")
+		t.Fail()
+	}
 
 	candidates := generateTestWitnesses(15)
 
@@ -60,40 +74,276 @@ func TestRoundSelections(t *testing.T) {
 			}
 		}
 	}}
+	if pool.currentWorkingRoundID != 0 {
+		fmt.Println("round is incremented before call")
+		t.Fail()
+	}
 	pool.newRoundStartedCaller[0]()
 	pool.SelectCurrentWitnesses()
-	if pool.currentRound != 1 {
+	pool.nextRound()
+	if pool.currentWorkingRoundID != 1 {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
-
+	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound).Add(maxTimePrecision) //give it a hair over the time
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
-	if pool.currentRound != 1 {
-		//check that it doesn't start the next round right away
-		fmt.Println("new round started too soon.")
-		t.Fail()
-	}
-	<-time.After(maxTimePerRound + 5)
+	assert.EqualValues(
+		t,
+		1,
+		pool.currentWorkingRoundID,
+		"new round started too soon",
+	)
+	<-time.After(time.Until(nextRoundStartTime))
 	pool.StopAsyncTracker()
+	assert.EqualValues(
+		t,
+		2,
+		pool.currentWorkingRoundID,
+		"new round must have started too late(or like, *way* too early)",
+	)
 
-	if pool.currentRound != 2 {
-		fmt.Println("new round hasn't started.")
-		t.FailNow()
+}
+
+// test the longevity of the witness selection
+func TestLongTermPoolCalculations(t *testing.T) {
+	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	if err != nil {
+		t.Fatal(err)
 	}
+	pool.StopAsyncTracker()
+	maxTimePerRound = time.Millisecond * 50 //change the time between rounds for testing.
+	// maxTimePerRound = time.Second * 5 //change the time between rounds for debugging.
+	maxTimePrecision = time.Millisecond * 5 //the error tolerance we can handle
 
-	pool.newRoundStartedCaller[0]()
+	candidates := generateTestWitnesses(15)
+
+	//set the newRound caller to add the candidates again (as if people had reapplied in between rounds)
+	pool.newRoundStartedCaller = []func(){func() {
+		for _, can := range candidates {
+			can.updateCandidate(pool)
+			if err := pool.AddCandidate(can.candidacy); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}}
+	pool.nextRound()
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
-	<-time.After(5*maxTimePerRound + 1)
+	goal := 500
+	<-time.After(maxTimePerRound*time.Duration(goal) + maxTimePrecision)
 	pool.StopAsyncTracker()
-
-	if pool.currentRound != 7 {
-		fmt.Println("timing for new round generation must be wrong.")
-		fmt.Printf("current round is %v", pool.currentRound)
+	if pool.GetWorkingRound().roundStartTime.After(time.Now()) {
+		fmt.Println("round after now")
 		t.Fail()
+	}
+	assert.EqualValues(
+		t,
+		goal+1, //plus one since we need to start it!
+		pool.currentWorkingRoundID,
+		"timing for new round generation must be wrong",
+	)
+}
+
+func TestWitnessLeadSelection(t *testing.T) {
+	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.StopAsyncTracker()
+	maxTimePerRound = time.Millisecond * 500 //change the time between rounds for testing.
+	// maxTimePerRound = time.Second * 5 //change the time between rounds for debugging.
+	maxTimePrecision = time.Millisecond * 5 //the error tolerance we can handle
+
+	candidates := generateTestWitnesses(27)
+	pool.witnessGoal = len(candidates)
+	blocksPerLead := 5
+	maxBlocksPerRound = uint64(blocksPerLead) * uint64(len(candidates))
+	//set the newRound caller to add the candidates again (as if people had reapplied in between rounds)
+	pool.newRoundStartedCaller = []func(){func() {
+		for _, can := range candidates {
+			can.updateCandidate(pool)
+			if err := pool.AddCandidate(can.candidacy); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}}
+	pool.nextRound()
+	pool.nextRound()
+	wrd := pool.GetWorkingRound()
+	assert.Equal(
+		t,
+		pool.witnessGoal,
+		len(wrd.leadWitnessOrder),
+		"incorrect witness leader list",
+	)
+	activeWit := wrd.leadWitnessOrder[0]
+	assert.True(
+		t,
+		wrd.IsActiveWitnessLead(&activeWit.spendingPub),
+		"leading witness is not actually lead",
+	)
+	//test two witnesses who acts truthfully
+	var blocksFaked uint64 = 0
+	for _, lead := range wrd.leadWitnessOrder {
+		blocksWhileLead := 0
+		for wrd.IsActiveWitnessLead(&lead.spendingPub) {
+			blocksFaked += 1
+			blocksWhileLead += 1
+			if err := pool.ActiveWitnessReviewed(&lead.spendingPub, true, blocksFaked); err != nil {
+				t.Fatal(err)
+			}
+		}
+		assert.Equal(t,
+			blocksPerLead,
+			blocksWhileLead,
+			"lead had the wrong number of blocks to review",
+		)
+	}
+	assert.Equal(t,
+		maxBlocksPerRound,
+		blocksFaked,
+		"blocks faked appears to not be accurate to the max block limit",
+	)
+	assert.EqualValues(
+		t,
+		3,
+		pool.currentWorkingRoundID,
+		"adding blocks till round was filled did not automatically increment round",
+	)
+	wrd = pool.GetWorkingRound()
+	for i := 0; pool.currentWorkingRoundID == 3; i = (i + 1) % len(candidates) {
+		blocksFaked += 1
+		testCan := candidates[i].candidacy
+		if wrd.IsActiveWitnessLead(testCan.GetWitnessPub()) {
+			err := pool.ActiveWitnessReviewed(testCan.GetWitnessPub(), true, blocksFaked)
+			//then this should actually have worked
+			assert.Equal(
+				t,
+				nil,
+				err,
+				"error was not nil when witness had active lead",
+			)
+		} else {
+			err := pool.ActiveWitnessReviewed(testCan.GetWitnessPub(), true, blocksFaked)
+			//they couldn't have reviewed that block!
+			assert.Error(
+				t,
+				err,
+				"this witness should've thrown an error!",
+			)
+		}
+		//go through the witnesses until the round rollover
+
+	}
+}
+
+// test the longevity of the witness selection
+func TestLongTermLeadSelection(t *testing.T) {
+	rpc.USE_LOCAL_IP = true           //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	// maxTimePerRound = time.Second * 50       //change the time between rounds for debugging.
+	maxTimePrecision = time.Millisecond * 50 //the error tolerance we can handle
+	testCandidateCount := 5
+	round0Start := time.Now().UTC().Add(maxTimePrecision)
+	candidates := []*ConsensusNode{}
+	for i := 0; i < testCandidateCount; i++ {
+		ac, _ := accounts.GenerateAccount()
+		newCan, err := NewAConsensus(*ac)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i != 0 {
+			targetContact := candidates[i-1].netLogic.GetOwnContact()
+			if err := newCan.netLogic.ConnectToContact(&targetContact); err != nil {
+				t.Fatal(err)
+			}
+			if i == 1 {
+				//also get 0 to connect to us
+				targetContact = newCan.netLogic.GetOwnContact()
+				candidates[0].netLogic.ConnectToContact(&targetContact)
+			}
+		}
+		newCan.poolsA.GetWorkingRound().roundStartTime = round0Start
+		newCan.autoStakeAmount = big.NewInt(1) //TODO: because of this, in future this test will need the chain data and states
+		candidates = append(candidates, newCan)
+	}
+	//all nodes are now connected to the network, so next we'll sprawl our networks, and propose our candidacy
+	for _, can := range candidates {
+		can.netLogic.SprawlConnections(3, 0)
+		if err := can.netLogic.FillOpenConnections(); err != nil {
+			t.Fatal(err)
+		}
+		if err := can.ProposeCandidacy(0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	//candidates should all be proposed, so now let's check everyone's candidates list to make sure they have all of them
+	for i, can := range candidates {
+		canPool := can.poolsA
+		if !assert.Equal( //they have the right number of lines
+			t,
+			testCandidateCount,
+			len(canPool.totalCandidates),
+			"candidate does not have all other candidates listed",
+		) {
+			//this is helpful for seeing why something breaks.
+			//if you don't have the networks spread enough, a candidate proposal wont spread to everyone right away
+			log.Printf("candidate index %v did not have all it's candidates in order.", i)
+			for j, candidate := range candidates {
+				if _, exists := canPool.totalCandidates[string(candidate.spendingAccount.PublicKey)]; !exists {
+					log.Printf("the missing candidate is index %v", j)
+				}
+			}
+			t.FailNow() //if you don't fail now, the next step will give a LONG error list
+		}
+		assert.EqualValues(
+			t,
+			0,
+			canPool.currentWorkingRoundID,
+			"a candidate started their round too soon",
+		)
+		assert.Equal(
+			t,
+			0,
+			canPool.GetWorkingRound().currentLeadIndex,
+			"candidate lead index has moved unexpectedly",
+		)
+	}
+	roundsToWait := 10
+	<-time.After(maxTimePerRound * time.Duration(roundsToWait))
+	//wait 5 rounds
+	for _, can := range candidates {
+		cwr := can.poolsA.GetWorkingRound()
+		assert.EqualValues(
+			t,
+			roundsToWait,
+			can.poolsA.currentWorkingRoundID,
+			"rounds are off",
+		)
+		assert.EqualValues(
+			t,
+			0,
+			cwr.currentLeadIndex,
+			"witness lead has started indexing",
+		)
+		for _, otherCan := range candidates {
+			assert.Equal(
+				t,
+				cwr.leadWitnessOrder,
+				otherCan.poolsA.GetWorkingRound().leadWitnessOrder,
+				"witness lead order differed between candidates",
+			)
+			assert.Equal(
+				t,
+				cwr.roundStartTime,
+				otherCan.poolsA.GetWorkingRound().roundStartTime,
+				"round start times are our of sync by a noticeable amount",
+			)
+		}
+
 	}
 }
 
@@ -106,20 +356,33 @@ type testingCandidate struct {
 
 func newTestCandidate(seed []byte, stakeAmount *big.Int) *testingCandidate {
 	tc := testingCandidate{}
-	tc.vrfPrivate, _ = crypto.GenerateVRFKey(rand.Reader)
-	tc.spender, _ = accounts.GenerateAccount()
-	tc.nodeAccount, _ = accounts.GenerateAccount()
+	var err error = fmt.Errorf("ignore this")
+	for err != nil {
+		tc.vrfPrivate, err = crypto.GenerateVRFKey(rand.Reader)
+	}
+	err = fmt.Errorf("ignore this")
+	for err != nil {
+		tc.spender, err = accounts.GenerateAccount()
+	}
+	err = fmt.Errorf("ignore this")
+	for err != nil {
+		tc.nodeAccount, err = accounts.GenerateAccount()
+	}
 	tc.candidacy, _ = utils.NewCandidate(0, seed, tc.vrfPrivate, 0, uint8(networking.PrimaryTransactions), "", tc.nodeAccount.PublicKey, *tc.spender, stakeAmount)
 	return &tc
 }
 func (tc *testingCandidate) updateCandidate(pool *Witness_pool) {
-	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(pool.currentRound, pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetCurrentRound().roundStartTime.Unix()), *tc.spender)
+	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(pool.currentWorkingRoundID+1, pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetApplyingRound().roundStartTime.Unix()), *tc.spender)
 }
 
 func generateTestWitnesses(count int) []*testingCandidate {
 	candidates := []*testingCandidate{}
-	for i := 0; i < count; i++ {
-		candidates = append(candidates, newTestCandidate([]byte{}, big.NewInt(1)))
+	for i := 0; len(candidates) <= count; i++ {
+		newCandidate := newTestCandidate([]byte{}, big.NewInt(1))
+		if newCandidate == nil {
+			continue
+		}
+		candidates = append(candidates, newCandidate)
 	}
 	return candidates
 }

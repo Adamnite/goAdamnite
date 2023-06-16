@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"math/big"
 	"sort"
 	"time"
@@ -8,17 +9,23 @@ import (
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
+	"golang.org/x/sync/syncmap"
 )
 
 type round_data struct {
 	eligibleWitnesses []*witness
 	witnesses         []*witness
-	witnessesMap      map[string]*witness
-	votes             map[string][]*utils.Voter //map[witnessPub]->votes for that witness, in that round
-	valueTotals       map[string]*big.Int       //map[witnessPub] -> total amount staked on them
-	vrfValues         map[string][]byte         //map[witnessPub]->vrf value
-	vrfProofs         map[string][]byte         //map[witnessPub]->vrf proof
-	vrfCutoffs        map[string]*big.Float     //map[witnessPub]->vrf cutoff value
+	leadWitnessOrder  []*witness
+	blocksPerWitness  []uint64
+	currentLeadIndex  int
+	blocksThisLead    uint64
+	witnessesMap      syncmap.Map //map[witnessPub]->*witness
+	removedWitnesses  syncmap.Map //map[witnessPub]->the block number that they were removed in
+	votes             syncmap.Map //map[witnessPub]->votes for that witness, in that round
+	valueTotals       syncmap.Map //map[witnessPub] -> total amount staked on them
+	vrfValues         syncmap.Map //map[witnessPub]->vrf value
+	vrfProofs         syncmap.Map //map[witnessPub]->vrf proof
+	vrfCutoffs        syncmap.Map //map[witnessPub]->vrf cutoff value
 	seed              []byte
 	openToApply       bool
 	roundStartTime    time.Time
@@ -27,45 +34,71 @@ type round_data struct {
 
 func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
-		witnessesMap:   make(map[string]*witness),
-		votes:          make(map[string][]*utils.Voter),
-		valueTotals:    make(map[string]*big.Int),
-		vrfValues:      make(map[string][]byte),
-		vrfProofs:      make(map[string][]byte),
-		vrfCutoffs:     make(map[string]*big.Float),
-		openToApply:    true,
-		seed:           seed,
-		roundStartTime: time.Now().UTC(),
+		witnessesMap:     syncmap.Map{},
+		removedWitnesses: syncmap.Map{},
+		votes:            syncmap.Map{},
+		valueTotals:      syncmap.Map{},
+		vrfValues:        syncmap.Map{},
+		vrfProofs:        syncmap.Map{},
+		vrfCutoffs:       syncmap.Map{},
+		openToApply:      true,
+		seed:             seed,
+		roundStartTime:   time.Now().UTC().Add(maxTimePrecision).Truncate(maxTimePrecision),
+		//truncate the rounds start time to the closest reliable precision we can use.
+		blocksInRound: 0,
 	}
 	return &newRound
 }
 func (rd *round_data) getNextRoundSeed() []byte {
-	if len(rd.witnesses) == 0 {
+	val, exists := rd.vrfValues.Load(string(rd.witnesses[0].spendingPub))
+	if !exists {
 		return []byte{}
 	}
-	return rd.vrfValues[string(rd.witnesses[0].spendingPub)]
+
+	return crypto.Sha512(val.([]byte))
 }
 func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []byte) {
 	//since every candidate needs a vote (from themselves) to run, we can check the vote count
-	if rd.votes[string(w.spendingPub)] != nil {
+	_, exists := rd.votes.Load(w.spendingPubString())
+	if exists {
+		//witness already has votes, so they must exist
 		return
 	}
 
 	rd.eligibleWitnesses = append(rd.eligibleWitnesses, w)
-	rd.vrfValues[string(w.spendingPub)] = vrfVal
-	rd.vrfProofs[string(w.spendingPub)] = vrfProof
-	rd.valueTotals[string(w.spendingPub)] = big.NewInt(0)
+	rd.vrfValues.Store(w.spendingPubString(), vrfVal)
+	rd.vrfProofs.Store(w.spendingPubString(), vrfProof)
+	rd.valueTotals.Store(w.spendingPubString(), big.NewInt(0))
 }
 func (rd *round_data) addVote(v *utils.Voter) {
 	candidateId := (*crypto.PublicKey)(&v.To)
-	if rd.votes[string(*candidateId)] == nil {
-		rd.votes[string(*candidateId)] = []*utils.Voter{}
+	votes, exists := rd.votes.Load(string(*candidateId))
+	if !exists {
+		votes = []*utils.Voter{}
 	}
-	rd.votes[string(*candidateId)] = append(rd.votes[string(*candidateId)], v)
-	if rd.valueTotals[string(*candidateId)] == nil {
-		rd.valueTotals[string(*candidateId)] = big.NewInt(0)
+	votes = append(votes.([]*utils.Voter), v)
+	rd.votes.Store(string(*candidateId), votes)
+	valueTotal, exists := rd.valueTotals.Load(string(*candidateId))
+	if !exists {
+		valueTotal = big.NewInt(0)
 	}
-	rd.valueTotals[string(*candidateId)].Add(rd.valueTotals[string(*candidateId)], v.StakingAmount)
+	valueTotal = big.NewInt(0).Add(valueTotal.(*big.Int), v.StakingAmount)
+	rd.valueTotals.Store(string(*candidateId), valueTotal)
+}
+func (rd *round_data) BlockReviewed() {
+	rd.blocksInRound += 1
+	rd.blocksThisLead += 1
+	if rd.blocksPerWitness[rd.currentLeadIndex] <= rd.blocksThisLead {
+		rd.blocksThisLead = 0
+		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % len(rd.leadWitnessOrder)
+	}
+}
+func (rd *round_data) GetVotesFor(w crypto.PublicKey) []*utils.Voter {
+	votes, exists := rd.votes.Load(string(w))
+	if !exists {
+		return nil
+	}
+	return votes.([]*utils.Voter)
 }
 
 // select witnesses should be called only once all votes have been received, and the next round needs to start. Returns witnesses selected
@@ -75,8 +108,15 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		maxBlockValidationPercent, maxStaking, maxVotes, maxElected := rd.getMaxes()
 		for _, w := range rd.eligibleWitnesses {
 			weight := rd.getWeight(w, maxBlockValidationPercent, maxStaking, maxVotes, maxElected)
-			rd.vrfCutoffs[string(w.spendingPub)] = weight
+			rd.vrfCutoffs.Store(w.spendingPubString(), weight)
 		}
+	} else {
+		//no need to do the work again
+		return rd.witnesses, rd.getNextRoundSeed()
+	}
+	if len(rd.eligibleWitnesses) == 0 {
+		//trying to prevent a null pointer error from happening if no one applied
+		return nil, nil
 	}
 
 	passingWitnesses := []*witness{}
@@ -84,12 +124,16 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	//32 bytes, all set to 255
 	maxVRFVal := big.NewFloat(0).SetInt(big.NewInt(1).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}))
 	for _, w := range rd.eligibleWitnesses {
+		vrfVal, _ := rd.vrfValues.Load(w.spendingPubString())
 		witnessVRFValue := big.NewFloat(0).Quo(
-			big.NewFloat(1).SetInt(big.NewInt(1).SetBytes(rd.vrfValues[string(w.spendingPub)])),
+
+			big.NewFloat(1).SetInt(big.NewInt(1).SetBytes(vrfVal.([]byte))),
 			maxVRFVal,
 		)
 		witnessVrfValueFloat[string(w.spendingPub)] = witnessVRFValue
-		if rd.vrfCutoffs[string(w.spendingPub)].Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
+		vrfCut, _ := rd.vrfCutoffs.Load(w.spendingPubString())
+		var vrfCutFloat *big.Float = vrfCut.(*big.Float)
+		if vrfCutFloat.Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
 			passingWitnesses = append(passingWitnesses, w)
 		}
 	}
@@ -99,10 +143,12 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	//sort the passing witnesses based on the difference between the cutoff and their score
 	sort.Slice(passingWitnesses, func(i, j int) bool {
 		//we sort no matter what so that we can get the next rounds seed
-		aId := passingWitnesses[i].spendingPub
-		bId := passingWitnesses[j].spendingPub
-		aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
-		bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
+		aId := passingWitnesses[i]
+		bId := passingWitnesses[j]
+		aOff, _ := rd.vrfCutoffs.Load(aId.spendingPubString())
+		bOff, _ := rd.vrfCutoffs.Load(bId.spendingPubString())
+		aDif := big.NewFloat(0).Sub(aOff.(*big.Float), witnessVrfValueFloat[aId.spendingPubString()])
+		bDif := big.NewFloat(0).Sub(bOff.(*big.Float), witnessVrfValueFloat[bId.spendingPubString()])
 		return aDif.Cmp(bDif) == 1
 	})
 
@@ -113,10 +159,12 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		// get more witnesses
 		sort.Slice(rd.eligibleWitnesses, func(i, j int) bool {
 			//sort the eligible witnesses so that the ones closest to passing are at the beginning
-			aId := rd.eligibleWitnesses[i].spendingPub
-			bId := rd.eligibleWitnesses[j].spendingPub
-			aDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(aId)], witnessVrfValueFloat[string(aId)])
-			bDif := big.NewFloat(0).Sub(rd.vrfCutoffs[string(bId)], witnessVrfValueFloat[string(bId)])
+			aId := passingWitnesses[i]
+			bId := passingWitnesses[j]
+			aOff, _ := rd.vrfCutoffs.Load(aId.spendingPubString())
+			bOff, _ := rd.vrfCutoffs.Load(bId.spendingPubString())
+			aDif := big.NewFloat(0).Sub(aOff.(*big.Float), witnessVrfValueFloat[aId.spendingPubString()])
+			bDif := big.NewFloat(0).Sub(bOff.(*big.Float), witnessVrfValueFloat[bId.spendingPubString()])
 			return aDif.Cmp(bDif) == 1
 		})
 		passingWitnesses = append(passingWitnesses,
@@ -124,15 +172,79 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 	}
 
 	rd.witnesses = passingWitnesses
-	for _, w := range passingWitnesses {
-		rd.witnessesMap[string(w.spendingPub)] = w
+	rd.leadWitnessOrder = make([]*witness, len(passingWitnesses))
+	copy(rd.leadWitnessOrder, passingWitnesses)
+	//create and copy the witnesses, then sorts it by their vrf values
+	sort.Slice(rd.leadWitnessOrder, func(i, j int) bool {
+		a := rd.leadWitnessOrder[i]
+		b := rd.leadWitnessOrder[j]
+		aVal, _ := rd.vrfValues.Load(a.spendingPubString())
+		bVal, _ := rd.vrfValues.Load(b.spendingPubString())
+		return bytes.Compare(aVal.([]byte), bVal.([]byte)) == -1
+	})
+	perWitness := maxBlocksPerRound / uint64(len(rd.eligibleWitnesses))
+	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(len(rd.eligibleWitnesses)))
+	rd.blocksPerWitness = make([]uint64, len(rd.leadWitnessOrder))
+	for i := range rd.leadWitnessOrder {
+		if i == 0 {
+			rd.blocksPerWitness[0] = roundingCutoff
+		} else {
+			rd.blocksPerWitness[i] = perWitness
+		}
 	}
-	return passingWitnesses, rd.vrfValues[string(passingWitnesses[0].spendingPub)]
+	for _, w := range passingWitnesses {
+		rd.witnessesMap.Store(string(w.spendingPub), w)
+	}
+
+	return passingWitnesses, rd.getNextRoundSeed()
 }
-func (rd round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
-	avgStakingAmount := float64(math.GetPercent(rd.valueTotals[string(w.spendingPub)], maxStaking))
+
+func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {
+	//TODO: check that the witness is able to be removed from this round without error
+	rd.removedWitnesses.Store(wit.spendingPubString(), blockID)
+	rd.witnessesMap.Delete(string(wit.spendingPub))
+	//assume they can be removed safely
+
+	//now we need to change the upcoming order for the witnesses.
+	if bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, wit.spendingPub) {
+		//they're actively the one running
+		extraBlocks := rd.blocksPerWitness[rd.currentLeadIndex] - rd.blocksThisLead
+		rd.blocksPerWitness[rd.currentLeadIndex] = rd.blocksThisLead // stop them at whatever block they're at now
+		//if they're last, the first person gets all of the blocks, otherwise everyone after them gets them
+		if rd.currentLeadIndex == len(rd.leadWitnessOrder)-1 {
+			//set the first lead back to where they were, then have them pick up where they were.
+			rd.currentLeadIndex = 0
+			rd.blocksThisLead = rd.blocksPerWitness[0]
+			rd.blocksPerWitness[0] += extraBlocks
+			return nil
+		}
+		//assume they weren't the last, so we add the blocks in order to everyone next
+		rd.currentLeadIndex += 1
+		remaining := len(rd.leadWitnessOrder) - rd.currentLeadIndex
+		for i := 0; i < int(extraBlocks); i++ {
+			rd.blocksPerWitness[(i%remaining)+rd.currentLeadIndex] += 1
+		}
+		return nil
+	}
+	//TODO: test, and figure out this edge case
+	//we know how many blocks we have left
+	return nil
+}
+func (rd *round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	if rd.openToApply {
+		//if you can still apply, then you obviously cant have a lead for this round yet
+		return false
+	}
+	// log.Printf("if this is above an error, the round is %v", rd)
+	return bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, *witID)
+}
+
+func (rd *round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
+	tot, _ := rd.valueTotals.Load(w.spendingPubString())
+	avgStakingAmount := float64(math.GetPercent(tot.(*big.Int), maxStaking))
 	avgBlockValidationPercent := float64(w.validationPercent()) / float64(maxBlockValidationPercent)
-	avgVoterCount := float64(len(rd.votes[string(w.spendingPub)])) / float64(maxVotes)
+	votes, _ := rd.votes.Load(w.spendingPubString())
+	avgVoterCount := float64(len(votes.([]*utils.Voter))) / float64(maxVotes)
 	var avgElectedCount float64
 	if maxElected == 0 {
 		avgElectedCount = 0
@@ -145,7 +257,7 @@ func (rd round_data) getWeight(w *witness, maxBlockValidationPercent float64, ma
 }
 
 // find the largest values from a list of witnesses.
-func (rd round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingAmount *big.Int, maxVoterCount int, maxElectedCount uint64) {
+func (rd *round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingAmount *big.Int, maxVoterCount int, maxElectedCount uint64) {
 	maxStakingAmount = big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
@@ -154,13 +266,13 @@ func (rd round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingAm
 		if t := w.validationPercent(); maxBlockValidationPercent < t {
 			maxBlockValidationPercent = t
 		}
-
-		if t := rd.valueTotals[string(w.spendingPub)]; maxStakingAmount.Cmp(t) == -1 {
-			maxStakingAmount = t
+		t, _ := rd.valueTotals.Load(w.spendingPubString())
+		if maxStakingAmount.Cmp(t.(*big.Int)) == -1 {
+			maxStakingAmount = t.(*big.Int)
 		}
-
-		if maxVoterCount < len(rd.votes[string(w.spendingPub)]) {
-			maxVoterCount = len(rd.votes[string(w.spendingPub)])
+		v, _ := rd.votes.Load(w.spendingPubString())
+		if maxVoterCount < len(v.([]*utils.Voter)) {
+			maxVoterCount = len(v.([]*utils.Voter))
 		}
 
 		if maxElectedCount < w.timesElected {

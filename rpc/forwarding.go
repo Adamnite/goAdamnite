@@ -48,6 +48,10 @@ func CreateForwardToAll(finalMessage interface{}) (ForwardingContent, error) {
 		forwardAns.FinalEndpoint = NewCandidateEndpoint
 	case utils.Voter, *utils.Voter:
 		forwardAns.FinalEndpoint = NewVoteEndpoint
+	case utils.Transaction, *utils.Transaction:
+		forwardAns.FinalEndpoint = NewTransactionEndpoint
+	case utils.Block, *utils.Block:
+		forwardAns.FinalEndpoint = NewBlockEndpoint
 	}
 	return forwardAns, nil
 }

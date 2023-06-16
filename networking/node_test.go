@@ -5,10 +5,12 @@ import (
 	"testing"
 
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTwoNodes(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
 
@@ -31,6 +33,7 @@ func TestTwoNodes(t *testing.T) {
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
 	if err := nodeA.AddServer(); err != nil {

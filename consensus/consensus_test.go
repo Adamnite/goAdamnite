@@ -9,11 +9,14 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBaseCandidacy(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	aAccount, _ := accounts.GenerateAccount()
 	a, err := NewAConsensus(*aAccount)
 	if err != nil {
@@ -35,7 +38,6 @@ func TestBaseCandidacy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// fmt.Println(b.candidates)
 	assert.Equal(t,
 		a.thisCandidateA,
 		b.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
@@ -49,24 +51,26 @@ func TestBaseCandidacy(t *testing.T) {
 	if err := b.VoteFor(a.thisCandidateA, big.NewInt(1)); err != nil {
 		t.Fatal(err)
 	}
+
 	assert.Equal(t,
-		1, len(a.poolsA.rounds[0].votes),
+		1, len(a.poolsA.GetApplyingRound().eligibleWitnesses),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(a.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
+		2, len(a.poolsA.GetApplyingRound().GetVotesFor(a.spendingAccount.PublicKey)),
 		"not enough votes correctly registered",
 	)
 	assert.Equal(t,
-		1, len(b.poolsA.rounds[0].votes),
+		1, len(b.poolsA.GetApplyingRound().eligibleWitnesses),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
-		2, len(b.poolsA.rounds[0].votes[string(a.spendingAccount.PublicKey)]),
+		2, len(b.poolsA.GetApplyingRound().GetVotesFor(a.spendingAccount.PublicKey)),
 		"not enough votes correctly registered",
 	)
 }
 func TestVoteForAllEqually(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	const (
 		candidateTotal int = 5
 		voterTotal     int = 50
@@ -147,6 +151,7 @@ func TestVoteForAllEqually(t *testing.T) {
 		candidateToVoteFor := candidates[i%candidateTotal]
 		if err := v.VoteFor(candidateToVoteFor.thisCandidateA, big.NewInt(1)); err != nil {
 			t.Fatal(err)
+			t.FailNow()
 		}
 	}
 	for _, c := range candidates {
@@ -154,17 +159,21 @@ func TestVoteForAllEqually(t *testing.T) {
 			log.Println("not recording all candidates")
 			t.Fail()
 		}
-		crd := c.poolsA.rounds[c.poolsA.currentRound]
+		crd := c.poolsA.GetWorkingRound()
+		crd.votes.Range(func(key, value any) bool {
+			val := value.([]*utils.Voter)
 
-		for witnessPub, val := range crd.votes {
 			if len(val) != (voterTotal/candidateTotal)+1 { //cant forget that you vote for yourself!
 				log.Printf("incorrect vote tally recorded. Expected %v, got %v", voterTotal/candidateTotal, len(val))
 				t.Fail()
 			}
-			if crd.valueTotals[witnessPub].Cmp(big.NewInt(int64((voterTotal/candidateTotal)+1))) != 0 {
-				log.Printf("not the right vote total value. Expected %v, got %v", (voterTotal / candidateTotal), crd.valueTotals[witnessPub].Int64())
+			valTotals, _ := crd.valueTotals.Load(key)
+			if valTotals.(*big.Int).Cmp(big.NewInt(int64((voterTotal/candidateTotal)+1))) != 0 {
+				log.Printf("not the right vote total value. Expected %v, got %v", (voterTotal / candidateTotal), valTotals.(*big.Int).Int64())
 				t.Fail()
 			}
-		}
+			return true
+		})
+
 	}
 }
