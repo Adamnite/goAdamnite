@@ -58,6 +58,7 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 		StateMerkleRoot:       stateRoot,
 		Number:                number,
 	}
+	header.TransactionType = 0x02 //TODO: make this correct
 	block := &Block{
 		Header:       header,
 		Transactions: transactions,

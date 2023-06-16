@@ -6,6 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 )
 
@@ -13,6 +14,7 @@ import (
 func ConvertBlockHeader(header *types.BlockHeader) *utils.BlockHeader {
 	return &utils.BlockHeader{
 		Timestamp:             time.Unix(int64(header.Time), 0),
+		TransactionType:       int8(networking.PrimaryTransactions), //TODO: make sure this is changed later
 		ParentBlockID:         header.ParentHash,
 		Witness:               crypto.PublicKey(header.Witness[:]), //TODO: this wont actually work, but enough to compile
 		WitnessMerkleRoot:     header.WitnessRoot,

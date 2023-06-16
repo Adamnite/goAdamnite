@@ -60,7 +60,7 @@ func setup() {
 	defer func() {
 		adamniteServer.Close()
 	}()
-	go adamniteServer.Run()
+	adamniteServer.Start()
 
 	// setup Adamnite client
 	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))
