@@ -18,11 +18,12 @@ func TestPendingTransactions(t *testing.T) {
 	testTransaction, _ := utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
 	tq.AddToQueue(testTransaction)
 	tq.Remove(testTransaction)
-	testTransaction, _ = utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
-	//we need to remake the testTransaction so it will have a different hash. This is done to prevent adding the same transaction to Queue twice
-	tq.AddToQueue(testTransaction)
 	ans := tq.Pop()
-	fmt.Println(ans) //TODO:i cannot explain how, but this is needed to get this test to pass. Someone please figure that out
+	assert.Nil(t, ans, "transaction is queued to be removed. Should return nil")
+	testTransaction, _ = utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
+	tq.AddToQueue(testTransaction)
+	ans = tq.Pop()
+
 	assert.NotNil(t, ans, "nothing returned")
 	assert.True(t, ans.Equal(*testTransaction), "transaction not equal after being returned")
 	if tq.Pop() != nil {

@@ -338,8 +338,8 @@ func TestLongTermLeadSelection(t *testing.T) {
 			)
 			assert.Equal(
 				t,
-				cwr.roundStartTime,
-				otherCan.poolsA.GetWorkingRound().roundStartTime,
+				cwr.roundStartTime.Round(maxTimePrecision),
+				otherCan.poolsA.GetWorkingRound().roundStartTime.Round(maxTimePrecision),
 				"round start times are our of sync by a noticeable amount",
 			)
 		}
