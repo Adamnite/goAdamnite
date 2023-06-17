@@ -9,7 +9,6 @@ import (
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
-
 type CaesarNode struct {
 	netHandler        *networking.NetNode
 	signerSet         *accounts.Account
@@ -45,7 +44,7 @@ func (cn *CaesarNode) Startup() error {
 func (cn CaesarNode) GetConnectionPoint() string {
 	return cn.netHandler.GetOwnContact().ConnectionString
 }
-func (cn CaesarNode) GetMessagesBetween(a, b accounts.Account) []*utils.CaesarMessage {
+func (cn CaesarNode) GetMessagesBetween(a, b *accounts.Account) []*utils.CaesarMessage {
 	ansMessages := []*utils.CaesarMessage{}
 	for _, msg := range cn.msgBySender[a.Address] {
 		if msg.To.Address == b.Address {
@@ -113,8 +112,8 @@ func (cn *CaesarNode) SendMessage(msg *utils.CaesarMessage) error {
 	cn.AddMessage(msg)
 	return cn.netHandler.Propagate(msg)
 }
-func (cn *CaesarNode) Send(to accounts.Account, message string) error {
-	msg, err := utils.NewCaesarMessage(to, *cn.signerSet, message)
+func (cn *CaesarNode) Send(to *accounts.Account, message string) error {
+	msg, err := utils.NewCaesarMessage(to, cn.signerSet, message)
 	if err != nil {
 		return err
 	}
