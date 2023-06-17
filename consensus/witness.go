@@ -113,7 +113,7 @@ func (wp *Witness_pool) StartAsyncTracking() error {
 	//run our continuos loop that checks every time the last round should've stopped.
 	go func(ctx context.Context) {
 		for {
-			roundEndTime := wp.GetWorkingRound().roundStartTime.Truncate(maxTimePrecision).Add(maxTimePerRound)
+			roundEndTime := wp.GetWorkingRound().roundStartTime.Truncate(maxTimePrecision.Duration()).Add(maxTimePerRound.Duration())
 			roundThatStartedThis := wp.currentWorkingRoundID
 			select {
 			case <-ctx.Done():
@@ -215,7 +215,7 @@ func (wp *Witness_pool) nextRound() {
 		log.Println(err)
 	}
 
-	wp.GetWorkingRound().roundStartTime = time.Now().UTC().Truncate(maxTimePrecision)
+	wp.GetWorkingRound().roundStartTime = time.Now().UTC().Truncate(maxTimePrecision.Duration())
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
 		nextRoundFunc()
