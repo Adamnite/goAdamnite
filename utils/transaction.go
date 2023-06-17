@@ -47,7 +47,7 @@ func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int,
 	return &t, err
 }
 func (t Transaction) FromAddress() common.Address {
-	return t.From.Address
+	return t.From.GetAddress()
 }
 
 var (
