@@ -26,7 +26,7 @@ func NewQueue(newOnly bool) *TransactionQueue {
 func (tq *TransactionQueue) AddToQueue(transaction *utils.Transaction) {
 	if tq.newTransactionsOnly {
 		//this is to ignore anything that's already been seen
-		_, previouslySeen := tq.previouslySeen.LoadOrStore(transaction.Hash(), true)
+		_, previouslySeen := tq.previouslySeen.LoadOrStore(transaction, true)
 		if previouslySeen {
 			return
 		}
@@ -36,11 +36,11 @@ func (tq *TransactionQueue) AddToQueue(transaction *utils.Transaction) {
 
 // even if this has been reviewed, ignore that and add it
 func (tq *TransactionQueue) AddIgnoringPast(transaction *utils.Transaction) {
-	if _, exists := tq.pendingRemoval.Load(transaction.Hash()); exists {
+	if pendingRemoval, exists := tq.pendingRemoval.Load(transaction); exists && pendingRemoval.(bool) {
 		//this already is awaiting processing, or has already been seen
 		return
 	}
-	tq.pendingRemoval.Store(transaction.Hash(), false)
+	tq.pendingRemoval.Store(transaction, false)
 	tq.pendingQueue = append(tq.pendingQueue, transaction)
 }
 
@@ -51,12 +51,8 @@ func (tq *TransactionQueue) Pop() *utils.Transaction {
 	}
 	t := tq.pendingQueue[0]
 	tq.pendingQueue = tq.pendingQueue[1:]
-	toDelete, previouslyStored := tq.pendingRemoval.LoadAndDelete(t.Hash())
-	if !previouslyStored {
-		//idk how we would have failed to store it in the map... but here we go returning it!
-		return t
-	}
-	if toDelete.(bool) {
+	toDelete, exists := tq.pendingRemoval.LoadAndDelete(t)
+	if exists && toDelete.(bool) {
 		return tq.Pop()
 	}
 	return t
@@ -64,15 +60,15 @@ func (tq *TransactionQueue) Pop() *utils.Transaction {
 
 // remove doesn't actually remove it from memory. But does make it so that it'll be removed next time there is a pop
 func (tq *TransactionQueue) Remove(t *utils.Transaction) {
-	tq.pendingRemoval.Store(t.Hash(), true)
-	tq.previouslySeen.Store(t.Hash(), true)
+	tq.pendingRemoval.Store(t, true)
+	tq.previouslySeen.Store(t, true)
 }
 
 // removes all matching transactions from the queue
 func (tq *TransactionQueue) RemoveAll(transactions []*utils.Transaction) {
 	for _, t := range transactions {
-		tq.pendingRemoval.Store(t.Hash(), true)
-		tq.previouslySeen.Store(t.Hash(), true)
+		tq.pendingRemoval.Store(t, true)
+		tq.previouslySeen.Store(t, true)
 	}
 }
 
@@ -80,7 +76,7 @@ func (tq *TransactionQueue) RemoveAll(transactions []*utils.Transaction) {
 func (tq *TransactionQueue) SortQueue() {
 	sort.Slice(tq.pendingQueue, func(i, j int) bool {
 		//TODO: move the ones awaiting removal to the front, then the oldest to newest
-		toRemove, store := tq.pendingRemoval.Load(tq.pendingQueue[i].Hash())
+		toRemove, store := tq.pendingRemoval.Load(tq.pendingQueue[i])
 		if !store || toRemove.(bool) {
 			//put the ones that need to be removed(or aren't stored) first
 			return true
