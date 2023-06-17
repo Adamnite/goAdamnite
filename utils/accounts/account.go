@@ -64,18 +64,25 @@ func AccountFromPrivBytes(privKey []byte) Account {
 }
 
 func GenerateAccount() (*Account, error) {
-	publicKey, privateKey, err := generateKeys()
+	privateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	if err != nil {
 		log.Printf("Account generation error: %s", err)
 		return nil, err
 	}
+	if len(privateKey.D.Bytes()) != 32 {
+		//sometimes ecdsa generates private keys or length 32. This is the easiest way to solve that.
+		return GenerateAccount()
+	}
+	return AccountFromPrivEcdsa(privateKey), nil
+}
 
-	return &Account{
-		Address:    createAddress(publicKey),
-		PublicKey:  publicKey,
-		privateKey: privateKey,
-		Balance:    big.NewInt(0),
-	}, nil
+// USE THIS OVER CALLING THE ADDRESS DIRECTLY
+func (a *Account) GetAddress() common.Address {
+	//this way we only store the address as its needed. Since it can be calculated when needed, no need to send it over networks.
+	if a.Address == common.BytesToAddress([]byte{}) {
+		a.Address = createAddress(a.PublicKey)
+	}
+	return a.Address
 }
 
 // sign data, and return a 65 byte array. Data can be most interface types
