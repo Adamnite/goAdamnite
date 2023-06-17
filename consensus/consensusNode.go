@@ -135,7 +135,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 		return nil
 	}
 	//check if the transaction is expired (signature verification should be done when balance is checked)
-	if transaction.Time.Add(maxTimePerRound).Before(time.Now().UTC()) {
+	if transaction.Time.Add(maxTimePerRound.Duration()).Before(time.Now().UTC()) {
 		//the transaction expired
 		return rpc.ErrBadForward
 	}
@@ -189,7 +189,7 @@ func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader) (bool, error) 
 		return false, errors.New("unknown parent block")
 	}
 
-	if parentHeader.Timestamp.Add(maxTimePerRound).Before(header.Timestamp) {
+	if parentHeader.Timestamp.Add(maxTimePerRound.Duration()).Before(header.Timestamp) {
 		return false, errors.New("invalid timestamp")
 	}
 

@@ -106,8 +106,10 @@ func TestTransactions(t *testing.T) {
 
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
-	maxTimePerRound = time.Second * 1
-	maxTimePrecision = time.Millisecond * 50
+
+	maxTimePerRound.SetDuration(time.Second * 1)
+	maxTimePrecision.SetDuration(time.Millisecond * 50)
+
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
 			i -= 1
@@ -167,7 +169,7 @@ func TestTransactions(t *testing.T) {
 	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
 	transactions := []*utils.Transaction{}
-	<-time.After(maxTimePerRound)
+	<-time.After(maxTimePerRound.Duration())
 	assert.EqualValues(
 		t,
 		1,
@@ -184,7 +186,7 @@ func TestTransactions(t *testing.T) {
 		}
 		transactions = append(transactions, testTransaction)
 	}
-	<-time.After(maxTimePerRound)
+	<-time.After(maxTimePerRound.Duration())
 
 	//everything *should* be reviewed by now.
 	assert.Equal(
