@@ -43,5 +43,5 @@ func (v Voter) Address() common.Address {
 	return accounts.AccountFromPubBytes(v.From).Address
 }
 func (v Voter) Account() accounts.Account {
-	return accounts.AccountFromPubBytes(v.From)
+	return *accounts.AccountFromPubBytes(v.From)
 }

@@ -23,7 +23,7 @@ func TestTransaction(t *testing.T) {
 	if !ok {
 		t.Fatal("signature of transaction could not be verified")
 	}
-	tt.From = &strippedSender
+	tt.From = strippedSender
 	ok, err = tt.VerifySignature()
 	if err != nil {
 		t.Fatal(err)

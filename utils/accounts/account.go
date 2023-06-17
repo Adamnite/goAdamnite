@@ -18,29 +18,36 @@ import (
 )
 
 type Account struct {
-	Address    common.Address
+	Address    common.Address //TODO: once GetAddress is the more commonly used item, we should make this private(lowercase)
 	PublicKey  []byte
 	privateKey []byte
 	Balance    *big.Int
 }
 
-func AccountFromPubBytes(pubKey []byte) Account {
-	return Account{
+func AccountFromMessage(data interface{}, signature []byte) (*Account, error) {
+	pub, err := secp256k1.RecoverPubkey(toHashedBytes(data), signature)
+	if err != nil {
+		return nil, err
+	}
+	return AccountFromPubBytes(pub), nil
+}
+func AccountFromPubBytes(pubKey []byte) *Account {
+	return &Account{
 		Address:   crypto.PubkeyByteToAddress(pubKey),
 		PublicKey: pubKey,
 	}
 }
-func AccountFromStorage(storagePoint string) (Account, error) {
+func AccountFromStorage(storagePoint string) (*Account, error) {
 	priv, err := crypto.LoadECDSA(storagePoint)
 	if err != nil {
-		return Account{}, err
+		return nil, err
 	}
 	return AccountFromPrivEcdsa(priv), nil
 }
-func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
-	publicKey := privKey.PublicKey
 
-	return Account{
+func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) *Account {
+	publicKey := privKey.PublicKey
+	return &Account{
 		Address:    createAddress(publicKey.X.Bytes()),
 		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
 		privateKey: privKey.D.Bytes(),
@@ -48,19 +55,12 @@ func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
 	}
 
 }
-func AccountFromPrivBytes(privKey []byte) Account {
+func AccountFromPrivBytes(privKey []byte) (*Account, error) {
 	ePriv, err := crypto.ToECDSA(privKey)
-
-	publicKey := ePriv.PublicKey
 	if err != nil {
-		return Account{}
+		return nil, err
 	}
-	return Account{
-		Address:    createAddress(publicKey.X.Bytes()),
-		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
-		privateKey: privKey,
-		Balance:    big.NewInt(0),
-	}
+	return AccountFromPrivEcdsa(ePriv), nil
 }
 
 func GenerateAccount() (*Account, error) {
@@ -158,20 +158,6 @@ func toHashedBytes(data interface{}) []byte {
 		dataBytes = sha256Hash(dataBytes)
 	}
 	return dataBytes
-}
-
-func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
-	privateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-	if err != nil {
-		log.Printf("Keys generation error: %s", err)
-		return rawPublicKey, rawPrivateKey, err
-	}
-
-	publicKey := privateKey.PublicKey
-
-	rawPrivateKey = privateKey.D.Bytes()
-	rawPublicKey = elliptic.Marshal(publicKey, publicKey.X, publicKey.Y)
-	return
 }
 
 func createAddress(publicKey []byte) common.Address {
