@@ -3,6 +3,8 @@ package consensus
 import (
 	"fmt"
 	"time"
+
+	"github.com/adamnite/go-adamnite/utils/types"
 )
 
 const (
@@ -10,8 +12,8 @@ const (
 )
 
 // TODO: change these to follow the white paper
-var maxTimePerRound = time.Minute * 10
-var maxTimePrecision = time.Second * 2
+var maxTimePerRound = utils.NewSafeDuration(time.Minute * 10)
+var maxTimePrecision = utils.NewSafeDuration(time.Second * 2)
 var maxBlocksPerRound uint64 = 27 * 6
 var maxTransactionsPerBlock int = 255
 
