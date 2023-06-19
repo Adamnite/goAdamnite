@@ -36,7 +36,7 @@ func TestWitnessSelection(t *testing.T) {
 	assert.Equal(
 		t,
 		witnessCount-1,
-		len(selected),
+		selected.Len(),
 		"wrong number of witnesses selected",
 	)
 	for _, w := range witnesses {
@@ -45,7 +45,7 @@ func TestWitnessSelection(t *testing.T) {
 	}
 	pool.witnessGoal = 2
 	selected, _ = pool.SelectCurrentWitnesses()
-	if len(selected) != 2 {
+	if selected.Len() != 2 {
 		fmt.Println("wrong number selected")
 		t.Fail()
 	}
@@ -58,7 +58,7 @@ func TestRoundSelections(t *testing.T) {
 		t.Fatal(err)
 	}
 	pool.StopAsyncTracker()
-	if pool.currentWorkingRoundID != 0 {
+	if pool.currentWorkingRoundID.Get() != 0 {
 		fmt.Println("round incremented right away")
 		t.Fail()
 	}
@@ -74,14 +74,14 @@ func TestRoundSelections(t *testing.T) {
 			}
 		}
 	}}
-	if pool.currentWorkingRoundID != 0 {
+	if pool.currentWorkingRoundID.Get() != 0 {
 		fmt.Println("round is incremented before call")
 		t.Fail()
 	}
 	pool.newRoundStartedCaller[0]()
 	pool.SelectCurrentWitnesses()
 	pool.nextRound()
-	if pool.currentWorkingRoundID != 1 {
+	if pool.currentWorkingRoundID.Get() != 1 {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
@@ -92,7 +92,7 @@ func TestRoundSelections(t *testing.T) {
 	assert.EqualValues(
 		t,
 		1,
-		pool.currentWorkingRoundID,
+		pool.currentWorkingRoundID.Get(),
 		"new round started too soon",
 	)
 	<-time.After(time.Until(nextRoundStartTime))
@@ -100,7 +100,7 @@ func TestRoundSelections(t *testing.T) {
 	assert.EqualValues(
 		t,
 		2,
-		pool.currentWorkingRoundID,
+		pool.currentWorkingRoundID.Get(),
 		"new round must have started too late(or like, *way* too early)",
 	)
 
@@ -142,7 +142,7 @@ func TestLongTermPoolCalculations(t *testing.T) {
 	assert.EqualValues(
 		t,
 		goal+1, //plus one since we need to start it!
-		pool.currentWorkingRoundID,
+		pool.currentWorkingRoundID.Get(),
 		"timing for new round generation must be wrong",
 	)
 }
@@ -176,10 +176,10 @@ func TestWitnessLeadSelection(t *testing.T) {
 	assert.Equal(
 		t,
 		pool.witnessGoal,
-		len(wrd.leadWitnessOrder),
+		wrd.leadWitnessOrder.Len(),
 		"incorrect witness leader list",
 	)
-	activeWit := wrd.leadWitnessOrder[0]
+	activeWit := wrd.leadWitnessOrder.Get(0).(*witness)
 	assert.True(
 		t,
 		wrd.IsActiveWitnessLead(&activeWit.spendingPub),
@@ -187,7 +187,8 @@ func TestWitnessLeadSelection(t *testing.T) {
 	)
 	//test two witnesses who acts truthfully
 	var blocksFaked uint64 = 0
-	for _, lead := range wrd.leadWitnessOrder {
+	wrd.leadWitnessOrder.ForEach(func(_ int, val interface{}) bool {
+		lead := val.(*witness)
 		blocksWhileLead := 0
 		for wrd.IsActiveWitnessLead(&lead.spendingPub) {
 			blocksFaked += 1
@@ -201,7 +202,8 @@ func TestWitnessLeadSelection(t *testing.T) {
 			blocksWhileLead,
 			"lead had the wrong number of blocks to review",
 		)
-	}
+		return true
+	})
 	assert.Equal(t,
 		maxBlocksPerRound,
 		blocksFaked,
@@ -210,11 +212,11 @@ func TestWitnessLeadSelection(t *testing.T) {
 	assert.EqualValues(
 		t,
 		3,
-		pool.currentWorkingRoundID,
+		pool.currentWorkingRoundID.Get(),
 		"adding blocks till round was filled did not automatically increment round",
 	)
 	wrd = pool.GetWorkingRound()
-	for i := 0; pool.currentWorkingRoundID == 3; i = (i + 1) % len(candidates) {
+	for i := 0; pool.currentWorkingRoundID.Get() == 3; i = (i + 1) % len(candidates) {
 		blocksFaked += 1
 		testCan := candidates[i].candidacy
 		if wrd.IsActiveWitnessLead(testCan.GetWitnessPub()) {
@@ -302,7 +304,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 		assert.EqualValues(
 			t,
 			0,
-			canPool.currentWorkingRoundID,
+			canPool.currentWorkingRoundID.Get(),
 			"a candidate started their round too soon",
 		)
 		assert.Equal(
@@ -320,7 +322,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 		assert.EqualValues(
 			t,
 			roundsToWait,
-			can.poolsA.currentWorkingRoundID,
+			can.poolsA.currentWorkingRoundID.Get(),
 			"rounds are off",
 		)
 		assert.EqualValues(
@@ -332,8 +334,8 @@ func TestLongTermLeadSelection(t *testing.T) {
 		for _, otherCan := range candidates {
 			assert.Equal(
 				t,
-				cwr.leadWitnessOrder,
-				otherCan.poolsA.GetWorkingRound().leadWitnessOrder,
+				cwr.leadWitnessOrder.GetItems(),
+				otherCan.poolsA.GetWorkingRound().leadWitnessOrder.GetItems(),
 				"witness lead order differed between candidates",
 			)
 			assert.Equal(
@@ -372,7 +374,7 @@ func newTestCandidate(seed []byte, stakeAmount *big.Int) *testingCandidate {
 	return &tc
 }
 func (tc *testingCandidate) updateCandidate(pool *Witness_pool) {
-	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(pool.currentWorkingRoundID+1, pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetApplyingRound().roundStartTime.Unix()), *tc.spender)
+	tc.candidacy, _ = tc.candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), tc.vrfPrivate, uint64(pool.GetApplyingRound().roundStartTime.Unix()), *tc.spender)
 }
 
 func generateTestWitnesses(count int) []*testingCandidate {
