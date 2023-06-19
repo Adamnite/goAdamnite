@@ -75,6 +75,31 @@ func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*Consen
 	}
 	return &con, nil
 }
+
+// shuts down the consensus node, and prevents any further candidacy applications. If you have already run, this may cause issues.
+// Stop also closes any handling types currently running. This can be undone by calling the applicable node functions to add it back. EG con.AddAConsensus()
+func (con *ConsensusNode) Stop(stopNetwork bool) {
+	if stopNetwork {
+		//if were stopping the networking layer too, this might *really* cause some problems
+		con.netLogic.Close()
+		con.handlingType = 0
+	} else {
+		con.handlingType = networking.NetworkingOnly
+	}
+	con.ProposeCandidacy(1)
+}
+
+// unlike Stop, this cannot be undone and fully closes the node.
+func (con *ConsensusNode) Close(stopNetworking bool) {
+	con.Stop(stopNetworking)
+	if con.poolsA != nil && con.poolsA.asyncStopper != nil {
+		con.poolsA.asyncStopper()
+	}
+	if con.poolsB != nil && con.poolsB.asyncStopper != nil {
+		con.poolsB.asyncStopper()
+	}
+	con = nil
+}
 func (con ConsensusNode) CanReviewType(t networking.NetworkTopLayerType) bool {
 	return t.IsTypeIn(con.handlingType)
 }
@@ -141,11 +166,10 @@ func (con *ConsensusNode) ReviewBlock(block utils.Block) error {
 			log.Println(err)
 			//TODO: no, we want to throw this error!!!
 			return nil
-		} else {
-			return nil
 		}
 
 	}
+	//TODO: if we are chamber a, or b, either way we should log the transactions to our state
 	return nil
 }
 

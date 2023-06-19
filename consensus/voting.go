@@ -117,6 +117,14 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	if candidacyTypes == 0 {
 		candidacyTypes = uint8(con.handlingType)
 	}
+	if candidacyTypes == uint8(networking.NetworkingOnly) {
+		//assume they are intentionally doing this to prevent further applications
+		if len(con.poolsA.newRoundStartedCaller) != 0 {
+			con.poolsA.newRoundStartedCaller = []func(){con.continuosHandler}
+		}
+		//TODO: check that poolsB, if it's running, we need to prevent further applications to it as well.
+		return nil
+	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
 		addLocalCandidate := func() {
 			pool := con.poolsA
