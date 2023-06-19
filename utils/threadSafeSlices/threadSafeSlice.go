@@ -24,6 +24,7 @@ func (tss *ThreadSafeSlice) Copy() *ThreadSafeSlice {
 	defer tss.lock.RUnlock()
 	newTSS := ThreadSafeSlice{
 		items: make([]interface{}, len(tss.items)),
+		lock:  sync.RWMutex{},
 	}
 	copy(newTSS.items, tss.items)
 	return &newTSS
@@ -80,9 +81,16 @@ func (tss *ThreadSafeSlice) Set(index int, value interface{}) {
 		tss.items[len(tss.items)+index] = value
 	}
 }
+
 func (tss *ThreadSafeSlice) Pop(index int) interface{} {
-	val := tss.Get(index)
-	tss.Remove(index)
+	tss.lock.Lock()
+	defer tss.lock.Unlock()
+	if index < 0 {
+		//index is negative
+		index = len(tss.items) + index
+	}
+	val := tss.items[index]
+	tss.items = append(tss.items[:index], tss.items[index+1:]...)
 	return val
 }
 
