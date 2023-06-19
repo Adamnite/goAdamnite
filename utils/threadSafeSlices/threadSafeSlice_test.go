@@ -51,3 +51,24 @@ func TestSingleThread(t *testing.T) {
 		"removing all items from array did not work",
 	)
 }
+func TestManyThreads(t *testing.T) {
+	threadGoal := 5
+	tss := NewThreadSafeSlice()
+	testData := []byte("Hello World!")
+	threads := []func(){}
+	for i := 0; i < threadGoal; i++ {
+		threads = append(threads, func() {
+			//func that will be run in parallel
+			for i, char := range testData {
+				tss.Append(char)
+				assert.Equal(
+					t, testData[i], tss.Pop(-1),
+					"popped value was not same as one we just added",
+				)
+			}
+		})
+	}
+	for _, t := range threads {
+		go t()
+	}
+}
