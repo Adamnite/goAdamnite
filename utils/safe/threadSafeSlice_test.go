@@ -1,4 +1,4 @@
-package threadSafeSlice
+package safe
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestSingleThread(t *testing.T) {
-	tss := NewThreadSafeSlice()
+	tss := NewSafeSlice()
 	items := []byte("Hello World!")
 	for i, char := range items {
 		tss.Append(char)
@@ -53,7 +53,7 @@ func TestSingleThread(t *testing.T) {
 }
 func TestManyThreads(t *testing.T) {
 	threadGoal := 5
-	tss := NewThreadSafeSlice()
+	tss := NewSafeSlice()
 	testData := []byte("Hello World!")
 	threads := []func(){}
 	for i := 0; i < threadGoal; i++ {
