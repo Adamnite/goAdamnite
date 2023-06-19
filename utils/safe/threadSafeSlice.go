@@ -1,37 +1,48 @@
-package threadSafeSlice
+package safe
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
-type ThreadSafeSlice struct {
+// a slice type that is thread safe
+type SafeSlice struct {
 	lock  sync.RWMutex
 	items []interface{}
 }
 
-type ThreadSafeItem struct {
-	Index int
-	Value interface{}
+func NewSafeSlice() *SafeSlice {
+	return &SafeSlice{}
 }
 
-func NewThreadSafeSlice() *ThreadSafeSlice {
-	return &ThreadSafeSlice{}
-}
-
-func (tss *ThreadSafeSlice) Copy() *ThreadSafeSlice {
+func (tss *SafeSlice) Copy() *SafeSlice {
 	tss.lock.RLock()
 	defer tss.lock.RUnlock()
-	newTSS := ThreadSafeSlice{
+	newTSS := SafeSlice{
 		items: make([]interface{}, len(tss.items)),
 		lock:  sync.RWMutex{},
 	}
 	copy(newTSS.items, tss.items)
 	return &newTSS
 }
+func (tss *SafeSlice) GetItems() []interface{} {
+	tss.lock.RLock()
+	defer tss.lock.RUnlock()
+	return tss.items
+}
+
+// pass a lessThan function that takes the indexes in the array
+func (tss *SafeSlice) Sort(lessThan func(int, interface{}, int, interface{}) bool) {
+	tss.lock.Lock()
+	defer tss.lock.Unlock()
+	sort.Slice(tss.items, func(i, j int) bool {
+		return lessThan(i, tss.items[i], j, tss.items[j])
+	})
+}
 
 // removes an item from the array based on it's index
-func (tss *ThreadSafeSlice) Remove(index int) {
+func (tss *SafeSlice) Remove(index int) {
 	tss.lock.Lock()
 	defer tss.lock.Unlock()
 	if index < 0 {
@@ -41,7 +52,7 @@ func (tss *ThreadSafeSlice) Remove(index int) {
 }
 
 // removes all the items from a-b including a and b
-func (tss *ThreadSafeSlice) RemoveFrom(a, b int) {
+func (tss *SafeSlice) RemoveFrom(a, b int) {
 	tss.lock.Lock()
 	defer tss.lock.Unlock()
 	itemsLength := len(tss.items)
@@ -54,7 +65,7 @@ func (tss *ThreadSafeSlice) RemoveFrom(a, b int) {
 		bIndex = itemsLength + b
 	}
 	//check a and b are not negative, and if they are, work with it
-	if aIndex >= bIndex {
+	if aIndex > bIndex {
 		if aIndex != a || bIndex != b {
 			panic(fmt.Errorf("error end before start[%d:%d]. With original values pass %d:%d", aIndex, bIndex, a, b))
 		}
@@ -64,7 +75,7 @@ func (tss *ThreadSafeSlice) RemoveFrom(a, b int) {
 }
 
 // get item at index. If a negative number is passed, it will act similar to python, and will get item from index away from the end. Can still throw index out of bounds.
-func (tss *ThreadSafeSlice) Get(index int) interface{} {
+func (tss *SafeSlice) Get(index int) interface{} {
 	tss.lock.RLock()
 	defer tss.lock.RUnlock()
 	if index >= 0 {
@@ -72,7 +83,7 @@ func (tss *ThreadSafeSlice) Get(index int) interface{} {
 	}
 	return tss.items[len(tss.items)+index]
 }
-func (tss *ThreadSafeSlice) Set(index int, value interface{}) {
+func (tss *SafeSlice) Set(index int, value interface{}) {
 	tss.lock.Lock()
 	defer tss.lock.Unlock()
 	if index >= 0 {
@@ -82,7 +93,7 @@ func (tss *ThreadSafeSlice) Set(index int, value interface{}) {
 	}
 }
 
-func (tss *ThreadSafeSlice) Pop(index int) interface{} {
+func (tss *SafeSlice) Pop(index int) interface{} {
 	tss.lock.Lock()
 	defer tss.lock.Unlock()
 	if index < 0 {
@@ -95,14 +106,14 @@ func (tss *ThreadSafeSlice) Pop(index int) interface{} {
 }
 
 // gets the length of items in the array at time of testing
-func (tss *ThreadSafeSlice) Len() int {
+func (tss *SafeSlice) Len() int {
 	tss.lock.RLock()
 	defer tss.lock.RUnlock()
 	return len(tss.items)
 }
 
 // Appends an item to the concurrent slice
-func (tss *ThreadSafeSlice) Append(item interface{}) {
+func (tss *SafeSlice) Append(item interface{}) {
 	tss.lock.Lock()
 	defer tss.lock.Unlock()
 
@@ -110,7 +121,7 @@ func (tss *ThreadSafeSlice) Append(item interface{}) {
 }
 
 // do x for each item based on the index and value. Return false to break the loop.
-func (tss *ThreadSafeSlice) ForEach(doForEach func(int, interface{}) bool) {
+func (tss *SafeSlice) ForEach(doForEach func(int, interface{}) bool) {
 	tss.lock.RLock()
 	defer tss.lock.RUnlock()
 	for index, value := range tss.items {
