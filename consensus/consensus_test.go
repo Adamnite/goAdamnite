@@ -53,7 +53,7 @@ func TestBaseCandidacy(t *testing.T) {
 	}
 
 	assert.Equal(t,
-		1, len(a.poolsA.GetApplyingRound().eligibleWitnesses),
+		1, a.poolsA.GetApplyingRound().eligibleWitnesses.Len(),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,
@@ -61,7 +61,7 @@ func TestBaseCandidacy(t *testing.T) {
 		"not enough votes correctly registered",
 	)
 	assert.Equal(t,
-		1, len(b.poolsA.GetApplyingRound().eligibleWitnesses),
+		1, b.poolsA.GetApplyingRound().eligibleWitnesses.Len(),
 		"extra vote catagories compared to number of people running",
 	)
 	assert.Equal(t,

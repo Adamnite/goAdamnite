@@ -3,19 +3,19 @@ package consensus
 import (
 	"bytes"
 	"math/big"
-	"sort"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/safe"
 	"golang.org/x/sync/syncmap"
 )
 
 type round_data struct {
-	eligibleWitnesses []*witness
-	witnesses         []*witness
-	leadWitnessOrder  []*witness
+	eligibleWitnesses *safe.SafeSlice
+	witnesses         *safe.SafeSlice
+	leadWitnessOrder  *safe.SafeSlice
 	blocksPerWitness  []uint64
 	currentLeadIndex  int
 	blocksThisLead    uint64
@@ -34,23 +34,25 @@ type round_data struct {
 
 func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
-		witnessesMap:     syncmap.Map{},
-		removedWitnesses: syncmap.Map{},
-		votes:            syncmap.Map{},
-		valueTotals:      syncmap.Map{},
-		vrfValues:        syncmap.Map{},
-		vrfProofs:        syncmap.Map{},
-		vrfCutoffs:       syncmap.Map{},
-		openToApply:      true,
-		seed:             seed,
-		roundStartTime:   time.Now().UTC().Add(maxTimePrecision).Truncate(maxTimePrecision),
+		eligibleWitnesses: safe.NewSafeSlice(),
+		witnessesMap:      syncmap.Map{},
+		removedWitnesses:  syncmap.Map{},
+		votes:             syncmap.Map{},
+		valueTotals:       syncmap.Map{},
+		vrfValues:         syncmap.Map{},
+		vrfProofs:         syncmap.Map{},
+		vrfCutoffs:        syncmap.Map{},
+		openToApply:       true,
+		seed:              seed,
+		roundStartTime:    time.Now().UTC().Add(maxTimePrecision).Truncate(maxTimePrecision),
 		//truncate the rounds start time to the closest reliable precision we can use.
 		blocksInRound: 0,
 	}
 	return &newRound
 }
 func (rd *round_data) getNextRoundSeed() []byte {
-	val, exists := rd.vrfValues.Load(string(rd.witnesses[0].spendingPub))
+	wit := rd.witnesses.Get(0).(*witness)
+	val, exists := rd.vrfValues.Load(wit.spendingPubString())
 	if !exists {
 		return []byte{}
 	}
@@ -64,8 +66,7 @@ func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []b
 		//witness already has votes, so they must exist
 		return
 	}
-
-	rd.eligibleWitnesses = append(rd.eligibleWitnesses, w)
+	rd.eligibleWitnesses.Append(w)
 	rd.vrfValues.Store(w.spendingPubString(), vrfVal)
 	rd.vrfProofs.Store(w.spendingPubString(), vrfProof)
 	rd.valueTotals.Store(w.spendingPubString(), big.NewInt(0))
@@ -90,7 +91,7 @@ func (rd *round_data) BlockReviewed() {
 	rd.blocksThisLead += 1
 	if rd.blocksPerWitness[rd.currentLeadIndex] <= rd.blocksThisLead {
 		rd.blocksThisLead = 0
-		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % len(rd.leadWitnessOrder)
+		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % rd.leadWitnessOrder.Len()
 	}
 }
 func (rd *round_data) GetVotesFor(w crypto.PublicKey) []*utils.Voter {
@@ -102,28 +103,31 @@ func (rd *round_data) GetVotesFor(w crypto.PublicKey) []*utils.Voter {
 }
 
 // select witnesses should be called only once all votes have been received, and the next round needs to start. Returns witnesses selected
-func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
+func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 	if rd.openToApply { //close the applications and select the winning witnesses
 		rd.openToApply = false
 		maxBlockValidationPercent, maxStaking, maxVotes, maxElected := rd.getMaxes()
-		for _, w := range rd.eligibleWitnesses {
+		rd.eligibleWitnesses.ForEach(func(_ int, val interface{}) bool {
+			w := val.(*witness)
 			weight := rd.getWeight(w, maxBlockValidationPercent, maxStaking, maxVotes, maxElected)
 			rd.vrfCutoffs.Store(w.spendingPubString(), weight)
-		}
+			return true
+		})
 	} else {
 		//no need to do the work again
 		return rd.witnesses, rd.getNextRoundSeed()
 	}
-	if len(rd.eligibleWitnesses) == 0 {
+	if rd.eligibleWitnesses.Len() == 0 {
 		//trying to prevent a null pointer error from happening if no one applied
 		return nil, nil
 	}
 
-	passingWitnesses := []*witness{}
+	passingWitnesses := safe.NewSafeSlice()
 	witnessVrfValueFloat := make(map[string]*big.Float)
 	//32 bytes, all set to 255
 	maxVRFVal := big.NewFloat(0).SetInt(big.NewInt(1).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}))
-	for _, w := range rd.eligibleWitnesses {
+	rd.eligibleWitnesses.ForEach(func(_ int, val interface{}) bool {
+		w := val.(*witness)
 		vrfVal, _ := rd.vrfValues.Load(w.spendingPubString())
 		witnessVRFValue := big.NewFloat(0).Quo(
 
@@ -134,17 +138,18 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		vrfCut, _ := rd.vrfCutoffs.Load(w.spendingPubString())
 		var vrfCutFloat *big.Float = vrfCut.(*big.Float)
 		if vrfCutFloat.Cmp(witnessVRFValue) != -1 { //the witnesses VRF value is less than or equal to their cutoff
-			passingWitnesses = append(passingWitnesses, w)
+			passingWitnesses.Append(w)
 		}
-	}
-	if len(rd.eligibleWitnesses) <= goalCount { //we don't have enough witnesses to try and generate more
-		passingWitnesses = rd.eligibleWitnesses
+		return true
+	})
+	if rd.eligibleWitnesses.Len() <= goalCount { //we don't have enough witnesses to try and generate more
+		passingWitnesses = rd.eligibleWitnesses.Copy()
 	}
 	//sort the passing witnesses based on the difference between the cutoff and their score
-	sort.Slice(passingWitnesses, func(i, j int) bool {
+	passingWitnesses.Sort(func(_ int, a interface{}, _ int, b interface{}) bool {
 		//we sort no matter what so that we can get the next rounds seed
-		aId := passingWitnesses[i]
-		bId := passingWitnesses[j]
+		aId := a.(*witness)
+		bId := b.(*witness)
 		aOff, _ := rd.vrfCutoffs.Load(aId.spendingPubString())
 		bOff, _ := rd.vrfCutoffs.Load(bId.spendingPubString())
 		aDif := big.NewFloat(0).Sub(aOff.(*big.Float), witnessVrfValueFloat[aId.spendingPubString()])
@@ -152,49 +157,53 @@ func (rd *round_data) selectWitnesses(goalCount int) ([]*witness, []byte) {
 		return aDif.Cmp(bDif) == 1
 	})
 
-	if len(passingWitnesses) > goalCount && len(rd.eligibleWitnesses) >= goalCount {
+	if passingWitnesses.Len() > goalCount && rd.eligibleWitnesses.Len() >= goalCount {
 		//remove the lowest scorers
-		passingWitnesses = passingWitnesses[:goalCount]
-	} else if len(passingWitnesses) < goalCount && len(rd.eligibleWitnesses) >= goalCount {
+		passingWitnesses.RemoveFrom(goalCount, -1)
+	} else if passingWitnesses.Len() < goalCount && rd.eligibleWitnesses.Len() >= goalCount {
 		// get more witnesses
-		sort.Slice(rd.eligibleWitnesses, func(i, j int) bool {
+		rd.eligibleWitnesses.Sort(func(i int, a interface{}, j int, b interface{}) bool {
 			//sort the eligible witnesses so that the ones closest to passing are at the beginning
-			aId := passingWitnesses[i]
-			bId := passingWitnesses[j]
+			aId := a.(*witness)
+			bId := b.(*witness)
 			aOff, _ := rd.vrfCutoffs.Load(aId.spendingPubString())
 			bOff, _ := rd.vrfCutoffs.Load(bId.spendingPubString())
 			aDif := big.NewFloat(0).Sub(aOff.(*big.Float), witnessVrfValueFloat[aId.spendingPubString()])
 			bDif := big.NewFloat(0).Sub(bOff.(*big.Float), witnessVrfValueFloat[bId.spendingPubString()])
 			return aDif.Cmp(bDif) == 1
 		})
-		passingWitnesses = append(passingWitnesses,
-			rd.eligibleWitnesses[len(passingWitnesses):goalCount]...)
+		for passingWitnesses.Len() < goalCount {
+			passingWitnesses.Append(rd.eligibleWitnesses.Pop(0))
+		}
 	}
 
 	rd.witnesses = passingWitnesses
-	rd.leadWitnessOrder = make([]*witness, len(passingWitnesses))
-	copy(rd.leadWitnessOrder, passingWitnesses)
+	rd.leadWitnessOrder = passingWitnesses.Copy()
 	//create and copy the witnesses, then sorts it by their vrf values
-	sort.Slice(rd.leadWitnessOrder, func(i, j int) bool {
-		a := rd.leadWitnessOrder[i]
-		b := rd.leadWitnessOrder[j]
-		aVal, _ := rd.vrfValues.Load(a.spendingPubString())
-		bVal, _ := rd.vrfValues.Load(b.spendingPubString())
-		return bytes.Compare(aVal.([]byte), bVal.([]byte)) == -1
+	rd.leadWitnessOrder.Sort(func(_ int, aVal interface{}, _ int, bVal interface{}) bool {
+		a := aVal.(*witness)
+		b := bVal.(*witness)
+		aVRFVal, _ := rd.vrfValues.Load(a.spendingPubString())
+		bVRFVal, _ := rd.vrfValues.Load(b.spendingPubString())
+		return bytes.Compare(aVRFVal.([]byte), bVRFVal.([]byte)) == -1
+
 	})
-	perWitness := maxBlocksPerRound / uint64(len(rd.eligibleWitnesses))
-	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(len(rd.eligibleWitnesses)))
-	rd.blocksPerWitness = make([]uint64, len(rd.leadWitnessOrder))
-	for i := range rd.leadWitnessOrder {
+	perWitness := maxBlocksPerRound / uint64(rd.eligibleWitnesses.Len())
+	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(rd.eligibleWitnesses.Len()))
+	rd.blocksPerWitness = make([]uint64, rd.leadWitnessOrder.Len())
+	rd.leadWitnessOrder.ForEach(func(i int, val interface{}) bool {
 		if i == 0 {
 			rd.blocksPerWitness[0] = roundingCutoff
 		} else {
 			rd.blocksPerWitness[i] = perWitness
 		}
-	}
-	for _, w := range passingWitnesses {
+		return true
+	})
+	passingWitnesses.ForEach(func(i int, val interface{}) bool {
+		w := val.(*witness)
 		rd.witnessesMap.Store(string(w.spendingPub), w)
-	}
+		return true
+	})
 
 	return passingWitnesses, rd.getNextRoundSeed()
 }
@@ -206,12 +215,13 @@ func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error 
 	//assume they can be removed safely
 
 	//now we need to change the upcoming order for the witnesses.
-	if bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, wit.spendingPub) {
+	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex).(*witness)
+	if bytes.Equal(currentLead.spendingPub, wit.spendingPub) {
 		//they're actively the one running
 		extraBlocks := rd.blocksPerWitness[rd.currentLeadIndex] - rd.blocksThisLead
 		rd.blocksPerWitness[rd.currentLeadIndex] = rd.blocksThisLead // stop them at whatever block they're at now
 		//if they're last, the first person gets all of the blocks, otherwise everyone after them gets them
-		if rd.currentLeadIndex == len(rd.leadWitnessOrder)-1 {
+		if rd.currentLeadIndex == rd.leadWitnessOrder.Len()-1 {
 			//set the first lead back to where they were, then have them pick up where they were.
 			rd.currentLeadIndex = 0
 			rd.blocksThisLead = rd.blocksPerWitness[0]
@@ -220,7 +230,7 @@ func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error 
 		}
 		//assume they weren't the last, so we add the blocks in order to everyone next
 		rd.currentLeadIndex += 1
-		remaining := len(rd.leadWitnessOrder) - rd.currentLeadIndex
+		remaining := rd.leadWitnessOrder.Len() - rd.currentLeadIndex
 		for i := 0; i < int(extraBlocks); i++ {
 			rd.blocksPerWitness[(i%remaining)+rd.currentLeadIndex] += 1
 		}
@@ -236,7 +246,8 @@ func (rd *round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
 		return false
 	}
 	// log.Printf("if this is above an error, the round is %v", rd)
-	return bytes.Equal(rd.leadWitnessOrder[rd.currentLeadIndex].spendingPub, *witID)
+	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex).(*witness)
+	return bytes.Equal(currentLead.spendingPub, *witID)
 }
 
 func (rd *round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
@@ -262,7 +273,8 @@ func (rd *round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingA
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
 	maxElectedCount = 0
-	for _, w := range rd.eligibleWitnesses {
+	rd.eligibleWitnesses.ForEach(func(i int, val interface{}) bool {
+		w := val.(*witness)
 		if t := w.validationPercent(); maxBlockValidationPercent < t {
 			maxBlockValidationPercent = t
 		}
@@ -278,6 +290,7 @@ func (rd *round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingA
 		if maxElectedCount < w.timesElected {
 			maxElectedCount = w.timesElected
 		}
-	}
+		return true
+	})
 	return
 }
