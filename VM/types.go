@@ -7,7 +7,6 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/params"
 )
 
 var LE = binary.LittleEndian
@@ -58,30 +57,10 @@ type Machine struct {
 	config            VMConfig
 	gas               uint64 // The allocated gas for the code execution
 	callStack         []*Frame
+	callTimeStart     uint64
 	stopSignal        bool
 	currentFrame      int
-	BlockCtx          BlockContext
 	Statedb           *statedb.StateDB
-	chainConfig       *params.ChainConfig
-}
-
-// BlockContext provides the EVM with auxiliary information. Once provided it shouldn't be modified.
-type BlockContext struct {
-	// CanTransfer returns whether the account contains
-	// sufficient nite to transfer the value
-	CanTransfer CanTransferFunc
-	// Transfer transfers nite from one account to the other
-	Transfer TransferFunc
-	// GetHash returns the hash corresponding to n
-	GetHash GetHashFunc
-
-	// Block information
-	Coinbase    common.Address
-	GasLimit    uint64
-	BlockNumber *big.Int
-	Time        *big.Int
-	Difficulty  *big.Int
-	BaseFee     *big.Int
 }
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)

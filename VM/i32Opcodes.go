@@ -183,7 +183,9 @@ type i32Eq struct {
 }
 
 func (op i32Eq) doOp(m *Machine) error {
-	if uint32(m.popFromStack()) == uint32(m.popFromStack()) {
+	a := uint32(m.popFromStack())
+	b := uint32(m.popFromStack())
+	if a == b {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -200,7 +202,9 @@ type i32Ne struct {
 }
 
 func (op i32Ne) doOp(m *Machine) error {
-	if uint32(m.popFromStack()) != uint32(m.popFromStack()) {
+	a := uint32(m.popFromStack())
+	b := uint32(m.popFromStack())
+	if a != b {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)

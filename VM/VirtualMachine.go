@@ -9,10 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/params"
 	"github.com/adamnite/go-adamnite/utils"
 )
 
@@ -20,7 +17,7 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
 
 	if contract == nil {
-		return vm, nil
+		return vm, ErrContractNotStored
 	}
 	if err := vm.ResetToContract(apiEndpoint, *contract); err != nil {
 		return nil, err
@@ -150,31 +147,6 @@ func (m *Machine) OutputMemory() string {
 	return ans
 }
 
-// CanTransfer checks whether there are enough funds in the address' account to make a transfer.
-func CanTransfer(db *statedb.StateDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-// Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db *statedb.StateDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
-}
-
-func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
-	bc := BlockContext{}
-	bc.Coinbase = coinbase
-	bc.GasLimit = ateLimit
-	bc.BlockNumber = blockNumber
-	bc.Time = time
-	bc.Difficulty = diff
-	bc.BaseFee = fee
-	bc.CanTransfer = CanTransfer
-	bc.Transfer = Transfer
-
-	return bc
-}
-
 func initMemoryWithDataSection(module *Module, vm *Machine) {
 
 	dataSegmentSize := uint32(len(module.dataSection))
@@ -212,23 +184,6 @@ func initVMState(machine *Machine) {
 
 	// Initialize memory with things inside the data section
 	// initMemoryWithDataSection(&machine.module, machine)
-}
-
-func NewVM(statedb *statedb.StateDB, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
-	machine := new(Machine)
-	machine.Statedb = statedb
-	// machine.BlockCtx = ni
-	// machine.txCtx = txc
-	machine.chainConfig = chainConfig
-
-	if config != nil {
-		machine.config = *config
-	} else {
-		machine.config = GetDefaultConfig()
-	}
-	machine.gas = config.gasLimit //TODO: check this out
-
-	return machine
 }
 
 func SetCallCode(m *Machine, funcBodyBytes []byte, gas uint64) {
@@ -327,7 +282,7 @@ func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlB
 // Called when invoking specific function inside the contract
 func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 	// Structure: 0x[16 bytes func identifier][param1..][param2...][param3]
-	// Note: The callbytes is following the wasm encoding scheme. can be passed as string or byte array
+	// Note: The call bytes is following the wasm encoding scheme. can be passed as string or byte array
 	var bytes []byte
 	switch v := callBytes.(type) {
 	case string:
@@ -383,9 +338,9 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 			params = append(params, num)
 			i += 8
 		default:
-			println("Parsed valtype %v", valTypeByte)
+			println("Parsed val type %v", valTypeByte)
 			println("at index ", i)
-			return fmt.Errorf("parsed valtype %v, no such known type", valTypeByte)
+			return fmt.Errorf("parsed val type %v, no such known type", valTypeByte)
 		}
 	}
 
@@ -423,16 +378,11 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 		return nil, gas, ErrDepth
 	}
 
-	// if value.Sign() != 0 && !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-	// 	return nil, gas, ErrInsufficientBalance
-	// }
-
 	if !m.Statedb.Exist(addr) {
 		m.Statedb.CreateAccount(addr)
 	}
 
 	snapshot := m.Statedb.Snapshot()
-	m.BlockCtx.Transfer(m.Statedb, caller, addr, value)
 
 	// Retrieve the method code and execute it
 	if len(input) == 0 {
@@ -461,92 +411,6 @@ func getModuleLen(module *Module) uint64 {
 		le += uint64(len(module.codeSection[i].body))
 	}
 	return le
-}
-
-func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, value *big.Int, address common.Address) (common.Address, uint64, error) {
-	//creates a new contract from the bytes passed (whole module) and uploads those functions, then has a locally created contract (only in this VM)
-	if m.currentFrame > int(m.config.maxCallStackDepth) {
-		return common.Address{}, gas, ErrDepth
-	}
-
-	if !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-		return common.Address{}, gas, ErrInsufficientBalance
-	}
-
-	nonce := m.Statedb.GetNonce(caller)
-
-	if nonce+1 < nonce {
-		return common.Address{}, gas, ErrNonceUintOverflow
-	}
-
-	m.Statedb.SetNonce(caller, nonce+1)
-
-	// Ensure there's no existing contract already at the designated address
-	_, err := GetContractData(m.config.Uri, address.Hex())
-
-	if err == nil || err != ERR_CONTRACT_NOT_STORED {
-		//either theres a strange error, or the contract already exists.
-		return address, gas, err
-	}
-
-	if m.Statedb.GetNonce(address) != 0 || address.String() == "" {
-		return common.Address{}, 0, ErrContractAddressCollision
-	}
-
-	// Create a new account on the state
-	snapshot := m.Statedb.Snapshot()
-	m.Statedb.CreateAccount(address)
-
-	m.BlockCtx.Transfer(m.Statedb, caller, address, value)
-
-	// Initialize a new contract and set the code that is to be used by the ADVM.
-	contract := newContract(caller, value, codeBytes, gas)
-	contract.Address = address
-	m.contract = *contract
-
-	module := *decode(codeBytes)
-	modLen := getModuleLen(&module)
-
-	// Check whether the max code size has been exceeded
-	if err == nil && modLen > m.config.maxCodeSize {
-		m.Statedb.RevertToSnapshot(snapshot)
-		return address, 0, ErrMaxCodeSizeExceeded
-	}
-
-	// if the contract creation ran successfully and no errors were returned
-	// calculate the gas required to store the code.
-
-	// @TODO update this with right creation price
-	//TODO: update this to charge only for new methods being uploaded.
-	createModuleGas := modLen * 2000
-	if createModuleGas > m.gas {
-		m.Statedb.RevertToSnapshot(snapshot)
-		return address, m.gas, ErrCodeStoreOutOfGas
-	}
-
-	// Upload the module here
-	codeStored, hashesOfMethods, err := UploadModuleFunctions(m.config.Uri, module)
-
-	if err != nil {
-		m.Statedb.RevertToSnapshot(snapshot)
-		// Somehow revert the uploading here?
-	}
-	m.contract.Code = codeStored
-	m.contract.CodeHashes = make([]string, len(hashesOfMethods))
-	for i, hashBytes := range hashesOfMethods {
-		m.contract.CodeHashes[i] = hex.EncodeToString(hashBytes)
-	}
-
-	m.gas -= createModuleGas
-	return address, contract.Gas, err
-}
-
-// Create creates a new contract using code as deployment code.
-func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
-	contractKey, _ := crypto.GenerateKey()
-	contractAddr = crypto.PubkeyToAddress(contractKey.PublicKey)
-
-	return m.create(caller, code, gas, value, contractAddr)
 }
 
 func (m *Machine) Reset() {

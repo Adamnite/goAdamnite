@@ -113,14 +113,11 @@ func TestOpBalance(t *testing.T) {
 
 func TestOpBlocktimestamp(t *testing.T) {
 	preTestSetup()
-	blockts := big.NewInt(1673372829)
-	blockCtx := BlockContext{}
-	blockCtx.Time = blockts
-	vm.BlockCtx = blockCtx
+	vm.callTimeStart = 1234
 	vm.Call2(hashes[2]+"", 1000)
 	res := vm.popFromStack()
 	fmt.Printf("res: %v\n", res)
-	assert.Equal(t, blockts, big.NewInt(1673372829))
+	assert.Equal(t, vm.callTimeStart, res)
 }
 
 func TestOpDatasize(t *testing.T) {
