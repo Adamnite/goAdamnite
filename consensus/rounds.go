@@ -44,7 +44,7 @@ func newRoundData(seed []byte) *round_data {
 		vrfCutoffs:        syncmap.Map{},
 		openToApply:       true,
 		seed:              seed,
-		roundStartTime:    time.Now().UTC().Add(maxTimePrecision).Truncate(maxTimePrecision),
+		roundStartTime:    time.Now().UTC().Add(maxTimePrecision.Duration()).Truncate(maxTimePrecision.Duration()),
 		//truncate the rounds start time to the closest reliable precision we can use.
 		blocksInRound: 0,
 	}
