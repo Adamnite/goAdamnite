@@ -13,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/safe"
 	"golang.org/x/sync/syncmap"
 )
 
@@ -54,7 +55,7 @@ type Witness_pool struct {
 	totalCandidates       map[string]*utils.Candidate //witID->Candidate. Use for verifying votes
 	totalWitnesses        map[string]*witness         //witID-> witness
 	rounds                syncmap.Map                 //round ID ->data
-	currentWorkingRoundID uint64                      //the round that is currently working. Next round should be accepting
+	currentWorkingRoundID *safe.SafeInt               //the round that is currently working. Next round should be accepting
 	consensusType         uint8                       //support type that this is being pitched for
 
 	newRoundStartedCaller []func()
@@ -62,14 +63,14 @@ type Witness_pool struct {
 	asyncStopper          context.CancelFunc
 }
 
-func NewWitnessPool(roundNumber uint64, consensusType networking.NetworkTopLayerType, seed []byte) (*Witness_pool, error) {
+func NewWitnessPool(roundNumber int, consensusType networking.NetworkTopLayerType, seed []byte) (*Witness_pool, error) {
 	wp := Witness_pool{
 		witnessGoal:           27,
 		totalCandidates:       make(map[string]*utils.Candidate),
 		totalWitnesses:        make(map[string]*witness),
 		rounds:                syncmap.Map{},
 		consensusType:         uint8(consensusType),
-		currentWorkingRoundID: roundNumber,
+		currentWorkingRoundID: safe.NewSafeInt(roundNumber),
 		asyncTrackingRunning:  false,
 	}
 	wp.newRound(roundNumber, seed)
@@ -165,7 +166,10 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	}
 	return nil
 }
-func (wp *Witness_pool) getRound(roundID uint64) *round_data {
+func (wp *Witness_pool) getRound(roundID int) *round_data {
+	if roundID < 0 {
+		return nil
+	}
 	rd, exists := wp.rounds.Load(roundID)
 	if exists {
 		return rd.(*round_data)
@@ -178,17 +182,17 @@ func (wp *Witness_pool) getRound(roundID uint64) *round_data {
 
 // gets the current round accepting votes
 func (wp *Witness_pool) GetApplyingRound() *round_data {
-	return wp.getRound(wp.currentWorkingRoundID + 1)
+	return wp.getRound(wp.currentWorkingRoundID.Get() + 1)
 }
 
 // gets the working round. AKA, the one with the active witnesses
 func (wp *Witness_pool) GetWorkingRound() *round_data {
-	return wp.getRound(wp.currentWorkingRoundID)
+	return wp.getRound(wp.currentWorkingRoundID.Get())
 }
-func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
+func (wp *Witness_pool) newRound(roundID int, seed []byte) error {
 	newRD := wp.getRound(roundID) //this way, if that round already existed, instead we are updating it
 	newRD.seed = seed
-	if roundID <= wp.currentWorkingRoundID {
+	if roundID <= wp.currentWorkingRoundID.Get() {
 		//just make sure that loading old rounds cant receive more votes or anything
 		newRD.openToApply = false
 	}
@@ -198,15 +202,15 @@ func (wp *Witness_pool) newRound(roundID uint64, seed []byte) error {
 // stats the next round.
 func (wp *Witness_pool) nextRound() {
 	var nextSeed []byte
-	if wp.currentWorkingRoundID == 0 {
+	if wp.currentWorkingRoundID.Get() == 0 {
 		nextSeed = []byte{} //seeds from the initial round is 0
 		wp.GetApplyingRound().openToApply = false
 	} else {
 		_, nextSeed = wp.SelectCurrentWitnesses()
 	}
 
-	wp.currentWorkingRoundID += 1
-	if err := wp.newRound(wp.currentWorkingRoundID+1, nextSeed); err != nil {
+	wp.currentWorkingRoundID.Add(1)
+	if err := wp.newRound(wp.currentWorkingRoundID.Get()+1, nextSeed); err != nil {
 		//add a new applying round
 		log.Println(err)
 	}
@@ -252,7 +256,7 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 	}
 	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 
-	if rd := wp.getRound(can.Round); rd == nil || !rd.openToApply {
+	if rd := wp.getRound(int(can.Round)); rd == nil || !rd.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
 		log.Printf("unable to apply for that round, the candidate is proposing for round %v, and the current working roundID is %v", can.Round, wp.currentWorkingRoundID)
 		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
@@ -264,7 +268,7 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 		}
 	}
 
-	rd := wp.getRound(can.Round)
+	rd := wp.getRound(int(can.Round))
 	rd.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
 	rd.addVote(&can.InitialVote)
 
@@ -275,7 +279,7 @@ func (wp *Witness_pool) AddVoteForCurrent(vote *utils.Voter) error {
 	return nil //TODO: return an error if the rounds system is broken
 }
 func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
-	rd := wp.getRound(round)
+	rd := wp.getRound(int(round))
 	if !rd.openToApply {
 		return fmt.Errorf("round selected is not accepting votes")
 	}
@@ -284,7 +288,7 @@ func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
 }
 
 // select closes the current rounds submissions, and starts the submissions for the next round
-func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses []*witness, newSeed []byte) {
+func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses *safe.SafeSlice, newSeed []byte) {
 	applyingRound := wp.GetApplyingRound()
 	if applyingRound == nil {
 		return nil, []byte{}

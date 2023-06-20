@@ -117,10 +117,18 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	if candidacyTypes == 0 {
 		candidacyTypes = uint8(con.handlingType)
 	}
+	if candidacyTypes == uint8(networking.NetworkingOnly) {
+		//assume they are intentionally doing this to prevent further applications
+		if len(con.poolsA.newRoundStartedCaller) != 0 {
+			con.poolsA.newRoundStartedCaller = []func(){con.continuosHandler}
+		}
+		//TODO: check that poolsB, if it's running, we need to prevent further applications to it as well.
+		return nil
+	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
 		addLocalCandidate := func() {
 			pool := con.poolsA
-			newCon, err := con.thisCandidateA.UpdatedCandidate(pool.currentWorkingRoundID+1, pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().roundStartTime.Unix()), con.spendingAccount)
+			newCon, err := con.thisCandidateA.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().roundStartTime.Unix()), con.spendingAccount)
 			if err != nil {
 				log.Printf("error updating candidate for round %v. Err: %v", pool.currentWorkingRoundID, err)
 				return
@@ -191,5 +199,5 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 // create an updated version of the candidacy provided
 func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *Witness_pool) (*utils.Candidate, error) {
 	//TODO: get the round start time! right now it's set to 0
-	return candidacy.UpdatedCandidate(pool.currentWorkingRoundID, pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
+	return candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()), pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
 }

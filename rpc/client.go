@@ -25,7 +25,7 @@ func (a *AdamniteClient) printError(methodName string, err error) {
 type AdamniteClient struct {
 	DebugOutput            bool
 	endpoint               string
-	client                 rpc.Client
+	client                 *rpc.Client
 	callerAddress          *common.Address
 	hostingServerConnector string //the string version of the port that our Server is running on.
 }
@@ -179,6 +179,6 @@ func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
 	return AdamniteClient{
 		DebugOutput: false,
 		endpoint:    endpoint,
-		client:      *client,
+		client:      client,
 	}, nil
 }
