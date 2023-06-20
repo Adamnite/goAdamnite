@@ -107,7 +107,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 	if rd.openToApply { //close the applications and select the winning witnesses
 		rd.openToApply = false
 		maxBlockValidationPercent, maxStaking, maxVotes, maxElected := rd.getMaxes()
-		rd.eligibleWitnesses.ForEach(func(_ int, val interface{}) bool {
+		rd.eligibleWitnesses.ForEach(func(_ int, val any) bool {
 			w := val.(*witness)
 			weight := rd.getWeight(w, maxBlockValidationPercent, maxStaking, maxVotes, maxElected)
 			rd.vrfCutoffs.Store(w.spendingPubString(), weight)
@@ -126,7 +126,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 	witnessVrfValueFloat := make(map[string]*big.Float)
 	//32 bytes, all set to 255
 	maxVRFVal := big.NewFloat(0).SetInt(big.NewInt(1).SetBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}))
-	rd.eligibleWitnesses.ForEach(func(_ int, val interface{}) bool {
+	rd.eligibleWitnesses.ForEach(func(_ int, val any) bool {
 		w := val.(*witness)
 		vrfVal, _ := rd.vrfValues.Load(w.spendingPubString())
 		witnessVRFValue := big.NewFloat(0).Quo(
@@ -146,7 +146,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 		passingWitnesses = rd.eligibleWitnesses.Copy()
 	}
 	//sort the passing witnesses based on the difference between the cutoff and their score
-	passingWitnesses.Sort(func(_ int, a interface{}, _ int, b interface{}) bool {
+	passingWitnesses.Sort(func(a any, b any) bool {
 		//we sort no matter what so that we can get the next rounds seed
 		aId := a.(*witness)
 		bId := b.(*witness)
@@ -162,7 +162,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 		passingWitnesses.RemoveFrom(goalCount, -1)
 	} else if passingWitnesses.Len() < goalCount && rd.eligibleWitnesses.Len() >= goalCount {
 		// get more witnesses
-		rd.eligibleWitnesses.Sort(func(i int, a interface{}, j int, b interface{}) bool {
+		rd.eligibleWitnesses.Sort(func(a any, b any) bool {
 			//sort the eligible witnesses so that the ones closest to passing are at the beginning
 			aId := a.(*witness)
 			bId := b.(*witness)
@@ -172,15 +172,15 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 			bDif := big.NewFloat(0).Sub(bOff.(*big.Float), witnessVrfValueFloat[bId.spendingPubString()])
 			return aDif.Cmp(bDif) == 1
 		})
-		for passingWitnesses.Len() < goalCount {
-			passingWitnesses.Append(rd.eligibleWitnesses.Pop(0))
+		for i := 0; passingWitnesses.Len() < goalCount; i++ {
+			passingWitnesses.Append(rd.eligibleWitnesses.Get(i))
 		}
 	}
 
 	rd.witnesses = passingWitnesses
 	rd.leadWitnessOrder = passingWitnesses.Copy()
 	//create and copy the witnesses, then sorts it by their vrf values
-	rd.leadWitnessOrder.Sort(func(_ int, aVal interface{}, _ int, bVal interface{}) bool {
+	rd.leadWitnessOrder.Sort(func(aVal any, bVal any) bool {
 		a := aVal.(*witness)
 		b := bVal.(*witness)
 		aVRFVal, _ := rd.vrfValues.Load(a.spendingPubString())
@@ -191,7 +191,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 	perWitness := maxBlocksPerRound / uint64(rd.eligibleWitnesses.Len())
 	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(rd.eligibleWitnesses.Len()))
 	rd.blocksPerWitness = make([]uint64, rd.leadWitnessOrder.Len())
-	rd.leadWitnessOrder.ForEach(func(i int, val interface{}) bool {
+	rd.leadWitnessOrder.ForEach(func(i int, val any) bool {
 		if i == 0 {
 			rd.blocksPerWitness[0] = roundingCutoff
 		} else {
@@ -199,7 +199,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 		}
 		return true
 	})
-	passingWitnesses.ForEach(func(i int, val interface{}) bool {
+	passingWitnesses.ForEach(func(i int, val any) bool {
 		w := val.(*witness)
 		rd.witnessesMap.Store(string(w.spendingPub), w)
 		return true
@@ -273,7 +273,7 @@ func (rd *round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingA
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0
 	maxElectedCount = 0
-	rd.eligibleWitnesses.ForEach(func(i int, val interface{}) bool {
+	rd.eligibleWitnesses.ForEach(func(i int, val any) bool {
 		w := val.(*witness)
 		if t := w.validationPercent(); maxBlockValidationPercent < t {
 			maxBlockValidationPercent = t

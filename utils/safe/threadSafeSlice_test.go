@@ -15,7 +15,7 @@ func TestSingleThread(t *testing.T) {
 		assert.Equal(t, tss.Get(-1), tss.Get(i), "-1 did not equal last index")
 	}
 	tss.ForEach(
-		func(i int, val interface{}) bool {
+		func(i int, val any) bool {
 			assert.Equal(
 				t, items[i], val,
 				"for each did not return correct values at index",
@@ -49,6 +49,11 @@ func TestSingleThread(t *testing.T) {
 	assert.Equal(
 		t, 0, tss.Len(),
 		"removing all items from array did not work",
+	)
+	tss.Append(items[0], items[1], items[2])
+	assert.Equal(
+		t, 3, tss.Len(),
+		"appending an array did not work",
 	)
 }
 func TestManyThreads(t *testing.T) {

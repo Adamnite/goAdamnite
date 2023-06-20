@@ -9,6 +9,7 @@ type SafeInt struct {
 	value int
 }
 
+// a new integer that is safe to use within multiple go routines
 func NewSafeInt(value int) *SafeInt {
 	return &SafeInt{
 		value: value,
@@ -23,12 +24,14 @@ func (tsi *SafeInt) Add(x int) int {
 	return tsi.value
 }
 
+// get the value
 func (tsi *SafeInt) Get() int {
 	tsi.lock.Lock()
 	defer tsi.lock.Unlock()
 	return tsi.value
 }
 
+// set the value
 func (tsi *SafeInt) Set(value int) {
 	tsi.lock.Lock()
 	defer tsi.lock.Unlock()
