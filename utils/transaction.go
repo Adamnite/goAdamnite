@@ -50,6 +50,21 @@ func (t Transaction) FromAddress() common.Address {
 	return t.From.GetAddress()
 }
 
+// takes a transaction and changes it to be a VM interacting transaction
+func NewVMTransaction(signer *accounts.Account, buildOn *Transaction, callParams []byte) (*Transaction, error) {
+	vmCall := RuntimeChanges{
+		Caller:           signer.GetAddress(),
+		CallTime:         buildOn.Time,
+		ContractCalled:   buildOn.To,
+		ParametersPassed: callParams,
+		GasLimit:         buildOn.GasLimit.Uint64(),
+	}
+	buildOn.VMInteractions = &vmCall
+	sig, err := signer.Sign(buildOn)
+	buildOn.Signature = sig
+	return buildOn, err
+}
+
 var (
 	ErrNegativeAmount  = fmt.Errorf("attempt to send negative funds")
 	ErrIncorrectSigner = fmt.Errorf("attempt to sign from a different account")

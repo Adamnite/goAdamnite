@@ -136,7 +136,7 @@ type ContractStateHolder struct {
 	contractsHeld map[string]*contractHeld         //contractAddressString(hex)->contractHeld
 	sends         map[string][]*complexTransaction //from(hexOfAddress)->all instances they have sent to, in order
 	receives      map[string][]*complexTransaction //from(hexOfAddress)->all instances in which  they receive nite
-	dbCache       *VM.DBCache                      //for keeping a local reference. allows each call to be made once
+	dbCache       VM.DBCacheAble                   //for keeping a local reference. allows each call to be made once
 	dbEndpoint    string
 }
 
