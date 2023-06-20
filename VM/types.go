@@ -65,15 +65,11 @@ type Machine struct {
 
 type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
 
+const maxCallStackDepth int = 1024
+
 type VMConfig struct {
-	maxCallStackDepth        uint
-	gasLimit                 uint64
-	returnOnGasLimitExceeded bool
-	debugStack               bool // should it output the stack every operation
-	maxCodeSize              uint64
-	CodeGetter               GetCode
-	CodeBytesGetter          func(uri string, hash string) ([]byte, error)
-	Uri                      string
+	debugStack bool // should it output the stack every operation
+	Getter     DBInterfaceItem
 }
 
 type Frame struct {
