@@ -188,40 +188,6 @@ func (spoof *DBSpoofer) getCode2CallName(hash string, inputs []uint64) string {
 	return ansString
 }
 
-type BCSpoofer struct {
-	contractAddress []byte
-	balances        map[string]big.Int
-	callerAddress   []byte
-	callBlockTime   []byte
-}
-
-func newBCSpoofer() BCSpoofer {
-	spoofer := BCSpoofer{}
-	spoofer.contractAddress = []byte{}
-	spoofer.balances = make(map[string]big.Int)
-	return spoofer
-}
-
-func (s BCSpoofer) setBalanceFromByteAddress(address []byte, balance big.Int) {
-	s.balances[hex.EncodeToString(address)] = balance
-}
-func (s BCSpoofer) setBalance(address string, balance big.Int) {
-	s.balances[address] = balance
-}
-
-func (s BCSpoofer) getAddress() []byte {
-	return s.contractAddress
-}
-func (s BCSpoofer) getBalance(address []byte) big.Int {
-	return s.balances[hex.EncodeToString(address)]
-}
-func (s BCSpoofer) getCallerAddress() []byte {
-	return s.callerAddress
-}
-func (s BCSpoofer) getBlockTimestamp() []byte {
-	return s.callBlockTime
-}
-
 //GENERALLY USEFUL
 
 func addressToInts(address interface{}) []uint64 {
