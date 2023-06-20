@@ -51,6 +51,52 @@ func (ldbt *LocalDBTester) GetContract(address string) (*Contract, error) {
 	return ldbt.contractGetter(address)
 }
 
+type DBCacheAble interface {
+	GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
+	PreCacheCode(hash []byte) error
+	GetContract(address string) (*Contract, error)
+	PreCacheContract(address string) error
+}
+
+// a thread safe spoofing of a DBCache
+type SpoofedDBCache struct {
+	lock          sync.Mutex
+	DB            *DBSpoofer
+	cacheCode     func(hash []byte)
+	cacheContract func(address string)
+}
+
+func NewSpoofedDBCache(cacheCode func([]byte), cacheContract func(string)) *SpoofedDBCache {
+	return &SpoofedDBCache{
+		DB:            NewDBSpoofer(),
+		cacheCode:     cacheCode,
+		cacheContract: cacheContract,
+	}
+}
+func (sdbc *SpoofedDBCache) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	return sdbc.DB.GetCode(hash)
+}
+func (sdbc *SpoofedDBCache) PreCacheCode(hash []byte) error {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	sdbc.cacheCode(hash)
+	return nil
+}
+func (sdbc *SpoofedDBCache) GetContract(address string) (*Contract, error) {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	return sdbc.DB.GetContract(address)
+}
+
+func (sdbc *SpoofedDBCache) PreCacheContract(address string) error {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	sdbc.cacheContract(address)
+	return nil
+}
+
 type DBCache struct {
 	// cache acts the same as the DBSpoofer, except it is thread safe, and get's its own code
 	funcLock  sync.Mutex
@@ -60,7 +106,7 @@ type DBCache struct {
 	api       string
 }
 
-func NewDBCache(apiEndpoint string) *DBCache {
+func NewDBCache(apiEndpoint string) DBCacheAble {
 	return &DBCache{
 		functions: map[string]CodeStored{},
 		contracts: map[string]*Contract{},
