@@ -75,7 +75,7 @@ type blocktimestamp struct {
 }
 
 func (op blocktimestamp) doOp(m *Machine) error {
-	ts := m.BlockCtx.Time.Uint64()
+	ts := m.callTimeStart
 
 	m.pushToStack(ts)
 
@@ -126,13 +126,7 @@ type gasPrice struct {
 }
 
 func (op gasPrice) doOp(m *Machine) error {
-	// v := m.txCtx.GasPrice
-
-	// m.pushToStack(balanceToArray(*v))
-
-	// if !m.useAte(op.gas) {
-	// 	return ErrOutOfGas
-	// }
+	//do we use this???
 	return nil
 }
 

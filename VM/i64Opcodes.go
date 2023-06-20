@@ -124,7 +124,8 @@ type i64Eq struct {
 }
 
 func (op i64Eq) doOp(m *Machine) error {
-	if m.popFromStack() == m.popFromStack() {
+	a := m.popFromStack() //just to prevent the compiler from thinking this is the same code on both sides
+	if a == m.popFromStack() {
 		m.pushToStack(1)
 	} else {
 		m.pushToStack(0)
@@ -141,7 +142,8 @@ type i64Ne struct {
 }
 
 func (op i64Ne) doOp(m *Machine) error {
-	if m.popFromStack() == m.popFromStack() {
+	a := m.popFromStack()
+	if a == m.popFromStack() {
 		m.pushToStack(0)
 	} else {
 		m.pushToStack(1)

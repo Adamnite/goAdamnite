@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	ERR_CONTRACT_NOT_STORED = fmt.Errorf("No contract saved at that point")
+	ErrContractNotStored = fmt.Errorf("no contract saved at that point")
 )
 
 type APIcodeGetter struct {
@@ -182,7 +182,7 @@ func GetContractData(apiEndpoint string, contractAddress string) (*Contract, err
 		return nil, err
 	}
 	if string(byteResponse) == "contract not stored" {
-		return nil, ERR_CONTRACT_NOT_STORED
+		return nil, ErrContractNotStored
 	}
 	//hopefully you know if things went wrong by here!
 	var conData ContractData
