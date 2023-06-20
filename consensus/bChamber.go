@@ -17,6 +17,7 @@ func NewBConsensus(codeServer string) (*ConsensusNode, error) {
 
 // for adding support for B chamber
 func (bNode *ConsensusNode) AddBConsensus(codeServer string) (err error) {
+	//TODO: verify that there is a server running at that endpoint, and we can in fact, access it
 	bNode.handlingType = bNode.handlingType ^ networking.SecondaryTransactions
 	bNode.ocdbLink = codeServer
 	bNode.poolsB, err = NewWitnessPool(0, networking.SecondaryTransactions, []byte{})

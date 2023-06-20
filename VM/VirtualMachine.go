@@ -13,6 +13,21 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 )
 
+func NewVirtualMachineWithSpoofedConnection(contract *common.Address, dbInterface DBInterfaceItem) (*Machine, error) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
+	vm.config.Getter = dbInterface
+	if contract == nil {
+		return vm, ErrContractNotStored
+	}
+	//get the contract from the DB
+	con, err := dbInterface.GetContract(contract.Hex())
+	if err != nil {
+		return vm, err
+	}
+	vm.contract = *con
+
+	return vm, nil
+}
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
 	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
 
