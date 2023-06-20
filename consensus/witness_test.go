@@ -51,8 +51,8 @@ func TestWitnessSelection(t *testing.T) {
 	}
 }
 func TestRoundSelections(t *testing.T) {
-	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
-	maxTimePrecision = time.Millisecond * 10
+	maxTimePerRound.SetDuration(time.Second * 1) //change the time between rounds for testing.
+	maxTimePrecision.SetDuration(time.Millisecond * 10)
 	pool, err := NewWitnessPool(0, networking.PrimaryTransactions, []byte{})
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestRoundSelections(t *testing.T) {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
-	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound).Add(maxTimePrecision) //give it a hair over the time
+	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound.Duration()).Add(maxTimePrecision.Duration()) //give it a hair over the time
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
@@ -113,9 +113,9 @@ func TestLongTermPoolCalculations(t *testing.T) {
 		t.Fatal(err)
 	}
 	pool.StopAsyncTracker()
-	maxTimePerRound = time.Millisecond * 50 //change the time between rounds for testing.
+	maxTimePerRound.SetDuration(time.Millisecond * 50) //change the time between rounds for testing.
 	// maxTimePerRound = time.Second * 5 //change the time between rounds for debugging.
-	maxTimePrecision = time.Millisecond * 5 //the error tolerance we can handle
+	maxTimePrecision.SetDuration(time.Millisecond * 5) //the error tolerance we can handle
 
 	candidates := generateTestWitnesses(15)
 
@@ -133,7 +133,7 @@ func TestLongTermPoolCalculations(t *testing.T) {
 		t.Fatal(err)
 	}
 	goal := 500
-	<-time.After(maxTimePerRound*time.Duration(goal) + maxTimePrecision)
+	<-time.After(maxTimePerRound.Duration()*time.Duration(goal) + maxTimePrecision.Duration())
 	pool.StopAsyncTracker()
 	if pool.GetWorkingRound().roundStartTime.After(time.Now()) {
 		fmt.Println("round after now")
@@ -153,9 +153,9 @@ func TestWitnessLeadSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	pool.StopAsyncTracker()
-	maxTimePerRound = time.Millisecond * 500 //change the time between rounds for testing.
+	maxTimePerRound.SetDuration(time.Millisecond * 500) //change the time between rounds for testing.
 	// maxTimePerRound = time.Second * 5 //change the time between rounds for debugging.
-	maxTimePrecision = time.Millisecond * 5 //the error tolerance we can handle
+	maxTimePrecision.SetDuration(time.Millisecond * 5) //the error tolerance we can handle
 
 	candidates := generateTestWitnesses(27)
 	pool.witnessGoal = len(candidates)
@@ -245,11 +245,11 @@ func TestWitnessLeadSelection(t *testing.T) {
 // test the longevity of the witness selection
 func TestLongTermLeadSelection(t *testing.T) {
 	rpc.USE_LOCAL_IP = true           //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
-	maxTimePerRound = time.Second * 1 //change the time between rounds for testing.
+	maxTimePerRound.SetDuration(time.Second * 1) //change the time between rounds for testing.
 	// maxTimePerRound = time.Second * 50       //change the time between rounds for debugging.
-	maxTimePrecision = time.Millisecond * 50 //the error tolerance we can handle
+	maxTimePrecision.SetDuration(time.Millisecond * 50) //the error tolerance we can handle
 	testCandidateCount := 5
-	round0Start := time.Now().UTC().Add(maxTimePrecision)
+	round0Start := time.Now().UTC().Add(maxTimePrecision.Duration())
 	candidates := []*ConsensusNode{}
 	for i := 0; i < testCandidateCount; i++ {
 		ac, _ := accounts.GenerateAccount()
@@ -315,7 +315,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 		)
 	}
 	roundsToWait := 10
-	<-time.After(maxTimePerRound * time.Duration(roundsToWait))
+	<-time.After(maxTimePerRound.Duration() * time.Duration(roundsToWait))
 	//wait 5 rounds
 	for _, can := range candidates {
 		cwr := can.poolsA.GetWorkingRound()
@@ -340,8 +340,8 @@ func TestLongTermLeadSelection(t *testing.T) {
 			)
 			assert.Equal(
 				t,
-				cwr.roundStartTime.Round(maxTimePrecision),
-				otherCan.poolsA.GetWorkingRound().roundStartTime.Round(maxTimePrecision),
+				cwr.roundStartTime.Round(maxTimePrecision.Duration()),
+				otherCan.poolsA.GetWorkingRound().roundStartTime.Round(maxTimePrecision.Duration()),
 				"round start times are our of sync by a noticeable amount",
 			)
 		}
