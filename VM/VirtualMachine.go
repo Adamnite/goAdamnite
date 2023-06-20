@@ -14,7 +14,7 @@ import (
 )
 
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
-	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
 
 	if contract == nil {
 		return vm, ErrContractNotStored
@@ -38,17 +38,17 @@ func (vm *Machine) CallWith(apiEndpoint string, rt *utils.RuntimeChanges) (*util
 	if err := vm.ResetToContract(apiEndpoint, rt.ContractCalled); err != nil {
 		return nil, err
 	}
-	spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
+	// spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
 	//TODO: either way, cleanup here
-	vm.config.CodeGetter = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
-		stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
-		if err != nil {
-			panic(err) //TODO: handle this better.
-		}
-		spoofer.AddSpoofedCode(hex.EncodeToString(hash), *stored)
+	// vm.config.Getter. = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	// 	stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
+	// 	if err != nil {
+	// 		panic(err) //TODO: handle this better.
+	// 	}
+	// 	spoofer.AddSpoofedCode(hex.EncodeToString(hash), *stored)
 
-		return spoofer.GetCode(hash)
-	}
+	// 	return spoofer.GetCode(hash)
+	// }
 	return vm.CallOnContractWith(rt)
 }
 func (vm *Machine) CallOnContractWith(rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
@@ -71,13 +71,7 @@ func GetCodeBytes2(uri string, hash string) ([]byte, error) {
 
 func GetDefaultConfig() VMConfig {
 	return VMConfig{
-		maxCallStackDepth:        1024,
-		gasLimit:                 30000, // 30000 ATE
-		returnOnGasLimitExceeded: true,
-		debugStack:               false,
-		CodeGetter:               defaultCodeGetter,
-		CodeBytesGetter:          GetCodeBytes2,
-		Uri:                      "https//default.uri",
+		debugStack: false,
 	}
 }
 
@@ -110,7 +104,7 @@ func (m *Machine) run() error {
 
 			// Activate the new frame
 			if m.currentFrame > oldFrameNum {
-				if m.currentFrame > int(m.config.maxCallStackDepth) {
+				if m.currentFrame > maxCallStackDepth {
 					return ErrDepth
 				}
 				currentFrame = m.callStack[m.currentFrame]
@@ -198,17 +192,12 @@ func SetCodeAndInit(m *Machine, funcBodyBytes []byte, gas uint64) {
 }
 
 // This constructor is let for compatibility only and should be updated/removed
-func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
+func NewVirtualMachine(wasmBytes []byte, storage []uint64, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage
 	machine.gas = gas
-
-	if config != nil {
-		machine.config = *config
-	} else {
-		machine.config = GetDefaultConfig()
-	}
+	machine.config = GetDefaultConfig()
 
 	// Push the main frame
 	machine.currentFrame = 0
@@ -298,7 +287,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 	}
 
 	funcIdentifier := bytes[:16]
-	funcTypes, funcCode, controlStack := m.config.CodeGetter(funcIdentifier)
+	funcTypes, funcCode, controlStack := m.config.Getter.GetCode(funcIdentifier)
 	var params []uint64
 	//get the params from the bytes passed.
 	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
@@ -374,7 +363,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (m *Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
-	if m.currentFrame > int(m.config.maxCallStackDepth) {
+	if m.currentFrame > maxCallStackDepth {
 		return nil, gas, ErrDepth
 	}
 

@@ -38,9 +38,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	)
 	// Mutate the block and state according to any hard-fork specs
 	// Iterate over and process the individual transactions
-	if cfg.CodeGetter == nil {
-		getObject := VM.NewAPICodeGetter(p.localDBAPIEndpoint)
-		cfg.CodeGetter = getObject.GetCode
+	if cfg.Getter == nil {
+		getObject := VM.NewDBCache(p.localDBAPIEndpoint)
+		cfg.Getter = getObject
 	}
 	for i, tx := range block.Body().Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
@@ -53,14 +53,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 			header,
 			tx,
 			usedGas,
-			cfg,
-			VM.NewBlockContext( //TODO: someone with a better understanding of block structure should review this!
-				header.DBWitness, //coinbase Address //TODO:SOMEONE REVIEW THIS!
-				tx.ATEMax(),
-				p.bc.CurrentBlock().Number(),
-				big.NewInt(block.ReceivedAt.UnixMicro()),
-				big.NewInt(1),
-				tx.Cost()))
+		)
 		if err != nil {
 			return 0, err
 		}
@@ -80,17 +73,16 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 }
 
 func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common.Address, gp *big.Int,
-	statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, vmcfg VM.VMConfig, blockContext VM.BlockContext) (*VM.Machine, error) {
+	statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64) (*VM.Machine, error) {
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, err
 	}
 
-	vmenv := VM.NewVM(
-		statedb, //stateDB
-		&vmcfg,  //vm config
-		config)  //chain config
+	vmenv := VM.NewVirtualMachine( //TODO: DELETE THIS!
+		nil, nil, 0,
+	)
 	// Apply the transaction to the current state (included in the env)
 	_, gas, _, err := core.ApplyMessage(vmenv, msg)
 	if err != nil {

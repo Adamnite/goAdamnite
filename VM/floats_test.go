@@ -44,7 +44,7 @@ func Test_f32Basics(t *testing.T) {
 	// 	(export "fdivTwo" (func 3)))
 
 	// testCode := []byte{}
-	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine(wasmBytes, []uint64{}, 1000)
 	// vm.config.debugStack = true
 
 	module := *decode(wasmBytes)
@@ -136,7 +136,7 @@ func Test_f64Basics(t *testing.T) {
 	// 	(export "fdivTwo" (func 3)))
 
 	// testCode := []byte{}
-	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine(wasmBytes, []uint64{}, 1000)
 	vm.config.debugStack = true
 
 	module := *decode(wasmBytes)

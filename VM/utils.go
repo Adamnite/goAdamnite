@@ -25,15 +25,88 @@ type CodeStored struct {
 	CodeBytes   []byte
 }
 
+type DBInterfaceItem interface {
+	GetCode([]byte) (FunctionType, []OperationCommon, []ControlBlock)
+	GetContract(string) (*Contract, error)
+}
+type LocalDBTester struct {
+	codeGetter     func([]byte) (FunctionType, []OperationCommon, []ControlBlock)
+	contractGetter func(string) (*Contract, error)
+}
+
+func NewLocalDBTester(
+	codeGetter func([]byte) (FunctionType, []OperationCommon, []ControlBlock),
+	contractGetter func(string) (*Contract, error),
+) *LocalDBTester {
+	return &LocalDBTester{
+		codeGetter:     codeGetter,
+		contractGetter: contractGetter,
+	}
+}
+func (ldbt *LocalDBTester) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	return ldbt.codeGetter(hash)
+}
+func (ldbt *LocalDBTester) GetContract(address string) (*Contract, error) {
+	return ldbt.contractGetter(address)
+}
+
+type DBCache struct {
+	local *DBSpoofer
+	api   string
+}
+
+func NewDBCache(apiEndpoint string) *DBCache {
+	return &DBCache{
+		local: NewDBSpoofer(),
+		api:   apiEndpoint,
+	}
+}
+
+func (cache *DBCache) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	hashString := hex.EncodeToString(hash)
+	if _, exists := cache.local.storedFunctions[hashString]; !exists {
+		//TODO: use this error! should be used!
+		codeStored, _ := GetMethodCode(cache.api, hashString)
+		cache.local.AddSpoofedCode(hashString, *codeStored)
+	}
+	return cache.local.GetCode(hash)
+}
+func (cache *DBCache) GetContract(address string) (*Contract, error) {
+	contract, err := cache.local.GetContract(address)
+	if err == nil {
+		return contract, nil
+	}
+	//hopefully we just don't have it locally.
+	contract, err = GetContractData(cache.api, address)
+	if err != nil {
+		return nil, err
+	}
+	cache.local.AddContract(address, contract)
+	return contract, nil
+}
+
 // API DB Spoofing
 type DBSpoofer struct {
 	storedFunctions map[string]CodeStored //hash=>functions
+	storedContracts map[string]*Contract
 }
 
-func NewDBSpoofer() DBSpoofer {
-	return DBSpoofer{map[string]CodeStored{}}
+func NewDBSpoofer() *DBSpoofer {
+	return &DBSpoofer{
+		storedFunctions: map[string]CodeStored{},
+		storedContracts: map[string]*Contract{},
+	}
 }
-
+func (spoof *DBSpoofer) GetContract(contractAddress string) (*Contract, error) {
+	if contract, exists := spoof.storedContracts[contractAddress]; exists {
+		return contract, nil
+	} else {
+		return nil, fmt.Errorf("contract not stored")
+	}
+}
+func (spoof *DBSpoofer) AddContract(address string, contract *Contract) {
+	spoof.storedContracts[address] = contract
+}
 func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
 	ops, blocks := parseBytes(localCode.CodeBytes)
