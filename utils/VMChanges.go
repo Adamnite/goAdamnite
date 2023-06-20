@@ -11,6 +11,8 @@ import (
 	"github.com/adamnite/go-adamnite/crypto"
 )
 
+const FunctionIdentifierLength = 16
+
 type RuntimeChanges struct {
 	Caller            common.Address //who called this
 	CallTime          time.Time      //when was it called

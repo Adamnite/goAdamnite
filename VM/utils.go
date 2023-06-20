@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
@@ -51,38 +52,83 @@ func (ldbt *LocalDBTester) GetContract(address string) (*Contract, error) {
 }
 
 type DBCache struct {
-	local *DBSpoofer
-	api   string
+	// cache acts the same as the DBSpoofer, except it is thread safe, and get's its own code
+	funcLock  sync.Mutex
+	functions map[string]CodeStored //hash=>functions
+	conLock   sync.Mutex
+	contracts map[string]*Contract
+	api       string
 }
 
 func NewDBCache(apiEndpoint string) *DBCache {
 	return &DBCache{
-		local: NewDBSpoofer(),
-		api:   apiEndpoint,
+		functions: map[string]CodeStored{},
+		contracts: map[string]*Contract{},
+		api:       apiEndpoint,
 	}
 }
 
 func (cache *DBCache) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	hashString := hex.EncodeToString(hash)
-	if _, exists := cache.local.storedFunctions[hashString]; !exists {
+	cache.funcLock.Lock()
+	defer cache.funcLock.Unlock()
+	if _, exists := cache.functions[hashString]; !exists {
 		//TODO: use this error! should be used!
 		codeStored, _ := GetMethodCode(cache.api, hashString)
-		cache.local.AddSpoofedCode(hashString, *codeStored)
+		cache.functions[hashString] = *codeStored
 	}
-	return cache.local.GetCode(hash)
+	localCode := cache.functions[hashString]
+	ops, blocks := parseBytes(localCode.CodeBytes)
+
+	funcType := FunctionType{
+		params:  localCode.CodeParams,
+		results: localCode.CodeResults,
+		string:  hex.EncodeToString(hash), //so you can lie better.
+	}
+	return funcType, ops, blocks
+}
+func (cache *DBCache) PreCacheCode(hash []byte) error {
+	hashString := hex.EncodeToString(hash)
+	cache.funcLock.Lock()
+	defer cache.funcLock.Unlock()
+	if _, exists := cache.functions[hashString]; exists {
+		//we have it locally already!
+		return nil
+	}
+	codeStored, err := GetMethodCode(cache.api, hashString)
+	if err != nil {
+		return err
+	}
+	cache.functions[hashString] = *codeStored
+	return nil
 }
 func (cache *DBCache) GetContract(address string) (*Contract, error) {
-	contract, err := cache.local.GetContract(address)
-	if err == nil {
+	cache.conLock.Lock()
+	defer cache.conLock.Unlock()
+	contract, exists := cache.contracts[address]
+	if exists {
 		return contract, nil
 	}
 	//hopefully we just don't have it locally.
-	contract, err = GetContractData(cache.api, address)
+	contract, err := GetContractData(cache.api, address)
 	if err != nil {
 		return nil, err
 	}
-	cache.local.AddContract(address, contract)
+	cache.contracts[address] = contract
 	return contract, nil
+}
+func (cache *DBCache) PreCacheContract(address string) error {
+	cache.conLock.Lock()
+	defer cache.conLock.Unlock()
+	if _, exists := cache.contracts[address]; exists {
+		return nil //we already have it locally
+	}
+	if contract, err := GetContractData(cache.api, address); err != nil {
+		return err
+	} else {
+		cache.contracts[address] = contract
+	}
+	return nil
 }
 
 // API DB Spoofing
