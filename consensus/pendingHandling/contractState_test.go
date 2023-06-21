@@ -14,7 +14,7 @@ import (
 func TestContractStates(t *testing.T) {
 	accountGoal := 5
 
-	transactions := []*utils.Transaction{}
+	transactions := []*utils.VMCallTransaction{}
 	db := VM.NewSpoofedDBCache(nil, nil)
 	contract := VM.Contract{
 		Address:    common.HexToAddress("0x123456"),
@@ -36,12 +36,17 @@ func TestContractStates(t *testing.T) {
 		sender, _ := accounts.GenerateAccount()
 		recipient, _ := accounts.GenerateAccount()
 
-		tr, _ := utils.NewTransaction(sender, recipient.GetAddress(), big.NewInt(0), big.NewInt(1000))
-		transaction, err := utils.NewVMTransaction(sender, tr, []byte{})
+		tr, _ := utils.NewBaseTransaction(sender, recipient.GetAddress(), big.NewInt(0), big.NewInt(1000))
+		transaction, err := utils.NewVMTransactionFrom(sender, tr, []byte{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		transactions = append(transactions, transaction)
+	}
+	for _, tr := range transactions {
+		if err := csh.QueueTransaction(tr); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 }

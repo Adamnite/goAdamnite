@@ -84,28 +84,29 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 		aCon.transactionQueue.SortQueue()
 		for aCon.poolsA.IsActiveWitness((*crypto.PublicKey)(&aCon.spendingAccount.PublicKey)) {
 			//we want to keep this going while we aren't the leader...
-			transactions := []*utils.Transaction{}
+			transactions := []*utils.BaseTransaction{}
 
 			//TODO: get the trie base point
 			for aCon.IsActiveWitnessLeadFor(networking.PrimaryTransactions) {
 				//TODO: replace this with an "is active witness leader"
-				t := aCon.transactionQueue.Pop()
-				if t == nil {
+				possibleT := aCon.transactionQueue.Pop()
+				if possibleT == nil {
 					//we're out of transactions and need to wait for a new transaction to be sent
 					continue
 				}
 				//t can on occasion actually be a VM transaction instead of one intended for us, so just put it back and start again
-				if t.VMInteractions != nil {
-					aCon.transactionQueue.AddIgnoringPast(t)
+				if possibleT.GetType() != utils.Transaction_Basic {
+					aCon.transactionQueue.AddIgnoringPast(possibleT)
 					continue
 				}
+				t := possibleT.(*utils.BaseTransaction)
 				//verify that the transaction is legit. If not, we ditch it
 				if signatureOk, err := t.VerifySignature(); !signatureOk {
 					//if no error is passed, then the signature just doesn't line up
 					log.Println("error with transactions signature: ", err)
 					continue
 				}
-				if t.Time.After(time.Now().UTC()) {
+				if t.GetTime().After(time.Now().UTC()) {
 					//could not have possibly sent this in the future
 					log.Println("transaction is attempting to be sent from the future")
 					continue
@@ -133,7 +134,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 					)
 					workingBlock.Sign(aCon.spendingAccount)
 					// workingBlock
-					transactions = []*utils.Transaction{}
+					transactions = []*utils.BaseTransaction{}
 					if ok, err := aCon.ValidateChamberABlock(workingBlock); ok {
 						// aCon.chain.WriteBlock()//TODO: we should like, be able to save blocks...
 						aCon.netLogic.Propagate(workingBlock)

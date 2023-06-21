@@ -33,7 +33,7 @@ type AdamniteServer struct {
 	timesTestHasBeenCalled    int
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
-	newTransactionReceived    func(*utils.Transaction) error
+	newTransactionReceived    func(utils.TransactionType) error
 	newBlockReceived          func(utils.Block) error
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
@@ -49,7 +49,7 @@ func (a *AdamniteServer) Addr() string {
 func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
 	newConn func(string, common.Address),
-	newTransaction func(*utils.Transaction) error,
+	newTransaction func(utils.TransactionType) error,
 	newBlock func(utils.Block) error) {
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
@@ -371,11 +371,24 @@ const NewTransactionEndpoint = "AdamniteServer.NewTransaction"
 
 func (a *AdamniteServer) NewTransaction(params *[]byte, reply *[]byte) error {
 	a.print("New Transaction")
-	var input *utils.Transaction
+	var input *utils.BaseTransaction
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
 		a.printError("New Transaction", err)
 		return err
+	}
+	//get the base transaction, just so we can check the type
+	var transaction utils.TransactionType
+	switch input.GetType() {
+	case utils.Transaction_VM_Call:
+		var vmTransaction *utils.VMCallTransaction
+		if err := encoding.Unmarshal(*params, &vmTransaction); err != nil {
+			a.printError("New Transaction", err)
+			return err
+		}
+		transaction = vmTransaction
+	case utils.Transaction_Basic:
+		transaction = input
 	}
 	data, err := encoding.Marshal(true)
 	if err != nil {
@@ -385,7 +398,7 @@ func (a *AdamniteServer) NewTransaction(params *[]byte, reply *[]byte) error {
 	*reply = data
 
 	if a.newTransactionReceived != nil {
-		return a.newTransactionReceived(input)
+		return a.newTransactionReceived(transaction)
 	}
 
 	return nil

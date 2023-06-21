@@ -43,7 +43,7 @@ type NetNode struct {
 
 	consensusCandidateHandler   func(utils.Candidate) error
 	consensusVoteHandler        func(utils.Voter) error
-	consensusTransactionHandler func(*utils.Transaction) error
+	consensusTransactionHandler func(utils.TransactionType) error
 	consensusBlockHandler       func(utils.Block) error
 }
 
@@ -70,7 +70,7 @@ func (n *NetNode) SetMaxConnections(newMax uint) {
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
 func (n *NetNode) AddFullServer(
 	state *statedb.StateDB, chain *blockchain.Blockchain,
-	transactionHandler func(*utils.Transaction) error,
+	transactionHandler func(utils.TransactionType) error,
 	blockHandler func(utils.Block) error,
 	candidateHandler func(utils.Candidate) error,
 	voteHandler func(utils.Voter) error) error {
@@ -148,7 +148,7 @@ func (n *NetNode) handleBlock(block utils.Block) error {
 	}
 	return n.consensusBlockHandler(block)
 }
-func (n *NetNode) handleTransaction(transaction *utils.Transaction) error {
+func (n *NetNode) handleTransaction(transaction utils.TransactionType) error {
 	//TODO: here is where a logging method could be nice for anyone looking to track all transactions, including failed ones
 	if n.consensusTransactionHandler == nil {
 		//we can't verify this, so just propagate it out!

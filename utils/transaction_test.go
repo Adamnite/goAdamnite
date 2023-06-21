@@ -12,7 +12,7 @@ func TestTransaction(t *testing.T) {
 	strippedSender := accounts.AccountFromPubBytes(sender.PublicKey)
 	recipient, _ := accounts.GenerateAccount()
 
-	tt, err := NewTransaction(sender, recipient.Address, big.NewInt(5), big.NewInt(5))
+	tt, err := NewBaseTransaction(sender, recipient.Address, big.NewInt(5), big.NewInt(5))
 	if err != nil {
 		t.Fatal(err)
 	}

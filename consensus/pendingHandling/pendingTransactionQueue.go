@@ -9,7 +9,7 @@ import (
 )
 
 type TransactionQueue struct {
-	pendingQueue        []*utils.Transaction
+	pendingQueue        []utils.TransactionType
 	pendingRemoval      syncmap.Map //uses the hash of the transaction to decide if it is set to be removed
 	newTransactionsOnly bool        //if transactions that have already been reviewed be ignored when attempting to add them
 	previouslySeen      syncmap.Map //hash of the transaction to if its new
@@ -23,7 +23,7 @@ func NewQueue(newOnly bool) *TransactionQueue {
 	}
 	return &tq
 }
-func (tq *TransactionQueue) AddToQueue(transaction *utils.Transaction) {
+func (tq *TransactionQueue) AddToQueue(transaction utils.TransactionType) {
 	if tq.newTransactionsOnly {
 		//this is to ignore anything that's already been seen
 		_, previouslySeen := tq.previouslySeen.LoadOrStore(transaction, true)
@@ -35,7 +35,7 @@ func (tq *TransactionQueue) AddToQueue(transaction *utils.Transaction) {
 }
 
 // even if this has been reviewed, ignore that and add it
-func (tq *TransactionQueue) AddIgnoringPast(transaction *utils.Transaction) {
+func (tq *TransactionQueue) AddIgnoringPast(transaction utils.TransactionType) {
 	if pendingRemoval, exists := tq.pendingRemoval.Load(transaction); exists && pendingRemoval.(bool) {
 		//this already is awaiting processing, or has already been seen
 		return
@@ -45,7 +45,7 @@ func (tq *TransactionQueue) AddIgnoringPast(transaction *utils.Transaction) {
 }
 
 // get the transaction that has been waiting in queue the longest
-func (tq *TransactionQueue) Pop() *utils.Transaction {
+func (tq *TransactionQueue) Pop() utils.TransactionType {
 	if len(tq.pendingQueue) == 0 {
 		return nil
 	}
@@ -59,13 +59,13 @@ func (tq *TransactionQueue) Pop() *utils.Transaction {
 }
 
 // remove doesn't actually remove it from memory. But does make it so that it'll be removed next time there is a pop
-func (tq *TransactionQueue) Remove(t *utils.Transaction) {
+func (tq *TransactionQueue) Remove(t *utils.BaseTransaction) {
 	tq.pendingRemoval.Store(t, true)
 	tq.previouslySeen.Store(t, true)
 }
 
 // removes all matching transactions from the queue
-func (tq *TransactionQueue) RemoveAll(transactions []*utils.Transaction) {
+func (tq *TransactionQueue) RemoveAll(transactions []*utils.BaseTransaction) {
 	for _, t := range transactions {
 		tq.pendingRemoval.Store(t, true)
 		tq.previouslySeen.Store(t, true)
@@ -81,6 +81,6 @@ func (tq *TransactionQueue) SortQueue() {
 			//put the ones that need to be removed(or aren't stored) first
 			return true
 		}
-		return tq.pendingQueue[i].Time.Before(tq.pendingQueue[j].Time)
+		return tq.pendingQueue[i].GetTime().Before(tq.pendingQueue[j].GetTime())
 	})
 }

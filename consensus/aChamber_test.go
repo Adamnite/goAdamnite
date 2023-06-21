@@ -46,7 +46,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*utils.Transaction{},
+		[]*utils.BaseTransaction{},
 	)
 
 	if ok, _ := n.ValidateChamberABlock(nextValidBlock); !ok {
@@ -66,7 +66,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*utils.Transaction{},
+		[]*utils.BaseTransaction{},
 	)
 
 	if ok, _ := n.ValidateChamberABlock(nextInvalidBlock); ok {
@@ -84,14 +84,15 @@ func TestTransactions(t *testing.T) {
 	testNodeCount := 5
 	seed := networking.NewNetNode(common.Address{0})
 	// seed.AddServer()
-	transactionsSeen := []*utils.Transaction{}
+	transactionsSeen := []*utils.BaseTransaction{}
 	blocksSeen := []utils.Block{}
 	seed.AddFullServer(
 		nil,
 		nil,
-		func(pt *utils.Transaction) error {
+		func(pt utils.TransactionType) error {
 			//the transactions seen logger
-			transactionsSeen = append(transactionsSeen, pt)
+			transaction := pt.(*utils.BaseTransaction)
+			transactionsSeen = append(transactionsSeen, transaction)
 			return nil
 		}, func(b utils.Block) error {
 			blocksSeen = append(blocksSeen, b)
@@ -168,16 +169,16 @@ func TestTransactions(t *testing.T) {
 	maxTransactionsPerBlock = 5
 	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
-	transactions := []*utils.Transaction{}
+	transactions := []*utils.BaseTransaction{}
 	<-time.After(maxTimePerRound.Duration())
 	assert.EqualValues(
 		t,
 		1,
-		conNodes[0].poolsA.currentWorkingRoundID,
+		conNodes[0].poolsA.currentWorkingRoundID.Get(),
 		"round is not correct",
 	)
 	for i := 0; i < 25; i++ {
-		testTransaction, err := utils.NewTransaction(conAccounts[0], conAccounts[i%testNodeCount].Address, big.NewInt(1), big.NewInt(int64(i)))
+		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], conAccounts[i%testNodeCount].Address, big.NewInt(1), big.NewInt(int64(i)))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -201,12 +202,12 @@ func TestTransactions(t *testing.T) {
 		len(blocksSeen),
 		"wrong number of blocks went past this node",
 	)
-	blockTransactions := []*utils.Transaction{}
+	blockTransactions := []*utils.BaseTransaction{}
 	for _, b := range blocksSeen {
 		assert.Equal(t, maxTransactionsPerBlock, len(b.Transactions), "god why")
 		blockTransactions = append(blockTransactions, b.Transactions...)
 	}
 	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
-	log.Printf("current round is %v", conNodes[0].poolsA.currentWorkingRoundID)
+	log.Printf("current round is %v", conNodes[0].poolsA.currentWorkingRoundID.Get())
 	//should be 2
 }

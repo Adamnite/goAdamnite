@@ -103,7 +103,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 		vmerr error
 	)
 	if contractCreation {
-		_, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value)
+		// _, st.ate, vmerr = vm.Create(sender, st.data, st.ate, st.value)
+		//TODO: see if that was important
 	} else {
 
 		// Increment the nonce for the next transaction
@@ -127,7 +128,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 
 	st.refundAte()
 
-	st.state.AddBalance(st.vm.BlockCtx.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.atePrice))
+	st.state.AddBalance(common.HexToAddress("0x0000000"), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.atePrice))
 
 	return ret, st.gasUsed(), vmerr != nil, err
 }
