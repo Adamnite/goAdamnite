@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -41,7 +42,7 @@ func newComplexTransaction(t *utils.VMCallTransaction, firstNeeds *complexTransa
 		processStep:    make(chan processSteps),
 		isPlaceholder:  false,
 	}
-	ct.processStep <- waitingToStart
+	go func() { ct.processStep <- waitingToStart }()
 	//TODO: check if it calls any other contracts. If it does, add those to "needs to run with"
 	return &ct, nil
 
@@ -71,19 +72,19 @@ func (ct *complexTransaction) RunOn(vm *VM.Machine) (hash []byte, err error) {
 		step := <-peer.processStep
 		for step != waitingOnPeers {
 			if step == failed {
-				ct.processStep <- failed
+				go func() { ct.processStep <- failed }()
 				return nil, fmt.Errorf("failed because required peer could not load")
 			}
 		}
 	}
-	ct.processStep <- running
+	go func() { ct.processStep <- running }()
 	ans, err := vm.CallOnContractWith(ct.transaction.VMInteractions)
 	if err != nil {
-		ct.processStep <- failed
+		go func() { ct.processStep <- failed }()
 		return nil, err
 	}
 	ct.finalChanges = ans
-	ct.processStep <- completed
+	go func() { ct.processStep <- completed }()
 	return ans.Hash().Bytes(), nil
 }
 
@@ -110,19 +111,36 @@ func newContractHeld(contract *common.Address, db VM.DBInterfaceItem) (*contract
 	return &ch, nil
 }
 
+// used to safely get the transaction count. Locks the contract held while doing so!
+func (ch *contractHeld) getCurrentAndMaxTransaction() (current int, max int) {
+	ch.lock.Lock()
+	defer ch.lock.Unlock()
+	return ch.nextToRun, len(ch.transactions)
+}
+
 // step to the next transaction
 func (ch *contractHeld) Step(state *statedb.StateDB) error {
 	ch.lock.Lock()
 	defer ch.lock.Unlock()
-	if len(ch.transactions) <= ch.nextToRun {
+	if ch.nextToRun >= len(ch.transactions) {
 		return fmt.Errorf("out of transactions to run. Current next up %d of %d", ch.nextToRun, len(ch.transactions))
 	}
-	ch.nextToRun += 1
 	hash, err := ch.transactions[ch.nextToRun].RunOn(ch.vm)
+	ch.nextToRun += 1
 	if err != nil {
 		return err
 	}
 	ch.runningHash = crypto.Sha512(append(ch.runningHash, hash...))
+	return nil
+}
+
+func (ch *contractHeld) RunAll(state *statedb.StateDB) error {
+	//do this weirdness so that we can get the current point and the endpoint, while locking up the contract held as little as possible
+	for currentPoint, endPoint := ch.getCurrentAndMaxTransaction(); currentPoint < endPoint; currentPoint, endPoint = ch.getCurrentAndMaxTransaction() {
+		if err := ch.Step(state); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 func (ch *contractHeld) AddTransactionToQueue(ct *complexTransaction) {
@@ -137,7 +155,6 @@ type ContractStateHolder struct {
 	sends         map[string][]*complexTransaction //from(hexOfAddress)->all instances they have sent to, in order
 	receives      map[string][]*complexTransaction //from(hexOfAddress)->all instances in which  they receive nite
 	dbCache       VM.DBCacheAble                   //for keeping a local reference. allows each call to be made once
-	dbEndpoint    string
 }
 
 func NewContractStateHolder(dbEndpoint string) (*ContractStateHolder, error) {
@@ -147,7 +164,6 @@ func NewContractStateHolder(dbEndpoint string) (*ContractStateHolder, error) {
 		sends:         map[string][]*complexTransaction{},
 		receives:      map[string][]*complexTransaction{},
 		dbCache:       cache,
-		dbEndpoint:    dbEndpoint,
 	}
 	return &csh, nil
 }
@@ -207,4 +223,33 @@ func (csh *ContractStateHolder) QueueTransaction(t *utils.VMCallTransaction) (er
 		}
 	}
 	return nil
+}
+
+func (csh *ContractStateHolder) RunAll(state *statedb.StateDB) (err error) {
+	csh.lock.Lock()
+	defer csh.lock.Unlock()
+	steppingErr := make(chan error)
+	processedCount := 0
+	go func() {
+		//this thread is setup to handle if we complete everything
+		for processedCount < len(csh.contractsHeld) {
+			time.After(time.Nanosecond)
+		}
+		steppingErr <- nil //just send something so that it's marked that we're done
+
+	}()
+	for _, current := range csh.contractsHeld {
+		go func(ch *contractHeld) {
+			if runErr := ch.RunAll(state); runErr != nil {
+				//it had a runtime error. In future, we will see if we can try starting it again.
+				//TODO: a lot of errors can be recovered from (eg, skipping over broken calls until we hit more working ones)
+				steppingErr <- runErr
+			}
+			processedCount++
+
+		}(current)
+
+	}
+
+	return <-steppingErr
 }

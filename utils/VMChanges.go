@@ -65,7 +65,9 @@ func (rtc RuntimeChanges) Hash() common.Hash {
 		data = append(data, binary.LittleEndian.AppendUint64([]byte{}, start)[:]...)
 		data = append(data, rtc.Changed[i]...)
 	}
-	data = append(data, []byte(rtc.ErrorsEncountered.Error())...)
+	if rtc.ErrorsEncountered != nil {
+		data = append(data, []byte(rtc.ErrorsEncountered.Error())...)
+	}
 
 	return common.BytesToHash(crypto.Sha512(data))
 }
