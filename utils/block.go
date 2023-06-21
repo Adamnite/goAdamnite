@@ -43,12 +43,12 @@ func (h *BlockHeader) Hash() common.Hash {
 
 type Block struct {
 	Header       *BlockHeader
-	Transactions []*Transaction
+	Transactions []*BaseTransaction
 	Signature    []byte
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*Transaction) *Block {
+func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*BaseTransaction) *Block {
 	header := &BlockHeader{
 		Timestamp:             time.Now().UTC(),
 		ParentBlockID:         parentBlockID,

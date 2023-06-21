@@ -25,7 +25,7 @@ const (
 
 type complexTransaction struct {
 	lock           sync.RWMutex
-	transaction    *utils.Transaction
+	transaction    *utils.VMCallTransaction
 	needsToBeAfter *complexTransaction //eg, if someone sends a balance more than once, the first one should always be the one to go through
 	needsToRunWith []*complexTransaction
 	isPlaceholder  bool //if true, this is a placeholder on another contract to be called
@@ -33,7 +33,7 @@ type complexTransaction struct {
 	processStep    chan processSteps //set to true when it starts, and false when completed
 }
 
-func newComplexTransaction(t *utils.Transaction, firstNeeds *complexTransaction) (*complexTransaction, error) {
+func newComplexTransaction(t *utils.VMCallTransaction, firstNeeds *complexTransaction) (*complexTransaction, error) {
 	//here is where we would process if anything needs to be before it.
 	ct := complexTransaction{
 		transaction:    t,
@@ -151,7 +151,7 @@ func NewContractStateHolder(dbEndpoint string) (*ContractStateHolder, error) {
 	}
 	return &csh, nil
 }
-func (csh *ContractStateHolder) QueueTransaction(t *utils.Transaction) (err error) {
+func (csh *ContractStateHolder) QueueTransaction(t *utils.VMCallTransaction) (err error) {
 	//assume that the transaction is indeed, intended for us to handle it
 	//also assume that the transactions are being fed to us in order
 	csh.lock.Lock()

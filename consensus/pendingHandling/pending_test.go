@@ -15,12 +15,12 @@ func TestPendingTransactions(t *testing.T) {
 	tq := NewQueue(false)
 	sender, _ := accounts.GenerateAccount()
 	recipient, _ := accounts.GenerateAccount()
-	testTransaction, _ := utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
+	testTransaction, _ := utils.NewBaseTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
 	tq.AddToQueue(testTransaction)
 	tq.Remove(testTransaction)
 	ans := tq.Pop()
 	assert.Nil(t, ans, "transaction is queued to be removed. Should return nil")
-	testTransaction, _ = utils.NewTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
+	testTransaction, _ = utils.NewBaseTransaction(sender, recipient.Address, big.NewInt(1), big.NewInt(1))
 	tq.AddToQueue(testTransaction)
 	ans = tq.Pop()
 
@@ -36,9 +36,9 @@ func TestSorting(t *testing.T) {
 	tq := NewQueue(false)
 	sender, _ := accounts.GenerateAccount()
 	recipient, _ := accounts.GenerateAccount()
-	transactions := []*utils.Transaction{}
+	transactions := []*utils.BaseTransaction{}
 	for i := 0; i < 50; i++ {
-		testTransaction, _ := utils.NewTransaction(sender, recipient.Address, big.NewInt(int64(i)), big.NewInt(int64(i)))
+		testTransaction, _ := utils.NewBaseTransaction(sender, recipient.Address, big.NewInt(int64(i)), big.NewInt(int64(i)))
 		testTransaction.Time = testTransaction.Time.Add(time.Duration(i) * time.Second * -1) //subtract the point I
 		transactions = append(transactions, testTransaction)
 		tq.AddToQueue(testTransaction)

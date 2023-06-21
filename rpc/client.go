@@ -37,7 +37,7 @@ func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPo
 func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
-func (a *AdamniteClient) SendTransaction(transaction *utils.Transaction) error {
+func (a *AdamniteClient) SendTransaction(transaction *utils.TransactionType) error {
 	log.Printf(clientPreface, "Send Transaction")
 	data, err := encoding.Marshal(&transaction)
 	if err != nil {

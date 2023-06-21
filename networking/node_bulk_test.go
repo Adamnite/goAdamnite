@@ -156,9 +156,9 @@ func TestTransactionPropagation(t *testing.T) {
 	}
 
 	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
-	var ans = &utils.Transaction{}
-	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
-		*ans = *foo
+	var ans = &utils.BaseTransaction{}
+	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo utils.TransactionType) error {
+		*ans = *foo.(*utils.BaseTransaction)
 		return nil
 	}, nil, nil, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
@@ -177,7 +177,7 @@ func TestTransactionPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 	sender, _ := accounts.GenerateAccount()
-	transaction, err := utils.NewTransaction(
+	transaction, err := utils.NewBaseTransaction(
 		sender,
 		common.Address{0xB, 1, 2, 3, 4, 5},
 		big.NewInt(1000),

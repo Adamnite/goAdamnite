@@ -120,14 +120,14 @@ func (con ConsensusNode) IsActiveWitnessLeadFor(processType networking.NetworkTo
 	return false
 }
 
-func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) error {
+func (con *ConsensusNode) ReviewTransaction(transaction utils.TransactionType) error {
 	//give this a quick look over, review it, if its good, add it locally and propagate it out, otherwise, ignore it.
 	var tReviewType networking.NetworkTopLayerType
-	if transaction.VMInteractions != nil {
+	if transaction.GetType() == utils.Transaction_Basic {
+		tReviewType = networking.PrimaryTransactions
+	} else {
 		//the call the VM
 		tReviewType = networking.SecondaryTransactions
-	} else {
-		tReviewType = networking.PrimaryTransactions
 	}
 	//TODO: sending nite and calling a VM should check that they are calling to the same target. And will need further input on it's processing
 	if !con.CanReviewType(tReviewType) {
@@ -135,7 +135,7 @@ func (con *ConsensusNode) ReviewTransaction(transaction *utils.Transaction) erro
 		return nil
 	}
 	//check if the transaction is expired (signature verification should be done when balance is checked)
-	if transaction.Time.Add(maxTimePerRound.Duration()).Before(time.Now().UTC()) {
+	if transaction.GetTime().Add(maxTimePerRound.Duration()).Before(time.Now().UTC()) {
 		//the transaction expired
 		return rpc.ErrBadForward
 	}
