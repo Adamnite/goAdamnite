@@ -19,6 +19,7 @@ type RuntimeChanges struct {
 	ContractCalled    common.Address //what was called
 	ParametersPassed  []byte         //what was passed on the call
 	GasLimit          uint64         //did they set a gas limit
+	GasUsed           uint64         //how much gas was used to process this
 	ChangeStartPoints []uint64       //data from the results
 	Changed           [][]byte       //^
 	ErrorsEncountered error          //if anything went wrong at runtime
@@ -74,9 +75,11 @@ func (rtc RuntimeChanges) Hash() common.Hash {
 func (a RuntimeChanges) Equal(b *RuntimeChanges) bool {
 	if bytes.Equal(a.Caller.Bytes(), b.Caller.Bytes()) &&
 		bytes.Equal(a.ContractCalled[:], b.ContractCalled[:]) &&
-		a.GasLimit == b.GasLimit && a.ErrorsEncountered == b.ErrorsEncountered &&
+		a.GasLimit == b.GasLimit &&
+		a.ErrorsEncountered == b.ErrorsEncountered &&
 		len(a.ChangeStartPoints) == len(b.ChangeStartPoints) &&
-		len(a.Changed) == len(b.Changed) {
+		len(a.Changed) == len(b.Changed) &&
+		a.GasUsed == b.GasUsed {
 
 		//check the change start points
 		for i, aStart := range a.ChangeStartPoints {

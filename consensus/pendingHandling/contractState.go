@@ -98,7 +98,7 @@ type contractHeld struct {
 }
 
 func newContractHeld(contract *common.Address, db VM.DBInterfaceItem) (*contractHeld, error) {
-	vm, err := VM.NewVirtualMachineWithSpoofedConnection(contract, db)
+	vm, err := VM.NewVirtualMachineWithDB(contract, db)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +126,7 @@ func (ch *contractHeld) Step(state *statedb.StateDB) error {
 		return fmt.Errorf("out of transactions to run. Current next up %d of %d", ch.nextToRun, len(ch.transactions))
 	}
 	hash, err := ch.transactions[ch.nextToRun].RunOn(ch.vm)
+
 	ch.nextToRun += 1
 	if err != nil {
 		return err

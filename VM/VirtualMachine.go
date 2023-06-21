@@ -13,7 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 )
 
-func NewVirtualMachineWithSpoofedConnection(contract *common.Address, dbInterface DBInterfaceItem) (*Machine, error) {
+func NewVirtualMachineWithDB(contract *common.Address, dbInterface DBInterfaceItem) (*Machine, error) {
 	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
 	vm.config.Getter = dbInterface
 	if contract == nil {
@@ -28,6 +28,8 @@ func NewVirtualMachineWithSpoofedConnection(contract *common.Address, dbInterfac
 
 	return vm, nil
 }
+
+// TODO: delete
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
 	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
 
@@ -40,6 +42,8 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 
 	return vm, nil
 }
+
+// TODO: delete
 func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
 	vm.Reset()
 	con, err := GetContractData(apiEndpoint, contract.Hex())
@@ -49,6 +53,8 @@ func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) 
 	vm.contract = *con
 	return nil
 }
+
+// TODO: delete
 func (vm *Machine) CallWith(apiEndpoint string, rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
 	if err := vm.ResetToContract(apiEndpoint, rt.ContractCalled); err != nil {
 		return nil, err
@@ -74,14 +80,6 @@ func (vm *Machine) CallOnContractWith(rt *utils.RuntimeChanges) (*utils.RuntimeC
 func newContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
-}
-
-func GetCodeBytes2(uri string, hash string) ([]byte, error) {
-	code, err := GetMethodCode(uri, hash)
-	if err != nil {
-		return nil, err
-	}
-	return code.CodeBytes, nil
 }
 
 func GetDefaultConfig() VMConfig {
