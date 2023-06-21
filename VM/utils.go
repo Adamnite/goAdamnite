@@ -81,7 +81,9 @@ func (sdbc *SpoofedDBCache) GetCode(hash []byte) (FunctionType, []OperationCommo
 func (sdbc *SpoofedDBCache) PreCacheCode(hash []byte) error {
 	sdbc.lock.Lock()
 	defer sdbc.lock.Unlock()
-	sdbc.cacheCode(hash)
+	if sdbc.cacheCode != nil {
+		sdbc.cacheCode(hash)
+	}
 	return nil
 }
 func (sdbc *SpoofedDBCache) GetContract(address string) (*Contract, error) {
@@ -93,7 +95,9 @@ func (sdbc *SpoofedDBCache) GetContract(address string) (*Contract, error) {
 func (sdbc *SpoofedDBCache) PreCacheContract(address string) error {
 	sdbc.lock.Lock()
 	defer sdbc.lock.Unlock()
-	sdbc.cacheContract(address)
+	if sdbc.cacheContract != nil {
+		sdbc.cacheContract(address)
+	}
 	return nil
 }
 
@@ -220,7 +224,10 @@ func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) ([][]byte, err
 	case Module:
 		mod = v
 	case string:
-		hexBinary, _ := hex.DecodeString(v)
+		hexBinary, err := hex.DecodeString(v)
+		if err != nil {
+			return err, nil
+		}
 		mod = *decode(hexBinary)
 	case []byte:
 		mod = *decode(v)
