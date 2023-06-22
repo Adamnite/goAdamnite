@@ -11,6 +11,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/safe"
 )
 
 type processSteps int8
@@ -125,12 +126,16 @@ func (ch *contractHeld) Step(state *statedb.StateDB) error {
 	if ch.nextToRun >= len(ch.transactions) {
 		return fmt.Errorf("out of transactions to run. Current next up %d of %d", ch.nextToRun, len(ch.transactions))
 	}
+	//TODO: you should move the sent funds here
 	hash, err := ch.transactions[ch.nextToRun].RunOn(ch.vm)
-
+	//TODO: you should spend their gas here
 	ch.nextToRun += 1
 	if err != nil {
+		//TODO: here should undo transfers if it the transaction failed.
+		//TODO: we might need to also revert the gas fees spent... since failed transactions aren't added to the block...
 		return err
 	}
+
 	ch.runningHash = crypto.Sha512(append(ch.runningHash, hash...))
 	return nil
 }
@@ -230,10 +235,10 @@ func (csh *ContractStateHolder) RunAll(state *statedb.StateDB) (err error) {
 	csh.lock.Lock()
 	defer csh.lock.Unlock()
 	steppingErr := make(chan error)
-	processedCount := 0
+	processedCount := safe.NewSafeInt(0)
 	go func() {
 		//this thread is setup to handle if we complete everything
-		for processedCount < len(csh.contractsHeld) {
+		for processedCount.Get() < len(csh.contractsHeld) {
 			time.After(time.Nanosecond)
 		}
 		steppingErr <- nil //just send something so that it's marked that we're done
@@ -246,10 +251,8 @@ func (csh *ContractStateHolder) RunAll(state *statedb.StateDB) (err error) {
 				//TODO: a lot of errors can be recovered from (eg, skipping over broken calls until we hit more working ones)
 				steppingErr <- runErr
 			}
-			processedCount++
-
+			processedCount.Add(1)
 		}(current)
-
 	}
 
 	return <-steppingErr
