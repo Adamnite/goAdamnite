@@ -84,7 +84,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 		aCon.transactionQueue.SortQueue()
 		for aCon.poolsA.IsActiveWitness((*crypto.PublicKey)(&aCon.spendingAccount.PublicKey)) {
 			//we want to keep this going while we aren't the leader...
-			transactions := []*utils.BaseTransaction{}
+			transactions := []utils.TransactionType{}
 
 			//TODO: get the trie base point
 			for aCon.IsActiveWitnessLeadFor(networking.PrimaryTransactions) {
@@ -134,7 +134,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 					)
 					workingBlock.Sign(aCon.spendingAccount)
 					// workingBlock
-					transactions = []*utils.BaseTransaction{}
+					transactions = []utils.TransactionType{}
 					if ok, err := aCon.ValidateChamberABlock(workingBlock); ok {
 						// aCon.chain.WriteBlock()//TODO: we should like, be able to save blocks...
 						aCon.netLogic.Propagate(workingBlock)

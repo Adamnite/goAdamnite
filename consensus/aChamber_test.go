@@ -46,7 +46,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*utils.BaseTransaction{},
+		[]utils.TransactionType{},
 	)
 
 	if ok, _ := n.ValidateChamberABlock(nextValidBlock); !ok {
@@ -66,7 +66,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]*utils.BaseTransaction{},
+		[]utils.TransactionType{},
 	)
 
 	if ok, _ := n.ValidateChamberABlock(nextInvalidBlock); ok {
@@ -202,7 +202,7 @@ func TestTransactions(t *testing.T) {
 		len(blocksSeen),
 		"wrong number of blocks went past this node",
 	)
-	blockTransactions := []*utils.BaseTransaction{}
+	blockTransactions := []utils.TransactionType{}
 	for _, b := range blocksSeen {
 		assert.Equal(t, maxTransactionsPerBlock, len(b.Transactions), "god why")
 		blockTransactions = append(blockTransactions, b.Transactions...)
