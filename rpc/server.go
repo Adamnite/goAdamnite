@@ -3,7 +3,6 @@ package rpc
 import (
 	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"net/rpc"
 	"strings"
@@ -204,70 +203,6 @@ func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	} else {
 		*reply = data
 	}
-	return nil
-}
-
-const getChainIDEndpoint = "AdamniteServer.GetChainID"
-
-func (a *AdamniteServer) GetChainID(params *[]byte, reply *[]byte) error {
-	a.print("Get chain ID")
-
-	data, err := encoding.Marshal(a.Version)
-	if err != nil {
-		a.printError("Get chain ID", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const getBlockByHashEndpoint = "AdamniteServer.GetBlockByHash"
-
-func (a *AdamniteServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
-	a.print("Get block by hash")
-
-	input := struct {
-		BlockHash common.Hash
-	}{}
-
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		a.printError("Get block by hash", err)
-		return err
-	}
-
-	data, err := encoding.Marshal(*a.chain.GetBlockByHash(input.BlockHash))
-	if err != nil {
-		a.printError("Get block by hash", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-
-}
-
-const getBlockByNumberEndpoint = "AdamniteServer.GetBlockByNumber"
-
-func (a *AdamniteServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
-	a.print("Get block by number")
-
-	input := struct {
-		BlockNumber big.Int
-	}{}
-
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		a.printError("Get block by number", err)
-		return err
-	}
-
-	data, err := encoding.Marshal(*a.chain.GetBlockByNumber(&input.BlockNumber))
-	if err != nil {
-		a.printError("Get block by number", err)
-		return err
-	}
-
-	*reply = data
 	return nil
 }
 
