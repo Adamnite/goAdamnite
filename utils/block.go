@@ -43,12 +43,12 @@ func (h *BlockHeader) Hash() common.Hash {
 
 type Block struct {
 	Header       *BlockHeader
-	Transactions []*BaseTransaction
+	Transactions []TransactionType
 	Signature    []byte
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*BaseTransaction) *Block {
+func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []TransactionType) *Block {
 	header := &BlockHeader{
 		Timestamp:             time.Now().UTC(),
 		ParentBlockID:         parentBlockID,
@@ -70,7 +70,7 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 func (b *Block) Hash() common.Hash {
 	bytes := b.Header.Hash().Bytes()
 	for _, t := range b.Transactions {
-		bytes = append(bytes, t.Signature...)
+		bytes = append(bytes, (t).GetSignature()...)
 		//since the signature normally isn't added to the transactions hash (how would you sign the hash of a signature of a hash of a....)
 	}
 

@@ -152,7 +152,7 @@ func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 		passed.NodeIDs = append(passed.NodeIDs, x.contact.NodeID)
 		passed.ConnectionStrings = append(passed.ConnectionStrings, x.contact.ConnectionString)
 	}
-	for blv, _ := range cb.blacklistSet {
+	for blv := range cb.blacklistSet {
 		passed.BlacklistIDs = append(passed.BlacklistIDs, blv.NodeID)
 		passed.BlacklistConnectionStrings = append(passed.BlacklistConnectionStrings, blv.ConnectionString)
 	}

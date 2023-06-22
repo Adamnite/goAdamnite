@@ -47,6 +47,8 @@ func (tq *TransactionQueue) AddIgnoringPast(transaction utils.TransactionType) {
 // get the transaction that has been waiting in queue the longest
 func (tq *TransactionQueue) Pop() utils.TransactionType {
 	if len(tq.pendingQueue) == 0 {
+		//if it's empty, we reset the pending removal as well
+		tq.pendingRemoval = sync.Map{}
 		return nil
 	}
 	t := tq.pendingQueue[0]
@@ -59,16 +61,23 @@ func (tq *TransactionQueue) Pop() utils.TransactionType {
 }
 
 // remove doesn't actually remove it from memory. But does make it so that it'll be removed next time there is a pop
-func (tq *TransactionQueue) Remove(t *utils.BaseTransaction) {
+func (tq *TransactionQueue) Remove(t utils.TransactionType) {
 	tq.pendingRemoval.Store(t, true)
 	tq.previouslySeen.Store(t, true)
 }
 
-// removes all matching transactions from the queue
-func (tq *TransactionQueue) RemoveAll(transactions []*utils.BaseTransaction) {
+// removes all matching transactions from the queue. Only works with direct interface
+func (tq *TransactionQueue) RemoveAll(transactions []utils.TransactionType) {
 	for _, t := range transactions {
 		tq.pendingRemoval.Store(t, true)
 		tq.previouslySeen.Store(t, true)
+	}
+}
+
+// same as removeAll but works with any transaction type
+func RemoveAllFrom[T utils.TransactionType](transactions []T, tq *TransactionQueue) {
+	for _, t := range transactions {
+		tq.Remove(t)
 	}
 }
 

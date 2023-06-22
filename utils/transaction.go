@@ -34,6 +34,7 @@ type TransactionType interface {
 	VerifySignature() (bool, error)
 	Equal(TransactionType) bool
 	GetTime() time.Time
+	GetSignature() []byte
 }
 
 type BaseTransaction struct {
@@ -71,6 +72,9 @@ func (t BaseTransaction) FromAddress() common.Address {
 }
 func (t BaseTransaction) GetTime() time.Time {
 	return t.Time
+}
+func (t BaseTransaction) GetSignature() []byte {
+	return t.Signature
 }
 
 // does not use the time in the hash value, as that is used for the random source value.
@@ -133,6 +137,24 @@ func (vmt VMCallTransaction) Hash() common.Hash {
 	data = append(data, vmt.VMInteractions.Hash().Bytes()...)
 
 	return common.BytesToHash(crypto.Sha512(data))
+}
+
+type NewContractTransaction struct {
+	Version         TransactionVersionType
+	From            *accounts.Account
+	TransactionType TransactionActionType
+	Amount          *big.Int //still need to send some amount of funds to the contract when you make it.
+	GasLimit        *big.Int
+	Time            time.Time
+	Signature       []byte
+}
+
+func MakeNewContractTransaction() (*NewContractTransaction, error) {
+	nct := NewContractTransaction{}
+	return &nct, nil
+}
+func (nct NewContractTransaction) GetSignature() []byte {
+	return nct.Signature
 }
 
 var (

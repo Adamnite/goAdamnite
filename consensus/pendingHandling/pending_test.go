@@ -49,7 +49,28 @@ func TestSorting(t *testing.T) {
 		fmt.Println("popping the wrong value after sorting")
 		t.Fail()
 	}
-	tq.RemoveAll(transactions)
+	RemoveAllFrom(transactions, tq)
+
+	if tq.Pop() != nil {
+		fmt.Println("popping found non existent transaction")
+		t.Fail()
+	}
+	vagueTransactions := []utils.TransactionType{}
+	for i := 0; i < 50; i++ {
+		testTransaction, _ := utils.NewBaseTransaction(sender, recipient.Address, big.NewInt(int64(i)), big.NewInt(int64(i)))
+		testTransaction.Time = testTransaction.Time.Add(time.Duration(i) * time.Second * -1) //subtract the point I
+		vagueTransactions = append(vagueTransactions, testTransaction)
+		tq.AddToQueue(testTransaction)
+	}
+	assert.Equal(
+		t, len(vagueTransactions), len(tq.pendingQueue),
+		"adding by interface did not load",
+	)
+	assert.Equal(
+		t, vagueTransactions[0], tq.Pop(),
+		"vague transactions not the same after being popped from queue",
+	)
+	tq.RemoveAll(vagueTransactions)
 	if tq.Pop() != nil {
 		fmt.Println("popping found non existent transaction")
 		t.Fail()
