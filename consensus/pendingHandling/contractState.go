@@ -173,13 +173,20 @@ func NewContractStateHolder(dbEndpoint string) (*ContractStateHolder, error) {
 	}
 	return &csh, nil
 }
-func (csh *ContractStateHolder) QueueTransaction(t *utils.VMCallTransaction) (err error) {
+func (csh *ContractStateHolder) QueueTransaction(t utils.TransactionType) (err error) {
 	//assume that the transaction is indeed, intended for us to handle it
 	//also assume that the transactions are being fed to us in order
 	csh.lock.Lock()
 	defer csh.lock.Unlock()
 	//check if the target contract is already loaded
-	vmT := t.VMInteractions
+	if t.GetType() == utils.Transaction_Basic {
+		return fmt.Errorf("expected VM calling type, got base transaction type")
+	}
+	if t.GetType() == utils.Transaction_VM_NewContract {
+		//TODO: we need to handle contract creation
+		return nil
+	}
+	vmT := t.(*utils.VMCallTransaction).VMInteractions
 	ch, exists := csh.contractsHeld[vmT.ContractCalled.Hex()]
 	if !exists {
 		//it's not stored yet, so we need to make this
@@ -195,33 +202,33 @@ func (csh *ContractStateHolder) QueueTransaction(t *utils.VMCallTransaction) (er
 		return err
 	}
 	//TODO: check if the method calls another contract. If it does, we need to add a special point in that contracts queue
-	var sendsMoney bool = t.Amount.Cmp(big.NewInt(0)) != 0
+	var sendsMoney bool = t.(*utils.VMCallTransaction).Amount.Cmp(big.NewInt(0)) != 0
 	var sendingBefore *complexTransaction = nil
 	//then we actually log the transaction (so we know it'll work)
 	if sendsMoney {
 		//they send money... so we need to check if they're sending before. Or if they're receiving before
-		from := t.From.GetAddress().Hex()
+		from := t.(*utils.VMCallTransaction).From.GetAddress().Hex()
 		if previouslySent, exists := csh.sends[from]; exists {
 			sendingBefore = previouslySent[len(previouslySent)-1]
 		} else if previouslyReceived, exists := csh.receives[from]; exists {
 			sendingBefore = previouslyReceived[len(previouslyReceived)-1]
 		}
 	}
-	ct, err := newComplexTransaction(t, sendingBefore)
+	ct, err := newComplexTransaction(t.(*utils.VMCallTransaction), sendingBefore)
 	if err != nil {
 		return err
 	}
 	ch.AddTransactionToQueue(ct)
 	if sendsMoney {
 		//we have to add that they sent nite, with reference to when they do, so it can be added.
-		from := t.From.GetAddress().Hex()
+		from := t.(*utils.VMCallTransaction).From.GetAddress().Hex()
 		if previouslySent, exists := csh.sends[from]; exists {
 			csh.sends[from] = append(previouslySent, ct)
 		} else {
 			csh.sends[from] = []*complexTransaction{ct}
 		}
 
-		to := t.To.Hex()
+		to := t.(*utils.VMCallTransaction).To.Hex()
 		if previouslyReceived, exists := csh.receives[to]; exists {
 			csh.receives[to] = append(previouslyReceived, ct)
 		} else {

@@ -110,6 +110,7 @@ func (a BaseTransaction) Equal(other TransactionType) bool {
 type VMCallTransaction struct {
 	BaseTransaction
 	VMInteractions *RuntimeChanges //an optional value that would make this transaction require chamber B validation
+	RunnerHash     []byte          //the running hash that was given to this. Only added after it has been processed
 }
 
 // takes a transaction and changes it to be a VM interacting transaction

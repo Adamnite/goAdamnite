@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"log"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -80,8 +79,4 @@ func TestProcessingRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-}
-func TestMain(m *testing.M) {
-	code := m.Run()
-	os.Exit(code)
 }

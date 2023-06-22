@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -25,6 +26,35 @@ type BlockHeader struct {
 	Round                 uint64
 }
 
+func NewBlockHeader(parentHash common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, transactionType int8, blockNumber *big.Int, roundNumber uint64) *BlockHeader {
+	bh := BlockHeader{
+		Timestamp:             time.Now().UTC(),
+		ParentBlockID:         parentHash,
+		Witness:               witness,
+		WitnessMerkleRoot:     witnessRoot,
+		TransactionMerkleRoot: transactionRoot,
+		StateMerkleRoot:       stateRoot,
+		TransactionType:       transactionType,
+		Number:                blockNumber,
+		Round:                 roundNumber,
+	}
+	return &bh
+}
+func NextBlockHeader(parent BlockHeader, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, roundNumber uint64) *BlockHeader {
+	bh := BlockHeader{
+		Timestamp:             time.Now().UTC(),
+		ParentBlockID:         parent.Hash(),
+		Witness:               witness,
+		WitnessMerkleRoot:     witnessRoot,
+		TransactionMerkleRoot: transactionRoot,
+		StateMerkleRoot:       stateRoot,
+		TransactionType:       parent.TransactionType,
+		Number:                big.NewInt(0).Add(parent.Number, big.NewInt(1)),
+		Round:                 roundNumber,
+	}
+	return &bh
+}
+
 // Hash hashes block header
 func (h *BlockHeader) Hash() common.Hash {
 	val, _ := h.Timestamp.MarshalBinary()
@@ -39,6 +69,13 @@ func (h *BlockHeader) Hash() common.Hash {
 	sha := sha256.New()
 	sha.Write(val)
 	return common.BytesToHash(sha.Sum(nil))
+}
+
+type BlockType interface {
+	Hash() common.Hash
+	Sign(accounts.Account) error
+	VerifySignature() bool
+	GetHeader() *BlockHeader
 }
 
 type Block struct {
@@ -88,4 +125,60 @@ func (b *Block) VerifySignature() bool {
 	}
 	signer := accounts.AccountFromPubBytes(b.Header.Witness)
 	return signer.Verify(b, b.Signature)
+}
+func (b *Block) GetHeader() *BlockHeader {
+	return b.Header
+}
+
+type VMBlock struct {
+	Header         *BlockHeader
+	Transactions   []TransactionType
+	BalanceChanges map[common.Address]*big.Int
+	HashChanges    map[common.Address][2]common.Hash //contractAddress->[start, end]
+	Signature      []byte
+
+	//items that are only used in formation of the block
+	lock sync.Mutex
+}
+
+func NewWorkingVMBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, round uint64, transactions []TransactionType) *VMBlock {
+	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, 1, number, round)
+	vmb := VMBlock{
+		Header:       bh,
+		Transactions: transactions,
+		lock:         sync.Mutex{},
+	}
+	return &vmb
+}
+func (vmb *VMBlock) Hash() common.Hash {
+	data := vmb.Header.Hash().Bytes()
+	for _, t := range vmb.Transactions {
+		data = append(data, t.GetSignature()...)
+	}
+	for from, change := range vmb.BalanceChanges {
+		data = append(data, from.Bytes()...)
+		data = append(data, change.Bytes()...)
+	}
+	for contract, hashes := range vmb.HashChanges {
+		data = append(data, contract.Bytes()...)
+		data = append(data, hashes[0].Bytes()...)
+		data = append(data, hashes[1].Bytes()...)
+	}
+	return common.BytesToHash(crypto.Sha512(data))
+}
+
+func (vmb *VMBlock) Sign(signer accounts.Account) error {
+	sig, err := signer.Sign(vmb)
+	vmb.Signature = sig
+	return err
+}
+func (vmb *VMBlock) VerifySignature() bool {
+	if vmb.Header == nil || vmb.Header.Witness == nil {
+		return false //might as well add safe guards
+	}
+	signer := accounts.AccountFromPubBytes(vmb.Header.Witness)
+	return signer.Verify(vmb, vmb.Signature)
+}
+func (vmb *VMBlock) GetHeader() *BlockHeader {
+	return vmb.Header
 }
