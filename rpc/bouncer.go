@@ -5,12 +5,14 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"math/big"
 	"strings"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
@@ -22,6 +24,7 @@ type BouncerServer struct {
 	addresses   []string
 	listener    net.Listener
 	DebugOutput bool
+	Version     string
 
 	propagator  func(ForwardingContent, *[]byte) error
 	getMessages func(common.Address, common.Address) []*utils.CaesarMessage
@@ -52,6 +55,7 @@ func NewBouncerServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, po
 	bouncer.stateDB = stateDB
 	bouncer.chain = chain
 	bouncer.DebugOutput = false
+	bouncer.Version = "0.1.2"
 	bouncer.propagator = func(ForwardingContent, *[]byte) error {
 		return fmt.Errorf("this is an incomplete bouncer server, and cannot forward")
 	}
@@ -89,6 +93,21 @@ func (b *BouncerServer) Close() {
 }
 func (b *BouncerServer) Addr() string {
 	return b.listener.Addr().String()
+}
+
+const getChainIDEndpoint = "BouncerServer.GetChainID"
+
+func (b *BouncerServer) GetChainID(params *[]byte, reply *[]byte) error {
+	b.print("Get chain ID")
+
+	data, err := encoding.Marshal(b.Version)
+	if err != nil {
+		b.printError("Get chain ID", err)
+		return err
+	}
+
+	*reply = data
+	return nil
 }
 
 const getBalanceEndpoint = "BouncerServer.GetBalance"
@@ -132,26 +151,76 @@ const createAccountEndpoint = "BouncerServer.CreateAccount"
 func (b *BouncerServer) CreateAccount(params *[]byte, reply *[]byte) error {
 	b.print("Create account")
 
-	var inputAddress string
+	input := struct {
+		Address string
+	}{}
 
-	if err := encoding.Unmarshal(*params, &inputAddress); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		b.printError("Create account", err)
 		return err
 	}
 
 	for _, address := range b.addresses {
-		if address == inputAddress {
+		if address == input.Address {
 			log.Printf(serverPreface, ErrPreExistingAccount)
 			return ErrPreExistingAccount
 		}
 	}
 
-	b.stateDB.CreateAccount(common.HexToAddress(inputAddress))
-	b.addresses = append(b.addresses, inputAddress)
+	b.stateDB.CreateAccount(common.HexToAddress(input.Address))
+	b.addresses = append(b.addresses, input.Address)
 
 	data, err := encoding.Marshal(true)
 	if err != nil {
 		b.printError("Create account", err)
+		return err
+	}
+
+	*reply = data
+	return nil
+}
+
+const getBlockByHashEndpoint = "BouncerServer.GetBlockByHash"
+
+func (b *BouncerServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
+	b.print("Get block by hash")
+
+	input := struct {
+		BlockHash common.Hash
+	}{}
+
+	if err := encoding.Unmarshal(*params, &input); err != nil {
+		b.printError("Get block by hash", err)
+		return err
+	}
+
+	data, err := encoding.Marshal(*b.chain.GetBlockByHash(input.BlockHash))
+	if err != nil {
+		b.printError("Get block by hash", err)
+		return err
+	}
+
+	*reply = data
+	return nil
+}
+
+const getBlockByNumberEndpoint = "BouncerServer.GetBlockByNumber"
+
+func (b *BouncerServer) GetBlockByNumber(params *[]byte, reply *[]byte) error {
+	b.print("Get block by number")
+
+	input := struct {
+		BlockNumber big.Int
+	}{}
+
+	if err := encoding.Unmarshal(*params, &input); err != nil {
+		b.printError("Get block by number", err)
+		return err
+	}
+
+	data, err := encoding.Marshal(*b.chain.GetBlockByNumber(&input.BlockNumber))
+	if err != nil {
+		b.printError("Get block by number", err)
 		return err
 	}
 
@@ -164,16 +233,30 @@ const bouncerNewMessageEndpoint = "BouncerServer.NewMessage"
 func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	b.print("New Message")
 
-	var msg utils.CaesarMessage
+	input := struct {
+		ToPublicKey   string
+		FromPublicKey string
+		Message       string
+	}{}
 
-	if err := encoding.Unmarshal(*params, &msg); err != nil {
+	if err := encoding.Unmarshal(*params, &input); err != nil {
 		b.printError("New Message", err)
 		return err
 	}
-	if !msg.Verify() {
+
+	caesarMsg, err := utils.NewCaesarMessage(
+		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
+		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
+		input.Message)
+	if err != nil {
+		b.printError("New Message", err)
+		return err
+	}
+
+	if !caesarMsg.Verify() {
 		return utils.ErrIncorrectSigner
 	}
-	if forwardableMsg, err := CreateForwardToAll(msg); err != nil {
+	if forwardableMsg, err := CreateForwardToAll(caesarMsg); err != nil {
 		b.printError("New Message", err)
 		return err
 	} else {
@@ -203,4 +286,32 @@ func (b *BouncerServer) GetMessagesBetween(params, reply *[]byte) error {
 	ansBytes, err := encoding.Marshal(msgs)
 	*reply = ansBytes
 	return err
+}
+
+
+const sendTransactionEndpoint = "BouncerServer.SendTransaction"
+
+func (b *BouncerServer) SendTransaction(params *[]byte, reply *[]byte) error {
+	b.print("Send transaction")
+
+	var input *utils.Transaction
+
+	if err := encoding.Unmarshal(*params, &input); err != nil {
+		b.printError("Send transaction", err)
+		return err
+	}
+	data, err := encoding.Marshal(true)
+	if err != nil {
+		b.printError("Send transaction", err)
+		return err
+	}
+	*reply = data
+
+	// if b.newTransactionReceived != nil {
+	// 	// return b.newTransactionReceived(input, params)
+	// } else {
+	// 	//TODO: this node cant forward this transaction at all.
+	// }
+
+	return nil
 }
