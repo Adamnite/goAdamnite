@@ -1,7 +1,10 @@
 package consensus
 
 import (
+	"fmt"
+
 	"github.com/adamnite/go-adamnite/VM"
+	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 )
@@ -58,4 +61,77 @@ func (bNode *ConsensusNode) ProcessRun(claim *utils.RuntimeChanges) error {
 	}
 	*claim = *newClaim
 	return err
+}
+
+// verifies a block, and optionally saves the results to the OCDB
+func (bNode *ConsensusNode) VerifyVMBlock(block *utils.Block, saveToDB bool) (bool, error) {
+	conStates, err := pendingHandling.NewContractStateHolder(bNode.ocdbLink)
+	if err != nil {
+		return false, err
+	}
+	for _, t := range block.Transactions {
+		//first we need to get all of these transactions loaded into a contractState handler.
+		switch t.GetType() {
+		case utils.Transaction_Basic:
+			return false, fmt.Errorf("wrong transaction type found in block") //TODO: make real error
+		case utils.Transaction_VM_Call:
+			if err := conStates.QueueTransaction(t.(*utils.VMCallTransaction)); err != nil {
+				return false, err
+			}
+			//TODO: add a case to handle new contract creation
+		}
+	}
+	state := bNode.state
+	if !saveToDB {
+		//if we aren't saving locally, then we don't want to apply the transactions either
+		state = bNode.state.Copy()
+	}
+	if err := conStates.RunAll(state); err != nil {
+		return false, err
+	}
+	//TODO: call the conStates to get the final hashes and make sure they're the same
+	return true, nil
+}
+func (bNode *ConsensusNode) StartVMContinuosHandling() error {
+	//TODO: listed below
+	//only run this when we're a witness
+	//wait until we're selected as the lead.
+	//when we're the lead, get all of our transactions in order
+	//once we have all our initial transactions in order, we filter out expired ones, and add the valid ones to a contractState handler
+	//
+
+	//start of us being lead
+	bNode.transactionQueue.SortQueue()
+	conState, err := pendingHandling.NewContractStateHolder(bNode.ocdbLink)
+	if err != nil {
+		return err
+	}
+	//handle the backlog
+	var firstPutBack utils.TransactionType = nil //to check if we are putting the same node at the back, that way we don't get into a continuos loop
+	t := bNode.transactionQueue.Pop()
+	for firstPutBack == nil || !firstPutBack.Equal(t) {
+		if t == nil {
+			//we're out of transactions and need to wait for a new transaction to be sent
+			continue
+		}
+		//TODO: filter out expired contracts
+		if t.GetType() == utils.Transaction_Basic {
+			//this is a chamber A transaction, so lets put it to the back of the queue
+			bNode.transactionQueue.AddIgnoringPast(t)
+			if firstPutBack == nil {
+				firstPutBack = t
+			}
+			continue
+		}
+		//by here we assume it's valid
+		conState.QueueTransaction(t)
+
+		//add this for the next time around the loop
+		t = bNode.transactionQueue.Pop()
+	}
+	//now we need to run all of those transactions.
+	if err := conState.RunAll(bNode.state); err != nil {
+		return err
+	}
+	return nil
 }
