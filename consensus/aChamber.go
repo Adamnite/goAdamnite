@@ -2,8 +2,10 @@ package consensus
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
+	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
@@ -70,7 +72,8 @@ func (aCon ConsensusNode) getAChamberBlockValidity(block *utils.Block) (bool, er
 			// parent block does not exist on chain
 			// thus, proposed block is not valid so we mark the witness as untrustworthy
 			aCon.untrustworthyWitnesses[string(block.Header.Witness)] += 1
-			return false, aCon.poolsA.ActiveWitnessReviewed(&block.Header.Witness, false, block.Header.Number.Uint64())
+			return false, fmt.Errorf("error block invalid")
+			// aCon.poolsA.ActiveWitnessReviewed(&block.Header.Witness, false, block.Header.Number.Uint64())
 		}
 		//TODO: uncomment that once we have the chain blocks corrected
 		// if !tmp.VerifySignature() {
@@ -103,6 +106,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 func (aCon *ConsensusNode) actAsLead() {
 	transactions := []*utils.BaseTransaction{}
 	//TODO: get the trie base point
+	stateLocking := sync.RWMutex{}
 	for aCon.IsActiveWitnessLeadFor(networking.PrimaryTransactions) {
 		//TODO: replace this with an "is active witness leader"
 		possibleT := aCon.transactionQueue.Pop()
@@ -111,19 +115,23 @@ func (aCon *ConsensusNode) actAsLead() {
 			continue
 		}
 		//do the things like check the time, signature, whatnot
+		stateLocking.RLock()
 		if ok, err := aCon.IsStillApplicable(possibleT); !ok {
 			log.Printf("error with that transaction, %v", err)
+			stateLocking.RUnlock()
 			continue
 		}
+		stateLocking.RUnlock()
 		//t can on occasion actually be a VM transaction instead of one intended for us, so just put it back and start again
 		if possibleT.GetType() != utils.Transaction_Basic {
 			aCon.transactionQueue.AddIgnoringPast(possibleT)
 			continue
 		}
 		t := possibleT.(*utils.BaseTransaction)
-
+		stateLocking.Lock()
 		aCon.state.SubBalance(t.FromAddress(), t.Amount)
 		aCon.state.AddBalance(t.To, t.Amount)
+		stateLocking.Unlock()
 		//TODO: charge them some gas for sending this
 
 		transactions = append(transactions, t)

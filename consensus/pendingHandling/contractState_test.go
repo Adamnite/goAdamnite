@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
@@ -15,11 +16,12 @@ import (
 )
 
 var (
-	state          *statedb.StateDB
-	senders        []*accounts.Account
-	db             *VM.SpoofedDBCache
-	addTwoContract VM.Contract
-	addTwoFunction []byte //the hash/name for the addTwoFunction
+	state             *statedb.StateDB
+	senders           []*accounts.Account
+	db                *VM.SpoofedDBCache
+	addTwoContract    VM.Contract
+	addTwoFunction    []byte //the hash/name for the addTwoFunction
+	saveLocalFunction []byte
 )
 
 func setup(accountGoal int, startBalance *big.Int) {
@@ -44,6 +46,13 @@ func setup(accountGoal int, startBalance *big.Int) {
 		panic(err)
 	}
 	addTwoFunction = hashes[0]
+	// methodsAsString = "0061736d0100000001040160000003030200000405017001010105030100020608017f01418088040b070a01066d656d6f727902000a130202000b0e001080808080001080808080000b0036046e616d65011b02000564756d6d7901115f5f7761736d5f63616c6c5f64746f7273071201000f5f5f737461636b5f706f696e74657200760970726f647563657273010c70726f6365737365642d62790105636c616e675631342e302e33202868747470733a2f2f6769746875622e636f6d2f6c6c766d2f6c6c766d2d70726f6a656374203166393134303036346466626662306262646138653531333036656135313038306232663761616329"
+	// err, hashes = db.DB.AddModuleToSpoofedCode(methodsAsString)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// saveLocalFunction = hashes[0]
+	// addTwoContract.CodeHashes = []string{hex.EncodeToString(addTwoFunction), hex.EncodeToString(saveLocalFunction)}
 	addTwoContract.CodeHashes = []string{hex.EncodeToString(addTwoFunction)}
 
 	db.DB.AddContract(addTwoContract.Address.Hex(), &addTwoContract)
@@ -54,8 +63,7 @@ func verifySingleContractCallPerAccount(t *testing.T, numberOfAccounts int) {
 
 	transactions := []*utils.VMCallTransaction{}
 
-	csh, _ := NewContractStateHolder("ignoredAPIEndpoint")
-	csh.dbCache = db
+	csh, _ := NewContractStateHolder(db)
 	for _, sender := range senders {
 
 		tr, _ := utils.NewBaseTransaction(sender, addTwoContract.Address, big.NewInt(0), big.NewInt(1000))
@@ -77,7 +85,47 @@ func verifySingleContractCallPerAccount(t *testing.T, numberOfAccounts int) {
 	if err := csh.RunAll(state); err != nil {
 		t.Fatal(err)
 	}
+}
+func verifySingleContractBlockCallPerAccount(t *testing.T, numberOfAccounts int, blockSize int) {
+	setup(numberOfAccounts, big.NewInt(500))
 
+	transactions := []*utils.VMCallTransaction{}
+
+	csh, _ := NewContractStateHolder(db)
+	for _, sender := range senders {
+
+		tr, _ := utils.NewBaseTransaction(sender, addTwoContract.Address, big.NewInt(0), big.NewInt(1000))
+		transaction, err := utils.NewVMTransactionFrom(sender, tr, append(addTwoFunction, 0x7f, 0x1, 0x7f, 0x2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		transactions = append(transactions, transaction)
+	}
+	timeBasedQuitter := make(chan (any))
+	go func() {
+		<-time.After(time.Second * 5)
+		timeBasedQuitter <- struct{}{}
+	}()
+
+	for _, tr := range transactions {
+		if err := csh.QueueTransaction(tr); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	finalTs, err := csh.RunOnUntil(state, blockSize, timeBasedQuitter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(
+		t, len(transactions), len(finalTs), "all transactions should be queued under same contract")
+
+	// if err := csh.RunAll(state); err != nil {
+	// 	t.Fatal(err)
+	// }
+}
+func TestOneContractCallBlock(t *testing.T) {
+	verifySingleContractBlockCallPerAccount(t, 5, 5)
 }
 
 func TestOneAccountOneTransaction(t *testing.T) {
