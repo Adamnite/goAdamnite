@@ -126,39 +126,31 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		//TODO: check that poolsB, if it's running, we need to prevent further applications to it as well.
 		return nil
 	}
-	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
-		addLocalCandidate := func() {
-			pool := con.poolsA
-			newCon, err := safe.GetItem[*utils.Candidate](con.thisCandidateA).UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().GetStartTime().Unix()), *con.spendingAccount)
-			if err != nil {
-				log.Printf("error updating candidate for round %v. Err: %v", pool.currentWorkingRoundID, err)
-				return
-			}
-			con.thisCandidateA.Set(newCon)
-			if err := con.poolsA.AddCandidate(safe.GetItem[*utils.Candidate](con.thisCandidateA)); err != nil {
-				log.Printf("error producing newer candidate for round %v. Err: %v", pool.currentWorkingRoundID, err)
-				panic(err)
-			}
-
-			if err := con.netLogic.Propagate(safe.GetItem[*utils.Candidate](con.thisCandidateA)); err != nil {
-				panic(err)
-			}
+	addLocalCandidate := func(pool *Witness_pool, candidate *safe.SafeItem) {
+		newCon, err := safe.GetItem[*utils.Candidate](candidate).UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().GetStartTime().Unix()), *con.spendingAccount)
+		if err != nil {
+			log.Printf("error updating candidate for round %v can applying for %v. Err: %v", pool.currentWorkingRoundID.Get(), candidate.Get().(*utils.Candidate).Round, err)
+			return
 		}
-		addLocalCandidate()
-		con.poolsA.AddNewRoundCaller(addLocalCandidate)
+		candidate.Set(newCon)
+		if err := pool.AddCandidate(safe.GetItem[*utils.Candidate](candidate)); err != nil {
+			log.Printf("error producing newer candidate for round %v. Err: %v", pool.currentWorkingRoundID.Get(), err)
+			panic(err)
+		}
+		if err := con.netLogic.Propagate(safe.GetItem[*utils.Candidate](candidate)); err != nil {
+			panic(err)
+		}
+	}
+	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
+
+		addLocalCandidate(con.poolsA, con.thisCandidateA)
+		con.poolsA.AddNewRoundCaller(func() { addLocalCandidate(con.poolsA, con.thisCandidateA) })
 		con.poolsA.AddNewRoundCaller(con.continuosHandler)
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
-		newBRoundActions := func() {
-			if err := con.poolsB.AddCandidate(con.thisCandidateB.Get().(*utils.Candidate)); err != nil {
-				panic(err)
-			}
-			if err := con.netLogic.Propagate(con.thisCandidateB.Get().(*utils.Candidate)); err != nil {
-				panic(err)
-			}
-		}
-		newBRoundActions()
-		con.poolsB.AddNewRoundCaller(newBRoundActions)
+		addLocalCandidate(con.poolsB, con.thisCandidateB)
+		con.poolsB.AddNewRoundCaller(func() { addLocalCandidate(con.poolsA, con.thisCandidateB) })
+		con.poolsB.AddNewRoundCaller(func() { con.StartVMContinuosHandling() })
 	}
 	return nil
 }

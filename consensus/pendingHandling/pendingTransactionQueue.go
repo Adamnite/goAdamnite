@@ -14,6 +14,7 @@ type TransactionQueue struct {
 	newTransactionsOnly bool        //if transactions that have already been reviewed be ignored when attempting to add them
 	previouslySeen      syncmap.Map //hash of the transaction to if its new
 	lock                sync.Mutex
+	onNewAddition       chan (int)
 }
 
 func NewQueue(newOnly bool) *TransactionQueue {
@@ -39,6 +40,9 @@ func (tq *TransactionQueue) AddToQueue(transaction utils.TransactionType) {
 	}
 	tq.lock.Unlock()
 	tq.AddIgnoringPast(transaction)
+	if tq.onNewAddition != nil {
+		tq.onNewAddition <- tq.pendingQueue.Len()
+	}
 }
 
 // even if this has been reviewed, ignore that and add it
@@ -75,6 +79,30 @@ func (tq *TransactionQueue) Pop() utils.TransactionType {
 		return nil
 	}
 	return t.(utils.TransactionType)
+}
+
+// WARNING, this doesn't verify too much about what point you're getting. index's will be weird
+func (tq *TransactionQueue) Get(index int) utils.TransactionType {
+	tq.lock.Lock()
+	defer tq.lock.Unlock()
+	if index > tq.pendingQueue.Len() || index < 0 {
+		return nil
+	}
+	t := tq.pendingQueue.Get(index)
+	toDelete, exists := tq.pendingRemoval.Load(t)
+	if exists && toDelete.(bool) {
+		tq.pendingRemoval.Delete(t)
+		return nil
+	}
+	return t.(utils.TransactionType)
+}
+func (tq *TransactionQueue) GetOnUpdate() chan int {
+	tq.lock.Lock()
+	defer tq.lock.Unlock()
+	if tq.onNewAddition == nil {
+		tq.onNewAddition = make(chan int)
+	}
+	return tq.onNewAddition
 }
 
 // remove doesn't actually remove it from memory. But does make it so that it'll be removed next time there is a pop

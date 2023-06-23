@@ -2,14 +2,16 @@ package consensus
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 )
 
 // for methods that only apply to the B chamber members
-func NewBConsensus(codeServer string) (*ConsensusNode, error) {
+func NewBConsensus(codeServer VM.DBCacheAble) (*ConsensusNode, error) {
 	conNode, err := newConsensus(nil, nil)
 	if err != nil {
 		return conNode, err
@@ -18,7 +20,7 @@ func NewBConsensus(codeServer string) (*ConsensusNode, error) {
 }
 
 // for adding support for B chamber
-func (bNode *ConsensusNode) AddBConsensus(codeServer string) (err error) {
+func (bNode *ConsensusNode) AddBConsensus(codeServer VM.DBCacheAble) (err error) {
 	//TODO: verify that there is a server running at that endpoint, and we can in fact, access it
 	bNode.handlingType = bNode.handlingType ^ networking.SecondaryTransactions
 	bNode.ocdbLink = codeServer
@@ -117,9 +119,32 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 		//add this for the next time around the loop
 		t = bNode.transactionQueue.Pop()
 	}
-	//now we need to run all of those transactions.
-	if err := conState.RunAll(bNode.state); err != nil {
+	doneProcessing := make(chan (any))
+	newTransactionAdded := bNode.transactionQueue.GetOnUpdate()
+	go func() {
+		for {
+			select {
+			case <-doneProcessing:
+				return
+			case newIndex := <-newTransactionAdded:
+				newItem := bNode.transactionQueue.Get(newIndex)
+				if newItem != nil && newItem.GetType() != utils.Transaction_Basic {
+					//this is a new VM calling transaction
+					bNode.transactionQueue.Remove(t)
+					if err := conState.QueueTransaction(t); err != nil {
+						log.Printf("error adding new transaction to the queue: %v", err)
+					}
+				}
+			}
+		}
+	}()
+	//now we need to run all of those transactions. While leaving the state handler open for more applications
+	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil)
+	if err != nil {
 		return err
+	} else {
+		//TODO: here we should actually use the transactions
+		log.Println(transactions)
 	}
 	return nil
 }

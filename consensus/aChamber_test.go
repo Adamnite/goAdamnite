@@ -181,7 +181,7 @@ func TestTransactions(t *testing.T) {
 		conNodes[0].poolsA.currentWorkingRoundID.Get(),
 		"round is not correct",
 	)
-	for i := 0; i < 500; i++ {
+	for i := 0; i < maxTransactionsPerBlock*int(maxBlocksPerRound)*testNodeCount; i++ {
 		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], conAccounts[i%testNodeCount].Address, big.NewInt(1), big.NewInt(int64(i)))
 		if err != nil {
 			t.Fatal(err)
@@ -207,14 +207,19 @@ func TestTransactions(t *testing.T) {
 		"wrong number of blocks went past this node",
 	)
 	blockTransactions := []*utils.BaseTransaction{}
+	blockHashesSeen := [][]byte{}
 	blocksSeen.ForEach(func(_ int, b any) bool {
 		assert.Equal(
 			t, maxTransactionsPerBlock, len(b.(*utils.Block).Transactions),
 			"god why. Wrong number of transactions per block",
 		)
 		blockTransactions = append(blockTransactions, b.(*utils.Block).Transactions...)
+		blockHashesSeen = append(blockHashesSeen, b.(*utils.Block).Hash().Bytes())
 		return true
 	})
+	for _, x := range blockHashesSeen {
+		log.Printf("hashSeen: %x", x)
+	}
 	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
 	log.Printf("current round is %v", conNodes[0].poolsA.currentWorkingRoundID.Get())
 	//should be 2

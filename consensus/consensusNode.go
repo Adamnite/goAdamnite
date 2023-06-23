@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
@@ -36,7 +37,7 @@ type ConsensusNode struct {
 	vrfKey          crypto.PrivateKey
 	state           *statedb.StateDB
 	chain           *blockchain.Blockchain //we need to keep the chain
-	ocdbLink        string                 //off chain database, if running the VM verification, this should be local.
+	ocdbLink        VM.DBCacheAble         //off chain database, if running the VM verification, this should be local.
 
 	autoVoteForNode *crypto.PublicKey //the NodeID that is running the node
 	autoVoteWith    *common.Address

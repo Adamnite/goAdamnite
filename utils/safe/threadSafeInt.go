@@ -5,8 +5,9 @@ import "sync"
 //sometimes you need a number to be passed between threads.
 
 type SafeInt struct {
-	lock  sync.Mutex
-	value int
+	lock     sync.Mutex
+	value    int
+	onUpdate chan (int)
 }
 
 // a new integer that is safe to use within multiple go routines
@@ -21,6 +22,10 @@ func (tsi *SafeInt) Add(x int) int {
 	tsi.lock.Lock()
 	defer tsi.lock.Unlock()
 	tsi.value += x
+	val := tsi.value
+	if tsi.onUpdate != nil {
+		go func() { tsi.onUpdate <- val }()
+	}
 	return tsi.value
 }
 
@@ -36,4 +41,15 @@ func (tsi *SafeInt) Set(value int) {
 	tsi.lock.Lock()
 	defer tsi.lock.Unlock()
 	tsi.value = value
+	if tsi.onUpdate != nil {
+		go func() { tsi.onUpdate <- value }()
+	}
+}
+func (tsi *SafeInt) GetOnUpdate() chan (int) {
+	tsi.lock.Lock()
+	defer tsi.lock.Unlock()
+	if tsi.onUpdate == nil {
+		tsi.onUpdate = make(chan int)
+	}
+	return tsi.onUpdate
 }

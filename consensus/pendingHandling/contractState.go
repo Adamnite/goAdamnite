@@ -40,10 +40,9 @@ func newComplexTransaction(t *utils.VMCallTransaction, firstNeeds *complexTransa
 	ct := complexTransaction{
 		transaction:    t,
 		needsToBeAfter: firstNeeds,
-		processStep:    make(chan processSteps),
+		processStep:    make(chan processSteps, waitingToStart),
 		isPlaceholder:  false,
 	}
-	go func() { ct.processStep <- waitingToStart }()
 	//TODO: check if it calls any other contracts. If it does, add those to "needs to run with"
 	return &ct, nil
 
@@ -91,11 +90,12 @@ func (ct *complexTransaction) RunOn(vm *VM.Machine) (hash []byte, err error) {
 
 type contractHeld struct {
 	// contractCalled common.Address
-	lock         sync.Mutex            //only one thread is to touch this at a time!
-	vm           *VM.Machine           //the vm with all of these changes
-	transactions []*complexTransaction //the transactions entered
-	nextToRun    int                   //index of the next transaction to process
-	runningHash  []byte
+	lock                 sync.Mutex            //only one thread is to touch this at a time!
+	vm                   *VM.Machine           //the vm with all of these changes
+	transactions         []*complexTransaction //the transactions entered
+	nextToRun            int                   //index of the next transaction to process
+	runningHash          []byte
+	successfullyRunCount *safe.SafeInt
 }
 
 func newContractHeld(contract *common.Address, db VM.DBInterfaceItem) (*contractHeld, error) {
@@ -104,10 +104,11 @@ func newContractHeld(contract *common.Address, db VM.DBInterfaceItem) (*contract
 		return nil, err
 	}
 	ch := contractHeld{
-		vm:           vm,
-		transactions: []*complexTransaction{},
-		nextToRun:    0,
-		runningHash:  vm.GetContractHash().Bytes(),
+		vm:                   vm,
+		transactions:         []*complexTransaction{},
+		nextToRun:            0,
+		runningHash:          vm.GetContractHash().Bytes(),
+		successfullyRunCount: safe.NewSafeInt(0),
 	}
 	return &ch, nil
 }
@@ -120,7 +121,7 @@ func (ch *contractHeld) getCurrentAndMaxTransaction() (current int, max int) {
 }
 
 // step to the next transaction
-func (ch *contractHeld) Step(state *statedb.StateDB) error {
+func (ch *contractHeld) Step(state *statedb.StateDB, addSuccessTo *safe.SafeSlice) error {
 	ch.lock.Lock()
 	defer ch.lock.Unlock()
 	if ch.nextToRun >= len(ch.transactions) {
@@ -138,7 +139,10 @@ func (ch *contractHeld) Step(state *statedb.StateDB) error {
 		//TODO: we might need to also revert the gas fees spent... since failed transactions aren't added to the block...
 		return err
 	}
-
+	if addSuccessTo != nil {
+		addSuccessTo.Append(ch.transactions[ch.nextToRun-1].transaction)
+	}
+	ch.successfullyRunCount.Add(1)
 	ch.runningHash = crypto.Sha512(append(ch.runningHash, hash...))
 	return nil
 }
@@ -146,7 +150,7 @@ func (ch *contractHeld) Step(state *statedb.StateDB) error {
 func (ch *contractHeld) RunAll(state *statedb.StateDB) error {
 	//do this weirdness so that we can get the current point and the endpoint, while locking up the contract held as little as possible
 	for currentPoint, endPoint := ch.getCurrentAndMaxTransaction(); currentPoint < endPoint; currentPoint, endPoint = ch.getCurrentAndMaxTransaction() {
-		if err := ch.Step(state); err != nil {
+		if err := ch.Step(state, nil); err != nil {
 			return err
 		}
 	}
@@ -159,20 +163,21 @@ func (ch *contractHeld) AddTransactionToQueue(ct *complexTransaction) {
 }
 
 type ContractStateHolder struct {
-	lock          sync.Mutex
-	contractsHeld map[string]*contractHeld         //contractAddressString(hex)->contractHeld
-	sends         map[string][]*complexTransaction //from(hexOfAddress)->all instances they have sent to, in order
-	receives      map[string][]*complexTransaction //from(hexOfAddress)->all instances in which  they receive nite
-	dbCache       VM.DBCacheAble                   //for keeping a local reference. allows each call to be made once
+	lock                 sync.Mutex
+	contractsHeld        map[string]*contractHeld         //contractAddressString(hex)->contractHeld
+	sends                map[string][]*complexTransaction //from(hexOfAddress)->all instances they have sent to, in order
+	receives             map[string][]*complexTransaction //from(hexOfAddress)->all instances in which  they receive nite
+	dbCache              VM.DBCacheAble                   //for keeping a local reference. allows each call to be made once
+	successfullyRunCount *safe.SafeInt
 }
 
-func NewContractStateHolder(dbEndpoint string) (*ContractStateHolder, error) {
-	cache := VM.NewDBCache(dbEndpoint)
+func NewContractStateHolder(dbCache VM.DBCacheAble) (*ContractStateHolder, error) {
 	csh := ContractStateHolder{
-		contractsHeld: map[string]*contractHeld{},
-		sends:         map[string][]*complexTransaction{},
-		receives:      map[string][]*complexTransaction{},
-		dbCache:       cache,
+		contractsHeld:        map[string]*contractHeld{},
+		sends:                map[string][]*complexTransaction{},
+		receives:             map[string][]*complexTransaction{},
+		dbCache:              dbCache,
+		successfullyRunCount: safe.NewSafeInt(0),
 	}
 	return &csh, nil
 }
@@ -197,6 +202,19 @@ func (csh *ContractStateHolder) QueueTransaction(t utils.TransactionType) (err e
 		if err != nil {
 			return err
 		}
+		go func() {
+			//this is to update how many things we've processed since starting
+			runchan := ch.successfullyRunCount.GetOnUpdate()
+			for {
+				updatedVal, ok := <-runchan
+				if !ok {
+					return
+				}
+				if updatedVal != 0 {
+					csh.successfullyRunCount.Add(1)
+				}
+			}
+		}()
 		csh.contractsHeld[vmT.ContractCalled.Hex()] = ch
 	}
 
@@ -266,4 +284,63 @@ func (csh *ContractStateHolder) RunAll(state *statedb.StateDB) (err error) {
 	}
 
 	return <-steppingErr
+}
+
+// will keep waiting until it reaches an error, fills a block, or is told to stop
+func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCount int, reasonToQuit <-chan any) (transactions []utils.TransactionType, err error) {
+	reasonToStop := make(chan (struct{}))
+	successfulTransactions := safe.NewSafeSlice()
+	csh.successfullyRunCount.Set(0)
+	runCountChan := csh.successfullyRunCount.GetOnUpdate()
+	steppingErr := make(chan error)
+	go func() {
+		//handle if we need to stop
+		for {
+			select {
+			case count, ok := <-runCountChan:
+				if !ok || count == transactionCount {
+					reasonToStop <- struct{}{}
+					return
+				}
+			case <-reasonToQuit:
+				reasonToStop <- struct{}{}
+				return
+			case err = <-steppingErr:
+				if err != nil {
+					reasonToStop <- struct{}{}
+					return
+				}
+			}
+		}
+	}()
+	go func() {
+		for _, current := range csh.contractsHeld {
+			go func(ch *contractHeld) {
+				//each held contract starts running on it's own until it has an error, or
+				for currentPoint, endPoint := ch.getCurrentAndMaxTransaction(); currentPoint < endPoint; currentPoint, endPoint = ch.getCurrentAndMaxTransaction() {
+					select {
+					case <-reasonToStop:
+						return
+					default:
+						if err := ch.Step(state, successfulTransactions); err != nil {
+							//TODO: we can skip a lot of the more expected errors. EG, if you run out of funds, that should just be dropped. not stop everyone after
+							steppingErr <- err
+							return
+						}
+					}
+				}
+			}(current)
+		}
+	}()
+	<-reasonToStop
+	csh.lock.Lock()
+	defer csh.lock.Unlock()
+	//we only lock here so that any transactions added later on can still be added.
+	transactions = make([]utils.TransactionType, successfulTransactions.Len())
+	successfulTransactions.ForEach(func(i int, a any) bool {
+		//reformat everything from any, to something
+		transactions[i] = a.(utils.TransactionType)
+		return true
+	})
+	return transactions, err
 }
