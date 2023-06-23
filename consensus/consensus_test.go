@@ -12,18 +12,19 @@ import (
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/adamnite/go-adamnite/utils/safe"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBaseCandidacy(t *testing.T) {
 	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	aAccount, _ := accounts.GenerateAccount()
-	a, err := NewAConsensus(*aAccount)
+	a, err := NewAConsensus(aAccount)
 	if err != nil {
 		t.Fatal(err)
 	}
 	bAccount, _ := accounts.GenerateAccount()
-	b, err := NewAConsensus(*bAccount)
+	b, err := NewAConsensus(bAccount)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,16 +40,16 @@ func TestBaseCandidacy(t *testing.T) {
 	}
 
 	assert.Equal(t,
-		a.thisCandidateA,
+		a.thisCandidateA.Get().(*utils.Candidate),
 		b.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
 		"candidacy not properly sending",
 	)
 	assert.Equal(t,
-		a.thisCandidateA,
+		a.thisCandidateA.Get().(*utils.Candidate),
 		a.poolsA.GetCandidate((*crypto.PublicKey)(&a.spendingAccount.PublicKey)),
 		"candidacy not saving on self properly sending",
 	)
-	if err := b.VoteFor(a.thisCandidateA, big.NewInt(1)); err != nil {
+	if err := b.VoteFor(safe.GetItem[*utils.Candidate](a.thisCandidateA), big.NewInt(1)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,11 +94,11 @@ func TestVoteForAllEqually(t *testing.T) {
 			for account == nil {
 				account, _ = accounts.GenerateAccount()
 			}
-			node, err := NewAConsensus(*account)
+			node, err := NewAConsensus(account)
 			for err != nil {
 				log.Println("error creating consensus node, trying again")
 				node.netLogic.Close() //close and try again any time theres an error
-				node, err = NewAConsensus(*account)
+				node, err = NewAConsensus(account)
 			}
 			if err := node.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
@@ -110,11 +111,11 @@ func TestVoteForAllEqually(t *testing.T) {
 			for account == nil {
 				account, _ = accounts.GenerateAccount()
 			}
-			node, err := NewAConsensus(*account)
+			node, err := NewAConsensus(account)
 			for err != nil {
 				log.Println("error creating consensus node, trying again")
 				node.netLogic.Close() //close and try again any time theres an error
-				node, err = NewAConsensus(*account)
+				node, err = NewAConsensus(account)
 			}
 			if err := node.netLogic.ConnectToContact(&seedContact); err != nil {
 				t.Fatal(err)
@@ -149,7 +150,7 @@ func TestVoteForAllEqually(t *testing.T) {
 
 	for i, v := range voters {
 		candidateToVoteFor := candidates[i%candidateTotal]
-		if err := v.VoteFor(candidateToVoteFor.thisCandidateA, big.NewInt(1)); err != nil {
+		if err := v.VoteFor(safe.GetItem[*utils.Candidate](candidateToVoteFor.thisCandidateA), big.NewInt(1)); err != nil {
 			t.Fatal(err)
 			t.FailNow()
 		}

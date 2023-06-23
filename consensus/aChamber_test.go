@@ -16,6 +16,7 @@ import (
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/adamnite/go-adamnite/utils/safe"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +26,7 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	n, err := NewAConsensus(*account)
+	n, err := NewAConsensus(account)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func TestVerifyBlock(t *testing.T) {
 		t.Fatal("Failed to create A consensus node")
 	}
 
-	validWitness := accounts.AccountFromPubBytes([]byte{1, 2, 3})
+	validWitness, _ := accounts.GenerateAccount()
 	invalidWitness := accounts.AccountFromPubBytes([]byte{4, 5, 6})
 
 	nextValidBlock := utils.NewBlock(
@@ -46,8 +47,12 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]utils.TransactionType{},
+		[]*utils.BaseTransaction{},
 	)
+	if ok, _ := n.ValidateChamberABlock(nextValidBlock); ok {
+		t.Fatal("Block should be invalid before being signed")
+	}
+	nextValidBlock.Sign(validWitness)
 
 	if ok, _ := n.ValidateChamberABlock(nextValidBlock); !ok {
 		t.Fatal("Block should be valid")
@@ -66,7 +71,7 @@ func TestVerifyBlock(t *testing.T) {
 		common.Hash{},
 		common.Hash{},
 		big.NewInt(1),
-		[]utils.TransactionType{},
+		[]*utils.BaseTransaction{},
 	)
 
 	if ok, _ := n.ValidateChamberABlock(nextInvalidBlock); ok {
@@ -84,18 +89,17 @@ func TestTransactions(t *testing.T) {
 	testNodeCount := 5
 	seed := networking.NewNetNode(common.Address{0})
 	// seed.AddServer()
-	transactionsSeen := []*utils.BaseTransaction{}
-	blocksSeen := []utils.Block{}
+	transactionsSeen := safe.NewSafeSlice()
+	blocksSeen := safe.NewSafeSlice()
 	seed.AddFullServer(
 		nil,
 		nil,
 		func(pt utils.TransactionType) error {
 			//the transactions seen logger
-			transaction := pt.(*utils.BaseTransaction)
-			transactionsSeen = append(transactionsSeen, transaction)
+			transactionsSeen.Append(pt.(*utils.BaseTransaction))
 			return nil
-		}, func(b utils.Block) error {
-			blocksSeen = append(blocksSeen, b)
+		}, func(b *utils.Block) error {
+			blocksSeen.Append(b)
 			//the blocks seen logger
 			return nil
 		},
@@ -108,7 +112,7 @@ func TestTransactions(t *testing.T) {
 	conAccounts := []*accounts.Account{}
 	conNodes := []*ConsensusNode{}
 
-	maxTimePerRound.SetDuration(time.Second * 1)
+	maxTimePerRound.SetDuration(time.Millisecond * 1200)
 	maxTimePrecision.SetDuration(time.Millisecond * 50)
 
 	for i := 0; i < testNodeCount; i++ {
@@ -117,7 +121,7 @@ func TestTransactions(t *testing.T) {
 			continue
 		} else {
 			conAccounts = append(conAccounts, ac)
-			cn, err := NewAConsensus(*ac)
+			cn, err := NewAConsensus(ac)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -135,7 +139,7 @@ func TestTransactions(t *testing.T) {
 				db,
 				params.TestnetChainConfig,
 			)
-			stateDB.AddBalance(conAccounts[0].Address, big.NewInt(int64(testNodeCount)*5))
+			stateDB.AddBalance(conAccounts[0].Address, big.NewInt(int64(testNodeCount)*50000))
 			//add the balance so that this 0th account can send all the test transaction
 			_, err = stateDB.Commit(false)
 			if err != nil {
@@ -157,7 +161,7 @@ func TestTransactions(t *testing.T) {
 		if err := cn.ProposeCandidacy(0); err != nil {
 			t.Fatal(err)
 		}
-		cn.poolsA.GetApplyingRound().roundStartTime = round0StartTime
+		cn.poolsA.GetApplyingRound().SetStartTime(round0StartTime)
 	}
 
 	if len(conNodes[1].poolsA.totalCandidates) < testNodeCount-1 {
@@ -166,7 +170,7 @@ func TestTransactions(t *testing.T) {
 		t.Fail()
 	}
 	//we now have x candidates
-	maxTransactionsPerBlock = 5
+	maxTransactionsPerBlock = 100
 	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
 	transactions := []*utils.BaseTransaction{}
@@ -177,7 +181,7 @@ func TestTransactions(t *testing.T) {
 		conNodes[0].poolsA.currentWorkingRoundID.Get(),
 		"round is not correct",
 	)
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 500; i++ {
 		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], conAccounts[i%testNodeCount].Address, big.NewInt(1), big.NewInt(int64(i)))
 		if err != nil {
 			t.Fatal(err)
@@ -193,20 +197,24 @@ func TestTransactions(t *testing.T) {
 	assert.Equal(
 		t,
 		len(transactions),
-		len(transactionsSeen),
+		transactionsSeen.Len(),
 		"wrong number of unique transactions passed the seed node",
 	) //if this returns, then its propagation of transactions that isn't working
 	assert.Equal(
 		t,
-		int(len(transactionsSeen)/maxTransactionsPerBlock),
-		len(blocksSeen),
+		int(transactionsSeen.Len()/maxTransactionsPerBlock),
+		blocksSeen.Len(),
 		"wrong number of blocks went past this node",
 	)
-	blockTransactions := []utils.TransactionType{}
-	for _, b := range blocksSeen {
-		assert.Equal(t, maxTransactionsPerBlock, len(b.Transactions), "god why")
-		blockTransactions = append(blockTransactions, b.Transactions...)
-	}
+	blockTransactions := []*utils.BaseTransaction{}
+	blocksSeen.ForEach(func(_ int, b any) bool {
+		assert.Equal(
+			t, maxTransactionsPerBlock, len(b.(*utils.Block).Transactions),
+			"god why. Wrong number of transactions per block",
+		)
+		blockTransactions = append(blockTransactions, b.(*utils.Block).Transactions...)
+		return true
+	})
 	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
 	log.Printf("current round is %v", conNodes[0].poolsA.currentWorkingRoundID.Get())
 	//should be 2

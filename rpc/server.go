@@ -31,7 +31,7 @@ type AdamniteServer struct {
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(utils.TransactionType) error
-	newBlockReceived          func(utils.Block) error
+	newBlockReceived          func(*utils.Block) error
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
 	newMessageHandler         func(*utils.CaesarMessage)
@@ -47,7 +47,7 @@ func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
 	newConn func(string, common.Address),
 	newTransaction func(utils.TransactionType) error,
-	newBlock func(utils.Block) error) {
+	newBlock func(*utils.Block) error) {
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
 	a.newTransactionReceived = newTransaction
@@ -357,7 +357,7 @@ func (a *AdamniteServer) NewBlock(params, reply *[]byte) error {
 		*reply = data
 		return err
 	}
-	var block utils.Block
+	var block *utils.Block
 	if err := encoding.Unmarshal(*params, &block); err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common/math"
@@ -13,12 +14,13 @@ import (
 )
 
 type round_data struct {
-	eligibleWitnesses *safe.SafeSlice
+	lock              sync.RWMutex
+	eligibleWitnesses *safe.SafeSlice //TODO: change these back to arrays and handle the rounds locking here
 	witnesses         *safe.SafeSlice
 	leadWitnessOrder  *safe.SafeSlice
-	blocksPerWitness  []uint64
-	currentLeadIndex  int
-	blocksThisLead    uint64
+	blocksPerWitness  []safe.SafeInt
+	currentLeadIndex  safe.SafeInt
+	blocksThisLead    safe.SafeInt
 	witnessesMap      syncmap.Map //map[witnessPub]->*witness
 	removedWitnesses  syncmap.Map //map[witnessPub]->the block number that they were removed in
 	votes             syncmap.Map //map[witnessPub]->votes for that witness, in that round
@@ -29,11 +31,12 @@ type round_data struct {
 	seed              []byte
 	openToApply       bool
 	roundStartTime    time.Time
-	blocksInRound     uint64
+	blocksInRound     safe.SafeInt
 }
 
 func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
+		lock:              sync.RWMutex{},
 		eligibleWitnesses: safe.NewSafeSlice(),
 		witnessesMap:      syncmap.Map{},
 		removedWitnesses:  syncmap.Map{},
@@ -46,11 +49,13 @@ func newRoundData(seed []byte) *round_data {
 		seed:              seed,
 		roundStartTime:    time.Now().UTC().Add(maxTimePrecision.Duration()).Truncate(maxTimePrecision.Duration()),
 		//truncate the rounds start time to the closest reliable precision we can use.
-		blocksInRound: 0,
+		blocksInRound: *safe.NewSafeInt(0),
 	}
 	return &newRound
 }
 func (rd *round_data) getNextRoundSeed() []byte {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
 	wit := rd.witnesses.Get(0).(*witness)
 	val, exists := rd.vrfValues.Load(wit.spendingPubString())
 	if !exists {
@@ -59,7 +64,29 @@ func (rd *round_data) getNextRoundSeed() []byte {
 
 	return crypto.Sha512(val.([]byte))
 }
+func (rd *round_data) SetSeed(seed []byte) {
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
+	rd.seed = seed
+}
+func (rd *round_data) GetSeed() []byte {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
+	return rd.seed
+}
+func (rd *round_data) GetStartTime() time.Time {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
+	return rd.roundStartTime
+}
+func (rd *round_data) SetStartTime(rst time.Time) {
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
+	rd.roundStartTime = rst
+}
 func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []byte) {
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
 	//since every candidate needs a vote (from themselves) to run, we can check the vote count
 	_, exists := rd.votes.Load(w.spendingPubString())
 	if exists {
@@ -72,6 +99,8 @@ func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []b
 	rd.valueTotals.Store(w.spendingPubString(), big.NewInt(0))
 }
 func (rd *round_data) addVote(v *utils.Voter) {
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
 	candidateId := (*crypto.PublicKey)(&v.To)
 	votes, exists := rd.votes.Load(string(*candidateId))
 	if !exists {
@@ -87,14 +116,19 @@ func (rd *round_data) addVote(v *utils.Voter) {
 	rd.valueTotals.Store(string(*candidateId), valueTotal)
 }
 func (rd *round_data) BlockReviewed() {
-	rd.blocksInRound += 1
-	rd.blocksThisLead += 1
-	if rd.blocksPerWitness[rd.currentLeadIndex] <= rd.blocksThisLead {
-		rd.blocksThisLead = 0
-		rd.currentLeadIndex = (rd.currentLeadIndex + 1) % rd.leadWitnessOrder.Len()
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
+
+	rd.blocksInRound.Add(1)
+	rd.blocksThisLead.Add(1)
+	if rd.blocksPerWitness[rd.currentLeadIndex.Get()].Get() <= rd.blocksThisLead.Get() {
+		rd.blocksThisLead.Set(0)
+		rd.currentLeadIndex.Set((rd.currentLeadIndex.Get() + 1) % rd.leadWitnessOrder.Len())
 	}
 }
 func (rd *round_data) GetVotesFor(w crypto.PublicKey) []*utils.Voter {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
 	votes, exists := rd.votes.Load(string(w))
 	if !exists {
 		return nil
@@ -121,6 +155,7 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 		//trying to prevent a null pointer error from happening if no one applied
 		return nil, nil
 	}
+	rd.lock.Lock()
 
 	passingWitnesses := safe.NewSafeSlice()
 	witnessVrfValueFloat := make(map[string]*big.Float)
@@ -190,12 +225,12 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 	})
 	perWitness := maxBlocksPerRound / uint64(rd.eligibleWitnesses.Len())
 	roundingCutoff := perWitness + (maxBlocksPerRound % uint64(rd.eligibleWitnesses.Len()))
-	rd.blocksPerWitness = make([]uint64, rd.leadWitnessOrder.Len())
+	rd.blocksPerWitness = make([]safe.SafeInt, rd.leadWitnessOrder.Len())
 	rd.leadWitnessOrder.ForEach(func(i int, val any) bool {
 		if i == 0 {
-			rd.blocksPerWitness[0] = roundingCutoff
+			rd.blocksPerWitness[0].Set(int(roundingCutoff))
 		} else {
-			rd.blocksPerWitness[i] = perWitness
+			rd.blocksPerWitness[i].Set(int(perWitness))
 		}
 		return true
 	})
@@ -204,35 +239,37 @@ func (rd *round_data) selectWitnesses(goalCount int) (*safe.SafeSlice, []byte) {
 		rd.witnessesMap.Store(string(w.spendingPub), w)
 		return true
 	})
-
+	rd.lock.Unlock()
 	return passingWitnesses, rd.getNextRoundSeed()
 }
 
 func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error {
+	rd.lock.Lock()
+	defer rd.lock.Unlock()
 	//TODO: check that the witness is able to be removed from this round without error
 	rd.removedWitnesses.Store(wit.spendingPubString(), blockID)
 	rd.witnessesMap.Delete(string(wit.spendingPub))
 	//assume they can be removed safely
 
 	//now we need to change the upcoming order for the witnesses.
-	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex).(*witness)
+	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex.Get()).(*witness)
 	if bytes.Equal(currentLead.spendingPub, wit.spendingPub) {
 		//they're actively the one running
-		extraBlocks := rd.blocksPerWitness[rd.currentLeadIndex] - rd.blocksThisLead
-		rd.blocksPerWitness[rd.currentLeadIndex] = rd.blocksThisLead // stop them at whatever block they're at now
+		extraBlocks := uint64(rd.blocksPerWitness[rd.currentLeadIndex.Get()].Get()) - uint64(rd.blocksThisLead.Get())
+		rd.blocksPerWitness[rd.currentLeadIndex.Get()].Set(rd.blocksThisLead.Get()) // stop them at whatever block they're at now
 		//if they're last, the first person gets all of the blocks, otherwise everyone after them gets them
-		if rd.currentLeadIndex == rd.leadWitnessOrder.Len()-1 {
+		if rd.currentLeadIndex.Get() == rd.leadWitnessOrder.Len()-1 {
 			//set the first lead back to where they were, then have them pick up where they were.
-			rd.currentLeadIndex = 0
-			rd.blocksThisLead = rd.blocksPerWitness[0]
-			rd.blocksPerWitness[0] += extraBlocks
+			rd.currentLeadIndex.Set(0)
+			rd.blocksThisLead.Set(rd.blocksPerWitness[0].Get())
+			rd.blocksPerWitness[0].Add(int(extraBlocks))
 			return nil
 		}
 		//assume they weren't the last, so we add the blocks in order to everyone next
-		rd.currentLeadIndex += 1
-		remaining := rd.leadWitnessOrder.Len() - rd.currentLeadIndex
+		rd.currentLeadIndex.Add(1)
+		remaining := rd.leadWitnessOrder.Len() - rd.currentLeadIndex.Get()
 		for i := 0; i < int(extraBlocks); i++ {
-			rd.blocksPerWitness[(i%remaining)+rd.currentLeadIndex] += 1
+			rd.blocksPerWitness[(i%remaining)+rd.currentLeadIndex.Get()].Add(1)
 		}
 		return nil
 	}
@@ -241,16 +278,28 @@ func (rd *round_data) RemoveSelectedWitness(wit *witness, blockID uint64) error 
 	return nil
 }
 func (rd *round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
 	if rd.openToApply {
 		//if you can still apply, then you obviously cant have a lead for this round yet
 		return false
 	}
 	// log.Printf("if this is above an error, the round is %v", rd)
-	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex).(*witness)
+	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex.Get()).(*witness)
 	return bytes.Equal(currentLead.spendingPub, *witID)
 }
 
+// func (rd *round_data) WasWitnessLead(witID *crypto.PublicKey, blockNumber *big.Int) bool {
+// 	if rd.openToApply {
+// 		//if you can still apply, then you obviously couldn't have been lead
+// 		return false
+// 	}
+// 	rd.
+// }
+
 func (rd *round_data) getWeight(w *witness, maxBlockValidationPercent float64, maxStaking *big.Int, maxVotes int, maxElected uint64) *big.Float {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
 	tot, _ := rd.valueTotals.Load(w.spendingPubString())
 	avgStakingAmount := float64(math.GetPercent(tot.(*big.Int), maxStaking))
 	avgBlockValidationPercent := float64(w.validationPercent()) / float64(maxBlockValidationPercent)
@@ -269,6 +318,8 @@ func (rd *round_data) getWeight(w *witness, maxBlockValidationPercent float64, m
 
 // find the largest values from a list of witnesses.
 func (rd *round_data) getMaxes() (maxBlockValidationPercent float64, maxStakingAmount *big.Int, maxVoterCount int, maxElectedCount uint64) {
+	rd.lock.RLock()
+	defer rd.lock.RUnlock()
 	maxStakingAmount = big.NewInt(0)
 	maxBlockValidationPercent = 0.0
 	maxVoterCount = 0

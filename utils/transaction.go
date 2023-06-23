@@ -35,6 +35,7 @@ type TransactionType interface {
 	Equal(TransactionType) bool
 	GetTime() time.Time
 	GetSignature() []byte
+	GetAmount() *big.Int
 }
 
 type BaseTransaction struct {
@@ -76,6 +77,9 @@ func (t BaseTransaction) GetTime() time.Time {
 func (t BaseTransaction) GetSignature() []byte {
 	return t.Signature
 }
+func (t BaseTransaction) GetAmount() *big.Int {
+	return t.Amount
+}
 
 // does not use the time in the hash value, as that is used for the random source value.
 func (t BaseTransaction) Hash() common.Hash {
@@ -110,7 +114,7 @@ func (a BaseTransaction) Equal(other TransactionType) bool {
 type VMCallTransaction struct {
 	BaseTransaction
 	VMInteractions *RuntimeChanges //an optional value that would make this transaction require chamber B validation
-	RunnerHash     []byte          //the running hash that was given to this. Only added after it has been processed
+	RunnerHash     []byte          //the running hash that was used as the start of this VM.
 }
 
 // takes a transaction and changes it to be a VM interacting transaction
@@ -126,6 +130,7 @@ func NewVMTransactionFrom(signer *accounts.Account, buildOn *BaseTransaction, ca
 		BaseTransaction: *buildOn,
 		VMInteractions:  &vmCall,
 	}
+	vmTransaction.TransactionType = Transaction_VM_Call
 	sig, err := signer.Sign(vmTransaction)
 	vmTransaction.Signature = sig
 	return &vmTransaction, err

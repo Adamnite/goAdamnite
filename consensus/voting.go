@@ -10,12 +10,13 @@ import (
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/safe"
 )
 
 // used to vote for a candidate (normally ourselves)
 func (con *ConsensusNode) VoteFor(candidate *utils.Candidate, stakeAmount *big.Int) error {
 	vote := utils.NewVote(con.spendingAccount.PublicKey, stakeAmount)
-	err := vote.SignTo(*candidate, con.spendingAccount)
+	err := vote.SignTo(*candidate, *con.spendingAccount)
 	if err != nil {
 		return err
 	}
@@ -128,18 +129,18 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
 		addLocalCandidate := func() {
 			pool := con.poolsA
-			newCon, err := con.thisCandidateA.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().roundStartTime.Unix()), con.spendingAccount)
+			newCon, err := safe.GetItem[*utils.Candidate](con.thisCandidateA).UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().GetStartTime().Unix()), *con.spendingAccount)
 			if err != nil {
 				log.Printf("error updating candidate for round %v. Err: %v", pool.currentWorkingRoundID, err)
 				return
 			}
-			con.thisCandidateA = newCon
-			if err := con.poolsA.AddCandidate(con.thisCandidateA); err != nil {
+			con.thisCandidateA.Set(newCon)
+			if err := con.poolsA.AddCandidate(safe.GetItem[*utils.Candidate](con.thisCandidateA)); err != nil {
 				log.Printf("error producing newer candidate for round %v. Err: %v", pool.currentWorkingRoundID, err)
 				panic(err)
 			}
 
-			if err := con.netLogic.Propagate(*con.thisCandidateA); err != nil {
+			if err := con.netLogic.Propagate(safe.GetItem[*utils.Candidate](con.thisCandidateA)); err != nil {
 				panic(err)
 			}
 		}
@@ -149,10 +150,10 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
 		newBRoundActions := func() {
-			if err := con.poolsB.AddCandidate(con.thisCandidateB); err != nil {
+			if err := con.poolsB.AddCandidate(con.thisCandidateB.Get().(*utils.Candidate)); err != nil {
 				panic(err)
 			}
-			if err := con.netLogic.Propagate(*con.thisCandidateB); err != nil {
+			if err := con.netLogic.Propagate(con.thisCandidateB.Get().(*utils.Candidate)); err != nil {
 				panic(err)
 			}
 		}
@@ -165,23 +166,25 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 func (con *ConsensusNode) updateAllOurCandidates() (err error) {
 	if con.poolsA != nil {
 		if con.thisCandidateA == nil {
-			con.thisCandidateA = con.generateCandidacy()
-			con.thisCandidateA.ConsensusPool = uint8(networking.PrimaryTransactions)
+			con.thisCandidateA = safe.NewSafeItem(con.generateCandidacy())
+			safe.GetItem[*utils.Candidate](con.thisCandidateA).ConsensusPool = uint8(networking.PrimaryTransactions)
 		}
-		con.thisCandidateA, err = con.getUpdatedCandidacy(con.thisCandidateA, con.poolsA)
+		updated, err := con.getUpdatedCandidacy(safe.GetItem[*utils.Candidate](con.thisCandidateA), con.poolsA)
 		if err != nil {
-			return
+			return err
 		}
+		con.thisCandidateA.Set(updated)
 	}
 	if con.poolsB != nil {
 		if con.thisCandidateB == nil {
-			con.thisCandidateB = con.generateCandidacy()
-			con.thisCandidateB.ConsensusPool = uint8(networking.SecondaryTransactions)
+			con.thisCandidateB = safe.NewSafeItem(con.generateCandidacy())
+			safe.GetItem[*utils.Candidate](con.thisCandidateB).ConsensusPool = uint8(networking.SecondaryTransactions)
 		}
-		con.thisCandidateB, err = con.getUpdatedCandidacy(con.thisCandidateB, con.poolsB)
+		updated, err := con.getUpdatedCandidacy(safe.GetItem[*utils.Candidate](con.thisCandidateB), con.poolsA)
 		if err != nil {
-			return
+			return err
 		}
+		con.thisCandidateB.Set(updated)
 	}
 	return nil
 }
@@ -192,12 +195,12 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 	if con.autoStakeAmount == nil {
 		con.autoStakeAmount = big.NewInt(0)
 	}
-	thisCandidate, _ := utils.NewCandidate(0, []byte{}, con.vrfKey, 0, uint8(foo), con.netLogic.GetOwnContact().ConnectionString, con.participation.PublicKey, con.spendingAccount, con.autoStakeAmount)
+	thisCandidate, _ := utils.NewCandidate(0, []byte{}, con.vrfKey, 0, uint8(foo), con.netLogic.GetOwnContact().ConnectionString, con.nodeAccount.PublicKey, *con.spendingAccount, con.autoStakeAmount)
 	return thisCandidate
 }
 
 // create an updated version of the candidacy provided
 func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *Witness_pool) (*utils.Candidate, error) {
 	//TODO: get the round start time! right now it's set to 0
-	return candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()), pool.GetCurrentSeed(), con.vrfKey, 0, con.spendingAccount)
+	return candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()), pool.GetCurrentSeed(), con.vrfKey, 0, *con.spendingAccount)
 }
