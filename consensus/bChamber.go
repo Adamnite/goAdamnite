@@ -3,7 +3,6 @@ package consensus
 import (
 	"fmt"
 
-	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
@@ -48,23 +47,12 @@ func (bNode *ConsensusNode) ProcessRun(claim *utils.RuntimeChanges) error {
 	if !bNode.isBNode() {
 		return ErrNotBNode
 	}
-	if bNode.vm == nil {
-		vm, err := VM.NewVirtualMachineWithContract(bNode.ocdbLink, nil)
-		if err != nil {
-			return err
-		}
-		bNode.vm = vm
-	}
-	newClaim, err := bNode.vm.CallWith(bNode.ocdbLink, claim)
-	if err != nil {
-		return err
-	}
-	*claim = *newClaim
-	return err
+	//TODO: delete
+	return nil
 }
 
 // verifies a block, and optionally saves the results to the OCDB
-func (bNode *ConsensusNode) VerifyVMBlock(block *utils.Block, saveToDB bool) (bool, error) {
+func (bNode *ConsensusNode) VerifyVMBlock(block *utils.VMBlock, saveToDB bool) (bool, error) {
 	conStates, err := pendingHandling.NewContractStateHolder(bNode.ocdbLink)
 	if err != nil {
 		return false, err

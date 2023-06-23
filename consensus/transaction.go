@@ -7,10 +7,10 @@ import (
 )
 
 // ConvertTransactions converts between old transaction structure and new one (temporary workaround)
-func ConvertTransactions(transactions []*types.Transaction) []utils.TransactionType {
-	var ts []utils.TransactionType
+func ConvertTransactions(transactions []*types.Transaction) []*utils.BaseTransaction {
+	var ts []*utils.BaseTransaction
 	for _, t := range transactions {
-		ts = append(ts, *convertTransaction(t))
+		ts = append(ts, convertTransaction(t))
 	}
 	return ts
 }

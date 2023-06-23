@@ -63,7 +63,7 @@ func TestSorting(t *testing.T) {
 		tq.AddToQueue(testTransaction)
 	}
 	assert.Equal(
-		t, len(vagueTransactions), len(tq.pendingQueue),
+		t, len(vagueTransactions), tq.pendingQueue.Len(),
 		"adding by interface did not load",
 	)
 	assert.Equal(

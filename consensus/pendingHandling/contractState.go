@@ -129,6 +129,9 @@ func (ch *contractHeld) Step(state *statedb.StateDB) error {
 	//TODO: you should move the sent funds here
 	hash, err := ch.transactions[ch.nextToRun].RunOn(ch.vm)
 	//TODO: you should spend their gas here
+
+	//add the running hash that was given to this transaction before its calling.
+	ch.transactions[ch.nextToRun].transaction.RunnerHash = ch.runningHash
 	ch.nextToRun += 1
 	if err != nil {
 		//TODO: here should undo transfers if it the transaction failed.

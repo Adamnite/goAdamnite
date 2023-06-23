@@ -57,7 +57,9 @@ func NextBlockHeader(parent BlockHeader, witness crypto.PublicKey, witnessRoot c
 
 // Hash hashes block header
 func (h *BlockHeader) Hash() common.Hash {
-	val, _ := h.Timestamp.MarshalBinary()
+	//after being marshalled, the timezone will be set to values of nil, and not just nil. this breaks
+	//a surprising amount of things
+	val := binary.BigEndian.AppendUint64([]byte{}, uint64(h.Timestamp.UTC().UnixMilli()))
 	val = append(val, h.ParentBlockID[:]...)
 	val = append(val, h.Witness[:]...)
 	val = append(val, h.WitnessMerkleRoot[:]...)
@@ -80,12 +82,12 @@ type BlockType interface {
 
 type Block struct {
 	Header       *BlockHeader
-	Transactions []TransactionType
+	Transactions []*BaseTransaction
 	Signature    []byte
 }
 
 // NewBlock creates and returns Block
-func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []TransactionType) *Block {
+func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, transactions []*BaseTransaction) *Block {
 	header := &BlockHeader{
 		Timestamp:             time.Now().UTC(),
 		ParentBlockID:         parentBlockID,
@@ -102,6 +104,14 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 	}
 	return block
 }
+func NextBlock(parent BlockHeader, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, round uint64, transactions []*BaseTransaction) *Block {
+	header := NextBlockHeader(parent, witness, witnessRoot, transactionRoot, stateRoot, round)
+	block := &Block{
+		Header:       header,
+		Transactions: transactions,
+	}
+	return block
+}
 
 // Hash gets block's hash
 func (b *Block) Hash() common.Hash {
@@ -110,17 +120,18 @@ func (b *Block) Hash() common.Hash {
 		bytes = append(bytes, (t).GetSignature()...)
 		//since the signature normally isn't added to the transactions hash (how would you sign the hash of a signature of a hash of a....)
 	}
-
 	return common.BytesToHash(crypto.Sha512(bytes))
 }
 
-func (b *Block) Sign(signer accounts.Account) error {
+func (b *Block) Sign(signer *accounts.Account) error {
 	sig, err := signer.Sign(b)
 	b.Signature = sig
 	return err
 }
+
+// returns true if the signature is valid
 func (b *Block) VerifySignature() bool {
-	if b.Header == nil || b.Header.Witness == nil {
+	if b.Header == nil || b.Header.Witness == nil || len(b.Signature) < 64 {
 		return false //might as well add safe guards
 	}
 	signer := accounts.AccountFromPubBytes(b.Header.Witness)

@@ -117,6 +117,9 @@ func (tss *SafeSlice) Pop(index int) any {
 		//index is negative
 		index = len(tss.items) + index
 	}
+	if index >= len(tss.items) || index < 0 {
+		return nil
+	}
 	val := tss.items[index]
 	tss.items = append(tss.items[:index], tss.items[index+1:]...)
 	return val

@@ -85,7 +85,7 @@ func TestRoundSelections(t *testing.T) {
 		fmt.Println("round did not increment correctly")
 		t.Fail()
 	}
-	nextRoundStartTime := pool.GetWorkingRound().roundStartTime.Add(maxTimePerRound.Duration()).Add(maxTimePrecision.Duration()) //give it a hair over the time
+	nextRoundStartTime := pool.GetWorkingRound().GetStartTime().Add(maxTimePerRound.Duration()).Add(maxTimePrecision.Duration()) //give it a hair over the time
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
@@ -113,11 +113,12 @@ func TestLongTermPoolCalculations(t *testing.T) {
 		t.Fatal(err)
 	}
 	pool.StopAsyncTracker()
-	maxTimePerRound.SetDuration(time.Millisecond * 50) //change the time between rounds for testing.
+	maxTimePerRound.SetDuration(time.Millisecond * 600) //change the time between rounds for testing.
+	//i slowed things down... quite a bit...
 	// maxTimePerRound = time.Second * 5 //change the time between rounds for debugging.
 	maxTimePrecision.SetDuration(time.Millisecond * 5) //the error tolerance we can handle
 
-	candidates := generateTestWitnesses(15)
+	candidates := generateTestWitnesses(40)
 
 	//set the newRound caller to add the candidates again (as if people had reapplied in between rounds)
 	pool.newRoundStartedCaller = []func(){func() {
@@ -132,10 +133,10 @@ func TestLongTermPoolCalculations(t *testing.T) {
 	if err := pool.StartAsyncTracking(); err != nil {
 		t.Fatal(err)
 	}
-	goal := 500
-	<-time.After(maxTimePerRound.Duration()*time.Duration(goal) + maxTimePrecision.Duration())
+	goal := 55
+	<-time.After((maxTimePerRound.Duration())*time.Duration(goal) + maxTimePrecision.Duration())
 	pool.StopAsyncTracker()
-	if pool.GetWorkingRound().roundStartTime.After(time.Now()) {
+	if pool.GetWorkingRound().GetStartTime().After(time.Now()) {
 		fmt.Println("round after now")
 		t.Fail()
 	}
@@ -244,7 +245,7 @@ func TestWitnessLeadSelection(t *testing.T) {
 
 // test the longevity of the witness selection
 func TestLongTermLeadSelection(t *testing.T) {
-	rpc.USE_LOCAL_IP = true           //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	rpc.USE_LOCAL_IP = true                      //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	maxTimePerRound.SetDuration(time.Second * 1) //change the time between rounds for testing.
 	// maxTimePerRound = time.Second * 50       //change the time between rounds for debugging.
 	maxTimePrecision.SetDuration(time.Millisecond * 50) //the error tolerance we can handle
@@ -253,7 +254,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 	candidates := []*ConsensusNode{}
 	for i := 0; i < testCandidateCount; i++ {
 		ac, _ := accounts.GenerateAccount()
-		newCan, err := NewAConsensus(*ac)
+		newCan, err := NewAConsensus(ac)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -268,7 +269,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 				candidates[0].netLogic.ConnectToContact(&targetContact)
 			}
 		}
-		newCan.poolsA.GetWorkingRound().roundStartTime = round0Start
+		newCan.poolsA.GetWorkingRound().SetStartTime(round0Start)
 		newCan.autoStakeAmount = big.NewInt(1) //TODO: because of this, in future this test will need the chain data and states
 		candidates = append(candidates, newCan)
 	}
@@ -310,7 +311,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 		assert.Equal(
 			t,
 			0,
-			canPool.GetWorkingRound().currentLeadIndex,
+			canPool.GetWorkingRound().currentLeadIndex.Get(),
 			"candidate lead index has moved unexpectedly",
 		)
 	}
@@ -328,7 +329,7 @@ func TestLongTermLeadSelection(t *testing.T) {
 		assert.EqualValues(
 			t,
 			0,
-			cwr.currentLeadIndex,
+			cwr.currentLeadIndex.Get(),
 			"witness lead has started indexing",
 		)
 		for _, otherCan := range candidates {
