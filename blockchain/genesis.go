@@ -6,7 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	//Replace with new DB/storage imports
+
+	"github.com/adamnite/go-adamnite/adm/database"
+	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/core/types"
+	"github.com/adamnite/go-adamnite/log15"
+	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 type Genesis struct {

@@ -3,7 +3,7 @@ package networking
 import (
 	"log"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
@@ -114,7 +114,7 @@ func (n *NetNode) AddBouncerServer(
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
 func (n *NetNode) AddFullServer(
-	state *statedb.StateDB, chain *blockchain.Blockchain,
+	state *database.StateDatabase, chain *blockchain.Blockchain,
 	transactionHandler func(*utils.Transaction) error,
 	blockHandler func(utils.Block) error,
 	candidateHandler func(utils.Candidate) error,

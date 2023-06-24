@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
@@ -19,6 +20,7 @@ import (
 
 var USE_LOCAL_IP bool = false //set to true if you are testing locally and dont want to deal with 200 nodes trying to get the same IP
 type AdamniteServer struct {
+	stateDB         *database.StateDatabase
 	chain           *blockchain.Blockchain
 	hostingNodeID   common.Address
 	externalIP      string
@@ -387,7 +389,7 @@ func (a *AdamniteServer) NewTransaction(params *[]byte, reply *[]byte) error {
 	return nil
 }
 
-func NewAdamniteServer(port uint32) *AdamniteServer {
+func NewAdamniteServer(stateDB *database.StateDatabase, chain *blockchain.Blockchain, port uint32) *AdamniteServer {
 	rpcServer := rpc.NewServer()
 
 	adamnite := new(AdamniteServer)

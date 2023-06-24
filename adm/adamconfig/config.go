@@ -1,7 +1,7 @@
 package adamconfig
 
 import (
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/dpos"
 

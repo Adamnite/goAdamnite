@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/params"
 )
@@ -19,9 +19,9 @@ const (
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(*statedb.StateDB, common.Address, *big.Int) bool
+	CanTransferFunc func(*database.StateDatabase, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(*statedb.StateDB, common.Address, common.Address, *big.Int)
+	TransferFunc func(*database.StateDatabase, common.Address, common.Address, *big.Int)
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
@@ -61,7 +61,7 @@ type Machine struct {
 	stopSignal        bool
 	currentFrame      int
 	BlockCtx          BlockContext
-	Statedb           *statedb.StateDB
+	Statedb           *database.StateDatabase
 	chainConfig       *params.ChainConfig
 }
 

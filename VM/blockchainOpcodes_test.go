@@ -6,8 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/stretchr/testify/assert"
 )

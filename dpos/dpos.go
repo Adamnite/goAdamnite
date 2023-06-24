@@ -6,9 +6,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/dpos/poh"
 	"github.com/adamnite/go-adamnite/utils"
@@ -315,13 +313,7 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 	return nil
 }
 
-func proceedIncentive(config *params.ChainConfig, state *statedb.StateDB, header *types.BlockHeader) {
-
-}
-
-func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (*types.Block, error) {
-	proceedIncentive(chain.Config(), state, header)
-
+func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader, state *database.StateDatabase, txs []*types.Transaction) (*types.Block, error) {
 	dposData := DposData{}
 	err := DposDataDecode(header.Extra, &dposData)
 	if err != nil {
@@ -342,7 +334,7 @@ func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader
 	return types.NewBlock(header, txs, trie.NewStackTrie(nil)), nil
 }
 
-func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[common.Address]utils.Voter) {
+func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *database.StateDatabase, txs []*types.Transaction) (votes map[common.Address]utils.Voter) {
 	votes = map[common.Address]utils.Voter{}
 
 	number := header.Number

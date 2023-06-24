@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 
 	"github.com/adamnite/go-adamnite/blockchain"
@@ -19,14 +19,14 @@ import (
 
 type environment struct {
 	signer types.Signer
-	state  *statedb.StateDB
+	state  *database.StateDatabase
 	tcount int
 	header *types.BlockHeader
 	txs    []*types.Transaction
 }
 
 type task struct {
-	state     *statedb.StateDB
+	state     *database.StateDatabase
 	block     *types.Block
 	createdAt time.Time
 }
@@ -104,7 +104,7 @@ type dposWorker struct {
 	pendingTasks  map[common.Hash]*task
 	snapshotMu    sync.RWMutex
 	snapshotBlock *types.Block
-	snapshotState *statedb.StateDB
+	snapshotState *database.StateDatabase
 
 	coinbase common.Address
 	extra    []byte
@@ -173,7 +173,7 @@ func (w *dposWorker) start() {
 }
 
 // Pending returns the Pending state and the corresponding block.
-func (w *dposWorker) pending() (*types.Block, *statedb.StateDB) {
+func (w *dposWorker) pending() (*types.Block, *database.StateDatabase) {
 	//return snapshot to avoid contention on current mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
@@ -406,7 +406,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 		ParentHash:      parent.Hash(),
 		Time:            uint64(time.Now().Unix()),
 		WitnessRoot:     common.HexToHash("0x00000000000"),
-		Number:          num.Add(num, common.Big1),
+		Number:          num.Add(num, big.NewInt(1)),
 		Signature:       common.HexToHash("0x00000"),
 		TransactionRoot: common.HexToHash("0x0000"),
 		CurrentEpoch:    parent.Numberu64() / dpos.EpochBlockCount,

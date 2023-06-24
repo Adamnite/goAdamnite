@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -31,7 +31,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *Blockchain, engine dpos.A
 	}
 }
 
-func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, cfg VM.VMConfig, gasPrice *big.Int) (uint64, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb *database.StateDatabase, cfg VM.VMConfig, gasPrice *big.Int) (uint64, error) {
 	var (
 		usedGas = new(uint64)
 		header  = block.Header()
@@ -80,7 +80,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 }
 
 func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common.Address, gp *big.Int,
-	statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, vmcfg VM.VMConfig, blockContext VM.BlockContext) (*VM.Machine, error) {
+	statedb *database.StateDatabase, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, vmcfg VM.VMConfig, blockContext VM.BlockContext) (*VM.Machine, error) {
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {

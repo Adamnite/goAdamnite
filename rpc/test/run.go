@@ -8,8 +8,7 @@ import (
 	"net/http"
 	"net/rpc"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/params"

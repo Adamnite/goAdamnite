@@ -114,8 +114,7 @@ func (aCon *ConsensusNode) continuosHandler() { //TODO: rename this
 					log.Println("sender does not have the cash to make this transaction")
 					continue
 				}
-				aCon.state.SubBalance(t.FromAddress(), t.Amount)
-				aCon.state.AddBalance(t.To, t.Amount)
+				aCon.state.Transfer(t.FromAddress(), t.To, t.Amount)
 				//TODO: charge them some gas for sending this
 
 				transactions = append(transactions, t)

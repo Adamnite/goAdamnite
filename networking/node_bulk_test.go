@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
@@ -157,7 +157,7 @@ func TestTransactionPropagation(t *testing.T) {
 
 	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
 	var ans = &utils.Transaction{}
-	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
+	testerNode.AddFullServer(&database.StateDatabase{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
 		*ans = *foo
 		return nil
 	}, nil, nil, nil)
@@ -167,7 +167,7 @@ func TestTransactionPropagation(t *testing.T) {
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
 	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
-	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil, nil)
+	outsideNode.AddFullServer(&database.StateDatabase{}, &blockchain.Blockchain{}, nil, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
 	client := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0x00})
 	err = client.AddFullServer(nil, nil, nil, nil, nil, nil)

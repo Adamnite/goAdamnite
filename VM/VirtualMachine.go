@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
@@ -151,14 +151,13 @@ func (m *Machine) OutputMemory() string {
 }
 
 // CanTransfer checks whether there are enough funds in the address' account to make a transfer.
-func CanTransfer(db *statedb.StateDB, addr common.Address, amount *big.Int) bool {
+func CanTransfer(db *database.StateDatabase, addr common.Address, amount *big.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db *statedb.StateDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
+func Transfer(db *database.StateDatabase, sender common.Address, receiver common.Address, amount *big.Int) {
+	db.Transfer(sender, receiver, amount)
 }
 
 func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
@@ -214,7 +213,7 @@ func initVMState(machine *Machine) {
 	// initMemoryWithDataSection(&machine.module, machine)
 }
 
-func NewVM(statedb *statedb.StateDB, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
+func NewVM(statedb *database.StateDatabase, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
 	machine := new(Machine)
 	machine.Statedb = statedb
 	// machine.BlockCtx = ni
@@ -427,7 +426,7 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 	// 	return nil, gas, ErrInsufficientBalance
 	// }
 
-	if !m.Statedb.Exist(addr) {
+	if !m.Statedb.AccountExists(addr) {
 		m.Statedb.CreateAccount(addr)
 	}
 
@@ -445,7 +444,7 @@ func (m *Machine) Call(caller common.Address, addr common.Address, input []byte,
 	err = m.Call2(input, gas)
 
 	if err != nil {
-		m.Statedb.RevertToSnapshot(snapshot)
+		m.Statedb.Restore(snapshot)
 		if err != ErrExecutionReverted {
 			m.gas = 0
 		}
@@ -509,7 +508,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 
 	// Check whether the max code size has been exceeded
 	if err == nil && modLen > m.config.maxCodeSize {
-		m.Statedb.RevertToSnapshot(snapshot)
+		m.Statedb.Restore(snapshot)
 		return address, 0, ErrMaxCodeSizeExceeded
 	}
 
@@ -520,7 +519,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	//TODO: update this to charge only for new methods being uploaded.
 	createModuleGas := modLen * 2000
 	if createModuleGas > m.gas {
-		m.Statedb.RevertToSnapshot(snapshot)
+		m.Statedb.Restore(snapshot)
 		return address, m.gas, ErrCodeStoreOutOfGas
 	}
 
@@ -528,7 +527,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	codeStored, hashesOfMethods, err := UploadModuleFunctions(m.config.Uri, module)
 
 	if err != nil {
-		m.Statedb.RevertToSnapshot(snapshot)
+		m.Statedb.Restore(snapshot)
 		// Somehow revert the uploading here?
 	}
 	m.contract.Code = codeStored

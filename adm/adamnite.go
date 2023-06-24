@@ -2,7 +2,7 @@ package adm
 
 import (
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/adm/protocols/adampro"
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/bargossip"
@@ -45,7 +45,7 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 	//       4. Create witness pool
 
 	// 1. Setup genesis block
-	chainDB, err := node.OpenDatabase("adamnitedb", config.AdamniteDbCache, config.AdamniteDbHandles, false)
+	chainDB, err := node.OpenDatabase("database", config.AdamniteDbCache, config.AdamniteDbHandles, false)
 	if err != nil {
 		return nil, err
 	}

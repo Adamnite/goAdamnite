@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
@@ -77,7 +77,7 @@ func (v *Validator) Close() {
 	v.dposWorker.close()
 	close(v.exitCh)
 }
-func (v *Validator) Pending() (*types.Block, *statedb.StateDB) {
+func (v *Validator) Pending() (*types.Block, *database.StateDatabase) {
 	return v.dposWorker.pending()
 }
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/event"
@@ -45,7 +45,7 @@ type TxPool struct {
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number *big.Int) *types.Block
-	StateAt(root common.Hash) (*statedb.StateDB, error)
+	StateAt(root common.Hash) (*database.StateDatabase, error)
 }
 
 func NewTxPool(config TxPoolConfig, chainConfig *params.ChainConfig, chain blockChain) *TxPool {

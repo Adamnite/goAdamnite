@@ -5,7 +5,7 @@ import (
 	"math/big"
 
 	virtMach "github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/log15"
 )
@@ -21,7 +21,7 @@ type StateTransition struct {
 	initialAte uint64
 	value      *big.Int
 	data       []byte
-	state      statedb.StateDB
+	state      database.StateDatabase
 	vm         *virtMach.Machine
 }
 

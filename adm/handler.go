@@ -3,7 +3,7 @@ package adm
 import (
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/adm/protocols/adampro"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/core/types"

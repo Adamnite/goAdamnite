@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -70,25 +70,6 @@ var DefaultWitnessConfig = WitnessConfig{
 var DefaultDemoWitnessConfig = WitnessConfig{
 	WitnessCount: 3,
 }
-
-// var WitnessList = []WitnessInfo{{
-// 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-// 	voters: []utils.Voter{
-// 		{
-// 			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-// 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
-// 		},
-// 	},
-// },
-// 	{
-// 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
-// 		voters: []utils.Voter{
-// 			{
-// 				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
-// 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
-// 			},
-// 		},
-// 	}}
 
 type WitnessPool struct {
 	config      WitnessConfig

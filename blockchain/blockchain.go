@@ -5,8 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -125,7 +124,7 @@ func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
 func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
 	return bc.blocksByNumber[number]
 }
-func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
+func (bc *Blockchain) StateAt(root common.Hash) (*database.StateDatabase, error) {
 	return nil, nil
 }
 

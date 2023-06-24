@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/spf13/cobra"
@@ -45,7 +45,7 @@ func executeStateless(inputbytes string) string {
 	var chainCfg params.ChainConfig
 
 	cfg.CodeGetter = spoofer.GetCode
-	vMachine := VM.NewVM(&statedb.StateDB{}, VM.BlockContext{}, VM.TxContext{}, &cfg, &chainCfg)
+	vMachine := VM.NewVM(&database.StateDatabase{}, &cfg, &chainCfg)
 	funcHashBytes, _ := hex.DecodeString(funcHash)
 	funcTypes, _, _ := cfg.CodeGetter(funcHashBytes)
 

@@ -1,7 +1,10 @@
 package database
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"github.com/adamnite/go-adamnite/adm/merkle"
 
@@ -51,4 +54,9 @@ func (db *Database) Insert(key []byte, value []byte) error {
 // Delete removes the given value from the key-value store.
 func (db *Database) Delete(key []byte) error {
 	return db.impl.Delete(key, nil)
+}
+
+func getRandomDatabasePath() string {
+	rand.Seed(time.Now().UnixNano())
+	return fmt.Sprintf("db-%d", rand.Int())
 }

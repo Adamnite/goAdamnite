@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
@@ -33,7 +33,7 @@ type ConsensusNode struct {
 	spendingAccount accounts.Account // each consensus node is forced to have its own account to spend from.
 	participation   accounts.Account
 	vrfKey          crypto.PrivateKey
-	state           *statedb.StateDB
+	state           *database.StateDatabase
 	chain           *blockchain.Blockchain //we need to keep the chain
 	ocdbLink        string                 //off chain database, if running the VM verification, this should be local.
 	vm              *VM.Machine
@@ -45,7 +45,7 @@ type ConsensusNode struct {
 	untrustworthyWitnesses map[string]uint64 //nodeID -> keep track of how many times witness was marked as untrustworthy
 }
 
-func newConsensus(state *statedb.StateDB, chain *blockchain.Blockchain) (*ConsensusNode, error) {
+func newConsensus(state *database.StateDatabase, chain *blockchain.Blockchain) (*ConsensusNode, error) {
 	participation, err := accounts.GenerateAccount()
 	if err != nil {
 		return nil, err

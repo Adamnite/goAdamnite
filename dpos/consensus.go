@@ -3,7 +3,7 @@ package dpos
 import (
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/adm/database"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
@@ -48,7 +48,7 @@ type Engine interface {
 	//Prepare according to Rules for a specific engine.
 	Prepare(chain ChainReader, header *types.BlockHeader) error
 
-	Finalize(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (*types.Block, error)
+	Finalize(chain ChainReader, header *types.BlockHeader, state *database.StateDatabase, txs []*types.Transaction) (*types.Block, error)
 	// GetRoundNumber retrieves the number of current round.
 	GetRoundNumber() uint64
 	// Close terminates all background threads maintained by the engine.
