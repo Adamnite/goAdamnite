@@ -11,7 +11,6 @@ import (
 	"github.com/adamnite/go-adamnite/common/fdutils"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/node"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/nat"

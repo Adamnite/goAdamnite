@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/node"
 	"github.com/urfave/cli/v2"
 )
 

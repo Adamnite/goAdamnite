@@ -12,7 +12,6 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/node"
 )
 
 // AdamniteImpl implements the Adamnite full node.

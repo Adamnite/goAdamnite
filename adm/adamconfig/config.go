@@ -6,7 +6,6 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/params"
 )
 
