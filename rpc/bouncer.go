@@ -234,8 +234,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	b.print("New Message")
 
 	input := struct {
-		ToPublicKey   string
 		FromPublicKey string
+		ToPublicKey   string
 		Message       string
 	}{}
 
@@ -278,8 +278,8 @@ func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 	}
 
 	input := struct {
-		ToAddress   string
 		FromAddress string
+		ToAddress   string
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
