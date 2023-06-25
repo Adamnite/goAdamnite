@@ -236,7 +236,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	input := struct {
 		FromPublicKey string
 		ToPublicKey   string
-		Message       string
+		RawMessage    string
+		SignedMessage string
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
@@ -244,19 +245,15 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	caesarMsg, err := utils.NewCaesarMessage(
+	msg := utils.NewSignedCaesarMessage(
 		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
 		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
-		input.Message)
-	if err != nil {
-		b.printError("New Message", err)
-		return err
-	}
-
-	if !caesarMsg.Verify() {
+		common.FromHex(input.RawMessage),
+		common.FromHex(input.SignedMessage))
+	if !msg.Verify() {
 		return utils.ErrIncorrectSigner
 	}
-	if forwardableMsg, err := CreateForwardToAll(caesarMsg); err != nil {
+	if forwardableMsg, err := CreateForwardToAll(msg); err != nil {
 		b.printError("New Message", err)
 		return err
 	} else {

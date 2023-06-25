@@ -80,7 +80,6 @@ func GenerateAccount() (*Account, error) {
 
 // sign data, and return a 65 byte array. Data can be most interface types
 func (a *Account) Sign(data interface{}) ([]byte, error) {
-
 	signature, err := secp256k1.Sign(toHashedBytes(data), a.privateKey)
 	if err != nil {
 		log.Printf("Signing error: %s", err)

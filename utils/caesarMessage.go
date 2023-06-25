@@ -18,34 +18,46 @@ type CaesarMessage struct {
 	HasHostingServer bool //is this to a nodeID, who would have a server running directly (instead of needing to be shared to everyone)
 }
 
-// create a Caesar Message. "saying" can be of type byte or string
-func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interface{}) (*CaesarMessage, error) {
-	ansMsg := CaesarMessage{
+// NewCaesarMessage creates a new Caesar message
+func NewCaesarMessage(to accounts.Account, from accounts.Account, message interface{}) (*CaesarMessage, error) {
+	c := CaesarMessage{
 		To:               to,
 		From:             from,
 		InitialTime:      time.Now().UnixMicro(),
 		HasHostingServer: false,
 	}
 
-	//get the message from a variance of types
-	var msgBytes []byte
-	switch v := saying.(type) {
+	// get the message from a variance of types
+	var messageData []byte
+	switch v := message.(type) {
 	case string:
-		msgBytes = []byte(v)
+		messageData = []byte(v)
 	case []byte:
-		msgBytes = v
+		messageData = v
 	default:
-		return nil, fmt.Errorf("i don't know how to handle the message type you sent") //TODO: replace with real error
+		return nil, fmt.Errorf("Unsupported message type: should be either byte array or string")
 	}
 
-	ansBytes, err := to.Encrypt(msgBytes)
+	encryptedMessage, err := to.Encrypt(messageData)
 	if err != nil {
 		return nil, err
 	}
-	ansMsg.Message = ansBytes
+	c.Message = encryptedMessage
 
-	err = ansMsg.Sign()
-	return &ansMsg, err
+	err = c.Sign()
+	return &c, err
+}
+
+// NewCaesarMessage creates a new Caesar message with signature set
+func NewSignedCaesarMessage(to accounts.Account, from accounts.Account, message []byte, signature []byte) *CaesarMessage {
+	return &CaesarMessage{
+		To:               to,
+		From:             from,
+		InitialTime:      time.Now().UnixMicro(),
+		HasHostingServer: false,
+		Message:		  message,
+		Signature: 		  signature,
+	}
 }
 
 // Hash the message
@@ -57,7 +69,7 @@ func (cm CaesarMessage) Hash() []byte {
 
 // Sign the message with the From Account
 func (cm *CaesarMessage) Sign() error {
-	newSignature, err := cm.From.Sign(cm)
+	newSignature, err := cm.From.Sign(cm.Message)
 	if err == nil {
 		cm.Signature = newSignature
 	}
@@ -65,7 +77,7 @@ func (cm *CaesarMessage) Sign() error {
 }
 
 func (cm CaesarMessage) Verify() bool {
-	return cm.From.Verify(cm, cm.Signature)
+	return cm.From.Verify(cm.Message, cm.Signature)
 }
 
 // get the message contents by decrypting it
