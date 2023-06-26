@@ -142,10 +142,31 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil)
 	if err != nil {
 		return err
-	} else {
-		//TODO: here we should actually use the transactions
-		log.Println(transactions)
-		log.Println("transactions were returned!")
+	} 
+	//TODO: here we should actually use the transactions
+	log.Println(transactions)
+	log.Println("transactions were returned!")
+	vmb := utils.NewWorkingVMBlock(
+		bNode.chain.CurrentHeader(),
+		bNode.spendingAccount.PublicKey,
+		common.Hash{},
+		common.Hash{},
+		common.Hash{},
+		big.NewInt(0),//TODO: last block, +1
+		0,//TODO: check if this would be the end of a round. If so, change it.
+		transactions,
+	)
+	err = vmb.Sign(bNode.spendingAccount)
+	if err!=nil{
+		log.Println("error with the signing: ",err)
 	}
+	if err := bNode.netLogic.Propagate(vmb);err!=nil{
+		log.Println(err)
+	}
+	bNode.poolsB.ActiveWitnessReviewed(
+		&vmb.Header.Witness, //us, but with different steps
+		true,
+		block.Header.Number.Uint64(),
+	)
 	return nil
 }

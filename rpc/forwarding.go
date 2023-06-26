@@ -50,7 +50,7 @@ func CreateForwardToAll(finalMessage interface{}) (ForwardingContent, error) {
 		forwardAns.FinalEndpoint = NewVoteEndpoint
 	case utils.TransactionType, *utils.TransactionType:
 		forwardAns.FinalEndpoint = NewTransactionEndpoint
-	case utils.Block, *utils.Block:
+	case utils.BlockType, *utils.BlockType:
 		forwardAns.FinalEndpoint = NewBlockEndpoint
 	}
 	return forwardAns, nil
