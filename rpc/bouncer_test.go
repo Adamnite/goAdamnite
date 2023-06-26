@@ -1,10 +1,10 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
 	encoding "github.com/vmihailenco/msgpack/v5"
@@ -110,10 +110,10 @@ func TestMessaging(t *testing.T) {
 		RawMessage    string
 		SignedMessage string
 	}{
-		common.ToHex(sender.PublicKey),
-		common.ToHex(receiver.PublicKey),
-		common.ToHex(encryptedMessage),
-		common.ToHex(signedMsg),
+		hex.EncodeToString(sender.PublicKey),
+		hex.EncodeToString(receiver.PublicKey),
+		hex.EncodeToString(encryptedMessage),
+		hex.EncodeToString(signedMsg),
 	}
 
 	msgData, err := encoding.Marshal(input)

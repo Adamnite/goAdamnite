@@ -16,14 +16,6 @@ func FromHex(s string) []byte {
 	return Hex2Bytes(s)
 }
 
-// ToHex converts bytes into a hexadecimal string prefixed with '0x'.
-func ToHex(b []byte) string {
-	h := make([]byte, len(b)*2+2)
-	copy(h, "0x")
-	hex.Encode(h[2:], b)
-	return string(h)
-}
-
 // hasHexPrefix checks whether given string begins with '0x' or '0X'
 func hasHexPrefix(str string) bool {
 	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
