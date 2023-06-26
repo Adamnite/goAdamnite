@@ -99,7 +99,7 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 	//handle the backlog
 	var firstPutBack utils.TransactionType = nil //to check if we are putting the same node at the back, that way we don't get into a continuos loop
 	t := bNode.transactionQueue.Pop()
-	for firstPutBack == nil || !firstPutBack.Equal(t) {
+	for (firstPutBack == nil || !firstPutBack.Equal(t)) && t != nil {
 		if t == nil {
 			//we're out of transactions and need to wait for a new transaction to be sent
 			continue
@@ -130,8 +130,8 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 				newItem := bNode.transactionQueue.Get(newIndex)
 				if newItem != nil && newItem.GetType() != utils.Transaction_Basic {
 					//this is a new VM calling transaction
-					bNode.transactionQueue.Remove(t)
-					if err := conState.QueueTransaction(t); err != nil {
+					bNode.transactionQueue.Remove(newItem)
+					if err := conState.QueueTransaction(newItem); err != nil {
 						log.Printf("error adding new transaction to the queue: %v", err)
 					}
 				}
@@ -145,6 +145,7 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 	} else {
 		//TODO: here we should actually use the transactions
 		log.Println(transactions)
+		log.Println("transactions were returned!")
 	}
 	return nil
 }

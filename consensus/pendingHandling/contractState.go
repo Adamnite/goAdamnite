@@ -53,7 +53,7 @@ func (ct *complexTransaction) RunOn(vm *VM.Machine) (hash []byte, err error) {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 	if ct.needsToBeAfter != nil {
-		ct.processStep <- waitingOnParent
+		go func() { ct.processStep <- waitingOnParent }()
 		//if we have anything that *must* run before this, we wait
 		step := <-ct.needsToBeAfter.processStep
 		for step != completed {
@@ -169,6 +169,7 @@ type ContractStateHolder struct {
 	receives             map[string][]*complexTransaction //from(hexOfAddress)->all instances in which  they receive nite
 	dbCache              VM.DBCacheAble                   //for keeping a local reference. allows each call to be made once
 	successfullyRunCount *safe.SafeInt
+	newContractChan      chan (string) //channel send the string of the new contract that's held
 }
 
 func NewContractStateHolder(dbCache VM.DBCacheAble) (*ContractStateHolder, error) {
@@ -178,6 +179,7 @@ func NewContractStateHolder(dbCache VM.DBCacheAble) (*ContractStateHolder, error
 		receives:             map[string][]*complexTransaction{},
 		dbCache:              dbCache,
 		successfullyRunCount: safe.NewSafeInt(0),
+		newContractChan:      make(chan string),
 	}
 	return &csh, nil
 }
@@ -187,6 +189,9 @@ func (csh *ContractStateHolder) QueueTransaction(t utils.TransactionType) (err e
 	csh.lock.Lock()
 	defer csh.lock.Unlock()
 	//check if the target contract is already loaded
+	if t == nil {
+		return fmt.Errorf("null transaction sent")
+	}
 	if t.GetType() == utils.Transaction_Basic {
 		return fmt.Errorf("expected VM calling type, got base transaction type")
 	}
@@ -202,6 +207,8 @@ func (csh *ContractStateHolder) QueueTransaction(t utils.TransactionType) (err e
 		if err != nil {
 			return err
 		}
+		go func() { csh.newContractChan <- vmT.ContractCalled.Hex() }()
+		//let anyone who needs this know that a new contract was added
 		go func() {
 			//this is to update how many things we've processed since starting
 			runchan := ch.successfullyRunCount.GetOnUpdate()
@@ -216,6 +223,7 @@ func (csh *ContractStateHolder) QueueTransaction(t utils.TransactionType) (err e
 			}
 		}()
 		csh.contractsHeld[vmT.ContractCalled.Hex()] = ch
+
 	}
 
 	//then check if the target method is loaded
@@ -293,6 +301,23 @@ func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCo
 	csh.successfullyRunCount.Set(0)
 	runCountChan := csh.successfullyRunCount.GetOnUpdate()
 	steppingErr := make(chan error)
+	runningContracts := sync.Map{}
+
+	newContinuosContractHandle := func(ch *contractHeld) {
+		//each held contract starts running on it's own until it has an error, or
+		for currentPoint, endPoint := ch.getCurrentAndMaxTransaction(); currentPoint < endPoint; currentPoint, endPoint = ch.getCurrentAndMaxTransaction() {
+			select {
+			case <-reasonToStop:
+				return
+			default:
+				if err := ch.Step(state, successfulTransactions); err != nil {
+					//TODO: we can skip a lot of the more expected errors. EG, if you run out of funds, that should just be dropped. not stop everyone after
+					steppingErr <- err
+					return
+				}
+			}
+		}
+	}
 	go func() {
 		//handle if we need to stop
 		for {
@@ -310,26 +335,27 @@ func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCo
 					reasonToStop <- struct{}{}
 					return
 				}
+			case newAddress := <-csh.newContractChan:
+				//might as well use this same loop to get new contracts
+				if _, stored := runningContracts.Load(newAddress); !stored {
+					ch := csh.contractsHeld[newAddress]
+					runningContracts.Store(newAddress, ch)
+					go newContinuosContractHandle(ch)
+
+				}
+
 			}
 		}
 	}()
+
 	go func() {
-		for _, current := range csh.contractsHeld {
-			go func(ch *contractHeld) {
-				//each held contract starts running on it's own until it has an error, or
-				for currentPoint, endPoint := ch.getCurrentAndMaxTransaction(); currentPoint < endPoint; currentPoint, endPoint = ch.getCurrentAndMaxTransaction() {
-					select {
-					case <-reasonToStop:
-						return
-					default:
-						if err := ch.Step(state, successfulTransactions); err != nil {
-							//TODO: we can skip a lot of the more expected errors. EG, if you run out of funds, that should just be dropped. not stop everyone after
-							steppingErr <- err
-							return
-						}
-					}
-				}
-			}(current)
+		for address, current := range csh.contractsHeld {
+
+			if _, stored := runningContracts.Load(address); !stored {
+				runningContracts.Store(address, current)
+				go newContinuosContractHandle(current)
+			}
+
 		}
 	}()
 	<-reasonToStop

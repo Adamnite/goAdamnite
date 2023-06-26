@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"bytes"
+	"log"
 	"math/big"
 	"sync"
 	"time"
@@ -91,6 +92,7 @@ func (rd *round_data) addEligibleWitness(w *witness, vrfVal []byte, vrfProof []b
 	_, exists := rd.votes.Load(w.spendingPubString())
 	if exists {
 		//witness already has votes, so they must exist
+		log.Println("witness already has votes, so must already exist")
 		return
 	}
 	rd.eligibleWitnesses.Append(w)

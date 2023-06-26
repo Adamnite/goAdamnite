@@ -127,18 +127,19 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		return nil
 	}
 	addLocalCandidate := func(pool *Witness_pool, candidate *safe.SafeItem) {
-		newCon, err := safe.GetItem[*utils.Candidate](candidate).UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, uint64(pool.GetApplyingRound().GetStartTime().Unix()), *con.spendingAccount)
+		newCan, err := con.getUpdatedCandidacy(safe.GetItem[*utils.Candidate](candidate), pool)
 		if err != nil {
 			log.Printf("error updating candidate for round %v can applying for %v. Err: %v", pool.currentWorkingRoundID.Get(), candidate.Get().(*utils.Candidate).Round, err)
 			return
 		}
-		candidate.Set(newCon)
-		if err := pool.AddCandidate(safe.GetItem[*utils.Candidate](candidate)); err != nil {
-			log.Printf("error producing newer candidate for round %v. Err: %v", pool.currentWorkingRoundID.Get(), err)
-			panic(err)
+		candidate.Set(newCan)
+		if err := pool.AddCandidate(newCan); err != nil {
+			log.Printf("error producing newer candidate for round %v. \nErr: %v", pool.currentWorkingRoundID.Get(), err)
+			return
 		}
-		if err := con.netLogic.Propagate(safe.GetItem[*utils.Candidate](candidate)); err != nil {
+		if err := con.netLogic.Propagate(newCan); err != nil {
 			panic(err)
+			//this panics, since if we cant propagate the message, we likely have a connection issue
 		}
 	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
@@ -150,7 +151,7 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
 		addLocalCandidate(con.poolsB, con.thisCandidateB)
 		con.poolsB.AddNewRoundCaller(func() { addLocalCandidate(con.poolsA, con.thisCandidateB) })
-		con.poolsB.AddNewRoundCaller(func() { con.StartVMContinuosHandling() })
+		con.poolsB.AddNewRoundCaller(func() { go con.StartVMContinuosHandling() })
 	}
 	return nil
 }
@@ -194,5 +195,5 @@ func (con *ConsensusNode) generateCandidacy() *utils.Candidate {
 // create an updated version of the candidacy provided
 func (con *ConsensusNode) getUpdatedCandidacy(candidacy *utils.Candidate, pool *Witness_pool) (*utils.Candidate, error) {
 	//TODO: get the round start time! right now it's set to 0
-	return candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()), pool.GetCurrentSeed(), con.vrfKey, 0, *con.spendingAccount)
+	return candidacy.UpdatedCandidate(uint64(pool.currentWorkingRoundID.Get()+1), pool.GetCurrentSeed(), con.vrfKey, 0, *con.spendingAccount)
 }

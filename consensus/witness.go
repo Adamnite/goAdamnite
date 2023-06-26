@@ -171,10 +171,15 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 	}
 	if !successful {
 		//the block seems to be faulty. Assume this witness misbehaved, remove them, and ignore the block
-		return currentWorkingRound.RemoveSelectedWitness(wit, blockID)
+		return wp.UpdateWorkingRound(func(rd *round_data) error {
+			return rd.RemoveSelectedWitness(wit, blockID)
+		})
 	}
 
-	currentWorkingRound.BlockReviewed()
+	wp.UpdateWorkingRound(func(rd *round_data) error {
+		rd.BlockReviewed()
+		return nil
+	})
 	if uint64(currentWorkingRound.blocksInRound.Get()) >= maxBlocksPerRound {
 		//the round has reached its block limit.
 		wp.nextRound()
@@ -201,21 +206,42 @@ func (wp *Witness_pool) getRound(roundID int) *round_data {
 	return newRD
 }
 
+// locks the thread and handles updating the round.
+func (wp *Witness_pool) updateRound(roundID int, updating func(*round_data) error) error {
+	rd := wp.getRound(roundID)
+	wp.lock.Lock()
+	defer wp.lock.Unlock()
+	err := updating(rd)
+	if err != nil {
+		return err
+	}
+	wp.rounds.Store(roundID, rd)
+	return nil
+}
+
 // gets the current round accepting votes
 func (wp *Witness_pool) GetApplyingRound() *round_data {
 	return wp.getRound(wp.currentWorkingRoundID.Get() + 1)
+}
+
+// update the current applying round
+func (wp *Witness_pool) UpdateApplyingRound(updating func(*round_data) error) error {
+	return wp.updateRound(wp.currentWorkingRoundID.Get()+1, updating)
 }
 
 // gets the working round. AKA, the one with the active witnesses
 func (wp *Witness_pool) GetWorkingRound() *round_data {
 	return wp.getRound(wp.currentWorkingRoundID.Get())
 }
+func (wp *Witness_pool) UpdateWorkingRound(updating func(*round_data) error) error {
+	return wp.updateRound(wp.currentWorkingRoundID.Get(), updating)
+}
 func (wp *Witness_pool) newRound(roundID int, seed []byte) error {
-	newRD := wp.getRound(roundID) //this way, if that round already existed, instead we are updating it
-	wp.lock.Lock()
-	defer wp.lock.Unlock()
-	newRD.SetSeed(seed)
-	return nil
+	//this way, if that round already existed, instead we are updating it
+	return wp.updateRound(roundID, func(rd *round_data) error {
+		rd.SetSeed(seed)
+		return nil
+	})
 }
 
 // stats the next round.
@@ -223,12 +249,13 @@ func (wp *Witness_pool) nextRound() {
 	var nextSeed []byte
 	if wp.currentWorkingRoundID.Get() == 0 {
 		nextSeed = []byte{} //seeds from the initial round is 0
-		wp.GetApplyingRound().openToApply = false
+		wp.UpdateApplyingRound(func(rd *round_data) error {
+			rd.openToApply = false
+			return nil
+		})
 	} else {
 		_, nextSeed = wp.SelectCurrentWitnesses()
 	}
-	// wp.lock.Lock()
-	// defer wp.lock.Unlock()
 
 	wp.currentWorkingRoundID.Add(1)
 	if err := wp.newRound(wp.currentWorkingRoundID.Get()+1, nextSeed); err != nil {
@@ -236,7 +263,10 @@ func (wp *Witness_pool) nextRound() {
 		log.Println(err)
 	}
 
-	wp.GetWorkingRound().SetStartTime(time.Now().UTC().Truncate(maxTimePrecision.Duration()))
+	wp.UpdateWorkingRound(func(rd *round_data) error {
+		rd.SetStartTime(time.Now().UTC().Truncate(maxTimePrecision.Duration()))
+		return nil
+	})
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
 		nextRoundFunc()
@@ -280,9 +310,9 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 		wp.totalWitnesses[can.GetWitnessString()] = wit
 		wp.totalCandidates[can.GetWitnessString()] = can
 	}
+	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 	wp.lock.Unlock()
 	canRound := wp.getRound(int(can.Round))
-	//by only creating the witness if it's a new witID, we prevent changing of VRFKeys every round to get the best outcome
 
 	if !canRound.openToApply {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
@@ -295,34 +325,39 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 			return fmt.Errorf("candidate's VRF is unverifiable") //TODO: change to real error
 		}
 	}
-	canRound.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
-	canRound.addVote(&can.InitialVote)
-
+	wp.updateRound(int(can.Round), func(rd *round_data) error {
+		rd.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
+		rd.addVote(&can.InitialVote)
+		return nil
+	})
 	return nil
 }
 func (wp *Witness_pool) AddVoteForCurrent(vote *utils.Voter) error {
 	wp.lock.Lock()
 	defer wp.lock.Unlock()
-	wp.GetApplyingRound().addVote(vote)
+	wp.UpdateApplyingRound(func(rd *round_data) error {
+		rd.addVote(vote)
+		return nil
+	})
+
 	return nil //TODO: return an error if the rounds system is broken
 }
 func (wp *Witness_pool) AddVote(round uint64, v *utils.Voter) error {
-	rd := wp.getRound(int(round))
-	if !rd.openToApply {
-		return fmt.Errorf("round selected is not accepting votes")
-	}
-	rd.addVote(v)
-	return nil
+	return wp.updateRound(int(round), func(rd *round_data) error {
+		if !rd.openToApply {
+			return fmt.Errorf("round selected is not accepting votes")
+		}
+		rd.addVote(v)
+		return nil
+	})
 }
 
 // select closes the current rounds submissions, and starts the submissions for the next round
 func (wp *Witness_pool) SelectCurrentWitnesses() (witnesses *safe.SafeSlice, newSeed []byte) {
-	applyingRound := wp.GetApplyingRound()
-	if applyingRound == nil {
-		return nil, []byte{}
-	}
-
-	witnesses, newSeed = applyingRound.selectWitnesses(wp.witnessGoal)
+	wp.UpdateApplyingRound(func(rd *round_data) error {
+		witnesses, newSeed = rd.selectWitnesses(wp.witnessGoal)
+		return nil
+	})
 	return
 }
 
