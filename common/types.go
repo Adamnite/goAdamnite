@@ -1,10 +1,6 @@
 package common
 
-import (
-	"encoding/hex"
-
-	"github.com/adamnite/go-adamnite/common/hexutil"
-)
+import "encoding/hex"
 
 const (
 	// AddressLength is the expected length of Adamnite address
@@ -45,16 +41,9 @@ func BytesToAddress(b []byte) Address {
 	return addr
 }
 
-func (a Address) hex() []byte {
-	var buf [len(a)*2 + 2]byte
-	copy(buf[:2], "0x")
-	hex.Encode(buf[2:], a[:])
-	return buf[:]
-}
-
 // Hex returns an EIP55-compliant hex string representation of the address.
 func (a Address) Hex() string {
-	return string(a.hex())
+	return hex.EncodeToString(a[:])
 }
 
 // String implements fmt.Stringer.
@@ -83,5 +72,5 @@ func HexToHash(s string) Hash {
 }
 
 func (h Hash) Hex() string {
-	return hexutil.Encode(h[:])
+	return hex.EncodeToString(h[:])
 }

@@ -101,25 +101,6 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	return passed
 }
 
-func (a *AdamniteClient) GetChainID() (string, error) {
-	a.print("Get chain id")
-	reply := []byte{}
-	err := a.client.Call(getChainIDEndpoint, []byte{}, &reply)
-	if err != nil {
-		log.Println(err)
-		return "", err
-	}
-
-	var output string
-
-	if err := encoding.Unmarshal(reply, &output); err != nil {
-		a.printError("Get chain id", err)
-		return "", err
-	}
-
-	return output, nil
-}
-
 func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
 	a.print("Get balance")
 

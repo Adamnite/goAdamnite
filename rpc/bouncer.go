@@ -234,9 +234,10 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	b.print("New Message")
 
 	input := struct {
-		ToPublicKey   string
 		FromPublicKey string
-		Message       string
+		ToPublicKey   string
+		RawMessage    string
+		SignedMessage string
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
@@ -244,19 +245,15 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	caesarMsg, err := utils.NewCaesarMessage(
+	msg := utils.NewSignedCaesarMessage(
 		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
 		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
-		input.Message)
-	if err != nil {
-		b.printError("New Message", err)
-		return err
-	}
-
-	if !caesarMsg.Verify() {
+		common.FromHex(input.RawMessage),
+		common.FromHex(input.SignedMessage))
+	if !msg.Verify() {
 		return utils.ErrIncorrectSigner
 	}
-	if forwardableMsg, err := CreateForwardToAll(caesarMsg); err != nil {
+	if forwardableMsg, err := CreateForwardToAll(msg); err != nil {
 		b.printError("New Message", err)
 		return err
 	} else {
@@ -266,28 +263,37 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	}
 }
 
-const bouncerGetMessagesBetween = "BouncerServer.GetMessagesBetween"
+const bouncerGetMessages = "BouncerServer.GetMessages"
 
-func (b *BouncerServer) GetMessagesBetween(params, reply *[]byte) error {
-	b.print("get messages between")
+func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
+	b.print("Get messages")
+
 	if b.getMessages == nil {
-		return fmt.Errorf("not setup to return messages")
-	}
-	input := struct {
-		A common.Address
-		B common.Address
-	}{}
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		b.printError("get messages between", err)
+		err := fmt.Errorf("invalid setup to retrieve messages")
+		b.printError("Get messages", err)
 		return err
 	}
-	msgs := b.getMessages(input.A, input.B)
 
-	ansBytes, err := encoding.Marshal(msgs)
-	*reply = ansBytes
-	return err
+	input := struct {
+		FromAddress string
+		ToAddress   string
+	}{}
+
+	if err := encoding.Unmarshal(*params, &input); err != nil {
+		b.printError("Get messages", err)
+		return err
+	}
+	messages := b.getMessages(common.HexToAddress(input.FromAddress), common.HexToAddress(input.ToAddress))
+
+	data, err := encoding.Marshal(messages)
+	if err != nil {
+		b.printError("Get messages", err)
+		return err
+	}
+
+	*reply = data
+	return nil
 }
-
 
 const sendTransactionEndpoint = "BouncerServer.SendTransaction"
 

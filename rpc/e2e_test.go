@@ -89,17 +89,6 @@ func shutdown() {
 	bouncerClient.Close()
 }
 
-func TestGetChainID(t *testing.T) {
-	if id, err := client.GetChainID(); err != nil {
-		log.Printf("[Adamnite E2E test] Error: %s", err)
-		t.Fail()
-	} else {
-		if !assert.Equal(t, "0.1.2", id, "chain ID is not correct") {
-			t.Fail()
-		}
-	}
-}
-
 func TestGetVersion(t *testing.T) {
 	leeway := time.Second / 10 //no actions can be instant, so this is how much time allowance i give.
 	client.SetAddressAndHostingPort(&common.Address{123}, "")
