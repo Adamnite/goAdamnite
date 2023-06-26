@@ -116,7 +116,7 @@ func TestVMTransactions(t *testing.T) {
 		nil,
 		func(pt utils.TransactionType) error {
 			//the transactions seen logger
-			transactionsSeen.Append(pt.(*utils.BaseTransaction))
+			transactionsSeen.Append(pt)
 			return nil
 		}, func(b *utils.Block) error {
 			blocksSeen.Append(b)
@@ -193,10 +193,10 @@ func TestVMTransactions(t *testing.T) {
 		t.Fail()
 	}
 	//we now have x candidates
-	maxTransactionsPerBlock = 100
+	maxTransactionsPerBlock = 10
 	maxBlocksPerRound = uint64(testNodeCount)
 	seed.FillOpenConnections()
-	transactions := []*utils.BaseTransaction{}
+	transactions := []*utils.VMCallTransaction{}
 	<-time.After(maxTimePerRound.Duration())
 	assert.EqualValues(
 		t,
@@ -205,15 +205,19 @@ func TestVMTransactions(t *testing.T) {
 		"round is not correct",
 	)
 	for i := 0; i < maxTransactionsPerBlock*int(maxBlocksPerRound)*testNodeCount; i++ {
-		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], addTwoContract.Address, big.NewInt(1), big.NewInt(int64(i)))
-		utils.NewVMTransactionFrom(conAccounts[0], testTransaction, append(addTwoFunction, 0x7f, 0x1, 0x7f, 0x2))
+		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], addTwoContract.Address, big.NewInt(1), big.NewInt(100000))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := conNodes[0].netLogic.Propagate(testTransaction); err != nil {
+		vmTransaction, err := utils.NewVMTransactionFrom(conAccounts[0], testTransaction, append(addTwoFunction, 0x7f, 0x1, 0x7f, 0x2))
+		if err != nil {
 			t.Fatal(err)
 		}
-		transactions = append(transactions, testTransaction)
+		if err := conNodes[0].netLogic.Propagate(vmTransaction); err != nil {
+			t.Fatal(err)
+		}
+		transactions = append(transactions, vmTransaction)
+		<-time.After(maxTimePrecision.Duration())
 	}
 	<-time.After(maxTimePerRound.Duration())
 

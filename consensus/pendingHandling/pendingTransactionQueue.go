@@ -90,7 +90,7 @@ func (tq *TransactionQueue) Get(index int) utils.TransactionType {
 	}
 	t := tq.pendingQueue.Get(index)
 	toDelete, exists := tq.pendingRemoval.Load(t)
-	if exists && toDelete.(bool) {
+	if exists && toDelete.(bool) || t == nil {
 		tq.pendingRemoval.Delete(t)
 		return nil
 	}
