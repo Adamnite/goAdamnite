@@ -57,7 +57,7 @@ func (rtc RuntimeChanges) CleanCopy() *RuntimeChanges {
 
 // returns the hash of the runtime changes.
 func (rtc RuntimeChanges) Hash() common.Hash {
-	timeBytes, _ := rtc.CallTime.MarshalBinary()
+	timeBytes := binary.LittleEndian.AppendUint64([]byte{}, uint64(rtc.CallTime.UnixMilli()))
 	data := append(rtc.Caller.Bytes(), timeBytes...)
 	data = append(data, rtc.ContractCalled[:]...)
 	data = append(data, rtc.ParametersPassed...)

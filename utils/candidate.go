@@ -55,9 +55,9 @@ func NewCandidate(
 }
 
 // RETURNs the updated form of this candidate!
-func (c Candidate) UpdatedCandidate(round uint64, newSeed []byte, vrfPrivate crypto.PrivateKey, startAt uint64, spender accounts.Account) (*Candidate, error) {
+func (c Candidate) UpdatedCandidate(applyingRound uint64, newSeed []byte, vrfPrivate crypto.PrivateKey, startAt uint64, spender accounts.Account) (*Candidate, error) {
 	can := Candidate{
-		Round:         round,
+		Round:         applyingRound,
 		Seed:          newSeed,
 		VRFKey:        c.VRFKey,
 		StartTime:     startAt,

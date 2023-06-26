@@ -104,7 +104,7 @@ func (a BaseTransaction) Equal(other TransactionType) bool {
 	if a.GetType() != other.GetType() {
 		return false
 	}
-	b := other.(BaseTransaction)
+	b := other.(*BaseTransaction)
 	return bytes.Equal(a.From.PublicKey, b.From.PublicKey) &&
 		bytes.Equal(a.To.Bytes(), b.To.Bytes()) &&
 		a.Amount.Cmp(b.Amount) == 0 &&
@@ -121,7 +121,7 @@ type VMCallTransaction struct {
 func NewVMTransactionFrom(signer *accounts.Account, buildOn *BaseTransaction, callParams []byte) (*VMCallTransaction, error) {
 	vmCall := RuntimeChanges{
 		Caller:           signer.GetAddress(),
-		CallTime:         buildOn.Time,
+		CallTime:         buildOn.Time.UTC(),
 		ContractCalled:   buildOn.To,
 		ParametersPassed: callParams,
 		GasLimit:         buildOn.GasLimit.Uint64(),
@@ -131,18 +131,25 @@ func NewVMTransactionFrom(signer *accounts.Account, buildOn *BaseTransaction, ca
 		VMInteractions:  &vmCall,
 	}
 	vmTransaction.TransactionType = Transaction_VM_Call
-	sig, err := signer.Sign(vmTransaction)
-	vmTransaction.Signature = sig
+	err := vmTransaction.Sign(signer)
 	return &vmTransaction, err
 }
 func (vmt VMCallTransaction) Hash() common.Hash {
 	data := append(vmt.From.PublicKey, vmt.To.Bytes()...)
 	data = append(data, vmt.Amount.Bytes()...)
 
-	data = append(data, binary.LittleEndian.AppendUint64([]byte{}, uint64(vmt.Time.UnixMilli()))...)
+	data = append(data, binary.LittleEndian.AppendUint64([]byte{}, uint64(vmt.Time.UTC().UnixMilli()))...)
 	data = append(data, vmt.VMInteractions.Hash().Bytes()...)
 
 	return common.BytesToHash(crypto.Sha512(data))
+}
+func (vmt *VMCallTransaction) Sign(signer *accounts.Account) error {
+	sig, err := signer.Sign(vmt)
+	vmt.Signature = sig
+	return err
+}
+func (vmt VMCallTransaction) VerifySignature() (bool, error) {
+	return vmt.From.Verify(vmt, vmt.Signature), nil
 }
 
 type NewContractTransaction struct {
