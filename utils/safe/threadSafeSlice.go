@@ -92,6 +92,9 @@ func (tss *SafeSlice) RemoveFrom(a, b int) {
 func (tss *SafeSlice) Get(index int) any {
 	tss.lock.RLock()
 	defer tss.lock.RUnlock()
+	if index >= len(tss.items) {
+		return nil
+	}
 	if index >= 0 {
 		return tss.items[index]
 	}
