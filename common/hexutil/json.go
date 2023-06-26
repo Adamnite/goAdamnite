@@ -51,11 +51,6 @@ func (b *Bytes) UnmarshalText(input []byte) error {
 	return err
 }
 
-// String returns the hex encoding of b.
-func (b Bytes) String() string {
-	return Encode(b)
-}
-
 // ImplementsGraphQLType returns true if Bytes implements the specified GraphQL type.
 func (b Bytes) ImplementsGraphQLType(name string) bool { return name == "Bytes" }
 

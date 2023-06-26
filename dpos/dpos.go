@@ -2,17 +2,16 @@ package dpos
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/accounts"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/dpos/poh"
+	"github.com/adamnite/go-adamnite/utils"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
@@ -63,8 +62,6 @@ type AdamniteDPOS struct {
 	poh        *poh.POH
 }
 
-type SignerFn func(accounts.Account, []byte) ([]byte, error)
-
 func New(config *params.ChainConfig, db adamnitedb.Database) *AdamniteDPOS {
 
 	signatures, _ := lru.NewARC(inmemorySignatures)
@@ -80,9 +77,9 @@ func New(config *params.ChainConfig, db adamnitedb.Database) *AdamniteDPOS {
 }
 
 type DposData struct {
-	Witnesses []types.Witness `json:"witnesses"`
+	Witnesses []utils.Witness `json:"witnesses"`
 
-	Votes map[common.Address]types.Voter `json:"votes"`
+	Votes map[common.Address]utils.Voter `json:"votes"`
 }
 
 func (adpos *AdamniteDPOS) Close() error {
@@ -119,7 +116,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash 
 				dposDataBytes := checkpoint.Extra
 				DposDataDecode(dposDataBytes, &dposData)
 
-				tmpWitnesses := make([]types.Witness, 0)
+				tmpWitnesses := make([]utils.Witness, 0)
 				dposData.Witnesses = tmpWitnesses
 
 				witnessPool = NewRoundWitnessPool(DefaultWitnessConfig, adpos.config, adpos.signatures, number.Uint64(), hash, dposData.Witnesses)
@@ -195,7 +192,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, has
 				pohDataBytes := checkpoint.Extra
 				poh.PohDataDecode(pohDataBytes, &pohData)
 
-				tmpWitnesses := make([]types.Witness, 0)
+				tmpWitnesses := make([]utils.Witness, 0)
 				pohData.Witnesses = tmpWitnesses
 
 				dbWitnessPool = poh.NewDBRoundWitnessPool(poh.DefaultDBWitnessConfig, adpos.config, adpos.signatures, number.Uint64(), hash, pohData.Witnesses)
@@ -291,8 +288,8 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 	}
 
 	dposData := DposData{
-		Witnesses: []types.Witness{},
-		Votes:     map[common.Address]types.Voter{},
+		Witnesses: []utils.Witness{},
+		Votes:     map[common.Address]utils.Voter{},
 	}
 
 	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
@@ -308,8 +305,8 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 	}
 
 	pohData := poh.PoHData{
-		Witnesses: []types.Witness{},
-		Votes:     map[common.Address]types.Voter{},
+		Witnesses: []utils.Witness{},
+		Votes:     map[common.Address]utils.Voter{},
 	}
 	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
 		pohData.Witnesses = dbwitnesspool.CalcWitnesses()
@@ -345,8 +342,8 @@ func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader
 	return types.NewBlock(header, txs, trie.NewStackTrie(nil)), nil
 }
 
-func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[common.Address]types.Voter) {
-	votes = map[common.Address]types.Voter{}
+func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[common.Address]utils.Voter) {
+	votes = map[common.Address]utils.Voter{}
 
 	number := header.Number
 	var witnessPool *WitnessPool
@@ -368,7 +365,7 @@ walk:
 
 		sender, _ := types.Sender(types.AdamniteSigner{}, tx)
 
-		vote := types.Voter{}
+		vote := utils.Voter{}
 		switch tx.Type() {
 		case types.VOTE_TX:
 
@@ -383,9 +380,9 @@ walk:
 			if state.GetBalance(sender).Cmp(stakingAmount) <= 0 {
 				continue walk
 			}
-			vote.Address = *tx.To()
-			votes[sender] = vote
-			log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// vote.Address = *tx.To()
+			// votes[sender] = vote
+			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.VOTE_POH_TX:
@@ -401,9 +398,9 @@ walk:
 			if state.GetBalance(sender).Cmp(stakingAmount) <= 0 {
 				continue walk
 			}
-			vote.Address = *tx.To()
+			// vote.To = *tx.To()
 			votes[sender] = vote
-			log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.CONTRACT_TX:

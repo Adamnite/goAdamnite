@@ -161,7 +161,8 @@ func (srv *Server) initializeLocalNode() error {
 
 	if tcp, ok := listener.Addr().(*net.TCPAddr); ok {
 		srv.localnode.SetTCP(uint16(tcp.Port))
-		srv.log.Info("TCP listener", "addr", tcp)
+		fmt.Println("TCP listener", "addr", tcp)
+		// srv.log.Info("TCP listener", "addr", tcp)
 
 		if !tcp.IP.IsLoopback() && srv.NAT != nil {
 			srv.loopWG.Add(1)
@@ -197,7 +198,7 @@ func (srv *Server) initializeLocalNode() error {
 	}
 
 	udpAddr := udpListener.LocalAddr().(*net.UDPAddr)
-	srv.log.Info("UDP listener", "addr", udpAddr)
+	// srv.log.Info("UDP listener", "addr", udpAddr)
 
 	if srv.NAT != nil && !udpAddr.IP.IsLoopback() {
 		srv.loopWG.Add(1)
@@ -222,6 +223,7 @@ func (srv *Server) initializeDialScheduler() {
 		PeerBlackList: srv.PeerBlackList,
 		PeerWhiteList: srv.PeerWhiteList,
 	}
+
 	srv.dialScheduler = dial.New(cfg, nil, srv.AddConnection)
 	srv.dialScheduler.Start()
 }
@@ -343,7 +345,7 @@ func (srv *Server) listenThread() {
 		}
 	}()
 
-	srv.log.Info("TCP listener started", "addr", srv.listener.Addr(), "inboundSlots", pendingConnections)
+	// srv.log.Info("TCP listener started", "addr", srv.listener.Addr(), "inboundSlots", pendingConnections)
 
 	for {
 		<-pendingInboundConnSlots

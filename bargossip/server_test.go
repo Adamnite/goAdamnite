@@ -2,6 +2,7 @@ package bargossip
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/bargossip/nat"
@@ -31,13 +32,16 @@ func startTestServer(t *testing.T) *Server {
 
 	server := &Server{
 		Config: config,
+		log:    log15.Root(),
 	}
 	if err := server.Start(); err != nil {
 		t.Fatalf("could not start server: %v", err)
 	}
+	fmt.Println("server started")
 	return server
 }
 
 func TestServer(t *testing.T) {
 	startTestServer(t)
+
 }

@@ -1,215 +1,256 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"net"
 	"net/rpc"
 	"strings"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/utils"
+	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
-type Adamnite struct {
-	stateDB   *statedb.StateDB
-	chain     *core.Blockchain
-	addresses []string
-	listener  net.Listener
-	Run       func()
+type AdamniteServer struct {
+	chain           *blockchain.Blockchain
+	hostingNodeID   common.Address
+	seenConnections map[common.Hash]common.Void
+	Version         string
+
+	GetContactsFunction       func() PassedContacts
+	listener                  net.Listener
+	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
+	timesTestHasBeenCalled    int
+	newConnection             func(string, common.Address)
+	forwardingMessageReceived func(ForwardingContent, *[]byte) error
+	newTransactionReceived    func(*utils.Transaction, *[]byte) error
+	newCandidateHandler       func(utils.Candidate) error
+	newVoteHandler            func(utils.Voter) error
+	newMessageHandler         func(*utils.CaesarMessage)
+	Run                       func()
+	DebugOutput               bool
 }
 
-func (a *Adamnite) Addr() string {
+func (a *AdamniteServer) Addr() string {
 	return a.listener.Addr().String()
 }
+func (a *AdamniteServer) SetHandlers(
+	newForward func(ForwardingContent, *[]byte) error,
+	newConn func(string, common.Address),
+	newTransaction func(*utils.Transaction, *[]byte) error) {
+	a.forwardingMessageReceived = newForward
+	a.newConnection = newConn
+	a.newTransactionReceived = newTransaction
+}
+func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
+	a.forwardingMessageReceived = newForward
+}
+func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
+	a.newConnection = newConn
+}
 
-func (a *Adamnite) Close() {
+// set a response point if we get asked to handle a transaction
+func (a *AdamniteServer) SetTransactionHandler(handler func(*utils.Transaction, *[]byte) error) {
+	a.newTransactionReceived = handler
+}
+
+func (a *AdamniteServer) SetHostingID(id *common.Address) {
+	if id == nil {
+		a.hostingNodeID = common.Address{0}
+		return
+	}
+	a.hostingNodeID = *id
+}
+func (a *AdamniteServer) Close() {
+	//TODO: clear all mappings!
+	for h := range a.seenConnections {
+		delete(a.seenConnections, h)
+	}
 	_ = a.listener.Close()
 }
 
-const getChainIDEndpoint = "Adamnite.GetChainID"
+const serverPreface = "[Adamnite RPC server] %v \n"
 
-func (a *Adamnite) GetChainID(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get chain ID")
-	if a.chain == nil || a.chain.Config() == nil {
-		return errors.New("chain is not set")
+func (a *AdamniteServer) print(methodName string) {
+	if a.DebugOutput {
+		log.Printf(serverPreface, methodName)
 	}
-
-	data, err := Encode(a.chain.Config().ChainID.String())
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+}
+func (a *AdamniteServer) printError(methodName string, err error) {
+	log.Printf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+}
+func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
+	if _, exists := a.seenConnections[fc.Hash()]; exists {
+		return true //we've already seen it
 	}
-
-	*reply = data
-	return nil
+	a.seenConnections[fc.Hash()] = common.Void{} //this doesn't actually use any memory
+	return false
 }
 
-const getBalanceEndpoint = "Adamnite.GetBalance"
+const TestServerEndpoint = "AdamniteServer.TestServer"
 
-func (a *Adamnite) GetBalance(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get balance")
-	input := struct {
-		Address string
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	data, err := Encode(a.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
+func (a *AdamniteServer) TestServer(params *[]byte, reply *[]byte) error {
+	a.print("Test Server")
+	a.timesTestHasBeenCalled++
 	return nil
 }
-
-const getAccountsEndpoint = "Adamnite.GetAccounts"
-
-func (a *Adamnite) GetAccounts(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get accounts")
-
-	data, err := Encode(a.addresses)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
+func (a *AdamniteServer) GetTestsCount() int {
+	return a.timesTestHasBeenCalled
 }
 
-const getBlockByHashEndpoint = "Adamnite.GetBlockByHash"
+const forwardMessageEndpoint = "AdamniteServer.ForwardMessage"
 
-func (a *Adamnite) GetBlockByHash(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by hash")
-
-	input := struct {
-		BlockHash common.Hash
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+func (a *AdamniteServer) ForwardMessage(params *[]byte, reply *[]byte) error {
+	a.print("Forward Message")
+	if a.forwardingMessageReceived == nil {
+		return ErrNotSetupToHandleForwarding
 	}
 
-	data, err := Encode(*a.chain.GetBlockByHash(input.BlockHash))
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+	var content ForwardingContent
+	if err := encoding.Unmarshal(*params, &content); err != nil {
 		return err
 	}
-
-	*reply = data
-	return nil
-
-}
-
-const getBlockByNumberEndpoint = "Adamnite.GetBlockByNumber"
-
-func (a *Adamnite) GetBlockByNumber(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Get block by number")
-
-	input := struct {
-		BlockNumber big.Int
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+	if a.AlreadySeen(content) {
+		return ErrAlreadyForwarded
 	}
-
-	data, err := Encode(*a.chain.GetBlockByNumber(&input.BlockNumber))
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
-}
-
-const createAccountEndpoint = "Adamnite.CreateAccount"
-
-func (a *Adamnite) CreateAccount(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Create account")
-
-	input := struct {
-		Address string
-	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	for _, address := range a.addresses {
-		if address == input.Address {
-			log.Println("[Adamnite RPC server] Specified account already exists on chain")
-			return errors.New("specified account already exists on chain")
+	if content.DestinationNode != nil { //targeted
+		if *content.DestinationNode == a.hostingNodeID {
+			//its been relayed directly to us
+			log.Println("being called directly on us")
+			return a.callOnSelf(content)
+		}
+		if *content.DestinationNode != a.hostingNodeID {
+			log.Println("being called directly on someone")
+			//it's not for us, but it is for someone!
+			return a.forwardingMessageReceived(content, reply)
 		}
 	}
-
-	a.stateDB.CreateAccount(common.HexToAddress(input.Address))
-	a.addresses = append(a.addresses, input.Address)
-
-	data, err := Encode(true)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
-	}
-
-	*reply = data
-	return nil
+	//for everyone, including us
+	return a.callOnSelfThenShare(content)
 }
 
-const sendTransactionEndpoint = "Adamnite.SendTransaction"
+// directly handle the message on ourselves.
+func (a *AdamniteServer) callOnSelf(content ForwardingContent) error {
+	log.Println("call on self")
+	switch content.FinalEndpoint {
+	case NewCandidateEndpoint:
+		return a.NewCandidate(&content.FinalParams, &[]byte{})
+	case SendTransactionEndpoint:
+		return a.SendTransaction(&content.FinalParams, &[]byte{})
+	case getContactsListEndpoint:
+		return a.GetContactList(&content.FinalParams, &content.FinalReply)
+	case TestServerEndpoint:
+		return a.TestServer(&content.FinalParams, &content.FinalReply)
+	case newMessageEndpoint:
+		return a.NewCaesarMessage(&content.FinalParams, &[]byte{})
+	}
+	return nil
+}
+func (a *AdamniteServer) callOnSelfThenShare(content ForwardingContent) error {
+	log.Println("call on self and share")
+	if err := a.callOnSelf(content); err != nil {
+		log.Printf(serverPreface, fmt.Sprintf("Error: %s", err))
+		if err != ErrBadForward {
+			//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
+			return nil
+		}
+		return err
+	}
+	return a.forwardingMessageReceived(content, &content.FinalReply)
+}
 
-func (a *Adamnite) SendTransaction(params *[]byte, reply *[]byte) error {
-	log.Println("[Adamnite RPC server] Send transaction")
+const getContactsListEndpoint = "AdamniteServer.GetContactList"
 
-	input := struct {
-		Hash string
-		Raw  string
+func (a *AdamniteServer) GetContactList(params *[]byte, reply *[]byte) (err error) {
+	a.print("Get Contact list")
+	contacts := a.GetContactsFunction()
+	*reply, err = encoding.Marshal(contacts)
+	return
+}
+
+const getVersionEndpoint = "AdamniteServer.GetVersion"
+
+func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
+	a.print("Get Version")
+	receivedData := struct {
+		Address           common.Address
+		HostingServerPort string
 	}{}
-
-	if err := Decode(*params, &input); err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
+	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
+		a.printError("Get Version", err)
 		return err
 	}
-
-	// TODO: send transaction to blockchain node
-
-	data, err := Encode(true)
-	if err != nil {
-		log.Printf("[Adamnite RPC server] Error: %s", err)
-		return err
+	if a.newConnection != nil && a.mostRecentReceivedIP != "" && receivedData.HostingServerPort != "" {
+		//format it correctly to use the right port
+		foo := strings.Split(a.mostRecentReceivedIP, ":")
+		a.newConnection(fmt.Sprintf("%v:%v", foo[0], receivedData.HostingServerPort), receivedData.Address)
 	}
-
-	*reply = data
+	// if a.chain == nil {//leave this commented out until RPC consistently has a chain passed to it
+	// 	return ErrChainNotSet
+	// }
+	ans := AdmVersionReply{}
+	// ans.Client_version = a.chain.Config().ChainID.String() //TODO: replace this with a better versioning system
+	ans.Timestamp = time.Now().UTC()
+	ans.Addr_received = receivedData.Address
+	ans.Addr_from = a.hostingNodeID
+	// ans.Last_round = a.chain.CurrentBlock().Number()
+	if data, err := encoding.Marshal(ans); err != nil {
+		a.printError("Get Version", err)
+		return err
+	} else {
+		*reply = data
+	}
 	return nil
 }
 
-func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port uint32) *Adamnite {
+const SendTransactionEndpoint = "AdamniteServer.SendTransaction"
+
+func (a *AdamniteServer) SendTransaction(params *[]byte, reply *[]byte) error {
+	a.print("Send transaction")
+	// if a.stateDB == nil {
+	// 	return ErrStateNotSet
+	// }
+	var input *utils.Transaction
+
+	if err := encoding.Unmarshal(*params, &input); err != nil {
+		a.printError("Send transaction", err)
+		return err
+	}
+	data, err := encoding.Marshal(true)
+	if err != nil {
+		a.printError("Send transaction", err)
+		return err
+	}
+	*reply = data
+
+	if a.newTransactionReceived != nil {
+		return a.newTransactionReceived(input, params)
+	} else {
+		//TODO: this node cant forward this transaction at all.
+	}
+
+	return nil
+
+}
+
+func NewAdamniteServer(port uint32) *AdamniteServer {
 	rpcServer := rpc.NewServer()
 
-	adamnite := new(Adamnite)
-	adamnite.stateDB = stateDB
-	adamnite.chain = chain
+	adamnite := new(AdamniteServer)
+	adamnite.timesTestHasBeenCalled = 0
+	adamnite.seenConnections = make(map[common.Hash]common.Void)
+	adamnite.DebugOutput = false
+	adamnite.Version = "0.1.2"
 
 	if err := rpcServer.Register(adamnite); err != nil {
 		log.Fatal(err)
 	}
 
 	listener, _ := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	log.Println("[Adamnite RPC server] Endpoint:", listener.Addr().String())
+	log.Printf(serverPreface, fmt.Sprint("Endpoint: ", listener.Addr().String()))
 
 	runFunc := func() {
 		for {
@@ -221,11 +262,12 @@ func NewAdamniteServer(stateDB *statedb.StateDB, chain *core.Blockchain, port ui
 
 			go func(conn net.Conn) {
 				defer func() {
-					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "Use of closed network connection") {
+					if err = conn.Close(); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 						log.Println(err)
 					}
 				}()
-				_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				adamnite.mostRecentReceivedIP = conn.RemoteAddr().String()
+				// _ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 				rpcServer.ServeConn(conn)
 			}(conn)
 		}
