@@ -39,6 +39,8 @@ func newRoundData(seed []byte) *round_data {
 	newRound := round_data{
 		lock:              sync.RWMutex{},
 		eligibleWitnesses: safe.NewSafeSlice(),
+		witnesses:         safe.NewSafeSlice(),
+		leadWitnessOrder:  safe.NewSafeSlice(),
 		witnessesMap:      syncmap.Map{},
 		removedWitnesses:  syncmap.Map{},
 		votes:             syncmap.Map{},
@@ -287,8 +289,11 @@ func (rd *round_data) IsActiveWitnessLead(witID *crypto.PublicKey) bool {
 		return false
 	}
 	// log.Printf("if this is above an error, the round is %v", rd)
-	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex.Get()).(*witness)
-	return bytes.Equal(currentLead.spendingPub, *witID)
+	currentLead := rd.leadWitnessOrder.Get(rd.currentLeadIndex.Get())
+	if currentLead == nil {
+		return false
+	}
+	return bytes.Equal(currentLead.(*witness).spendingPub, *witID)
 }
 
 // func (rd *round_data) WasWitnessLead(witID *crypto.PublicKey, blockNumber *big.Int) bool {

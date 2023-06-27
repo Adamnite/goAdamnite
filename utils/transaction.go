@@ -29,6 +29,7 @@ const (
 
 type TransactionType interface {
 	FromAddress() common.Address
+	GetToAddress() common.Address
 	GetType() TransactionActionType
 	Hash() common.Hash
 	VerifySignature() (bool, error)
@@ -70,6 +71,9 @@ func (t BaseTransaction) GetType() TransactionActionType {
 }
 func (t BaseTransaction) FromAddress() common.Address {
 	return t.From.GetAddress()
+}
+func (t BaseTransaction) GetToAddress() common.Address {
+	return t.To
 }
 func (t BaseTransaction) GetTime() time.Time {
 	return t.Time
