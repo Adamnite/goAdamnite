@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
@@ -285,7 +286,12 @@ func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 	}
 	messages := b.getMessages(common.HexToAddress(input.FromAddress), common.HexToAddress(input.ToAddress))
 
-	data, err := encoding.Marshal(messages)
+	var encryptedRawMessages []string
+	for _, m := range messages {
+		encryptedRawMessages = append(encryptedRawMessages, hex.EncodeToString(m.Message))
+	}
+
+	data, err := encoding.Marshal(encryptedRawMessages)
 	if err != nil {
 		b.printError("Get messages", err)
 		return err
