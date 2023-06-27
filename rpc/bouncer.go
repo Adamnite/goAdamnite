@@ -254,16 +254,16 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
-	if !msg.Verify() {
-		return utils.ErrIncorrectSigner
-	}
-	if forwardableMsg, err := CreateForwardToAll(msg); err != nil {
+	// if !msg.Verify() {
+	// 	return utils.ErrIncorrectSigner
+	// }
+	if _, err := CreateForwardToAll(msg); err != nil {
 		b.printError("New Message", err)
 		return err
 	} else {
 		data, _ := encoding.Marshal(true)
 		*reply = data
-		return b.propagator(forwardableMsg, params)
+		return nil
 	}
 }
 
