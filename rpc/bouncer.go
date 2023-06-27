@@ -115,14 +115,17 @@ const getBalanceEndpoint = "BouncerServer.GetBalance"
 
 func (b *BouncerServer) GetBalance(params *[]byte, reply *[]byte) error {
 	b.print("Get balance")
-	var input string
+
+	input := struct {
+		Address string
+	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
 		b.printError("Get balance", err)
 		return err
 	}
 
-	data, err := encoding.Marshal(b.stateDB.GetBalance(common.HexToAddress(input)).String())
+	data, err := encoding.Marshal(b.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
 	if err != nil {
 		b.printError("Get balance", err)
 		return err

@@ -31,18 +31,22 @@ func TestGetChainID(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
-	for i, ac := range testAccounts {
-		ansBytes := []byte{}
-		accountString := ac.Hex()
-		addressBytes, _ := encoding.Marshal(&accountString)
-		if err := bouncerClient.Call(getBalanceEndpoint, addressBytes, &ansBytes); err != nil {
+	for i, acc := range testAccounts {
+		account := struct {
+			Address string
+		}{ acc.Hex() }
+		accountData, _ := encoding.Marshal(&account)
+
+		output := []byte{}
+		if err := bouncerClient.Call(getBalanceEndpoint, accountData, &output); err != nil {
 			t.Fatal(err)
 		}
-		ansString := ""
-		if err := encoding.Unmarshal(ansBytes, &ansString); err != nil {
+
+		balanceString := ""
+		if err := encoding.Unmarshal(output, &balanceString); err != nil {
 			t.Fatal(err)
 		}
-		balance, ok := big.NewInt(0).SetString(ansString, 0)
+		balance, ok := big.NewInt(0).SetString(balanceString, 0)
 		assert.True(t, ok, "balance could not be recovered")
 		assert.Equal(t, testBalances[i], balance, "balances are not equal")
 	}
