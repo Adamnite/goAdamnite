@@ -360,11 +360,23 @@ func (a *AdamniteServer) NewBlock(params, reply *[]byte) error {
 		*reply = data
 		return err
 	}
-	var block utils.BlockType
-	if err := encoding.Unmarshal(*params, &block); err != nil {
+	var basicBlock *utils.Block
+	if err := encoding.Unmarshal(*params, &basicBlock); err != nil {
 		return err
 	}
-	return a.newBlockReceived(block)
+	switch basicBlock.GetHeader().TransactionType {
+	case utils.Transaction_Basic:
+		return a.newBlockReceived(basicBlock)
+	case utils.Transaction_VM_Call, utils.Transaction_VM_NewContract:
+		var vmBlock *utils.VMBlock
+		if err := encoding.Unmarshal(*params, &vmBlock); err != nil {
+			return err
+		} else {
+			return a.newBlockReceived(vmBlock)
+		}
+	}
+
+	return nil
 }
 
 const NewTransactionEndpoint = "AdamniteServer.NewTransaction"

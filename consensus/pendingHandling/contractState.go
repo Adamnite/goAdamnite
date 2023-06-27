@@ -295,7 +295,7 @@ func (csh *ContractStateHolder) RunAll(state *statedb.StateDB) (err error) {
 }
 
 // will keep waiting until it reaches an error, fills a block, or is told to stop
-func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCount int, reasonToQuit <-chan any) (transactions []utils.TransactionType, err error) {
+func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCount int, reasonToQuit <-chan any, workingBlock *utils.VMBlock) (transactions []utils.TransactionType, err error) {
 	reasonToStop := make(chan (struct{}))
 	successfulTransactions := safe.NewSafeSlice()
 	csh.successfullyRunCount.Set(0)
@@ -359,14 +359,46 @@ func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCo
 		}
 	}()
 	<-reasonToStop
+	successes := successfulTransactions.Copy() //trying to prevent a race. Doesn't fully prevent one
 	csh.lock.Lock()
 	defer csh.lock.Unlock()
+
 	//we only lock here so that any transactions added later on can still be added.
-	transactions = make([]utils.TransactionType, successfulTransactions.Len())
-	successfulTransactions.ForEach(func(i int, a any) bool {
+	maxTransactions := transactionCount
+	if successes.Len() < transactionCount {
+		maxTransactions = successes.Len()
+	}
+	if workingBlock != nil {
+		workingBlock.BalanceChanges[common.Address{}] = big.NewInt(0)
+		//the gas fees address will always be used. So might as well make it once
+	}
+	transactions = make([]utils.TransactionType, successes.Len())
+	successes.ForEach(func(i int, a any) bool {
 		//reformat everything from any, to something
-		transactions[i] = a.(utils.TransactionType)
-		return true
+		t := a.(utils.TransactionType)
+
+		transactions[i] = t
+		if workingBlock != nil {
+			var gasUsed *big.Int
+			if t.GetType() == utils.Transaction_VM_Call {
+				gasUsed = big.NewInt(int64(a.(*utils.VMCallTransaction).VMInteractions.GasUsed))
+			} else { //TODO: add contract creation transaction support here!
+				gasUsed = big.NewInt(0)
+			}
+			//a big.Int that i dont care about the value of (for adding without changing)
+			if oldBalance, exists := workingBlock.BalanceChanges[t.FromAddress()]; exists {
+				workingBlock.BalanceChanges[t.FromAddress()] = big.NewInt(0).Sub(oldBalance, big.NewInt(0).Sub(t.GetAmount(), gasUsed))
+			} else {
+				workingBlock.BalanceChanges[t.FromAddress()] = big.NewInt(0).Sub(t.GetAmount(), gasUsed)
+			}
+			if oldBalance, exists := workingBlock.BalanceChanges[t.GetToAddress()]; exists {
+				workingBlock.BalanceChanges[t.GetToAddress()] = big.NewInt(0).Add(oldBalance, t.GetAmount())
+			} else {
+				workingBlock.BalanceChanges[t.GetToAddress()] = big.NewInt(0).Add(big.NewInt(0), t.GetAmount())
+			}
+			workingBlock.BalanceChanges[common.Address{}] = big.NewInt(0).Add(workingBlock.BalanceChanges[common.Address{}], gasUsed)
+		}
+		return i < maxTransactions
 	})
 	return transactions, err
 }

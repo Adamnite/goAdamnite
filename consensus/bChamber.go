@@ -140,14 +140,6 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 			}
 		}
 	}()
-	//now we need to run all of those transactions. While leaving the state handler open for more applications
-	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil)
-	if err != nil {
-		return err
-	}
-	//TODO: here we should actually use the transactions
-	log.Println(transactions)
-	log.Println("transactions were returned!")
 	vmb := utils.NewWorkingVMBlock(
 		bNode.chain.CurrentHeader().Hash(),
 		bNode.spendingAccount.PublicKey,
@@ -156,8 +148,17 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 		common.Hash{},
 		big.NewInt(0), //TODO: last block, +1
 		0,             //TODO: check if this would be the end of a round. If so, change it.
-		transactions,
+		[]utils.TransactionType{},
 	)
+	//now we need to run all of those transactions. While leaving the state handler open for more applications
+	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil, vmb) //TODO: add the new round channel
+	if err != nil {
+		return err
+	}
+	//TODO: here we should actually use the transactions
+	log.Println(transactions)
+	log.Println("transactions were returned!")
+
 	err = vmb.Sign(*bNode.spendingAccount)
 	if err != nil {
 		log.Println("error with the signing: ", err)

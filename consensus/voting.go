@@ -123,7 +123,9 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		if len(con.poolsA.newRoundStartedCaller) != 0 {
 			con.poolsA.newRoundStartedCaller = []func(){con.continuosHandler}
 		}
-		//TODO: check that poolsB, if it's running, we need to prevent further applications to it as well.
+		if len(con.poolsB.newRoundStartedCaller) != 0 {
+			con.poolsB.newRoundStartedCaller = []func(){func() { go con.StartVMContinuosHandling() }}
+		}
 		return nil
 	}
 	addLocalCandidate := func(pool *Witness_pool, candidate *safe.SafeItem) {

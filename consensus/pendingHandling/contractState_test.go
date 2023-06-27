@@ -113,7 +113,7 @@ func verifySingleContractBlockCallPerAccount(t *testing.T, numberOfAccounts int,
 		}
 	}
 
-	finalTs, err := csh.RunOnUntil(state, blockSize, timeBasedQuitter)
+	finalTs, err := csh.RunOnUntil(state, blockSize, timeBasedQuitter, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

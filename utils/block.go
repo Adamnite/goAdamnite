@@ -155,9 +155,11 @@ type VMBlock struct {
 func NewWorkingVMBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, round uint64, transactions []TransactionType) *VMBlock {
 	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, 1, number, round)
 	vmb := VMBlock{
-		Header:       bh,
-		Transactions: transactions,
-		lock:         sync.Mutex{},
+		Header:         bh,
+		Transactions:   transactions,
+		BalanceChanges: make(map[common.Address]*big.Int),
+		HashChanges:    make(map[common.Address][2]common.Hash),
+		lock:           sync.Mutex{},
 	}
 	return &vmb
 }

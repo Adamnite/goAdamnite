@@ -14,7 +14,7 @@ func TestBlocks(t *testing.T) {
 	wit, _ := accounts.GenerateAccount()
 	block := NewBlock(common.Hash{}, wit.PublicKey, common.Hash{}, common.Hash{}, common.Hash{}, big.NewInt(1), []*BaseTransaction{})
 	hashA := block.Hash()
-	if err := block.Sign(wit); err != nil {
+	if err := block.Sign(*wit); err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(
