@@ -195,3 +195,7 @@ func (n *ConsensusNode) ValidateHeader(header *utils.BlockHeader) (bool, error) 
 
 	return true, nil
 }
+
+func (con *ConsensusNode) ConnectTo(endpoint string) error {
+	return con.netLogic.ConnectToSeed(endpoint)
+}
