@@ -20,8 +20,8 @@ import (
 //bouncer acts as the endpoint handler for points primarily called by external clients (eg, those who weren't there when the data was passed, or need select data)
 
 type MessageKey struct {
-	FromAddress string
-	ToAddress   string
+	FromPublicKey string
+	ToPublicKey   string
 }
 
 type BouncerServer struct {
@@ -266,8 +266,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	// TODO: Verify the message
 
 	k := &MessageKey{
-		msg.From.Address.Hex(),
-		msg.To.Address.Hex(),
+		input.FromPublicKey,
+		input.ToPublicKey,
 	}
 	b.messages[k] = append(b.messages[k], msg)
 
