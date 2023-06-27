@@ -77,7 +77,7 @@ func NewWitnessPool(roundNumber int, consensusType networking.NetworkTopLayerTyp
 		lock:                  sync.RWMutex{},
 	}
 	wp.newRound(roundNumber, seed)
-	wp.newRound(roundNumber+1, seed)
+	wp.newRound(roundNumber+1, crypto.Sha512(seed))
 	// if err := wp.newRound(roundNumber, seed); err != nil {
 	// 	return nil, err
 	// }
@@ -189,17 +189,24 @@ func (wp *Witness_pool) ActiveWitnessReviewed(witID *crypto.PublicKey, successfu
 
 // gets the round. If the round isn't already stored, we make one :)
 func (wp *Witness_pool) getRound(roundID int) *round_data {
-	wp.lock.Lock()
-	defer wp.lock.Unlock()
 	if roundID < 0 {
 		return nil
 	}
+	lastRound := wp.getRound(roundID - 1)
+	wp.lock.Lock()
+	defer wp.lock.Unlock()
+
 	rd, exists := wp.rounds.Load(roundID)
 	if exists {
 		return rd.(*round_data)
 	}
 	//the round isn't stored locally, but i believe it's easiest to just create it then and store it
-	newRD := newRoundData([]byte{}) //we cant know the seed, as such, the seed should be instead updated each round
+	var newRD *round_data
+	if lastRound == nil {
+		newRD = newRoundData([]byte{}) //we cant know the seed, as such, the seed should be instead updated each round
+	} else {
+		newRD = newRoundData(lastRound.getNextRoundSeed())
+	}
 	newRD.openToApply = roundID > wp.currentWorkingRoundID.Get()
 	//just make sure that loading old rounds cant receive more votes or anything
 	wp.rounds.Store(roundID, newRD)
@@ -249,10 +256,6 @@ func (wp *Witness_pool) nextRound() {
 	var nextSeed []byte
 	if wp.currentWorkingRoundID.Get() == 0 {
 		nextSeed = []byte{} //seeds from the initial round is 0
-		wp.UpdateApplyingRound(func(rd *round_data) error {
-			rd.openToApply = false
-			return nil
-		})
 	} else {
 		_, nextSeed = wp.SelectCurrentWitnesses()
 	}
@@ -267,6 +270,7 @@ func (wp *Witness_pool) nextRound() {
 		rd.SetStartTime(time.Now().UTC().Truncate(maxTimePrecision.Duration()))
 		return nil
 	})
+	wp.GetApplyingRound().SetSeed(nextSeed)
 
 	for _, nextRoundFunc := range wp.newRoundStartedCaller {
 		nextRoundFunc()

@@ -59,13 +59,14 @@ func newRoundData(seed []byte) *round_data {
 func (rd *round_data) getNextRoundSeed() []byte {
 	rd.lock.RLock()
 	defer rd.lock.RUnlock()
-	wit := rd.witnesses.Get(0).(*witness)
-	val, exists := rd.vrfValues.Load(wit.spendingPubString())
-	if !exists {
-		return []byte{}
-	}
+	// wit := rd.witnesses.Get(0).(*witness)
+	// val, exists := rd.vrfValues.Load(wit.spendingPubString())
+	// if !exists {
+	// 	return []byte{}
+	// }
 
-	return crypto.Sha512(val.([]byte))
+	// return crypto.Sha512(val.([]byte))
+	return crypto.Sha512(rd.seed)
 }
 func (rd *round_data) SetSeed(seed []byte) {
 	rd.lock.Lock()

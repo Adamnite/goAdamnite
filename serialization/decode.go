@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"reflect"
 	"strings"
-	"sync"
 )
 
 //lint:ignore ST1012 EOL is not an error.
@@ -34,10 +33,6 @@ var (
 	errUintOverflow  = errors.New("serialization: uint overflow")
 	errNoPointer     = errors.New("serialization: interface given to Decode must be a pointer")
 	errDecodeIntoNil = errors.New("serialization: pointer given to Decode must not be nil")
-
-	streamPool = sync.Pool{
-		New: func() interface{} { return new(Stream) },
-	}
 )
 
 // Decoder is implemented by types that require custom serialization decoding rules or need to decode
