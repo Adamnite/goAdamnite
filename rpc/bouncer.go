@@ -19,6 +19,11 @@ import (
 
 //bouncer acts as the endpoint handler for points primarily called by external clients (eg, those who weren't there when the data was passed, or need select data)
 
+type MessageKey struct {
+	FromAddress string
+	ToAddress   string
+}
+
 type BouncerServer struct {
 	stateDB     *statedb.StateDB
 	chain       *blockchain.Blockchain
@@ -29,6 +34,8 @@ type BouncerServer struct {
 
 	propagator  func(ForwardingContent, *[]byte) error
 	getMessages func(common.Address, common.Address) []*utils.CaesarMessage
+
+	messages map[*MessageKey][]*utils.CaesarMessage
 }
 
 const bouncerPreface = "[Adamnite Bouncer RPC server] %v \n"
@@ -57,6 +64,7 @@ func NewBouncerServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, po
 	bouncer.chain = chain
 	bouncer.DebugOutput = false
 	bouncer.Version = "0.1.2"
+	bouncer.messages = make(map[*MessageKey][]*utils.CaesarMessage)
 	bouncer.propagator = func(ForwardingContent, *[]byte) error {
 		return fmt.Errorf("this is an incomplete bouncer server, and cannot forward")
 	}
@@ -254,17 +262,18 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
-	// if !msg.Verify() {
-	// 	return utils.ErrIncorrectSigner
-	// }
-	if _, err := CreateForwardToAll(msg); err != nil {
-		b.printError("New Message", err)
-		return err
-	} else {
-		data, _ := encoding.Marshal(true)
-		*reply = data
-		return nil
+
+	// TODO: Verify the message
+
+	k := &MessageKey{
+		msg.From.Address.Hex(),
+		msg.To.Address.Hex(),
 	}
+	b.messages[k] = append(b.messages[k], msg)
+
+	data, _ := encoding.Marshal(true)
+	*reply = data
+	return nil
 }
 
 const bouncerGetMessages = "BouncerServer.GetMessages"
@@ -272,29 +281,21 @@ const bouncerGetMessages = "BouncerServer.GetMessages"
 func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 	b.print("Get messages")
 
-	if b.getMessages == nil {
-		err := fmt.Errorf("invalid setup to retrieve messages")
+	input := &MessageKey{}
+
+	if err := encoding.Unmarshal(*params, input); err != nil {
 		b.printError("Get messages", err)
 		return err
 	}
 
-	input := struct {
-		FromAddress string
-		ToAddress   string
-	}{}
-
-	if err := encoding.Unmarshal(*params, &input); err != nil {
-		b.printError("Get messages", err)
-		return err
-	}
-	messages := b.getMessages(common.HexToAddress(input.FromAddress), common.HexToAddress(input.ToAddress))
-
-	var encryptedRawMessages []string
-	for _, m := range messages {
-		encryptedRawMessages = append(encryptedRawMessages, hex.EncodeToString(m.Message))
+	var encryptedMessages []string
+	if v, found := b.messages[input]; found {
+		for _, i := range v {
+			encryptedMessages = append(encryptedMessages, hex.EncodeToString(i.Message))
+		}
 	}
 
-	data, err := encoding.Marshal(encryptedRawMessages)
+	data, err := encoding.Marshal(encryptedMessages)
 	if err != nil {
 		b.printError("Get messages", err)
 		return err
