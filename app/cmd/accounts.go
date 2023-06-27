@@ -202,7 +202,7 @@ func (ah *AccountHandler) AddAccountCLI(c *ishell.Context) {
 			c.Println(err)
 			return
 		}
-		if err := ah.AddAccount(ac); err != nil {
+		if err := ah.AddAccount(*ac); err != nil {
 			c.Println(err)
 			return
 		}
@@ -305,7 +305,7 @@ func (ah *AccountHandler) AddKnownAccountByB58(pk string) (*accounts.Account, er
 		return nil, err
 	}
 	ac := accounts.AccountFromPubBytes(pkb)
-	return &ac, ah.AddKnownAccount(ac)
+	return ac, ah.AddKnownAccount(*ac)
 }
 
 func (ah *AccountHandler) AddKnownAccount(ac accounts.Account) error {
