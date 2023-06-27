@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -50,8 +51,10 @@ func CreateForwardToAll(finalMessage interface{}) (ForwardingContent, error) {
 		forwardAns.FinalEndpoint = NewVoteEndpoint
 	case utils.TransactionType, *utils.TransactionType:
 		forwardAns.FinalEndpoint = NewTransactionEndpoint
-	case utils.BlockType, *utils.BlockType:
+	case utils.BlockType, *utils.Block, *utils.VMBlock:
 		forwardAns.FinalEndpoint = NewBlockEndpoint
+	default:
+		return ForwardingContent{}, fmt.Errorf("endpoint for forwarding message could not be determined")
 	}
 	return forwardAns, nil
 }

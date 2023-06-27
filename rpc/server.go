@@ -159,10 +159,10 @@ func (a *AdamniteServer) callOnSelfThenShare(content ForwardingContent) error {
 	a.print("call on self and share")
 	if err := a.callOnSelf(content); err != nil {
 		a.printError("call on self and share", err)
-		if err != ErrBadForward {
-			//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
-			return nil
-		}
+		// if err != ErrBadForward {
+		// 	//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
+		// 	return nil
+		// }
 		return err
 	}
 	return a.forwardingMessageReceived(content, &content.FinalReply)

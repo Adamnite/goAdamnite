@@ -318,13 +318,16 @@ func (wp *Witness_pool) AddCandidate(can *utils.Candidate) error {
 		//this is most likely just an old candidate, or someone trying to pitch for far out
 		log.Printf("unable to apply for that round, the candidate is proposing for round %v, and the current working roundID is %v", can.Round, wp.currentWorkingRoundID.Get())
 		return fmt.Errorf("candidates application for this round does not make sense") //TODO: change to real error
-	} else {
-		//we also verify their VRF
-		if !wit.vrfKey.Verify(canRound.GetSeed(), can.VRFValue, can.VRFProof) {
-			//they lied about their VRFValue
-			return fmt.Errorf("candidate's VRF is unverifiable") //TODO: change to real error
-		}
 	}
+	if !bytes.Equal(can.Seed, canRound.GetSeed()) {
+		return fmt.Errorf("candidates seed for this round does not match our expected seed")
+	}
+	//we also verify their VRF
+	if !wit.vrfKey.Verify(canRound.GetSeed(), can.VRFValue, can.VRFProof) {
+		//they lied about their VRFValue
+		return fmt.Errorf("candidate's VRF is unverifiable") //TODO: change to real error
+	}
+
 	wp.updateRound(int(can.Round), func(rd *round_data) error {
 		rd.addEligibleWitness(wit, can.VRFValue, can.VRFProof)
 		rd.addVote(&can.InitialVote)

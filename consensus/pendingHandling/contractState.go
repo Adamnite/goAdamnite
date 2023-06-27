@@ -398,7 +398,7 @@ func (csh *ContractStateHolder) RunOnUntil(state *statedb.StateDB, transactionCo
 			}
 			workingBlock.BalanceChanges[common.Address{}] = big.NewInt(0).Add(workingBlock.BalanceChanges[common.Address{}], gasUsed)
 		}
-		return i < maxTransactions
+		return i <= maxTransactions
 	})
 	return transactions, err
 }

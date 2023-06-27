@@ -175,13 +175,17 @@ func (con *ConsensusNode) ReviewBlock(block utils.BlockType) error {
 				log.Println("error with block validity")
 				log.Println(err)
 				//TODO: no, we want to throw this error!!!
-				return nil
+				return err
 			}
+		} else {
+			//assume valid
+			pendingHandling.RemoveAllFrom(block.(*utils.Block).Transactions, con.transactionQueue)
 		}
 	case int8(networking.SecondaryTransactions):
 		if con.CanReviewType(networking.SecondaryTransactions) {
 			con.VerifyVMBlock(block.(*utils.VMBlock), true)
 		} else {
+			pendingHandling.RemoveAllFrom(block.(*utils.VMBlock).Transactions, con.transactionQueue)
 			//TODO: record the transaction values, even if we aren't chamber b.
 			//save the transactions here.
 		}

@@ -97,7 +97,7 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 		StateMerkleRoot:       stateRoot,
 		Number:                number,
 	}
-	header.TransactionType = 0x02 //TODO: make this correct
+	header.TransactionType = Transaction_Basic //TODO: make this correct
 	block := &Block{
 		Header:       header,
 		Transactions: transactions,
@@ -153,7 +153,7 @@ type VMBlock struct {
 }
 
 func NewWorkingVMBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, round uint64, transactions []TransactionType) *VMBlock {
-	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, 1, number, round)
+	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, Transaction_VM_Call, number, round)
 	vmb := VMBlock{
 		Header:         bh,
 		Transactions:   transactions,
