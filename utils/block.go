@@ -4,10 +4,12 @@ package utils
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -194,4 +196,26 @@ func (vmb *VMBlock) VerifySignature() bool {
 }
 func (vmb *VMBlock) GetHeader() *BlockHeader {
 	return vmb.Header
+}
+
+// should be 0 on any valid blocks.
+func (vmb *VMBlock) GetTransferSum() *big.Int {
+	ans := big.NewInt(0)
+	for _, amount := range vmb.BalanceChanges {
+		ans = ans.Add(ans, amount)
+	}
+	return ans
+}
+func (vmb *VMBlock) ApplyTransfersTo(state *statedb.StateDB) error {
+	if vmb.GetTransferSum().Cmp(big.NewInt(0)) != 0 {
+		return fmt.Errorf("balances do not line up")
+	}
+	for address, total := range vmb.BalanceChanges {
+		if state.GetBalance(address).Cmp(big.NewInt(0).Mul(big.NewInt(-1), total)) == -1 {
+			//times -1 so this only maters net loss of funds.
+			return ErrNegativeAmount //TODO: replace with a better error
+		}
+		state.AddBalance(address, total)
+	}
+	return nil
 }

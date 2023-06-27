@@ -149,11 +149,6 @@ func (con *ConsensusNode) ReviewTransaction(transaction utils.TransactionType) e
 
 	con.transactionQueue.AddToQueue(transaction)
 	return nil
-	//TODO: delete the rest of my notes to self
-	//actual way
-	//witness's all receive the transactions, each witness has a turn in the witness order, and through that turn, takes the transaction
-	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a transaction go past.
-	//an error will prevent the transaction from being propagated past us
 }
 
 // called when a new block is received over the network. We review it, and only return an error if we aren't setup to handle it
@@ -185,9 +180,18 @@ func (con *ConsensusNode) ReviewBlock(block utils.BlockType) error {
 		if con.CanReviewType(networking.SecondaryTransactions) {
 			con.VerifyVMBlock(block.(*utils.VMBlock), true)
 		} else {
+			revertToPoint := con.state.Snapshot()
+			if err := block.(*utils.VMBlock).ApplyTransfersTo(con.state); err != nil {
+				//something in here went wrong.
+				log.Println("error handling VM transactions. ", err)
+				con.state.RevertToSnapshot(revertToPoint)
+				return rpc.ErrBadForward
+			} else {
+				if _, err := con.state.Commit(false); err != nil {
+					return err
+				}
+			}
 			pendingHandling.RemoveAllFrom(block.(*utils.VMBlock).Transactions, con.transactionQueue)
-			//TODO: record the transaction values, even if we aren't chamber b.
-			//save the transactions here.
 		}
 	}
 	return nil
