@@ -18,30 +18,30 @@ import (
 )
 
 type Account struct {
-	Address    common.Address
+	Address    common.Address //TODO: once GetAddress is the more commonly used item, we should make this private(lowercase)
 	PublicKey  []byte
 	privateKey []byte
 	Balance    *big.Int
 }
 
-func AccountFromPubBytes(pubKey []byte) Account {
+func AccountFromPubBytes(pubKey []byte) *Account {
 	//TODO: should add an error for if the pubKey is invalid
-	return Account{
+	return &Account{
 		Address:   crypto.PubkeyByteToAddress(pubKey),
 		PublicKey: pubKey,
 	}
 }
-func AccountFromStorage(storagePoint string) (Account, error) {
+func AccountFromStorage(storagePoint string) (*Account, error) {
 	priv, err := crypto.LoadECDSA(storagePoint)
 	if err != nil {
-		return Account{}, err
+		return nil, err
 	}
 	return AccountFromPrivEcdsa(priv), nil
 }
-func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
-	publicKey := privKey.PublicKey
 
-	return Account{
+func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) *Account {
+	publicKey := privKey.PublicKey
+	return &Account{
 		Address:    createAddress(publicKey.X.Bytes()),
 		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
 		privateKey: privKey.D.Bytes(),
@@ -64,18 +64,25 @@ func AccountFromPrivBytes(privKey []byte) (Account, error) {
 }
 
 func GenerateAccount() (*Account, error) {
-	publicKey, privateKey, err := generateKeys()
+	privateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	if err != nil {
 		log.Printf("Account generation error: %s", err)
 		return nil, err
 	}
+	if len(privateKey.D.Bytes()) != 32 {
+		//sometimes ecdsa generates private keys or length 32. This is the easiest way to solve that.
+		return GenerateAccount()
+	}
+	return AccountFromPrivEcdsa(privateKey), nil
+}
 
-	return &Account{
-		Address:    createAddress(publicKey),
-		PublicKey:  publicKey,
-		privateKey: privateKey,
-		Balance:    big.NewInt(0),
-	}, nil
+// USE THIS OVER CALLING THE ADDRESS DIRECTLY
+func (a *Account) GetAddress() common.Address {
+	//this way we only store the address as its needed. Since it can be calculated when needed, no need to send it over networks.
+	if a.Address == common.BytesToAddress([]byte{}) {
+		a.Address = createAddress(a.PublicKey)
+	}
+	return a.Address
 }
 
 // ONLY USE THIS IN CLI! THIS IS NOT NORMALLY MEANT TO BE USED!
@@ -93,7 +100,6 @@ func (a *Account) Store(storagePoint string) error {
 
 // sign data, and return a 65 byte array. Data can be most interface types
 func (a *Account) Sign(data interface{}) ([]byte, error) {
-
 	signature, err := secp256k1.Sign(toHashedBytes(data), a.privateKey)
 	if err != nil {
 		log.Printf("Signing error: %s", err)
@@ -165,20 +171,6 @@ func toHashedBytes(data interface{}) []byte {
 		dataBytes = sha256Hash(dataBytes)
 	}
 	return dataBytes
-}
-
-func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
-	privateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-	if err != nil {
-		log.Printf("Keys generation error: %s", err)
-		return rawPublicKey, rawPrivateKey, err
-	}
-
-	publicKey := privateKey.PublicKey
-
-	rawPrivateKey = privateKey.D.Bytes()
-	rawPublicKey = elliptic.Marshal(publicKey, publicKey.X, publicKey.Y)
-	return
 }
 
 func createAddress(publicKey []byte) common.Address {

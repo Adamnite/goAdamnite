@@ -96,10 +96,6 @@ func NewPeerTransport(conn net.Conn, remotePeerPubKey *ecdsa.PublicKey) peerTran
 func (t *peerTransportImpl) close(err error) {
 	t.rwmu.Lock()
 	defer t.rwmu.Unlock()
-
-	if t.conn != nil {
-
-	}
 	t.conn.Close()
 }
 

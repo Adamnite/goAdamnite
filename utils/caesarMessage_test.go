@@ -15,7 +15,7 @@ func TestMessaging(t *testing.T) {
 	//stripped receiver is the receiver account that everyone would see, and does not have a private key
 	strippedReceiver := accounts.AccountFromPubBytes(receiver.PublicKey)
 	testMessage := "Hello World!"
-	msg, err := NewCaesarMessage(strippedReceiver, *sender, testMessage)
+	msg, err := NewCaesarMessage(strippedReceiver, sender, testMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ func TestMessaging(t *testing.T) {
 	}
 	assert.NotEqual(t, testMessage, badMsg, "message was decrypted by stripped receiver (aka, anyone could)")
 
-	ansMsg, err := msg.GetMessageString(*receiver)
+	ansMsg, err := msg.GetMessageString(receiver)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestLongMessaging(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		testMessage = testMessage + testMessage
 	} //just change the test message to be *really* long
-	msg, err := NewCaesarMessage(strippedReceiver, *sender, testMessage)
+	msg, err := NewCaesarMessage(strippedReceiver, sender, testMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestLongMessaging(t *testing.T) {
 	}
 	assert.NotEqual(t, testMessage, badMsg, "message was decrypted by stripped receiver (aka, anyone could)")
 
-	ansMsg, err := msg.GetMessageString(*receiver)
+	ansMsg, err := msg.GetMessageString(receiver)
 	if err != nil {
 		t.Fatal(err)
 	}

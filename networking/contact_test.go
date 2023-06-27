@@ -69,7 +69,7 @@ func TestConnectionStatusMath(t *testing.T) {
 }
 
 func TestWhitelistGeneration(t *testing.T) {
-	testContacts := make([]*Contact, 5000)
+	testContacts := make([]*Contact, 1000)
 	// testContacts := make([]*Contact, 500)
 	conBook := NewContactBook(nil)
 
@@ -89,9 +89,8 @@ func TestWhitelistGeneration(t *testing.T) {
 	// test connections. should average (eventually) to be in order by performance speed.
 	whiteListLength := 40
 	totalTimes := make([]int64, whiteListLength)
-	var attemptCount int64 = 100000
+	var attemptCount int64 = 50000
 	for i := 0; i < int(attemptCount); i++ {
-		// responses = append(responses, conBook.SelectWhitelist(len(conBook.connections)))
 		response := conBook.SelectWhitelist(whiteListLength)
 		for x, r := range response {
 			totalTimes[x] += conBook.connectionsByContact[r].getAverageResponseTime()

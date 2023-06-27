@@ -2,7 +2,6 @@ package networking
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
@@ -80,7 +79,8 @@ func (n *NetNode) ConnectToSeed(connectionPoint string) error {
 
 // create an active connection to a known contact
 func (n *NetNode) ConnectToContact(contact *Contact) error {
-	if n.activeContactToClient[contact] != nil {
+	_, preExisting := n.activeContactToClient.Load(contact)
+	if preExisting {
 		return ErrPreexistingConnection
 	} else if n.activeOutboundCount >= n.MaxOutboundConnections {
 		return ErrOutboundCapacityReached
@@ -95,9 +95,9 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 	} else {
 		newClient.SetAddressAndHostingPort(
 			&n.thisContact.NodeID,
-			strings.Split(n.hostingServer.Addr(), ":")[1],
+			n.hostingServer.Addr(),
 		)
-		n.activeContactToClient[contact] = &newClient
+		n.activeContactToClient.Store(contact, &newClient)
 		n.activeOutboundCount++
 		working, err := n.testConnection(contact)
 		if !working {
@@ -107,15 +107,22 @@ func (n *NetNode) ConnectToContact(contact *Contact) error {
 		return err
 	}
 }
+func (n *NetNode) GetActiveConnection(contact *Contact) (*rpc.AdamniteClient, error) {
+	connection, existing := n.activeContactToClient.Load(contact)
+	if !existing {
+		if err := n.ConnectToContact(contact); err != nil {
+			return nil, err
+		}
+	}
+	return connection.(*rpc.AdamniteClient), nil
+}
 
 // return wether a connection is worth using.
 func (n *NetNode) testConnection(contact *Contact) (bool, error) {
-	if n.activeContactToClient[contact] == nil {
-		if err := n.ConnectToContact(contact); err != nil {
-			return false, err
-		}
+	connection, err := n.GetActiveConnection(contact)
+	if err != nil {
+		return false, err
 	}
-	connection := n.activeContactToClient[contact]
 	timeBeforeConnect := time.Now().UTC()
 	versionData, err := connection.GetVersion()
 	timeAfterResponse := time.Now().UTC()
@@ -141,22 +148,23 @@ func (n *NetNode) testConnection(contact *Contact) (bool, error) {
 }
 
 // drop all active outward connection
-func (n *NetNode) DropAllConnections() error {
-	for key := range n.activeContactToClient {
-		if err := n.DropConnection(key); err != nil {
-			return err
-		}
-	}
+func (n *NetNode) DropAllConnections() (err error) {
+	n.activeContactToClient.Range(func(key, value any) bool {
+		value.(*rpc.AdamniteClient).Close()
+		n.activeContactToClient.Delete(key)
+		n.activeOutboundCount--
+		return true
+	})
 	return nil
 }
 
 // drop the active connection you have to this contact
 func (n *NetNode) DropConnection(contact *Contact) error {
-	if n.activeContactToClient[contact] == nil {
+	connection, existing := n.activeContactToClient.LoadAndDelete(contact)
+	if !existing {
 		return fmt.Errorf("contact is not currently connected")
 	}
-	n.activeContactToClient[contact].Close()
-	delete(n.activeContactToClient, contact)
+	connection.(*rpc.AdamniteClient).Close()
 	n.activeOutboundCount--
 	return nil
 }
@@ -168,10 +176,10 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 	if autoCutoff >= 1 || autoCutoff < 0 {
 		autoCutoff = 0
 	}
-	for contact := range n.activeContactToClient {
-		startingConnections = append(startingConnections, contact)
-		n.DropConnection(contact)
-	}
+	n.activeContactToClient.Range(func(key, value any) bool {
+		startingConnections = append(startingConnections, key.(*Contact))
+		return true
+	})
 	talkedToContacts := make(map[*Contact]bool)
 	talkedToContacts[&n.thisContact] = true
 	//there are now no active connections.
@@ -185,7 +193,6 @@ func (n *NetNode) SprawlConnections(layers int, autoCutoff float32) error {
 				talkedToContacts[con.contact] = true
 			}
 		}
-		n.contactBook.DropSlowestPercentage(autoCutoff / (float32(layers) + 1)) //take half per layer, don't worry, the full removal happens at the end.
 	}
 	n.contactBook.DropSlowestPercentage(autoCutoff)
 	for _, contact := range startingConnections {

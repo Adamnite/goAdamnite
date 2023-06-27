@@ -8,12 +8,10 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
 )
@@ -33,9 +31,6 @@ type Blockchain struct {
 
 	db adamnitedb.Database
 
-	engine  dpos.DPOS
-	witness utils.Witness
-
 	// For demo version
 	blocks         []types.Block // memory cache
 	blocksByHash   map[common.Hash]*types.Block
@@ -51,11 +46,10 @@ type Blockchain struct {
 	chainlock       sync.RWMutex
 }
 
-func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engine dpos.DPOS) (*Blockchain, error) {
+func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig) (*Blockchain, error) {
 	bc := &Blockchain{
 		chainConfig:    chainConfig,
 		db:             db,
-		engine:         engine,
 		blocksByHash:   make(map[common.Hash]*types.Block),
 		blocksByNumber: make(map[*big.Int]*types.Block),
 	}
@@ -137,6 +131,10 @@ func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
 
 func (bc *Blockchain) CurrentBlock() *types.Block {
 	return &bc.blocks[len(bc.blocks)-1]
+}
+
+func (bc *Blockchain) BlocksCount() int {
+	return len(bc.blocks)
 }
 
 func (bc *Blockchain) WriteBlock(block *types.Block) error {

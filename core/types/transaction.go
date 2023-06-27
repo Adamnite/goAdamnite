@@ -31,7 +31,7 @@ const (
 // Transaction is an Adamnite transaction.
 type Transaction struct {
 	InnerData Transaction_Data
-	timestamp time.Time
+	Timestamp time.Time
 	//Cache Values, similar to GoETH
 	From atomic.Value
 	hash atomic.Value
@@ -145,7 +145,7 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 // setDecoded sets the inner transaction and size after decoding.
 func (tx *Transaction) setDecoded(inner Transaction_Data, size int) {
 	tx.InnerData = inner
-	tx.timestamp = time.Now()
+	tx.Timestamp = time.Now()
 	if size > 0 {
 		tx.size.Store(common.StorageSize(size))
 	}
@@ -168,7 +168,7 @@ func (tx *Transaction) WithSignature(signer Signer, signature []byte) (*Transact
 
 	cpy := tx.InnerData.copy()
 	cpy.setSignature(signer.ChainType(), v, r, s)
-	return &Transaction{InnerData: cpy, timestamp: tx.timestamp}, nil
+	return &Transaction{InnerData: cpy, Timestamp: tx.Timestamp}, nil
 }
 
 // Nonce returns the sender account nonce of the transaction.
@@ -235,7 +235,7 @@ func (s TxByPrice) Less(i, j int) bool {
 	// deterministic sorting
 	cmp := s[i].ATEPrice().Cmp(s[j].ATEPrice())
 	if cmp == 0 {
-		return s[i].timestamp.Before(s[j].timestamp)
+		return s[i].Timestamp.Before(s[j].Timestamp)
 	}
 	return cmp > 0
 }

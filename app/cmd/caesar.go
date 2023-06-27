@@ -42,7 +42,7 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 			time:   msg.InitialTime.Format(time.Kitchen),
 		})
 	} else {
-		text, _ := msg.GetMessageString(*ch.thisUser.account)
+		text, _ := msg.GetMessageString(ch.thisUser.account)
 		newMsg := chatText{
 			fromUs: false,
 			text:   text,
@@ -188,7 +188,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		}
 	}
 	//get all the logged messages we have
-	msgs := ch.server.GetMessagesBetween(*ch.thisUser.account, *target.account) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
+	msgs := ch.server.GetMessagesBetween(ch.thisUser.account, target.account) //TODO: fix this. Right now if you run this again in the same CLI instance, it will double the messages
 	for _, m := range msgs {
 		ch.addChatMsg(m)
 	}
@@ -202,7 +202,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 		for i := 1; i < len(c.Args); i++ {
 			text = text + c.Args[i]
 		}
-		ch.sendMessage(*target.account, text)
+		ch.sendMessage(target.account, text)
 		err = ch.updateChatScreen(c, target)
 		if err != nil {
 			log.Println(err)
@@ -222,7 +222,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 			}
 			return s[len(s)-1] == '\n'
 		})
-		ch.sendMessage(*target.account, text)
+		ch.sendMessage(target.account, text)
 		c.Println("\n\n\n")
 		err = ch.updateChatScreen(c, target)
 		c.Println("")
@@ -255,7 +255,7 @@ func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target *accountBein
 	}
 	return nil
 }
-func (ch *CaesarHandler) sendMessage(target accounts.Account, text string) {
+func (ch *CaesarHandler) sendMessage(target *accounts.Account, text string) {
 	//TODO: check the account is real, otherwise this will break
 	if err := ch.server.Send(target, text); err != nil {
 		log.Println(err)

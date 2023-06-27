@@ -12,7 +12,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
 	admRpc "github.com/adamnite/go-adamnite/rpc"
 	"github.com/rs/cors"
@@ -57,7 +56,6 @@ func main() {
 	blockchain, err := blockchain.NewBlockchain(
 		db,
 		chainConfig,
-		dpos.New(chainConfig, db),
 	)
 	if err != nil {
 		log.Println(err)
@@ -68,7 +66,7 @@ func main() {
 	defer func() {
 		adamniteServer.Close()
 	}()
-	go adamniteServer.Run()
+	adamniteServer.Start()
 
 	RPCServerAddr = new(string)
 	*RPCServerAddr = adamniteServer.Addr()

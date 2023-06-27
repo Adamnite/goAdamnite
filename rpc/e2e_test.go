@@ -12,7 +12,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,7 +47,6 @@ func setup() {
 	blockchain, err := blockchain.NewBlockchain(
 		testDB,
 		chainConfig,
-		dpos.New(chainConfig, testDB),
 	)
 
 	if err != nil {
@@ -62,7 +60,7 @@ func setup() {
 	defer func() {
 		adamniteServer.Close()
 	}()
-	go adamniteServer.Run()
+	adamniteServer.Start()
 
 	// setup Adamnite client
 	client, err = NewAdamniteClient(fmt.Sprintf("127.0.0.1:%d", port))

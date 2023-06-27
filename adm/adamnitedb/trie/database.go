@@ -872,7 +872,7 @@ func (db *Database) SaveCache(dir string) error {
 }
 
 // SaveCachePeriodically atomically saves fast cache data to the given dir with
-// the specified interval. All dump operation will only use a single CPU core.
+// the specified interval. All dump operation will only use a single CPU blockchain.
 func (db *Database) SaveCachePeriodically(dir string, interval time.Duration, stopCh <-chan struct{}) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

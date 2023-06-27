@@ -172,7 +172,7 @@ func (w *dposWorker) start() {
 	w.startCh <- struct{}{}
 }
 
-//Pending returns the Pending state and the corresponding block.
+// Pending returns the Pending state and the corresponding block.
 func (w *dposWorker) pending() (*types.Block, *statedb.StateDB) {
 	//return snapshot to avoid contention on current mutex
 	w.snapshotMu.RLock()
@@ -183,7 +183,7 @@ func (w *dposWorker) pending() (*types.Block, *statedb.StateDB) {
 	return w.snapshotBlock, w.snapshotState.Copy()
 }
 
-//PendingBlock returns PendingBlock.
+// PendingBlock returns PendingBlock.
 func (w *dposWorker) pendingBlock() *types.Block {
 	//return snapshot to avoid contention on current mutex
 	w.snapshotMu.RLock()
@@ -398,7 +398,6 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 
 	if now := time.Now().Unix(); tstamp > now+1 {
 		wait := time.Duration(tstamp-now) * time.Second
-		log15.Info("too far in the future", "wait", common.PrettyDuration(wait))
 		time.Sleep(wait)
 	}
 

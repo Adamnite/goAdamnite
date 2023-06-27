@@ -9,8 +9,8 @@ import (
 )
 
 type CaesarMessage struct {
-	To               accounts.Account //neither of these have the private key sent during serialization.
-	From             accounts.Account
+	To               *accounts.Account //neither of these have the private key sent during serialization.
+	From             *accounts.Account
 	InitialTime      time.Time
 	Message          []byte
 	Signature        []byte
@@ -18,7 +18,7 @@ type CaesarMessage struct {
 }
 
 // create a Caesar Message. "saying" can be of type byte or string
-func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interface{}) (*CaesarMessage, error) {
+func NewCaesarMessage(to *accounts.Account, from *accounts.Account, saying interface{}) (*CaesarMessage, error) {
 	ansMsg := CaesarMessage{
 		To:               to,
 		From:             from,
@@ -72,12 +72,12 @@ func (cm CaesarMessage) Verify() bool {
 }
 
 // get the message contents by decrypting it
-func (cm CaesarMessage) GetMessage(recipient accounts.Account) ([]byte, error) {
+func (cm CaesarMessage) GetMessage(recipient *accounts.Account) ([]byte, error) {
 	return recipient.Decrypt(cm.Message)
 }
 
 // get the message contents by decrypting it
-func (cm CaesarMessage) GetMessageString(recipient accounts.Account) (string, error) {
+func (cm CaesarMessage) GetMessageString(recipient *accounts.Account) (string, error) {
 	msg, err := cm.GetMessage(recipient)
 	return string(msg), err
 }
