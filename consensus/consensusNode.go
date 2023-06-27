@@ -157,18 +157,18 @@ func (con *ConsensusNode) ReviewTransaction(transaction utils.TransactionType) e
 }
 
 // called when a new block is received over the network. We review it, and only return an error if we aren't setup to handle it
-func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
+func (con *ConsensusNode) ReviewBlock(block utils.BlockType) error {
 	//this is the global consensus review. Even if we aren't a witness, this is called anytime we see a block go past.
 	//an error will prevent the transaction from being propagated past us
-	
+
 	//Filter list. If it's chamber B, and this is chamber A, we still need to log the transaction differences.
 	//if were running the same as this, review everything
-	switch int8(block.TransactionType){
+	switch int8(block.GetHeader().TransactionType) {
 	case int8(networking.PrimaryTransactions):
 		//this is primary transactions. So everyone will likely need to record this.
 		//TODO: also record this for our own records!
-		if con.CanReview(block.GetHeader().TransactionType){
-			valid, err := con.ValidateChamberABlock(block)
+		if con.CanReview(block.GetHeader().TransactionType) {
+			valid, err := con.ValidateChamberABlock(block.(*utils.Block))
 			if !valid {
 				//TODO: this can be a false error if it's just because the chain isn't set (but then we shouldn't be reviewing...)
 				// return err
@@ -179,9 +179,9 @@ func (con *ConsensusNode) ReviewBlock(block *utils.Block) error {
 			}
 		}
 	case int8(networking.SecondaryTransactions):
-		if con.CanReview(Networking.SecondaryTransactions){
-			con.VerifyVMBlock(block, true)
-		}else{
+		if con.CanReviewType(networking.SecondaryTransactions) {
+			con.VerifyVMBlock(block.(*utils.VMBlock), true)
+		} else {
 			//TODO: record the transaction values, even if we aren't chamber b.
 			//save the transactions here.
 		}

@@ -123,7 +123,7 @@ func (b *Block) Hash() common.Hash {
 	return common.BytesToHash(crypto.Sha512(bytes))
 }
 
-func (b *Block) Sign(signer *accounts.Account) error {
+func (b *Block) Sign(signer accounts.Account) error {
 	sig, err := signer.Sign(b)
 	b.Signature = sig
 	return err

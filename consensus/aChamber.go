@@ -149,7 +149,7 @@ func (aCon *ConsensusNode) actAsLead() {
 			)
 
 			workingBlock.Header.Round = uint64(aCon.poolsA.currentWorkingRoundID.Get())
-			if err := workingBlock.Sign(aCon.spendingAccount); err != nil {
+			if err := workingBlock.Sign(*aCon.spendingAccount); err != nil {
 				log.Printf("error signing block %v", err)
 			}
 			// workingBlock

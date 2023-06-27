@@ -118,7 +118,7 @@ func TestVMTransactions(t *testing.T) {
 			//the transactions seen logger
 			transactionsSeen.Append(pt)
 			return nil
-		}, func(b *utils.Block) error {
+		}, func(b utils.BlockType) error {
 			blocksSeen.Append(b)
 			//the blocks seen logger
 			return nil
@@ -238,7 +238,7 @@ func TestVMTransactions(t *testing.T) {
 	blockHashesSeen := [][]byte{}
 	blocksSeen.ForEach(func(_ int, b any) bool {
 		assert.Equal(
-			t, maxTransactionsPerBlock, len(b.(*utils.Block).Transactions),
+			t, maxTransactionsPerBlock, len(b.(*utils.VMBlock).Transactions),
 			"god why. Wrong number of transactions per block",
 		)
 		blockTransactions = append(blockTransactions, b.(*utils.Block).Transactions...)
