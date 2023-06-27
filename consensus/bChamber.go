@@ -3,8 +3,10 @@ package consensus
 import (
 	"fmt"
 	"log"
+	"math/big"
 
 	"github.com/adamnite/go-adamnite/VM"
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
@@ -138,14 +140,36 @@ func (bNode *ConsensusNode) StartVMContinuosHandling() error {
 			}
 		}
 	}()
+	vmb := utils.NewWorkingVMBlock(
+		bNode.chain.CurrentHeader().Hash(),
+		bNode.spendingAccount.PublicKey,
+		common.Hash{},
+		common.Hash{},
+		common.Hash{},
+		big.NewInt(0), //TODO: last block, +1
+		0,             //TODO: check if this would be the end of a round. If so, change it.
+		[]utils.TransactionType{},
+	)
 	//now we need to run all of those transactions. While leaving the state handler open for more applications
-	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil)
+	transactions, err := conState.RunOnUntil(bNode.state, maxTransactionsPerBlock, nil, vmb) //TODO: add the new round channel
 	if err != nil {
 		return err
-	} else {
-		//TODO: here we should actually use the transactions
-		log.Println(transactions)
-		log.Println("transactions were returned!")
 	}
+	//TODO: here we should actually use the transactions
+	log.Println(transactions)
+	log.Println("transactions were returned!")
+
+	err = vmb.Sign(*bNode.spendingAccount)
+	if err != nil {
+		log.Println("error with the signing: ", err)
+	}
+	if err := bNode.netLogic.Propagate(vmb); err != nil {
+		log.Println(err)
+	}
+	bNode.poolsB.ActiveWitnessReviewed(
+		&vmb.Header.Witness, //us, but with different steps
+		true,
+		vmb.Header.Number.Uint64(),
+	)
 	return nil
 }

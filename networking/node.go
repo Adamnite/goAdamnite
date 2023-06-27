@@ -45,7 +45,7 @@ type NetNode struct {
 	consensusCandidateHandler   func(utils.Candidate) error
 	consensusVoteHandler        func(utils.Voter) error
 	consensusTransactionHandler func(utils.TransactionType) error
-	consensusBlockHandler       func(*utils.Block) error
+	consensusBlockHandler       func(utils.BlockType) error
 }
 
 // TODO: we should add a port option so that people can allow forwarding on that port
@@ -102,7 +102,7 @@ func (n *NetNode) AddBouncerServer(
 func (n *NetNode) AddFullServer( //TODO: replace these methods with a consensus handling interface
 	state *statedb.StateDB, chain *blockchain.Blockchain,
 	transactionHandler func(utils.TransactionType) error,
-	blockHandler func(*utils.Block) error,
+	blockHandler func(utils.BlockType) error,
 	candidateHandler func(utils.Candidate) error,
 	voteHandler func(utils.Voter) error) error {
 	if n.hostingServer != nil {
@@ -174,7 +174,7 @@ func (n *NetNode) Close() {
 func (n *NetNode) SetMaxGreyList(maxLength uint) {
 	n.contactBook.maxGreyList = maxLength
 }
-func (n *NetNode) handleBlock(block *utils.Block) error {
+func (n *NetNode) handleBlock(block utils.BlockType) error {
 	//TODO: if you wanted to log all blocks, even invalid ones, you would do so here
 	if n.consensusBlockHandler == nil {
 		return nil

@@ -52,7 +52,7 @@ func TestVerifyBlock(t *testing.T) {
 	if ok, _ := n.ValidateChamberABlock(nextValidBlock); ok {
 		t.Fatal("Block should be invalid before being signed")
 	}
-	nextValidBlock.Sign(validWitness)
+	nextValidBlock.Sign(*validWitness)
 
 	if ok, _ := n.ValidateChamberABlock(nextValidBlock); !ok {
 		t.Fatal("Block should be valid")
@@ -98,7 +98,7 @@ func TestTransactions(t *testing.T) {
 			//the transactions seen logger
 			transactionsSeen.Append(pt.(*utils.BaseTransaction))
 			return nil
-		}, func(b *utils.Block) error {
+		}, func(b utils.BlockType) error {
 			blocksSeen.Append(b)
 			//the blocks seen logger
 			return nil

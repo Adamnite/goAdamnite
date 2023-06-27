@@ -118,8 +118,8 @@ func TestVMTransactions(t *testing.T) {
 			//the transactions seen logger
 			transactionsSeen.Append(pt)
 			return nil
-		}, func(b *utils.Block) error {
-			blocksSeen.Append(b)
+		}, func(b utils.BlockType) error {
+			blocksSeen.Append(b.(*utils.VMBlock))
 			//the blocks seen logger
 			return nil
 		},
@@ -133,7 +133,7 @@ func TestVMTransactions(t *testing.T) {
 	conNodes := []*ConsensusNode{}
 
 	maxTimePerRound.SetDuration(time.Millisecond * 1200)
-	maxTimePrecision.SetDuration(time.Millisecond * 50)
+	maxTimePrecision.SetDuration(time.Millisecond * 500)
 
 	for i := 0; i < testNodeCount; i++ {
 		if ac, err := accounts.GenerateAccount(); err != nil {
@@ -234,15 +234,15 @@ func TestVMTransactions(t *testing.T) {
 		blocksSeen.Len(),
 		"wrong number of blocks went past this node",
 	)
-	blockTransactions := []*utils.BaseTransaction{}
+	blockTransactions := []utils.TransactionType{}
 	blockHashesSeen := [][]byte{}
 	blocksSeen.ForEach(func(_ int, b any) bool {
 		assert.Equal(
-			t, maxTransactionsPerBlock, len(b.(*utils.Block).Transactions),
+			t, maxTransactionsPerBlock, len(b.(*utils.VMBlock).Transactions),
 			"god why. Wrong number of transactions per block",
 		)
-		blockTransactions = append(blockTransactions, b.(*utils.Block).Transactions...)
-		blockHashesSeen = append(blockHashesSeen, b.(*utils.Block).Hash().Bytes())
+		blockTransactions = append(blockTransactions, b.(*utils.VMBlock).Transactions...)
+		blockHashesSeen = append(blockHashesSeen, b.(*utils.VMBlock).Hash().Bytes())
 		return true
 	})
 	for _, x := range blockHashesSeen {

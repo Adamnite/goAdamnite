@@ -123,7 +123,9 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 		if len(con.poolsA.newRoundStartedCaller) != 0 {
 			con.poolsA.newRoundStartedCaller = []func(){con.continuosHandler}
 		}
-		//TODO: check that poolsB, if it's running, we need to prevent further applications to it as well.
+		if len(con.poolsB.newRoundStartedCaller) != 0 {
+			con.poolsB.newRoundStartedCaller = []func(){func() { go con.StartVMContinuosHandling() }}
+		}
 		return nil
 	}
 	addLocalCandidate := func(pool *Witness_pool, candidate *safe.SafeItem) {
@@ -133,13 +135,14 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 			return
 		}
 		candidate.Set(newCan)
+		if err := con.netLogic.Propagate(newCan); err != nil {
+			log.Println(err)
+			return
+			//this panics, since if we cant propagate the message, we likely have a connection issue
+		}
 		if err := pool.AddCandidate(newCan); err != nil {
 			log.Printf("error producing newer candidate for round %v. \nErr: %v", pool.currentWorkingRoundID.Get(), err)
 			return
-		}
-		if err := con.netLogic.Propagate(newCan); err != nil {
-			panic(err)
-			//this panics, since if we cant propagate the message, we likely have a connection issue
 		}
 	}
 	if networking.PrimaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber A
@@ -150,7 +153,7 @@ func (con *ConsensusNode) ProposeCandidacy(candidacyTypes uint8) error {
 	}
 	if networking.SecondaryTransactions.IsIn(candidacyTypes) { //we're proposing ourselves for chamber B
 		addLocalCandidate(con.poolsB, con.thisCandidateB)
-		con.poolsB.AddNewRoundCaller(func() { addLocalCandidate(con.poolsA, con.thisCandidateB) })
+		con.poolsB.AddNewRoundCaller(func() { addLocalCandidate(con.poolsB, con.thisCandidateB) })
 		con.poolsB.AddNewRoundCaller(func() { go con.StartVMContinuosHandling() })
 	}
 	return nil

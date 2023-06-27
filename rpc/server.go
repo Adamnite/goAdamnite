@@ -31,7 +31,7 @@ type AdamniteServer struct {
 	newConnection             func(string, common.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(utils.TransactionType) error
-	newBlockReceived          func(*utils.Block) error
+	newBlockReceived          func(utils.BlockType) error
 	newCandidateHandler       func(utils.Candidate) error
 	newVoteHandler            func(utils.Voter) error
 	newMessageHandler         func(*utils.CaesarMessage)
@@ -47,7 +47,7 @@ func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
 	newConn func(string, common.Address),
 	newTransaction func(utils.TransactionType) error,
-	newBlock func(*utils.Block) error) {
+	newBlock func(utils.BlockType) error) {
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
 	a.newTransactionReceived = newTransaction
@@ -156,10 +156,10 @@ func (a *AdamniteServer) callOnSelfThenShare(content ForwardingContent) error {
 	a.print("call on self and share")
 	if err := a.callOnSelf(content); err != nil {
 		a.printError("call on self and share", err)
-		if err != ErrBadForward {
-			//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
-			return nil
-		}
+		// if err != ErrBadForward {
+		// 	//most of the time, an error for us, isn't an error for all. This is to stop a message from being forwarded at all.
+		// 	return nil
+		// }
 		return err
 	}
 	return a.forwardingMessageReceived(content, &content.FinalReply)
@@ -357,11 +357,23 @@ func (a *AdamniteServer) NewBlock(params, reply *[]byte) error {
 		*reply = data
 		return err
 	}
-	var block *utils.Block
-	if err := encoding.Unmarshal(*params, &block); err != nil {
+	var basicBlock *utils.Block
+	if err := encoding.Unmarshal(*params, &basicBlock); err != nil {
 		return err
 	}
-	return a.newBlockReceived(block)
+	switch basicBlock.GetHeader().TransactionType {
+	case utils.Transaction_Basic:
+		return a.newBlockReceived(basicBlock)
+	case utils.Transaction_VM_Call, utils.Transaction_VM_NewContract:
+		var vmBlock *utils.VMBlock
+		if err := encoding.Unmarshal(*params, &vmBlock); err != nil {
+			return err
+		} else {
+			return a.newBlockReceived(vmBlock)
+		}
+	}
+
+	return nil
 }
 
 const NewTransactionEndpoint = "AdamniteServer.NewTransaction"

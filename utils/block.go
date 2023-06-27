@@ -97,7 +97,7 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 		StateMerkleRoot:       stateRoot,
 		Number:                number,
 	}
-	header.TransactionType = 0x02 //TODO: make this correct
+	header.TransactionType = Transaction_Basic //TODO: make this correct
 	block := &Block{
 		Header:       header,
 		Transactions: transactions,
@@ -123,7 +123,7 @@ func (b *Block) Hash() common.Hash {
 	return common.BytesToHash(crypto.Sha512(bytes))
 }
 
-func (b *Block) Sign(signer *accounts.Account) error {
+func (b *Block) Sign(signer accounts.Account) error {
 	sig, err := signer.Sign(b)
 	b.Signature = sig
 	return err
@@ -153,11 +153,13 @@ type VMBlock struct {
 }
 
 func NewWorkingVMBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot common.Hash, transactionRoot common.Hash, stateRoot common.Hash, number *big.Int, round uint64, transactions []TransactionType) *VMBlock {
-	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, 1, number, round)
+	bh := NewBlockHeader(parentBlockID, witness, witnessRoot, transactionRoot, stateRoot, Transaction_VM_Call, number, round)
 	vmb := VMBlock{
-		Header:       bh,
-		Transactions: transactions,
-		lock:         sync.Mutex{},
+		Header:         bh,
+		Transactions:   transactions,
+		BalanceChanges: make(map[common.Address]*big.Int),
+		HashChanges:    make(map[common.Address][2]common.Hash),
+		lock:           sync.Mutex{},
 	}
 	return &vmb
 }
