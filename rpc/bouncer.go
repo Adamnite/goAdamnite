@@ -288,11 +288,11 @@ func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	var encryptedMessages []string
+	encryptedMessages := make(map[int64]string)
 	for k, v := range b.messages {
 		if k.FromPublicKey == input.FromPublicKey && k.ToPublicKey == input.ToPublicKey {
 			for _, m := range v {
-				encryptedMessages = append(encryptedMessages, hex.EncodeToString(m.Message))
+				encryptedMessages[m.InitialTime] = hex.EncodeToString(m.Message)
 			}
 		}
 	}
