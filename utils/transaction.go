@@ -28,6 +28,7 @@ type Transaction struct {
 	Time           time.Time
 	VMInteractions *RuntimeChanges //an optional value that would make this transaction require chamber B validation
 	Signature      []byte
+	Finished       bool
 }
 
 func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int, gasLimit *big.Int) (*Transaction, error) {
@@ -41,6 +42,7 @@ func NewTransaction(sender *accounts.Account, to common.Address, value *big.Int,
 		Time:     time.Now().UTC(),
 		Amount:   value,
 		GasLimit: gasLimit.Abs(gasLimit), //sanitizing the gas limit passed.
+		Finished: false,
 	}
 	sig, err := sender.Sign(t)
 	t.Signature = sig

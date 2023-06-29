@@ -59,9 +59,18 @@ func NewBlock(parentBlockID common.Hash, witness crypto.PublicKey, witnessRoot c
 		Number:                number,
 	}
 	header.TransactionType = 0x02 //TODO: make this correct
+
+	var transactionsToBeApplied []*Transaction
+	for _, tx := range transactions {
+		if !tx.Finished {
+			tx.Finished = true
+			transactionsToBeApplied = append(transactionsToBeApplied, tx)
+		}
+	}
+
 	block := &Block{
 		Header:       header,
-		Transactions: transactions,
+		Transactions: transactionsToBeApplied,
 	}
 	return block
 }
