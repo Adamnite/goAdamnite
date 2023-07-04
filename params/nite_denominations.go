@@ -1,13 +1,18 @@
 //Copyright 2022 TheGoAdamnite Authors
 
+//Some new propositions for naming. 
+//White paper and technical paper will be updated accordingly
+
 package params
 
-//Adamnite Denominators (only three are used, we are getting rid of the cryptographer references to avoid possible infrigement (not likely)
-//and because dubnite sounds a lot cooler for the base unit.
+
 
 const (
-	Dubnite = 1    //Analagous to Wei in Ethereum
-	Decnite = 1e10 //Analagous to GWei in Ethereum
-	Nite    = 1e20 //Analgous to Eth in Ethereum
-
+	may = 1   
+	kmay = 1e3 
+	dubnite  = 1e6
+	decnite = 1e9
+	turing = 1e12
+	gmay = 1e15
+	nite = 1e18
 )

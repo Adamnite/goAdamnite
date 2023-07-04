@@ -1,19 +1,12 @@
 package blockchain
 
+
+// Probably move genesis block to somewhere else (like parameters). On that note we should probably remove blockchain in its entirety as well
 import (
 	"errors"
 	"fmt"
 	"math/big"
-
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/log15"
-	"github.com/adamnite/go-adamnite/params"
-	"github.com/adamnite/go-adamnite/utils"
+	//Replace with new DB/storage imports
 )
 
 type Genesis struct {
@@ -28,6 +21,21 @@ type Genesis struct {
 	WitnessList     []GenesisWitnessInfo `json:"witnessList"`
 }
 
+
+type Genesis struct {
+	Config		*params.Config
+	Time		uint64
+	Witness		common.Address //Set this to a locked addreess that cannot be accessed
+	ParentHash				   
+	Nonce
+	Signature
+	Allocation //Allocation Array, detailing addresses and balances for initial allocation
+	GenesisChamber //Genesis Chamber A witnesses for the first round, round 0
+
+
+
+}
+
 type GenesisWitnessInfo struct {
 	address common.Address
 	voters  []utils.Voter
@@ -40,6 +48,10 @@ type GenesisAccount struct {
 	Balance    *big.Int
 	Nonce      uint64
 }
+
+//Redo below code for new storage and originality
+
+
 
 // Write writes the block and state of a genesis specification to the database.
 func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
@@ -92,6 +104,9 @@ func DefaultGenesisBlock() *Genesis {
 	}
 }
 
+
+//Make the allocations here
+//Also have the predetermined witness list for the first round of consensus here
 func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
 		Config: params.TestnetChainConfig,
