@@ -14,7 +14,7 @@ import (
 func setupTestCaesarNode(autoConnectSeed *networking.Contact) (*accounts.Account, *CaesarNode) {
 	account, _ := accounts.GenerateAccount()
 	node := NewCaesarNode(account)
-	node.Startup()
+	node.Startup(nil)
 	if autoConnectSeed != nil {
 		node.netHandler.ConnectToContact(autoConnectSeed)
 	}
@@ -30,7 +30,7 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 
 	bAccount, bNode := setupTestCaesarNode(&seedContact)
 	seedNode.FillOpenConnections()
-	testMessage, err := utils.NewCaesarMessage(*bAccount, *aAccount, "Hello World!")
+	testMessage, err := utils.NewCaesarMessage(bAccount, aAccount, "Hello World!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestManyOpenMessages(t *testing.T) {
 	seedNode.FillOpenConnections()
 	for _, node := range testingNodes {
 		for _, target := range testingAccounts {
-			if err := node.Send(*target, "hi"); err != nil {
+			if err := node.Send(target, "hi"); err != nil {
 				t.Fatal("error from node:%w to: %w with err:%w", node, target, err)
 			}
 		}

@@ -10,15 +10,4 @@ If you are interested in using the private environment to develop a project for 
 
 ## Compiling A1 code to ADM bytecode for running on the Adamnite Blockchain
 
-1. Run `./cli debug --from-file <location of file>` from the CLI folder which should return a response similar to:
-`cli % ./cli debug --from-file examples/sum.ao 9703bdb17a160ed80486a83aa3c413c1 ===> i64 (i64, i64)`
- This response shows the hash of the code, parameters, as well as types.
-
-2. Using the returned hash, run the cli execute command like so:
-`cli % ./cli execute --from-file examples/sum.ao --call-args 0x123,1 --gas 1000000 --function 9703bdb17a160ed80486a83aa3c413c1`
-
-3. To then build `cd` into the core/VM/cli folder and run `go build`
-
-You have now compiled and ran your smart contract in a private Adamnite environment.
-       
-           
+1. Run `/app % go run main.go` to start the Adamnite interactive CLI. Use `help` to list commands available!

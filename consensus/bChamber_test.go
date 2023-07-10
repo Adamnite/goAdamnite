@@ -10,6 +10,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 var (
@@ -51,7 +52,7 @@ func TestProcessingRun(t *testing.T) {
 	if err := VM.UploadContract(apiEndpoint, testContract); err != nil {
 		t.Fatal(err)
 	}
-	claim := VM.RuntimeChanges{
+	claim := utils.RuntimeChanges{
 		Caller:            testAccount,
 		CallTime:          time.Now().UTC(),
 		ContractCalled:    testContract.Address,

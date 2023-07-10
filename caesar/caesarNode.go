@@ -35,22 +35,40 @@ func NewCaesarNode(sendingKey *accounts.Account) *CaesarNode {
 	return &cn
 }
 
-func (cn *CaesarNode) Startup() error {
+// add the server and start it up
+func (cn *CaesarNode) Startup(netNode *networking.NetNode) error {
+	if netNode == nil {
+		cn.netHandler = networking.NewNetNode(cn.signerSet.Address)
+	} else {
+		if cn.netHandler != nil && cn.netHandler != netNode { //check we aren't just leaving a NetNode running, but that we also don't delete the one we're assigning
+			cn.netHandler.Close()
+		}
+		cn.netHandler = netNode
+	}
 	cn.netHandler.AddMessagingCapabilities(
 		cn.AddMessage,
 	)
 	return nil
 }
 
-// adds a bouncer, so web based users can access messages through this
-func (cn *CaesarNode) StartBouncer() {
-	cn.netHandler.AddBouncerServer(nil, nil, 0)
-	cn.netHandler.SetBounceServerMessaging(cn.GetMessagesBetween)
+// Close shuts down this Caesar Node, and could be set to nil afterwords. close Server decides if the netNode should be shutdown as well (eg, if everything's being shut down or not)
+func (cn *CaesarNode) Close(closeServer bool) {
+	if closeServer {
+		cn.netHandler.Close()
+	}
+	//clear our mappings
+	go func() {
+		for hash, msg := range cn.msgByHash {
+			delete(cn.msgByHash, hash)
+			delete(cn.msgByRecipient, msg.To.Address)
+			delete(cn.msgBySender, msg.From.Address)
+		}
+	}()
 }
 func (cn CaesarNode) GetConnectionPoint() string {
-	return cn.netHandler.GetConnectionString()
+	return cn.netHandler.GetOwnContact().ConnectionString
 }
-func (cn CaesarNode) GetMessagesBetween(a, b common.Address) []*utils.CaesarMessage {
+func (cn CaesarNode) GetMessagesBetween(a, b *accounts.Account) []*utils.CaesarMessage {
 	ansMessages := []*utils.CaesarMessage{}
 	for _, msg := range cn.msgBySender[a] {
 		if msg.To.Address == b {
@@ -118,8 +136,8 @@ func (cn *CaesarNode) SendMessage(msg *utils.CaesarMessage) error {
 	cn.AddMessage(msg)
 	return cn.netHandler.Propagate(msg)
 }
-func (cn *CaesarNode) Send(to accounts.Account, message string) error {
-	msg, err := utils.NewCaesarMessage(to, *cn.signerSet, message)
+func (cn *CaesarNode) Send(to *accounts.Account, message string) error {
+	msg, err := utils.NewCaesarMessage(to, cn.signerSet, message)
 	if err != nil {
 		return err
 	}

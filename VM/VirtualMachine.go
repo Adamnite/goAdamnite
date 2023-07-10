@@ -13,6 +13,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
@@ -36,7 +37,7 @@ func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) 
 	vm.contract = *con
 	return nil
 }
-func (vm *Machine) CallWith(apiEndpoint string, rt *RuntimeChanges) (*RuntimeChanges, error) {
+func (vm *Machine) CallWith(apiEndpoint string, rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
 	if err := vm.ResetToContract(apiEndpoint, rt.ContractCalled); err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func (vm *Machine) CallWith(apiEndpoint string, rt *RuntimeChanges) (*RuntimeCha
 	}
 	return vm.CallOnContractWith(rt)
 }
-func (vm *Machine) CallOnContractWith(rt *RuntimeChanges) (*RuntimeChanges, error) {
+func (vm *Machine) CallOnContractWith(rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
 	err := vm.Call2(rt.ParametersPassed, rt.GasLimit)
 	rt.ErrorsEncountered = err
 	return vm.UpdateChanges(rt), err
@@ -542,12 +543,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 
 // Create creates a new contract using code as deployment code.
 func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
-	addrBytes := caller.Bytes()
-	nonce := m.Statedb.GetNonce(caller)
-	addrBytes = append(addrBytes, byte(nonce))
-
-	contractKey, err := crypto.GenerateKey()
-
+	contractKey, _ := crypto.GenerateKey()
 	contractAddr = crypto.PubkeyToAddress(contractKey.PublicKey)
 
 	return m.create(caller, code, gas, value, contractAddr)
@@ -610,9 +606,9 @@ func (m *Machine) UploadContract(APIEndpoint string) error {
 }
 
 // sort the changes from the method being ran, allowing this to be passed along the chain and to the OffChainDB efficiently
-func (m *Machine) GetChanges() RuntimeChanges {
+func (m *Machine) GetChanges() utils.RuntimeChanges {
 	// we want to return an array of the changes, with as few starts as possible,
-	changes := RuntimeChanges{
+	changes := utils.RuntimeChanges{
 		Caller:            m.contract.CallerAddress,
 		CallTime:          time.Now().UTC(), //this should not be used! this should be changed to the time at the start of the call.
 		ContractCalled:    m.contract.Address,
@@ -622,7 +618,7 @@ func (m *Machine) GetChanges() RuntimeChanges {
 	return *m.UpdateChanges(&changes)
 }
 
-func (m *Machine) UpdateChanges(changes *RuntimeChanges) *RuntimeChanges {
+func (m *Machine) UpdateChanges(changes *utils.RuntimeChanges) *utils.RuntimeChanges {
 	changes.Changed = [][]byte{}
 	changes.ChangeStartPoints = []uint64{}
 	keys := make([]uint32, 0, len(m.storageChanges))

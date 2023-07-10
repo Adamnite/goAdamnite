@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"strconv"
-
 	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
@@ -50,28 +48,16 @@ func (sh *SeedHandler) Start(c *ishell.Context) {
 		c.Println(err)
 		return
 	}
-	if len(c.Args) >= 1 {
-		if i, err := strconv.Atoi(c.Args[0]); err != nil {
-			c.Println("error parsing bouncer hosting port")
-			return
-		} else {
-			sh.hosting.AddBouncerServer(nil, nil, uint32(i))
-		}
-	} else {
-		sh.hosting.AddBouncerServer(nil, nil, 0)
-	}
-
-	c.Printf("Seed server has started up at %v\n", sh.hosting.GetConnectionString())
-	c.Printf("Seed Bouncer Server available at %v\n", sh.hosting.GetBouncerString())
+	c.Printf("Seed server has started up at %v\n", sh.hosting.GetOwnContact().ConnectionString)
 }
 func (sh *SeedHandler) Stop(c *ishell.Context) {
 	if sh.hosting == nil {
-		c.Println("server already shut down")
+		c.Println("seed server already shut down")
 		return
 	}
 	sh.hosting.Close()
 	sh.hosting = nil
-	c.Println("server has been stopped")
+	c.Println("seed server has been stopped")
 }
 func (sh *SeedHandler) ConnectTo(c *ishell.Context) {
 	if sh.hosting == nil {

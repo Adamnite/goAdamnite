@@ -19,7 +19,7 @@ type Contact struct { //the contacts list from this point.
 
 // keeps track of all the contacts, sorts them, and manages the connections.
 type ContactBook struct {
-	ownerContact *Contact //useful so you dont try to add yourself to your own contacts list
+	ownerContact *Contact //useful so you don't try to add yourself to your own contacts list
 
 	maxGreyList uint //does what it says on the tin. set to 0 to have unlimited size
 	//an array of connections for general use, stored by pointer. Followed by mappings to give o1 performance of sorting static characteristics
@@ -45,6 +45,8 @@ func (cb *ContactBook) Erase(contact *Contact) {
 	cb.AddToBlacklist(contact)       // find that connection, then blacklist them so we can easily a single copy.
 	delete(cb.blacklistSet, contact) //if they were blacklisted, now they aren't
 }
+
+// clears all records held here and deletes reference to itself.
 func (cb *ContactBook) Close() {
 	for c := range cb.blacklistSet {
 		delete(cb.blacklistSet, c)
@@ -52,6 +54,16 @@ func (cb *ContactBook) Close() {
 	for c := range cb.connectionsByContact {
 		delete(cb.connectionsByContact, c)
 	}
+	cb = nil
+}
+
+func (cb ContactBook) GetContactByEndpoint(endpoint string) *Contact {
+	for c, _ := range cb.connectionsByContact {
+		if c.ConnectionString == endpoint {
+			return c
+		}
+	}
+	return nil
 }
 
 func (cb *ContactBook) AddConnection(contact *Contact) error {
@@ -217,8 +229,19 @@ func (cb *ContactBook) SelectWhitelist(goalCount int) []*Contact {
 
 // sorts the contacts by their average response time
 func (cb *ContactBook) sortGreylist() {
+	avgResponseTimes := map[int]int64{}
 	sort.Slice(cb.connections, func(i, j int) bool {
-		return cb.connections[i].getAverageResponseTime() < cb.connections[j].getAverageResponseTime()
+		a, exists := avgResponseTimes[i]
+		if !exists {
+			a = cb.connections[i].getAverageResponseTime()
+			avgResponseTimes[i] = a
+		}
+		b, exists := avgResponseTimes[j]
+		if !exists {
+			b = cb.connections[j].getAverageResponseTime()
+			avgResponseTimes[j] = b
+		}
+		return a < b
 	})
 }
 
