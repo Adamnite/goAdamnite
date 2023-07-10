@@ -173,7 +173,7 @@ func TestTransactions(t *testing.T) {
 	assert.EqualValues(
 		t,
 		1,
-		conNodes[0].poolsA.currentWorkingRoundID,
+		conNodes[0].poolsA.currentWorkingRoundID.Get(),
 		"round is not correct",
 	)
 	for i := 0; i < 25; i++ {
