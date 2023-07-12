@@ -41,15 +41,6 @@ func triggerUpload(codeBytes []byte) bool {
 	vmConfig.Uri = serverUrl
 
 	vMachine := VM.NewVM(state,
-		VM.NewBlockContext(
-			callerAddress,
-			gas,
-			big.NewInt(0),
-			big.NewInt(0),
-			big.NewInt(0),
-			big.NewInt(0),
-		),
-		VM.TxContext{},
 		&vmConfig,
 		nil)
 	_, _, err = vMachine.Create(callerAddress, codeBytes, gas, big.NewInt(1))

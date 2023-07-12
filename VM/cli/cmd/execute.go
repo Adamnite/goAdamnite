@@ -45,7 +45,7 @@ func executeStateless(inputbytes string) string {
 	var chainCfg params.ChainConfig
 
 	cfg.CodeGetter = spoofer.GetCode
-	vMachine := VM.NewVM(&statedb.StateDB{}, VM.BlockContext{}, VM.TxContext{}, &cfg, &chainCfg)
+	vMachine := VM.NewVM(&statedb.StateDB{}, &cfg, &chainCfg)
 	funcHashBytes, _ := hex.DecodeString(funcHash)
 	funcTypes, _, _ := cfg.CodeGetter(funcHashBytes)
 
