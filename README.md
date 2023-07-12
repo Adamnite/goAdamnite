@@ -10,7 +10,7 @@ If you are interested in using the private environment to develop a project for 
 
 ## Compiling A1 code to ADM bytecode for running on the Adamnite Blockchain
 
-1. Run `./cli debug --from-file <location of file>` from the CLI folder which should return a response similar to:
+1. Run `./cli debug --from-file <location of file>` from the VM/CLI folder which should return a response similar to:
 `cli % ./cli debug --from-file examples/sum.ao 9703bdb17a160ed80486a83aa3c413c1 ===> i64 (i64, i64)`
  This response shows the hash of the code, parameters, as well as types.
 
