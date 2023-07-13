@@ -23,13 +23,13 @@ var testnet bool
 var stateless bool
 
 func init() {
-	executeCmd.Flags().StringVarP(&bytes, "from-bytes", "", "", "Bytes to execute")
-	executeCmd.Flags().StringVarP(&filePath, "from-file", "", "", "Path of file containing bytes to execute")
+	executeCmd.Flags().StringVarP(&bytes, "from-hex", "", "", "bytes in hexadecimal representation to execute")
+	executeCmd.Flags().StringVarP(&filePath, "from-file", "", "", "path to binary file to execute")
 
-	executeCmd.Flags().Uint64Var(&gas, "gas", 0, "Amount of gas to allocate for the execution")
-	executeCmd.Flags().StringVarP(&funcHash, "function", "", "", "Hash of the function to execute")
+	executeCmd.Flags().Uint64Var(&gas, "gas", 0, "amount of gas to allocate for the execution")
+	executeCmd.Flags().StringVarP(&funcHash, "function", "", "", "hash of the function to execute")
 	executeCmd.Flags().StringVarP(&callArgs, "call-args", "", "", "comma separated arguments of the function")
-	executeCmd.Flags().BoolVarP(&testnet, "testnet", "", true, "The network type to use (mainnet, testnet)")
+	executeCmd.Flags().BoolVarP(&testnet, "testnet", "", true, "the network type to use (mainnet, testnet)")
 
 	executeCmd.MarkFlagRequired("gas")
 	executeCmd.MarkFlagRequired("function")
@@ -115,7 +115,7 @@ func userInputToFuncArgsStr(passedArgs string, funcTypes VM.FunctionType) string
 
 var executeCmd = &cobra.Command{
 	Use:   "execute",
-	Short: "Parse and execute the specified function from A1 wasm bytes.",
+	Short: "Parse A1 smart contract and execute the specified function.",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		// The execution done here is stateless. For state depending execution,

@@ -16,12 +16,11 @@ import (
 var serverUrl string
 
 func init() {
-
-	uploadCmd.Flags().StringVarP(&bytes, "from-bytes", "", "", "Bytes to execute")
-	uploadCmd.Flags().StringVarP(&filePath, "from-file", "", "", "Path of file containing bytes to execute")
-	uploadCmd.Flags().StringVarP(&serverUrl, "db-host", "", "http://localhost:5000", "The database server where to upload the byte code")
-	uploadCmd.Flags().Uint64Var(&gas, "gas", 0, "Amount of gas to allocate for the execution")
-	uploadCmd.Flags().BoolVarP(&stateless, "stateless", "", true, "Whether to retrieve context from live blockchain. If true user has to provide block information")
+	uploadCmd.Flags().StringVarP(&bytes, "from-hex", "", "", "bytes in hexadecimal representation to execute")
+	uploadCmd.Flags().StringVarP(&filePath, "from-file", "", "", "path to binary file to execute")
+	uploadCmd.Flags().StringVarP(&serverUrl, "db-host", "", "http://localhost:5000", "the database server where to upload the byte code")
+	uploadCmd.Flags().Uint64Var(&gas, "gas", 0, "amount of gas to allocate for the execution")
+	uploadCmd.Flags().BoolVarP(&stateless, "stateless", "", true, "whether to retrieve context from live blockchain. If true user has to provide block information")
 
 	root.AddCommand(uploadCmd)
 }

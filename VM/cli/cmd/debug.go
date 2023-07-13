@@ -10,9 +10,8 @@ import (
 )
 
 func init() {
-
-	debugCmd.Flags().StringVarP(&bytes, "from-bytes", "", "", "Bytes to execute")
-	debugCmd.Flags().StringVarP(&filePath, "from-file", "", "", "Path of file containing bytes to execute")
+	debugCmd.Flags().StringVarP(&bytes, "from-hex", "", "", "bytes in hexadecimal representation to execute")
+	debugCmd.Flags().StringVarP(&filePath, "from-file", "", "", "path to binary file to execute")
 	root.AddCommand(debugCmd)
 }
 
@@ -32,26 +31,25 @@ func TypeToString(t byte) string {
 
 var debugCmd = &cobra.Command{
 	Use:   "debug",
-	Short: "Print debugging information about a compiled contract.",
+	Short: "Output debug information about compiled contract.",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		spoofer := VM.NewDBSpoofer()
-		var bytes2 []byte
-		var err interface{}
+		var rawBytes []byte
+		var err error
 
 		if bytes != "" {
-			bytes2, _ = hex.DecodeString(bytes)
+			rawBytes, _ = hex.DecodeString(bytes)
 		} else if filePath != "" {
-			bytes2, err = os.ReadFile(filePath)
+			rawBytes, err = os.ReadFile(filePath)
 			if err != nil {
 				panic(err)
 			}
-			bytes2, _ = hex.DecodeString(string(bytes2))
 		} else {
 			panic("Bytes or file path should be specified")
 		}
 
-		decodedModule := VM.DecodeModule(bytes2)
+		decodedModule := VM.DecodeModule(rawBytes)
 		err, hashes := spoofer.AddModuleToSpoofedCode(decodedModule)
 
 		if err != nil {
