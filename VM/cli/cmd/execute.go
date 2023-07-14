@@ -36,9 +36,8 @@ func init() {
 	root.AddCommand(executeCmd)
 }
 
-func executeStateless(inputbytes string) string {
+func executeStateless(bytes []byte) string {
 	spoofer := VM.NewDBSpoofer()
-	bytes, _ := hex.DecodeString(inputbytes)
 	decodedModule := VM.DecodeModule(bytes)
 	spoofer.AddModuleToSpoofedCode(decodedModule)
 	var cfg VM.VMConfig
@@ -122,13 +121,17 @@ var executeCmd = &cobra.Command{
 		// the user has to provide a block from which the state will be retrieved from
 		if testnet {
 			if bytes != "" {
-				executeStateless(bytes)
-			} else if filePath != "" {
-				readBytes, err := os.ReadFile(filePath)
+				rawBytes, err := hex.DecodeString(bytes)
 				if err != nil {
 					panic(err)
 				}
-				executeStateless(string(readBytes))
+				executeStateless(rawBytes)
+			} else if filePath != "" {
+				rawBytes, err := os.ReadFile(filePath)
+				if err != nil {
+					panic(err)
+				}
+				executeStateless(rawBytes)
 			} else {
 				panic("Bytes or file path should be specified")
 			}
