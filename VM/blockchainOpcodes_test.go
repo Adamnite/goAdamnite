@@ -73,7 +73,7 @@ func preTestSetup() {
 	}
 
 	spoofer = NewDBSpoofer()
-	err, foo := spoofer.AddModuleToSpoofedCode([][]byte{getContractAddressWasm, getContractBalanceWasm, getBlocktimestampWasm, getDataSize, getValue})
+	foo, err := spoofer.AddModuleToSpoofedCode([][]byte{getContractAddressWasm, getContractBalanceWasm, getBlocktimestampWasm, getDataSize, getValue})
 	for i := 0; i < len(foo); i++ {
 		hashes = append(hashes, hex.EncodeToString(foo[i]))
 	}
