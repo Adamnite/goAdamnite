@@ -1,24 +1,32 @@
 # goAdamnite
 
-goAdamnite is an implementation of the Adamnite Protocol in the GoLang programming language. 
+An implementation of the Adamnite Protocol in the GoLang programming language.
 
-Please look at all the branches if you are an interested contributor to determine where you want to best add value. This repo is open-sourced, and copyrighted under the GoAdamnite Authors, 2022.
+## Running A1 smart contract
 
-Also, be sure to join the Contributor Discord if you are interested in contributing to the project as a whole.
+In case you want to run your A1 smart contract on the Adamnite blockchain, make sure you go through the following steps:
 
-If you are interested in using the private environment to develop a project for the Adamnite Blockchain, please look at the instructions below. 
+1. Use A1 compiler to compile smart contract to the ADVM bytecode. Follow instructions specified [here](https://github.com/Adamnite/A1).
+2. Build the CLI application by running the following commands:
 
-## Compiling A1 code to ADM bytecode for running on the Adamnite Blockchain
+```sh
+$ cd VM/cli
+$ go build
+```
 
-1. Run `./cli debug --from-file <location of file>` from the VM/CLI folder which should return a response similar to:
-`cli % ./cli debug --from-file examples/sum.ao 9703bdb17a160ed80486a83aa3c413c1 ===> i64 (i64, i64)`
- This response shows the hash of the code, parameters, as well as types.
+3. Once you have a binary file, run the following command to get code hash, parameters and types:
 
-2. Using the returned hash, run the cli execute command like so:
-`cli % ./cli execute --from-file examples/sum.ao --call-args 0x123,1 --gas 1000000 --function 9703bdb17a160ed80486a83aa3c413c1`
+```sh
+$ ./cli debug --from-file <path-to-binary-file>
 
-3. To then build `cd` into the core/VM/cli folder and run `go build`
+# if you want to try out our examples, try using hexadecimal content of .a1 files in examples directory
+$ ./cli debug --from-hex <hexadecimal-string>
+```
 
-You have now compiled and ran your smart contract in a private Adamnite environment.
-       
-           
+4. Using the code hash given by above command, run the CLI again to execute the function:
+
+```sh
+$ ./cli execute --from-file <path-to-binary-file> --args <args> --gas <gas> --function <code-hash>
+```
+
+Congratulations! You have now ran your first smart contract on Adamnite blockchain.

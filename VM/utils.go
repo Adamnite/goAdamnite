@@ -49,7 +49,7 @@ func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, [
 func (spoof *DBSpoofer) AddSpoofedCode(hash string, funcCode CodeStored) {
 	spoof.storedFunctions[hash] = funcCode
 }
-func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) (error, [][]byte) {
+func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) ([][]byte, error) {
 	var mod Module
 	switch v := input.(type) {
 	case Module:
@@ -62,27 +62,27 @@ func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) (error, [][]by
 	case []string:
 		hashes := [][]byte{}
 		for i := 0; i < len(v); i++ {
-			err, foo := spoof.AddModuleToSpoofedCode(v[i])
+			foo, err := spoof.AddModuleToSpoofedCode(v[i])
 			if err != nil {
-				return err, nil
+				return nil, err
 			}
 			for i := 0; i < len(foo); i++ {
 				hashes = append(hashes, foo[i])
 			}
 		}
-		return nil, hashes
+		return hashes, nil
 	case [][]byte:
 		hashes := [][]byte{}
 		for i := 0; i < len(v); i++ {
-			err, foo := spoof.AddModuleToSpoofedCode(v[i])
+			foo, err := spoof.AddModuleToSpoofedCode(v[i])
 			if err != nil {
-				return err, nil
+				return nil, err
 			}
 			for i := 0; i < len(foo); i++ {
 				hashes = append(hashes, foo[i])
 			}
 		}
-		return nil, hashes
+		return hashes, nil
 	}
 	hashes := [][]byte{}
 	for x := range mod.functionSection {
@@ -94,12 +94,12 @@ func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) (error, [][]by
 		localHash, err := code.Hash()
 
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 		spoof.AddSpoofedCode(hex.EncodeToString(localHash), code)
 		hashes = append(hashes, localHash)
 	}
-	return nil, hashes
+	return hashes, nil
 }
 
 func (spoof *DBSpoofer) GetCodeBytes(hash string) ([]byte, error) {

@@ -51,8 +51,6 @@ func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[common.Hash][]
 			log15.Crit("Failed to store trie preimage", "err", err)
 		}
 	}
-	preimageCounter.Inc(int64(len(preimages)))
-	preimageHitCounter.Inc(int64(len(preimages)))
 }
 
 func WriteEpochNumber(db adamnitedb.AdamniteDBWriter, epochNum uint64) {

@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/metrics"
 )
 
 var (
@@ -19,9 +18,6 @@ var (
 	headerNumberPrefix = []byte("H") // headerNumberPrefix + hash -> num (uint64 big endian)
 
 	preimagePrefix = []byte("secure-key-") // preimagePrefix + hash -> preimage
-
-	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
-	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 )
 
 // blockHeaderHashKey = blockHeaderPrefix + num + headerHashSuffix
