@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"strconv"
@@ -96,11 +97,11 @@ func userInputToFuncArgsStr(passedArgs string, funcTypes VM.FunctionType) string
 				valueOfParam = VM.LE.AppendUint64([]byte{}, math.Float64bits(paramV))
 			}
 		default:
-			panic(fmt.Errorf("unrecognized type passed as func param type: %v", indexedTypeValue))
+			log.Fatalf("unrecognized type passed as func param type: %v", indexedTypeValue)
 		}
 
 		if loopErr != nil {
-			panic(fmt.Errorf("error in parsing parameters, %w", loopErr))
+			log.Fatalf("error in parsing parameters, %w", loopErr)
 		}
 		callParamsHex = append(callParamsHex, indexedTypeValue)
 		callParamsHex = append(callParamsHex, valueOfParam...)
@@ -123,17 +124,17 @@ var executeCmd = &cobra.Command{
 			if bytes != "" {
 				rawBytes, err := hex.DecodeString(bytes)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 				executeStateless(rawBytes)
 			} else if filePath != "" {
 				rawBytes, err := os.ReadFile(filePath)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 				executeStateless(rawBytes)
 			} else {
-				panic("Bytes or file path should be specified")
+				log.Fatal("Bytes or file path should be specified")
 			}
 		}
 	},

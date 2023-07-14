@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/adamnite/go-adamnite/VM"
@@ -43,17 +44,17 @@ var debugCmd = &cobra.Command{
 		} else if filePath != "" {
 			rawBytes, err = os.ReadFile(filePath)
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 		} else {
-			panic("Bytes or file path should be specified")
+			log.Fatal("bytes or file path should be specified")
 		}
 
 		decodedModule := VM.DecodeModule(rawBytes)
 		err, hashes := spoofer.AddModuleToSpoofedCode(decodedModule)
 
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		} else {
 			for _, v := range hashes {
 				hexV := hex.EncodeToString(v)

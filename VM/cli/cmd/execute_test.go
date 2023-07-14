@@ -8,13 +8,6 @@ import (
 
 func TestExecuteStateless(t *testing.T) {
 	readBytes := "0061736d0100000001070160027e7e017e03020100070a010661646454776f00000a09010700200020017c0b000a046e616d650203010000"
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	fmt.Println()
-	// 	t.FailNow()
-	// 	// panic(err)
-	// }
-
 	paramTests := []string{
 		"1,2",
 		"4, -1",

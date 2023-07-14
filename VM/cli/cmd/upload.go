@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 
@@ -44,7 +45,7 @@ func triggerUpload(codeBytes []byte) bool {
 		nil)
 	_, _, err = vMachine.Create(callerAddress, codeBytes, gas, big.NewInt(1))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// contract := VM.NewContract(common.Address{}, value, bytes, gas)
@@ -52,7 +53,7 @@ func triggerUpload(codeBytes []byte) bool {
 	err = vMachine.UploadContract(serverUrl)
 	if err != nil {
 		fmt.Println("Unable to upload specified contract")
-		panic(err)
+		log.Fatal(err)
 	} else {
 		fmt.Print("Contract uploaded successfully")
 	}
@@ -71,11 +72,11 @@ var uploadCmd = &cobra.Command{
 			} else if filePath != "" {
 				readBytes, err := os.ReadFile(filePath)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 				triggerUpload(readBytes)
 			} else {
-				panic("Bytes or file path should be specified")
+				log.Fatal("Bytes or file path should be specified")
 			}
 		}
 	},
