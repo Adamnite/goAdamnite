@@ -26,7 +26,7 @@ $ ./cli debug --from-hex <hexadecimal-string>
 4. Using the code hash given by above command, run the CLI again to execute the function:
 
 ```sh
-$ ./cli execute --from-file <path-to-binary-file> --call-args <args> --gas <gas> --function <code-hash>
+$ ./cli execute --from-file <path-to-binary-file> --args <args> --gas <gas> --function <code-hash>
 ```
 
 Congratulations! You have now ran your first smart contract on Adamnite blockchain.
