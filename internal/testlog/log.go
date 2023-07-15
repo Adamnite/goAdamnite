@@ -3,8 +3,6 @@ package testlog
 import (
 	"sync"
 	"testing"
-
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 // Handler returns a log handler which logs to the unit test log of t.

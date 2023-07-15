@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/internal/testlog"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 func genKey() *ecdsa.PrivateKey {

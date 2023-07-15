@@ -10,7 +10,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/event"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 

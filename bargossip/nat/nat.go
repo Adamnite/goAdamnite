@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adamnite/go-adamnite/log15"
 	natpmp "github.com/jackpal/go-nat-pmp"
 )
 

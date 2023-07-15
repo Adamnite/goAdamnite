@@ -14,7 +14,6 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admpacket"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 // UDPLayer is the implementation of the node discovery protocol.

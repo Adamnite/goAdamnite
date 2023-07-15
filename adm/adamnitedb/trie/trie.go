@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/log15"
+
 	"golang.org/x/crypto/sha3"
 )
 

@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/event"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 type handlerParams struct {

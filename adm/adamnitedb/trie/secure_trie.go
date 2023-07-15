@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all

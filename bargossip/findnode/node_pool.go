@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 // NodePool is the table that stores the neighbor nodes.

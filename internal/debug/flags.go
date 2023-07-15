@@ -3,7 +3,6 @@ package debug
 import (
 	"os"
 
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/urfave/cli/v2"
 )
 

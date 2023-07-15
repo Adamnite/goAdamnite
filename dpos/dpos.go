@@ -17,7 +17,6 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/params"
 )
 

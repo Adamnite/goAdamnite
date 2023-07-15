@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
