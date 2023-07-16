@@ -15,6 +15,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
@@ -45,10 +46,6 @@ var (
 	ErrUnknownAncestor          = errors.New("unknown ancestor")
 	ErrInvalidVotingChain       = errors.New("invalid voting chain")
 )
-
-type Config struct {
-	Log log15.Logger `toml:"-"`
-}
 
 type AdamniteDPOS struct {
 	config *params.ChainConfig
@@ -101,7 +98,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash 
 
 		if bigModIsZero(number, big.NewInt(checkpointInterval)) {
 			if s, err := GetWitnessPool(adpos.config, adpos.signatures, adpos.db, hash); err == nil {
-				log15.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
+				log.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
 				witnessPool = s
 				break
 			}
@@ -122,7 +119,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash 
 				if err := witnessPool.saveWitnessPool(adpos.db); err != nil {
 					return nil, err
 				}
-				log15.Info("Stored checkpoint snapshot to disk", "number", number, "hash", hash)
+				log.Info("Stored checkpoint snapshot to disk", "number", number, "hash", hash)
 				break
 			}
 		}
@@ -160,7 +157,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash 
 		if err = witnessPool.saveWitnessPool(adpos.db); err != nil {
 			return nil, err
 		}
-		log15.Info("Stored voting snapshot to disk", "number", witnessPool.Number, "hash", witnessPool.Hash)
+		log.Info("Stored voting snapshot to disk", "number", witnessPool.Number, "hash", witnessPool.Hash)
 	}
 	return witnessPool, err
 }
@@ -176,7 +173,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, has
 
 		if bigModIsZero(number, big.NewInt(checkpointInterval)) {
 			if s, err := poh.GetDBWitnessPool(adpos.config, adpos.signatures, adpos.db, hash); err == nil {
-				log15.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
+				log.Info("Loaded voting snapshot from disk", "number", number, "hash", hash)
 				dbWitnessPool = s
 				break
 			}
@@ -198,7 +195,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, has
 				if err := dbWitnessPool.SaveDBWitnessPool(adpos.db); err != nil {
 					return nil, err
 				}
-				log15.Info("Stored checkpoint snapshot to disk", "number", number, "hash", hash)
+				log.Info("Stored checkpoint snapshot to disk", "number", number, "hash", hash)
 				break
 			}
 		}
@@ -236,7 +233,7 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, has
 		if err = dbwitnessPool.SaveDBWitnessPool(adpos.db); err != nil {
 			return nil, err
 		}
-		log15.Info("Stored voting snapshot to disk", "number", dbwitnessPool.Number, "hash", dbwitnessPool.Hash)
+		log.Info("Stored voting snapshot to disk", "number", dbwitnessPool.Number, "hash", dbwitnessPool.Hash)
 	}
 	return dbwitnessPool, err
 }
@@ -381,7 +378,7 @@ walk:
 			}
 			// vote.Address = *tx.To()
 			// votes[sender] = vote
-			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// log.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.VOTE_POH_TX:
@@ -399,7 +396,7 @@ walk:
 			}
 			// vote.To = *tx.To()
 			votes[sender] = vote
-			// log15.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
+			// log.Info(fmt.Sprintf("vote from: %s, to: %s, stake amount: %s", sender.String(), vote.Address.String(), vote.StakingAmount.String()))
 			state.SubBalance(sender, stakingAmount)
 
 		case types.CONTRACT_TX:

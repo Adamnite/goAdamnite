@@ -99,13 +99,13 @@ func setBootstrapNode(ctx *cli.Context, cfg *bargossip.Config) {
 		if url != "" {
 			nodeInfo, err := admnode.ParseNodeURL(url)
 			if err != nil {
-				log15.Crit("Bootstrap URL invalid", "admnode", url, "err", err)
+				log.Fatal("Bootstrap URL invalid", "admnode", url, "err", err)
 				continue
 			}
 
 			node, err := admnode.New(nodeInfo)
 			if err != nil {
-				log15.Crit(err.Error())
+				log.Fatal(err.Error())
 			}
 
 			cfg.BootstrapNodes = append(cfg.BootstrapNodes, node)

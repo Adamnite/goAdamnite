@@ -7,7 +7,6 @@ import (
 
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/internal/testlog"
 )
 
 func genKey() *ecdsa.PrivateKey {
@@ -25,13 +24,12 @@ func startTestServer(t *testing.T) *Server {
 		ListenAddr:             "127.0.0.1:8000",
 		MaxInboundConnections:  10,
 		MaxOutboundConnections: 10,
-		Logger:                 testlog.Logger(t, log15.LvlTrace),
 		NAT:                    natImpl,
 	}
 
 	server := &Server{
 		Config: config,
-		log:    log15.Root(),
+		log:    log.Root(),
 	}
 	if err := server.Start(); err != nil {
 		t.Fatalf("could not start server: %v", err)

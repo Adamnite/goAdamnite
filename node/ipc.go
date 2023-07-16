@@ -5,17 +5,18 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/rpc"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ipcServer struct {
-	log    log15.Logger
 	port   uint32
 	mu     sync.Mutex
 	server *rpc.Adamnite
 }
 
-func newIPCServer(log log15.Logger, port uint32) *ipcServer {
-	return &ipcServer{log: log, port: port}
+func newIPCServer(port uint32) *ipcServer {
+	return &ipcServer{port: port}
 }
 
 func (ipc *ipcServer) start() error {
@@ -25,7 +26,7 @@ func (ipc *ipcServer) start() error {
 	ipc.server = rpc.NewAdamniteServer(nil, nil, ipc.port)
 	go ipc.server.Run()
 
-	ipc.log.Info("IPC endpoint opened", "url", ipc.server.Addr())
+	log.Info("IPC endpoint opened", "url", ipc.server.Addr())
 	return nil
 }
 
@@ -40,6 +41,6 @@ func (ipc *ipcServer) stop() error {
 	ipc.server.Close()
 
 	ipc.server = nil
-	ipc.log.Info("IPC endpoint closed", "url", ipc.server.Addr())
+	log.Info("IPC endpoint closed", "url", ipc.server.Addr())
 	return nil
 }

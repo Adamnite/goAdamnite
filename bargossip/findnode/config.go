@@ -22,14 +22,10 @@ type Config struct {
 	PeerBlackList *utils.IPNetList
 	PeerWhiteList *utils.IPNetList
 	Bootnodes     []*admnode.GossipNode
-	Log           log15.Logger
 	Clock         mclock.Clock
 }
 
 func (cfg Config) defaults() Config {
-	if cfg.Log == nil {
-		cfg.Log = log15.Root()
-	}
 	if cfg.Clock == nil {
 		cfg.Clock = mclock.System{}
 	}

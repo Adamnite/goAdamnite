@@ -8,6 +8,8 @@ import (
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/event"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type handlerParams struct {
@@ -85,7 +87,7 @@ func (h *handler) newBlockBroadcastLoop() {
 func (h *handler) BoradcastBlock(block *types.Block) {
 	for _, peer := range h.peers.peers {
 		peer.AsyncSendNewBlock(block)
-		log15.Debug("Send block to ", "peer", peer.Peer.ID().String(), "block num", block.Numberu64())
+		log.Debug("Send block to ", "peer", peer.Peer.ID().String(), "block num", block.Numberu64())
 	}
 }
 
@@ -98,7 +100,7 @@ func (h *handler) Handle(peer *adampro.Peer, packet adampro.Packet) error {
 }
 
 func (h *handler) handleBlockBroadcast(peer *adampro.Peer, block *types.Block) error {
-	log15.Info("Import block", "number", block.Numberu64(), "witness", block.Header().Witness.Hex())
+	log.Info("Import block", "number", block.Numberu64(), "witness", block.Header().Witness.Hex())
 	h.chain.AddImportedBlock(block)
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/adamnite/go-adamnite/adm"
-	"github.com/adamnite/go-adamnite/internal/debug"
 	"github.com/adamnite/go-adamnite/internal/flags"
 	"github.com/adamnite/go-adamnite/internal/utils"
 	"github.com/adamnite/go-adamnite/node"

@@ -10,6 +10,8 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/admpacket"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // handleSYNPacket make an askHandshake packet and send it to the node so that establishs handshake channel.
@@ -30,12 +32,12 @@ func (n *UDPLayer) handleSYNPacket(packet *admpacket.SYN, fromID admnode.NodeID,
 func (n *UDPLayer) handleAskHandshakePacket(packet *admpacket.AskHandshake, fromID admnode.NodeID, fromAddr *net.UDPAddr) {
 	mcr := n.activeCallRequireAuthQueue[packet.Nonce]
 	if mcr == nil {
-		n.log.Debug("Invalid "+packet.Name(), "addr", fromAddr, "err", errors.New("no matching call"))
+		log.Debug("Invalid "+packet.Name(), "addr", fromAddr, "err", errors.New("no matching call"))
 		return
 	}
 
 	if mcr.handshakeCount > 0 {
-		n.log.Debug("Invalid "+packet.Name(), "addr", fromAddr, "err", errors.New("too many handshakes"))
+		log.Debug("Invalid "+packet.Name(), "addr", fromAddr, "err", errors.New("too many handshakes"))
 		return
 	}
 
@@ -110,15 +112,15 @@ seek:
 func (n *UDPLayer) handleCallResponse(packet admpacket.ADMPacket, fromID admnode.NodeID, fromAddr *net.UDPAddr) bool {
 	call := n.activeCallQueue[fromID]
 	if call == nil || !bytes.Equal(call.requestID, packet.RequestID()) {
-		n.log.Debug("No activecall "+packet.Name(), "id", fromID, "addr", fromAddr)
+		log.Debug("No activecall "+packet.Name(), "id", fromID, "addr", fromAddr)
 		return false
 	}
 	if !fromAddr.IP.Equal(call.node.IP()) || fromAddr.Port != int(call.node.UDP()) {
-		n.log.Debug("wrong endpoint "+packet.Name(), "id", fromID, "addr", fromAddr)
+		log.Debug("wrong endpoint "+packet.Name(), "id", fromID, "addr", fromAddr)
 		return false
 	}
 	if packet.MessageType() != call.expectedRspType {
-		n.log.Debug("Wrong response type "+packet.Name(), "id", fromID, "addr", fromAddr)
+		log.Debug("Wrong response type "+packet.Name(), "id", fromID, "addr", fromAddr)
 		return false
 	}
 	n.waitResponseTimeout(call)

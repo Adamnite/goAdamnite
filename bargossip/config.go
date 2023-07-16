@@ -52,9 +52,6 @@ type Config struct {
 	// ChainProtocol is used to communicate with peers about the blockchain information
 	ChainProtocol []SubProtocol
 
-	// Logger is a logger to use with gossip server
-	Logger log15.Logger
-
 	// clock will be used on gossip server
 	clock mclock.Clock
 }

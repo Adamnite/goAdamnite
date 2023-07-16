@@ -5,6 +5,8 @@ import (
 
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Handler func(peer *Peer) error
@@ -38,7 +40,7 @@ func MakeProtocols(adamniteHandler AdamniteHandlerInterface, chainID uint64, dns
 func ProtocolMsgHandler(admHandler AdamniteHandlerInterface, peer *Peer) error {
 	for {
 		if err := handleMsg(admHandler, peer); err != nil {
-			peer.Log().Debug("`adamnite` protocol message handler error", "err", err)
+			log.Debug("`adamnite` protocol message handler error", "err", err)
 			return err
 		}
 	}

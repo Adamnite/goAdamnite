@@ -9,6 +9,7 @@ import (
 
 	gset "github.com/deckarep/golang-set"
 	mapset "github.com/deckarep/golang-set"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -80,7 +81,7 @@ func (p *Peer) AsyncSendNewBlock(block *types.Block) {
 	select {
 	case p.queuedBlocks <- block:
 	default:
-		p.Log().Debug("Dropping block", "number", block.Numberu64(), "witness", block.Header().Witness.Hex())
+		log.Debug("Dropping block", "number", block.Numberu64(), "witness", block.Header().Witness.Hex())
 	}
 }
 

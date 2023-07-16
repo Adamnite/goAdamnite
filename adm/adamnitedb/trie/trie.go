@@ -9,6 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 
 	"golang.org/x/crypto/sha3"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -67,7 +68,7 @@ func (t *Trie) NodeIterator(start []byte) NodeIterator {
 func (t *Trie) Get(key []byte) []byte {
 	res, err := t.TryGet(key)
 	if err != nil {
-		log15.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+		log.Errorf("Unhandled trie error: %v", err)
 	}
 	return res
 }
@@ -204,7 +205,7 @@ func (t *Trie) tryGetNode(origNode node, path []byte, pos int) (item []byte, new
 // stored in the trie.
 func (t *Trie) Update(key, value []byte) {
 	if err := t.TryUpdate(key, value); err != nil {
-		log15.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+		log.Errorf("Unhandled trie error: %v", err)
 	}
 }
 
@@ -307,7 +308,7 @@ func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error
 // Delete removes any existing value for key from the trie.
 func (t *Trie) Delete(key []byte) {
 	if err := t.TryDelete(key); err != nil {
-		log15.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+		log.Errorf("Unhandled trie error: %v", err)
 	}
 }
 

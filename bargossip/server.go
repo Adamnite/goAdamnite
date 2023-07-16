@@ -16,6 +16,8 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Server manages the peer connections.
@@ -25,7 +27,6 @@ type Server struct {
 	isRunning bool
 
 	listener net.Listener
-	log      log15.Logger
 
 	localnode *admnode.LocalNode
 	exchProto *exchangeProtocol
@@ -90,17 +91,12 @@ func (srv *Server) Stop() {
 
 // initialize initializes the gossip p2p server.
 func (srv *Server) initialize() (err error) {
-	srv.log = srv.Config.Logger
-	if srv.log == nil {
-		srv.log = log15.Root()
-	}
-
 	if srv.clock == nil {
 		srv.clock = mclock.System{}
 	}
 
 	if srv.ListenAddr == "" {
-		srv.log.Warn("adamnite p2p server listening address is not set")
+		log.Warn("adamnite p2p server listening address is not set")
 	}
 
 	if srv.ServerPrvKey == nil {
@@ -161,7 +157,7 @@ func (srv *Server) initializeLocalNode() error {
 	if tcp, ok := listener.Addr().(*net.TCPAddr); ok {
 		srv.localnode.SetTCP(uint16(tcp.Port))
 		fmt.Println("TCP listener", "addr", tcp)
-		// srv.log.Info("TCP listener", "addr", tcp)
+		// log.Info("TCP listener", "addr", tcp)
 
 		if !tcp.IP.IsLoopback() && srv.NAT != nil {
 			srv.loopWG.Add(1)
@@ -187,7 +183,7 @@ func (srv *Server) initializeLocalNode() error {
 	// }
 	// if len(listeners) > 0 {
 	// 	err = errAlreadyListened
-	// 	srv.log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
+	// 	log.Error("UDP Port", "addr", addr, "err", err, "listeners", listeners)
 	// 	return err
 	// }
 
@@ -197,7 +193,7 @@ func (srv *Server) initializeLocalNode() error {
 	}
 
 	udpAddr := udpListener.LocalAddr().(*net.UDPAddr)
-	// srv.log.Info("UDP listener", "addr", udpAddr)
+	// log.Info("UDP listener", "addr", udpAddr)
 
 	if srv.NAT != nil && !udpAddr.IP.IsLoopback() {
 		srv.loopWG.Add(1)
@@ -233,7 +229,6 @@ func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {
 		PeerBlackList: srv.PeerBlackList,
 		PeerWhiteList: srv.PeerWhiteList,
 		Bootnodes:     srv.BootstrapNodes,
-		Log:           srv.log,
 		Clock:         srv.clock,
 	}
 
@@ -288,7 +283,7 @@ func getNodeFromConn(pubKey *ecdsa.PublicKey, conn net.Conn) *admnode.GossipNode
 
 // run is a background thread
 func (srv *Server) run() {
-	srv.log.Info("Adamnite BAR-GOSSIP server started", "localnode", srv.localnode.NodeInfo().ToURL())
+	log.Info("Adamnite BAR-GOSSIP server started", "localnode", srv.localnode.NodeInfo().ToURL())
 	defer srv.loopWG.Done()
 	defer srv.nodedb.Close()
 
@@ -312,13 +307,13 @@ running:
 			p := srv.startPeer(wc)
 			peers[*p.peerConn.node.ID()] = p
 
-			srv.log.Debug("Added peer", "id", p.peerConn.node.ID(), "addr", p.peerConn.node.IP(), "TCP", p.peerConn.node.TCP())
+			log.Debug("Added peer", "id", p.peerConn.node.ID(), "addr", p.peerConn.node.IP(), "TCP", p.peerConn.node.TCP())
 
 			// ToDo: add peer to dial scheduler
 		}
 	}
 
-	srv.log.Debug("Adamnite BAR-GOSSIP is stopping now ")
+	log.Debug("Adamnite BAR-GOSSIP is stopping now ")
 	if srv.findNodeUdpLayer != nil {
 		srv.findNodeUdpLayer.Close()
 	}
@@ -344,7 +339,7 @@ func (srv *Server) listenThread() {
 		}
 	}()
 
-	// srv.log.Info("TCP listener started", "addr", srv.listener.Addr(), "inboundSlots", pendingConnections)
+	// log.Info("TCP listener started", "addr", srv.listener.Addr(), "inboundSlots", pendingConnections)
 
 	for {
 		<-pendingInboundConnSlots
@@ -355,11 +350,11 @@ func (srv *Server) listenThread() {
 		for {
 			peerConn, err = srv.listener.Accept()
 			if findnode.IsTemporaryError(err) {
-				srv.log.Debug("Peer packet temporary read error", "err", err)
+				log.Debug("Peer packet temporary read error", "err", err)
 				time.Sleep(time.Millisecond * 100)
 				continue
 			} else if err != nil {
-				srv.log.Debug("Peer packet read error", "err", err)
+				log.Debug("Peer packet read error", "err", err)
 				pendingInboundConnSlots <- struct{}{}
 				return
 			}
@@ -368,14 +363,14 @@ func (srv *Server) listenThread() {
 
 		remotePeerIP := utils.NetAddrToIP(peerConn.RemoteAddr())
 		if err := srv.checkInboundConnections(remotePeerIP); err != nil {
-			srv.log.Debug("Rejected inbound connection", "addr", peerConn.RemoteAddr(), "err", err)
+			log.Debug("Rejected inbound connection", "addr", peerConn.RemoteAddr(), "err", err)
 			peerConn.Close()
 			pendingInboundConnSlots <- struct{}{}
 			continue
 		}
 
 		if remotePeerIP != nil {
-			srv.log.Debug("Accepted connection", "addr", peerConn.RemoteAddr())
+			log.Debug("Accepted connection", "addr", peerConn.RemoteAddr())
 		}
 
 		go func() {
@@ -405,7 +400,7 @@ func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag
 	// Start handshake
 	remotePubKey, err := wrapPeerConn.doHandshake(srv.ServerPrvKey)
 	if err != nil {
-		srv.log.Debug("Failed handshake", "addr", wrapPeerConn.conn.RemoteAddr(), "conn", wrapPeerConn.connFlags, "err", err)
+		log.Debug("Failed handshake", "addr", wrapPeerConn.conn.RemoteAddr(), "conn", wrapPeerConn.connFlags, "err", err)
 		wrapPeerConn.peerTransport.close(errServerStopped)
 		return err
 	}
@@ -417,18 +412,18 @@ func (srv *Server) AddConnection(peerConn net.Conn, connFlag dial.ConnectionFlag
 	}
 
 	if err = srv.getValidate(&wrapPeerConn, srv.handshakeValidateCh); err != nil {
-		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
 		return err
 	}
 	remoteExchProto, err := wrapPeerConn.doExchangeProtocol(srv.exchProto)
 	if err != nil {
-		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
 		return err
 	}
 
 	wrapPeerConn.protocol = remoteExchProto
 	if err = srv.getValidate(&wrapPeerConn, srv.exchangeProtocolValidateCh); err != nil {
-		srv.log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
+		log.Debug("Reject peer", "id", wrapPeerConn.node.ID(), "addr", wrapPeerConn.node.IP(), "err", err)
 		return err
 	}
 
@@ -483,7 +478,7 @@ func (srv *Server) isMatchChainProtocols(remoteExchProto *exchangeProtocol) bool
 
 // startPeer starts the peer module to communicate with remote peer.
 func (srv *Server) startPeer(conn *wrapPeerConnection) *Peer {
-	peer := newPeer(conn, srv.log, srv.subProtocol)
+	peer := newPeer(conn, srv.subProtocol)
 	go peer.start()
 	return peer
 }

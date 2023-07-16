@@ -41,14 +41,14 @@ func StartNode(ctx *cli.Context, node *node.Node) {
 		defer signal.Stop(sigc)
 
 		<-sigc
-		log15.Info("Adamnite engine shutting down...")
+		log.Info("Adamnite engine shutting down...")
 		go node.Close()
 
 		// temp time
 		for i := 10; i > 0; i-- {
 			<-sigc
 			if i > 1 {
-				log15.Warn("Already shutting down, interrupt times", "times", i-1)
+				log.Warn("Already shutting down, interrupt times", "times", i-1)
 			}
 		}
 

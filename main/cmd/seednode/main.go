@@ -18,7 +18,7 @@ import (
 func main() {
 	var (
 		listenAddress = flag.String("addr", ":3880", "listen address")
-		verbosity     = flag.Int("verbosity", int(log15.LvlInfo), "log verbosity (0-5)")
+		verbosity     = flag.Int("verbosity", int(log.LvlInfo), "log verbosity (0-5)")
 		vmodule       = flag.String("vmodule", "", "log verbosity pattern")
 		natdesc       = flag.String("nat", "none", "port mapping mechanism (any|none|upnp|pmp|extip:<IP>)")
 		genKey        = flag.String("genkey", "", "generate a node key")
@@ -33,10 +33,10 @@ func main() {
 
 	flag.Parse()
 
-	glogger := log15.NewGlogHandler(log15.StreamHandler(os.Stderr, log15.TerminalFormat()))
-	glogger.Verbosity(log15.Lvl(*verbosity))
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat()))
+	glogger.Verbosity(log.Lvl(*verbosity))
 	glogger.Vmodule(*vmodule)
-	log15.Root().SetHandler(glogger)
+	log.Root().SetHandler(glogger)
 
 	natm, err := nat.Parse(*natdesc)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admpacket"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // UDPLayer is the implementation of the node discovery protocol.
@@ -22,7 +24,6 @@ type UDPLayer struct {
 	privKey   *ecdsa.PrivateKey
 	localNode *admnode.LocalNode
 	nodeTable *NodePool
-	log       log15.Logger
 	clock     mclock.Clock
 
 	// channels
@@ -82,7 +83,6 @@ func Start(conn *net.UDPConn, localNode *admnode.LocalNode, cfg Config) (*UDPLay
 	udpLayer := &UDPLayer{
 		conn:      conn,
 		localNode: localNode,
-		log:       cfg.Log,
 		clock:     cfg.Clock,
 		privKey:   cfg.PrivateKey,
 
@@ -103,7 +103,7 @@ func Start(conn *net.UDPConn, localNode *admnode.LocalNode, cfg Config) (*UDPLay
 		cancelCloseCtx: cancelCloseCtx,
 	}
 
-	table, err := newNodePool(udpLayer, udpLayer.localNode.Database(), cfg.Bootnodes, cfg.Log)
+	table, err := newNodePool(udpLayer, udpLayer.localNode.Database(), cfg.Bootnodes)
 	if err != nil {
 		return nil, err
 	}
@@ -237,11 +237,11 @@ func (n *UDPLayer) readThread() {
 	for range n.readCh {
 		nbytes, from, err := n.conn.ReadFromUDP(buf)
 		if IsTemporaryError(err) {
-			n.log.Debug("Temporary UDP read error", "err", err)
+			log.Debug("Temporary UDP read error", "err", err)
 			continue
 		} else if err != nil {
 			if err != io.EOF {
-				n.log.Debug("UDP read error", "err", err)
+				log.Debug("UDP read error", "err", err)
 			}
 			return
 		}
@@ -252,7 +252,7 @@ func (n *UDPLayer) readThread() {
 func (n *UDPLayer) handlePacket(p ReadPacket) error {
 	fromNodeID, fromNode, packet, err := n.sslencoding.Decode(p.Data, p.Addr.String())
 	if err != nil {
-		n.log.Debug("bad packet", "id", fromNodeID, "addr", p.Addr.String(), "err", err)
+		log.Debug("bad packet", "id", fromNodeID, "addr", p.Addr.String(), "err", err)
 		return err
 	}
 
@@ -335,11 +335,11 @@ func (n *UDPLayer) send(toID admnode.NodeID, toAddr *net.UDPAddr, packet admpack
 	addr := toAddr.String()
 	enc, nonce, err := n.sslencoding.Encode(toID, addr, packet, handshake)
 	if err != nil {
-		n.log.Warn("UDP Encoding >> "+packet.Name(), "id", toID, "udpAddr", addr, "err", err)
+		log.Warn("UDP Encoding >> "+packet.Name(), "id", toID, "udpAddr", addr, "err", err)
 		return nonce, err
 	}
 	_, err = n.conn.WriteToUDP(enc, toAddr)
-	n.log.Trace("UDP Sent Packet >> "+packet.Name(), "id", toID, "udpAddr", addr)
+	log.Trace("UDP Sent Packet >> "+packet.Name(), "id", toID, "udpAddr", addr)
 	return nonce, err
 }
 
@@ -364,7 +364,7 @@ func (n *UDPLayer) waitForNodes(c *CallRsp, distances []uint) ([]*admnode.Gossip
 			for _, nodeInfo := range response.Nodes {
 				node, err := n.checkResponseNode(nodeInfo, distances, c, seen)
 				if err != nil {
-					n.log.Debug("Invalid nodeinfo in "+response.Name(), "id", c.node.ID(), "err", err)
+					log.Debug("Invalid nodeinfo in "+response.Name(), "id", c.node.ID(), "err", err)
 					continue
 				}
 				nodes = append(nodes, node)

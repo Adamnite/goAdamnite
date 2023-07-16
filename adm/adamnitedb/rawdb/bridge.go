@@ -5,7 +5,8 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 
-	"github.com/vmihailenco/msgpack/v5"
+	encoding "github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Hash, error) {
@@ -21,7 +22,7 @@ func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Has
 
 func WriteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash, node []byte) {
 	if err := db.Insert(hash[:], node); err != nil {
-		log15.Crit("Failed to store trie node", "err", err)
+		log.Fatal("Failed to store trie node", "err", err)
 	}
 }
 
@@ -33,7 +34,7 @@ func ReadTrieNode(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
 
 func DeleteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash) {
 	if err := db.Delete(hash[:]); err != nil {
-		log15.Crit("Failed to delete trie node", "err", err)
+		log.Fatal("Failed to delete trie node", "err", err)
 	}
 }
 
@@ -47,26 +48,26 @@ func ReadPreimage(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
 func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[common.Hash][]byte) {
 	for hash, preimage := range preimages {
 		if err := db.Insert(preimageKey(hash), preimage); err != nil {
-			log15.Crit("Failed to store trie preimage", "err", err)
+			log.Fatal("Failed to store trie preimage", "err", err)
 		}
 	}
 }
 
 func WriteEpochNumber(db adamnitedb.AdamniteDBWriter, epochNum uint64) {
-	data, err := msgpack.Marshal(epochNum)
+	data, err := encoding.Marshal(epochNum)
 	if err != nil {
-		log15.Crit("Failed to encode epoch number", "err", err)
+		log.Fatal("Failed to encode epoch number", "err", err)
 	}
 
 	if err := db.Insert(epochKey(), data); err != nil {
-		log15.Crit("Failed to store epoch number", "err", err)
+		log.Fatal("Failed to store epoch number", "err", err)
 	}
 }
 
 func ReadEpochNumber(db adamnitedb.AdamniteDBReader) uint64 {
 	data, err := db.Get(epochKey())
 	if err != nil {
-		log15.Crit("Failed to get epoch number from store", "err", err)
+		log.Fatal("Failed to get epoch number from store", "err", err)
 	}
 
 	if len(data) == 0 {
@@ -75,8 +76,8 @@ func ReadEpochNumber(db adamnitedb.AdamniteDBReader) uint64 {
 
 	var epochNum uint64
 
-	if err := msgpack.Unmarshal(data, &epochNum); err != nil {
-		log15.Crit("Failed to decode epoch enc data", "err", err)
+	if err := encoding.Unmarshal(data, &epochNum); err != nil {
+		log.Fatal("Failed to decode epoch enc data", "err", err)
 	}
 
 	return epochNum
@@ -89,16 +90,16 @@ func WriteBlock(db adamnitedb.AdamniteDBWriter, block *types.Block) {
 
 func WriteBody(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, body *types.Body) {
 
-	data, err := msgpack.Marshal(body)
+	data, err := encoding.Marshal(body)
 	if err != nil {
-		log15.Crit("Failed to encode body", "err", err)
+		log.Fatal("Failed to encode body", "err", err)
 	}
 	WriteBodyMsgPack(db, hash, blockNum, data)
 }
 
-func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, msgpack msgpack.RawMessage) {
+func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, msgpack encoding.RawMessage) {
 	if err := db.Insert(blockBodyKey(blockNum, hash), msgpack); err != nil {
-		log15.Crit("Failed to store block body", "err", err)
+		log.Fatal("Failed to store block body", "err", err)
 	}
 }
 
@@ -110,14 +111,14 @@ func WriteHeader(db adamnitedb.AdamniteDBWriter, header *types.BlockHeader) {
 
 	WriteHeaderNumber(db, hash, number)
 
-	data, err := msgpack.Marshal(header)
+	data, err := encoding.Marshal(header)
 	if err != nil {
-		log15.Crit("Failed to encode header", "err", err)
+		log.Fatal("Failed to encode header", "err", err)
 	}
 
 	key := headerKey(number, hash)
 	if err := db.Insert(key, data); err != nil {
-		log15.Crit("Failed to store header", "err", err)
+		log.Fatal("Failed to store header", "err", err)
 	}
 }
 
@@ -125,6 +126,6 @@ func WriteHeaderNumber(db adamnitedb.AdamniteDBWriter, hash common.Hash, number 
 	key := headerNumberKey(hash)
 	enc := encodeBlockNumber(number)
 	if err := db.Insert(key, enc); err != nil {
-		log15.Crit("Failed to store hash to number mapping", "err", err)
+		log.Fatal("Failed to store hash to number mapping", "err", err)
 	}
 }

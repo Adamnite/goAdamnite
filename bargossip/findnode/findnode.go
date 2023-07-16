@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type nodeFindFunc func(*node) ([]*node, error)
@@ -107,7 +109,7 @@ func (f *find) query(n *node) {
 			f.table.deleteNode(n)
 			dropped = true
 		}
-		f.table.log.Trace("Findnode failed", "id", n.ID(), "failedcount", fails, "dropped", dropped, "err", err)
+		log.Trace("Findnode failed", "id", n.ID(), "failedcount", fails, "dropped", dropped, "err", err)
 	}
 
 	for _, node := range nodes {

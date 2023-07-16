@@ -7,6 +7,8 @@ import (
 	virtMach "github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -115,7 +117,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedAte uint64, failed bo
 			st.value) //amount sent to contract
 	}
 	if vmerr != nil {
-		log15.Debug("VM returned with error", "err", vmerr)
+		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.

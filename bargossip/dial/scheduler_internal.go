@@ -2,6 +2,8 @@ package dial
 
 import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func (s *Scheduler) freeDialConnections() int {
@@ -47,7 +49,7 @@ func (s *Scheduler) isValidateDialNode(node *admnode.GossipNode) error {
 
 // dialNode run the tcp dial to connect the node
 func (s *Scheduler) dialNode(task *Task) {
-	s.Log.Debug("Starting Adamnite gossip", "id", task.destNode.ID(), "ip", task.destNode.IP())
+	log.Debug("Starting Adamnite gossip", "id", task.destNode.ID(), "ip", task.destNode.IP())
 	s.dialing[*task.destNode.ID()] = task
 	s.history.Add(task.destNode.ID().String(), s.Clock.Now().Add(defaultDialHisotryExpiration))
 

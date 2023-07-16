@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 
 	"github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 var ErrCommitDisabled = errors.New("no database for committing")
@@ -183,7 +183,7 @@ func (st *StackTrie) TryUpdate(key, value []byte) error {
 
 func (st *StackTrie) Update(key, value []byte) {
 	if err := st.TryUpdate(key, value); err != nil {
-		log15.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+		log.Errorf("Unhandled trie error: %v", err)
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -24,7 +26,7 @@ type Database struct {
 	quitLock sync.Mutex
 	quitChan chan chan error
 
-	log log15.Logger
+	logger *log.Entry
 }
 
 // New returns a wrapped LevelDB object
@@ -46,7 +48,7 @@ func New(file string, cache int, handles int, readonly bool) (*Database, error) 
 		ReadOnly:               readonly,
 	}
 
-	logger := log15.New("database", file)
+	logger := log.WithFields(log.Fields{"database": file})
 	usedCache := options.GetBlockCacheCapacity() + options.GetWriteBuffer()*2
 
 	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(usedCache), "handles", options.GetOpenFilesCacheCapacity(), "readonly", options.ReadOnly)
@@ -63,7 +65,7 @@ func New(file string, cache int, handles int, readonly bool) (*Database, error) 
 	levelDB := &Database{
 		fileName: file,
 		db:       db,
-		log:      logger,
+		logger:   logger,
 		quitChan: make(chan chan error),
 	}
 
@@ -74,15 +76,6 @@ func New(file string, cache int, handles int, readonly bool) (*Database, error) 
 func (db *Database) Close() error {
 	db.quitLock.Lock()
 	defer db.quitLock.Unlock()
-
-	// if db.quitChan != nil {
-	// 	errChan := make(chan error)
-	// 	db.quitChan <- errChan
-	// 	if err := <-errChan; err != nil {
-	// 		db.log.Error("DB error occured", "err", err)
-	// 	}
-	// 	db.quitChan = nil
-	// }
 	return db.db.Close()
 }
 

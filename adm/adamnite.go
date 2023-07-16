@@ -12,6 +12,8 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/node"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // AdamniteImpl implements the Adamnite full node.
@@ -55,8 +57,8 @@ func New(node *node.Node, config *adamconfig.Config) (*AdamniteImpl, error) {
 		return nil, err
 	}
 
-	log15.Info("Initialised chain configuration", "config", chainConfig)
-	log15.Info("Adamnite genesis hash", "hash", genesisHash.Hex())
+	log.Info("Initialised chain configuration", "config", chainConfig)
+	log.Info("Adamnite genesis hash", "hash", genesisHash.Hex())
 
 	adamnite := &AdamniteImpl{
 		config:     config,
