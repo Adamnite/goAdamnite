@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/common/fdutils"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
@@ -143,16 +142,8 @@ func MakePasswordList(ctx *cli.Context) []string {
 }
 
 func MakeAdamniteDatabaseHandles() int {
-	hLimit, err := fdutils.GetMaxHandles()
-	if err != nil {
-		Fatalf("Failed to retrieve file descripto allowance: %v", err)
-	}
-
-	hRaised, err := fdutils.GetRaise(uint64(hLimit))
-	if err != nil {
-		Fatalf("Failed to raise file descriptor allowance: %v", err)
-	}
-	return int(hRaised / 2)
+	const maxHandles = 16384
+	return maxHandles
 }
 
 func RegisterAdamniteService(node *node.Node, cfg *adamconfig.Config) *adm.AdamniteImpl {

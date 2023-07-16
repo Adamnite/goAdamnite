@@ -32,15 +32,6 @@ var Defaults = Config{
 	AdamniteDbCache: 512,
 }
 
-var DemoDefaults = Config{
-	NetworkId: 890,
-	TxPool:    core.DefaultTxPoolConfig,
-	Witness:   dpos.DefaultDemoWitnessConfig,
-	Validator: validator.DefaultDemoConfig,
-
-	AdamniteDbCache: 512,
-}
-
 func CreateConsensusEngine(node *node.Node, chainConfig *params.ChainConfig, db adamnitedb.Database) dpos.Engine {
 	engine := dpos.New(chainConfig, db)
 

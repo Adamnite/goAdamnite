@@ -59,12 +59,9 @@ func accountNew(ctx *cli.Context) error {
 
 	fmt.Printf(`
 	Your new key was generated
-	
 
 	Public address of the key:   %s
-	
 	Path of the secret key file: %s
-	
 
 	- You can share your public address with anyone. Others need it to interact with you.
 	- You must NEVER share the secret key with anyone! The key controls access to your funds!

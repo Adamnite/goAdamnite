@@ -13,6 +13,8 @@ const (
 type Address [AddressLength]byte
 type Hash [HashLength]byte
 
+type StorageSize float64
+
 ////TODO: Add encoding and decoding to different data types for both address and hash.
 //Add Formatting
 

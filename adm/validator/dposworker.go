@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"math/big"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -408,7 +409,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 		ParentHash:      parent.Hash(),
 		Time:            uint64(time.Now().Unix()),
 		WitnessRoot:     common.HexToHash("0x00000000000"),
-		Number:          num.Add(num, common.Big1),
+		Number:          num.Add(num, big.NewInt(1)),
 		Signature:       common.HexToHash("0x00000"),
 		TransactionRoot: common.HexToHash("0x0000"),
 		CurrentEpoch:    parent.Numberu64() / dpos.EpochBlockCount,
