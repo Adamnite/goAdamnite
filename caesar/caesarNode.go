@@ -119,7 +119,7 @@ func (cn *CaesarNode) SendMessage(msg *utils.CaesarMessage) error {
 	return cn.netHandler.Propagate(msg)
 }
 func (cn *CaesarNode) Send(to *accounts.Account, message string) error {
-	msg, err := utils.NewCaesarMessage(to, cn.signerSet, message)
+	msg, err := utils.NewCaesarMessage(*to, *cn.signerSet, message)
 	if err != nil {
 		return err
 	}

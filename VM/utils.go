@@ -226,7 +226,7 @@ func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) ([][]byte, err
 	case string:
 		hexBinary, err := hex.DecodeString(v)
 		if err != nil {
-			return err, nil
+			return nil, err
 		}
 		mod = *decode(hexBinary)
 	case []byte:

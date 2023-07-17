@@ -4,9 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"net/rpc"
-	"math/big"
 	"strings"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -258,8 +258,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	}
 
 	msg := utils.NewSignedCaesarMessage(
-		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
-		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
+		*accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
+		*accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
 
@@ -312,7 +312,7 @@ const sendTransactionEndpoint = "BouncerServer.SendTransaction"
 func (b *BouncerServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	b.print("Send transaction")
 
-	var input *utils.Transaction
+	var input utils.TransactionType
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
 		b.printError("Send transaction", err)
