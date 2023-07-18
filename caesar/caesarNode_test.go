@@ -32,7 +32,7 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 
 	bAccount, bNode := setupTestCaesarNode(&seedContact)
 	seedNode.FillOpenConnections()
-	testMessage, err := utils.NewCaesarMessage(bAccount, aAccount, "Hello World!")
+	testMessage, err := utils.NewCaesarMessage(*bAccount, *aAccount, "Hello World!")
 	if err != nil {
 		t.Fatal(err)
 	}
