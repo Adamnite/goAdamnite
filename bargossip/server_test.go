@@ -29,7 +29,6 @@ func startTestServer(t *testing.T) *Server {
 
 	server := &Server{
 		Config: config,
-		log:    log.Root(),
 	}
 	if err := server.Start(); err != nil {
 		t.Fatalf("could not start server: %v", err)
