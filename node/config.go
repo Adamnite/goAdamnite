@@ -12,7 +12,8 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/log15"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -27,7 +28,6 @@ type Config struct {
 	DataDir     string
 	KeyStoreDir string `toml:",omitempty"`
 	IPCPath     string
-	Logger      log15.Logger `toml:",omitempty"`
 	P2P         bargossip.Config
 }
 
@@ -172,7 +172,7 @@ func (c *Config) NodeKey() *ecdsa.PrivateKey {
 	if c.DataDir == "" {
 		key, err := crypto.GenerateKey()
 		if err != nil {
-			log15.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+			log.Fatal(fmt.Sprintf("Failed to generate node key: %v", err))
 		}
 		return key
 	}
@@ -184,18 +184,18 @@ func (c *Config) NodeKey() *ecdsa.PrivateKey {
 
 	key, err := crypto.GenerateKey()
 	if err != nil {
-		log15.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+		log.Fatal(fmt.Sprintf("Failed to generate node key: %v", err))
 	}
 
 	instanceDir := filepath.Join(c.DataDir, c.name())
 	if err := os.MkdirAll(instanceDir, 0700); err != nil {
-		log15.Error(fmt.Sprintf("Failed to persist node key: %v", err))
+		log.Error(fmt.Sprintf("Failed to persist node key: %v", err))
 		return key
 	}
 
 	keyfile = filepath.Join(instanceDir, datadirPrivateKey)
 	if err := crypto.SaveECDSA(keyfile, key); err != nil {
-		log15.Error(fmt.Sprintf("Failed to persist node key: %v", err))
+		log.Error(fmt.Sprintf("Failed to persist node key: %v", err))
 	}
 	return key
 }

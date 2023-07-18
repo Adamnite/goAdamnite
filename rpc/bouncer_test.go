@@ -34,7 +34,7 @@ func TestGetBalance(t *testing.T) {
 	for i, acc := range testAccounts {
 		account := struct {
 			Address string
-		}{ acc.Hex() }
+		}{acc.Hex()}
 		accountData, _ := encoding.Marshal(&account)
 
 		output := []byte{}
@@ -56,7 +56,7 @@ func TestGetAddresses(t *testing.T) {
 	for _, acc := range testAccounts {
 		account := struct {
 			Address string
-		}{ acc.Hex() }
+		}{acc.Hex()}
 
 		accountData, err := encoding.Marshal(&account)
 		if err != nil {
@@ -79,7 +79,7 @@ func TestGetAddresses(t *testing.T) {
 	for _, acc := range testAccounts {
 		account := struct {
 			Address string
-		}{ acc.Hex() }
+		}{acc.Hex()}
 
 		accountData, err := encoding.Marshal(&account)
 		if err != nil {
@@ -127,6 +127,10 @@ func TestMessaging(t *testing.T) {
 
 	output := []byte{}
 	err = bouncerClient.Call(bouncerNewMessageEndpoint, msgData, &output) //this will return an error (it doesn't have a forwarding server of its own)
+	if err == nil {
+		println("error expected, but none returned")
+		return
+	}
 	assert.Equal(
 		t,
 		"this is an incomplete bouncer server, and cannot forward",

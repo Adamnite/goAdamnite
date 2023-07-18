@@ -12,12 +12,12 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/common/mclock"
 	"github.com/adamnite/go-adamnite/event"
-	"github.com/adamnite/go-adamnite/log15"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Peer struct {
 	peerConn *wrapPeerConnection
-	log      log15.Logger
 	created  mclock.AbsTime
 	running  map[uint]*protoRW
 
@@ -32,11 +32,10 @@ type Peer struct {
 	events *event.Feed
 }
 
-func newPeer(connection *wrapPeerConnection, log log15.Logger, protocols []SubProtocol) *Peer {
+func newPeer(connection *wrapPeerConnection, protocols []SubProtocol) *Peer {
 	protomap := matchProtocols(protocols, connection.protocol.ProtocolIDs, connection)
 	peer := &Peer{
 		peerConn:    connection,
-		log:         log,
 		created:     mclock.Now(),
 		running:     protomap,
 		closed:      make(chan struct{}),
@@ -48,10 +47,6 @@ func newPeer(connection *wrapPeerConnection, log log15.Logger, protocols []SubPr
 }
 func (p *Peer) ID() admnode.NodeID {
 	return *p.peerConn.node.NodeInfo().GetNodeID()
-}
-
-func (p *Peer) Log() log15.Logger {
-	return p.log
 }
 
 // matchProtocols creates structures for matching named subprotocols.
@@ -98,15 +93,15 @@ func (p *Peer) startSubProtocols(writeStart <-chan struct{}, writeErr chan<- err
 		if p.events != nil {
 			rw = newMsgEventer(rw, p.events, *p.peerConn.node.ID(), proto.ProtocolID, p.peerConn.conn.RemoteAddr().String(), p.peerConn.conn.LocalAddr().String())
 		}
-		p.log.Trace(fmt.Sprintf("Starting protocol %d", proto.ProtocolID))
+		log.Trace(fmt.Sprintf("Starting protocol %d", proto.ProtocolID))
 		go func() {
 			defer p.wg.Done()
 			err := proto.Run(p, rw)
 			if err == nil {
-				p.log.Trace(fmt.Sprintf("Protocol %d returned", proto.ProtocolID))
+				log.Trace(fmt.Sprintf("Protocol %d returned", proto.ProtocolID))
 				err = errProtocolReturned
 			} else if err != io.EOF {
-				p.log.Trace(fmt.Sprintf("Protocol %d failed", proto.ProtocolID), "err", err)
+				log.Trace(fmt.Sprintf("Protocol %d failed", proto.ProtocolID), "err", err)
 			}
 			p.errChan <- err
 		}()

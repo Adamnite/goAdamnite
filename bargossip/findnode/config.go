@@ -11,7 +11,6 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 // Config holds the settings for the findnode listener.
@@ -23,14 +22,10 @@ type Config struct {
 	PeerBlackList *utils.IPNetList
 	PeerWhiteList *utils.IPNetList
 	Bootnodes     []*admnode.GossipNode
-	Log           log15.Logger
 	Clock         mclock.Clock
 }
 
 func (cfg Config) defaults() Config {
-	if cfg.Log == nil {
-		cfg.Log = log15.Root()
-	}
 	if cfg.Clock == nil {
 		cfg.Clock = mclock.System{}
 	}

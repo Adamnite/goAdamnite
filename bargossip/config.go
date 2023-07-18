@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 const (
@@ -52,9 +51,6 @@ type Config struct {
 
 	// ChainProtocol is used to communicate with peers about the blockchain information
 	ChainProtocol []SubProtocol
-
-	// Logger is a logger to use with gossip server
-	Logger log15.Logger
 
 	// clock will be used on gossip server
 	clock mclock.Clock

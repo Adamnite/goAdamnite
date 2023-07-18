@@ -13,10 +13,6 @@ func (v *MyType) UnmarshalText(input []byte) error {
 	return hexutil.UnmarshalFixedText("MyType", input, v[:])
 }
 
-func (v MyType) String() string {
-	return hexutil.Bytes(v[:]).String()
-}
-
 func ExampleUnmarshalFixedText() {
 	var v1, v2 MyType
 	fmt.Println("v1 error:", json.Unmarshal([]byte(`"0x01"`), &v1))

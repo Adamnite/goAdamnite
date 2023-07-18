@@ -12,7 +12,8 @@ import (
 
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/log15"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
 )
@@ -247,7 +248,7 @@ func ParseNodeURL(input string) (*NodeInfo, error) {
 		tmpPubKeyByte, _ := hex.DecodeString(strings.Split(strings.Split(input, "gnite://")[1], "@")[0])
 		tmpPubKey, err := crypto.UnmarshalPubkey(tmpPubKeyByte)
 		if err != nil {
-			log15.Error(err.Error())
+			log.Error(err.Error())
 		}
 
 		tcpVal, _ := strconv.ParseUint(strings.Split(strings.Split(input, ":")[1], "?")[0], 10, 32)

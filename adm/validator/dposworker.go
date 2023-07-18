@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"math/big"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -13,8 +14,9 @@ import (
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/params"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type environment struct {
@@ -285,10 +287,10 @@ func (w *dposWorker) newWorkLoop(recommit time.Duration) {
 		case interval := <-w.resubmitIntervalCh:
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
-				log15.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
+				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
 				interval = minRecommitInterval
 			}
-			log15.Info("Miner recommit interval update", "from", minRecommit, "to", interval)
+			log.Info("Miner recommit interval update", "from", minRecommit, "to", interval)
 			minRecommit, recommit = interval, interval
 
 			if w.resubmitHook != nil {
@@ -300,11 +302,11 @@ func (w *dposWorker) newWorkLoop(recommit time.Duration) {
 			if adjust.inc {
 				before := recommit
 				recalcRecommit(float64(recommit.Nanoseconds())/adjust.ratio, true)
-				log15.Info("Increase staker recommit interval", "from", before, "to", recommit)
+				log.Info("Increase staker recommit interval", "from", before, "to", recommit)
 			} else {
 				before := recommit
 				recalcRecommit(float64(minRecommit.Nanoseconds()), false)
-				log15.Info("Decrease staker recommit interval", "from", before, "to", recommit)
+				log.Info("Decrease staker recommit interval", "from", before, "to", recommit)
 			}
 
 			if w.resubmitHook != nil {
@@ -366,13 +368,13 @@ func (w *dposWorker) genBlockLoop() {
 		case block := <-w.genBlockCh:
 			err := w.chain.WriteBlock(block)
 			if err != nil {
-				log15.Error("Failed writing block to chain", "err", err)
+				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
 
 			w.mux.Post(core.NewBlockEvent{Block: block})
 
-			log15.Info("Created new block", "number", block.Number(), "witness", block.Header().Witness)
+			log.Info("Created new block", "number", block.Number(), "witness", block.Header().Witness)
 		}
 	}
 }
@@ -398,7 +400,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 
 	if now := time.Now().Unix(); tstamp > now+1 {
 		wait := time.Duration(tstamp-now) * time.Second
-		log15.Info("too far in the future", "wait", common.PrettyDuration(wait))
+		log.Info("too far in the future", "wait", common.PrettyDuration(wait))
 		time.Sleep(wait)
 	}
 
@@ -407,7 +409,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 		ParentHash:      parent.Hash(),
 		Time:            uint64(time.Now().Unix()),
 		WitnessRoot:     common.HexToHash("0x00000000000"),
-		Number:          num.Add(num, common.Big1),
+		Number:          num.Add(num, big.NewInt(1)),
 		Signature:       common.HexToHash("0x00000"),
 		TransactionRoot: common.HexToHash("0x0000"),
 		CurrentEpoch:    parent.Numberu64() / dpos.EpochBlockCount,
@@ -416,18 +418,18 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 	}
 
 	if err := w.dposEngine.Prepare(w.chain, header); err != nil {
-		// log15.Error("Failed to prepare header for staking", "err", err)
+		// log.Error("Failed to prepare header for staking", "err", err)
 		return
 	}
 
 	err := w.makeCurrent(parent, header)
 	if err != nil {
-		log15.Error("Failed to create mining context", "err", err)
+		log.Error("Failed to create mining context", "err", err)
 		return
 	}
 	pending, err := w.adamnite.TxPool().Pending()
 	if err != nil {
-		log15.Error("Failed to fetch pending transactions", "err", err)
+		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
 
@@ -453,7 +455,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 
 	err1 := w.commit(w.fullTaskHook, tstart)
 	if err1 != nil {
-		log15.Error(err1.Error())
+		log.Error(err1.Error())
 		os.Exit(0)
 	}
 	return
@@ -484,7 +486,7 @@ func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, 
 
 		err := w.commitTransaction(tx, coinbase)
 		if err != nil {
-			log15.Error("commit transation failed", err.Error())
+			log.Error("commit transation failed", err.Error())
 		}
 
 	}

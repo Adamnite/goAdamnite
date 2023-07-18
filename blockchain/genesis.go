@@ -11,9 +11,10 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/adamnite/go-adamnite/utils"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Genesis struct {
@@ -135,10 +136,10 @@ func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*p
 
 	if (stored == common.Hash{}) { // There is no genesis
 		if genesis == nil {
-			log15.Info("Writing testnet genesis block")
+			log.Info("Writing testnet genesis block")
 			genesis = DefaultTestnetGenesisBlock()
 		} else {
-			log15.Info("Writing custom genesis block")
+			log.Info("Writing custom genesis block")
 		}
 		block, err := genesis.Write(db)
 		if err != nil {

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net"
 
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 // GossipNode represents a host on the Adamnite network.
@@ -19,7 +19,7 @@ type GossipNode struct {
 func New(nodeInfo *NodeInfo) (*GossipNode, error) {
 	err := nodeInfo.Verify()
 	if err != nil {
-		log15.Error("error", nodeInfo)
+		log.Error("error", nodeInfo)
 		return nil, err
 	}
 

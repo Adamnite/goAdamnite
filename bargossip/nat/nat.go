@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adamnite/go-adamnite/log15"
 	natpmp "github.com/jackpal/go-nat-pmp"
+	log "github.com/sirupsen/logrus"
 )
 
 type Interface interface {
@@ -64,17 +64,17 @@ func Parse(spec string) (Interface, error) {
 // Map adds a port mapping on m and keeps it alive until c is closed.
 // This function is typically invoked in its own goroutine.
 func Map(m Interface, c <-chan struct{}, protocol string, extport, intport int, name string) {
-	log := log15.New("proto", protocol, "extport", extport, "intport", intport, "interface", m)
+	logger := log.WithFields(log.Fields{"proto": protocol, "extport": extport, "intport": intport, "interface": m})
 	refresh := time.NewTimer(mapTimeout)
 	defer func() {
 		refresh.Stop()
-		log.Debug("Deleting port mapping")
+		logger.Debug("Deleting port mapping")
 		m.DeleteMapping(protocol, extport, intport)
 	}()
 	if err := m.AddMapping(protocol, extport, intport, name, mapTimeout); err != nil {
-		log.Debug("Couldn't add port mapping", "err", err)
+		logger.Debug("Couldn't add port mapping", "err", err)
 	} else {
-		log.Info("Mapped network port")
+		logger.Info("Mapped network port")
 	}
 	for {
 		select {
@@ -83,9 +83,9 @@ func Map(m Interface, c <-chan struct{}, protocol string, extport, intport int, 
 				return
 			}
 		case <-refresh.C:
-			log.Trace("Refreshing port mapping")
+			logger.Trace("Refreshing port mapping")
 			if err := m.AddMapping(protocol, extport, intport, name, mapTimeout); err != nil {
-				log.Debug("Couldn't add port mapping", "err", err)
+				logger.Debug("Couldn't add port mapping", "err", err)
 			}
 			refresh.Reset(mapTimeout)
 		}

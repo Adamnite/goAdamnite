@@ -7,7 +7,6 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -16,6 +15,8 @@ import (
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -86,7 +87,7 @@ func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockH
 
 	header := new(types.BlockHeader)
 	if err := msgpack.Unmarshal(data, header); err != nil {
-		log15.Error("Invalid")
+		log.Error("Invalid")
 	}
 
 	return header

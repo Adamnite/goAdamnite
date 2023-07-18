@@ -5,7 +5,8 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
-	"github.com/adamnite/go-adamnite/log15"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -133,7 +134,7 @@ func (t *txLookup) Remove(hash common.Hash) {
 		tx, ok = t.remotes[hash]
 	}
 	if !ok {
-		log15.Error("No transaction found to be deleted", "hash", hash)
+		log.Error("No transaction found to be deleted", "hash", hash)
 		return
 	}
 	t.slots -= numSlots(tx)

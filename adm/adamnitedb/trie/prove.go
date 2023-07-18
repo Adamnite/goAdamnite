@@ -8,8 +8,9 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/memorydb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/log15"
+
 	"github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -43,7 +44,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb adamnitedb.AdamniteDBWr
 			var err error
 			tn, err = t.resolveHash(n, nil)
 			if err != nil {
-				log15.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+				log.Errorf("Unhandled trie error: %v", err)
 				return err
 			}
 		default:

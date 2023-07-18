@@ -12,9 +12,9 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/log15"
 
-	"github.com/vmihailenco/msgpack/v5"
+	encoding "github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 // secureKeyPrefix is the database key prefix used to store trie node preimages.
@@ -80,7 +80,7 @@ func (n rawFullNode) EncodeRLP(w io.Writer) error {
 			nodes[i] = nilValueNode
 		}
 	}
-	return msgpack.NewEncoder(w).Encode(nodes)
+	return encoding.NewEncoder(w).Encode(nodes)
 }
 
 // rawShortNode represents only the useful data content of a short node, with the
@@ -122,7 +122,7 @@ func (n *cachedNode) rlp() []byte {
 	if node, ok := n.node.(rawNode); ok {
 		return node
 	}
-	blob, err := msgpack.Marshal(n.node)
+	blob, err := encoding.Marshal(n.node)
 	if err != nil {
 		panic(err)
 	}
@@ -462,7 +462,7 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 func (db *Database) Dereference(root common.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
 	if root == (common.Hash{}) {
-		log15.Error("Attempted to dereference the trie cache meta root")
+		log.Error("Attempted to dereference the trie cache meta root")
 		return
 	}
 	db.lock.Lock()
@@ -475,7 +475,7 @@ func (db *Database) Dereference(root common.Hash) {
 	db.gcsize += storage - db.dirtiesSize
 	db.gctime += time.Since(start)
 
-	log15.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
+	log.Debug("Dereferenced trie from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
 		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
 }
 
@@ -554,7 +554,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	if flushPreimages {
 		for hash, preimage := range db.preimages {
 			if err := batch.Insert(db.secureKey(hash[:]), preimage); err != nil {
-				log15.Error("Failed to commit preimage from trie database", "err", err)
+				log.Error("Failed to commit preimage from trie database", "err", err)
 				return err
 			}
 			if batch.ValueSize() > adamnitedb.IdealBatchSize {
@@ -576,7 +576,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 		// If we exceeded the ideal batch size, commit and reset
 		if batch.ValueSize() >= adamnitedb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
-				log15.Error("Failed to write flush list to disk", "err", err)
+				log.Error("Failed to write flush list to disk", "err", err)
 				return err
 			}
 			batch.Reset()
@@ -592,7 +592,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	}
 	// Flush out any remainder data from the last batch
 	if err := batch.Write(); err != nil {
-		log15.Error("Failed to write flush list to disk", "err", err)
+		log.Error("Failed to write flush list to disk", "err", err)
 		return err
 	}
 	// Write successful, clear out the flushed data
@@ -601,7 +601,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 
 	if flushPreimages {
 		if db.preimages == nil {
-			log15.Error("Attempted to reset preimage cache whilst disabled")
+			log.Error("Attempted to reset preimage cache whilst disabled")
 		} else {
 			db.preimages, db.preimagesSize = make(map[common.Hash][]byte), 0
 		}
@@ -623,7 +623,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	db.flushsize += storage - db.dirtiesSize
 	db.flushtime += time.Since(start)
 
-	log15.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
+	log.Debug("Persisted nodes from memory database", "nodes", nodes-len(db.dirties), "size", storage-db.dirtiesSize, "time", time.Since(start),
 		"flushnodes", db.flushnodes, "flushsize", db.flushsize, "flushtime", db.flushtime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
 
 	return nil
@@ -646,7 +646,7 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 	// Move all of the accumulated preimages into a write batch
 	for hash, preimage := range db.preimages {
 		if err := batch.Insert(db.secureKey(hash[:]), preimage); err != nil {
-			log15.Error("Failed to commit preimage from trie database", "err", err)
+			log.Error("Failed to commit preimage from trie database", "err", err)
 			return err
 		}
 		// If the batch is too large, flush to disk
@@ -668,12 +668,12 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 
 	uncacher := &cleaner{db}
 	if err := db.commit(node, batch, uncacher, callback); err != nil {
-		log15.Error("Failed to commit trie from trie database", "err", err)
+		log.Error("Failed to commit trie from trie database", "err", err)
 		return err
 	}
 	// Trie mostly committed to disk, flush any batch leftovers
 	if err := batch.Write(); err != nil {
-		log15.Error("Failed to write trie to disk", "err", err)
+		log.Error("Failed to write trie to disk", "err", err)
 		return err
 	}
 	// Uncache any leftovers in the last batch
@@ -688,9 +688,9 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 		db.preimages, db.preimagesSize = make(map[common.Hash][]byte), 0
 	}
 
-	logger := log15.Info
+	logger := log.Info
 	if !report {
-		logger = log15.Debug
+		logger = log.Debug
 	}
 	logger("Persisted trie from memory database", "nodes", nodes-len(db.dirties)+int(db.flushnodes), "size", storage-db.dirtiesSize+db.flushsize, "time", time.Since(start)+db.flushtime,
 		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
@@ -801,15 +801,15 @@ func (db *Database) saveCache(dir string, threads int) error {
 	if db.cleans == nil {
 		return nil
 	}
-	log15.Info("Writing clean trie cache to disk", "path", dir, "threads", threads)
+	log.Info("Writing clean trie cache to disk", "path", dir, "threads", threads)
 
 	start := time.Now()
 	err := db.cleans.SaveToFileConcurrent(dir, threads)
 	if err != nil {
-		log15.Error("Failed to persist clean trie cache", "error", err)
+		log.Error("Failed to persist clean trie cache", "error", err)
 		return err
 	}
-	log15.Info("Persisted the clean trie cache", "path", dir, "elapsed", time.Duration(time.Since(start)))
+	log.Info("Persisted the clean trie cache", "path", dir, "elapsed", time.Duration(time.Since(start)))
 	return nil
 }
 

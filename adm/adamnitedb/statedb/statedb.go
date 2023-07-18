@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/log15"
 
-	"github.com/vmihailenco/msgpack/v5"
+	encoding "github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -238,7 +238,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	}
 	if codeWriter.ValueSize() > 0 {
 		if err := codeWriter.Write(); err != nil {
-			log15.Crit("Failed to commit dirty codes", "error", err)
+			log.Fatal("Failed to commit dirty codes", "error", err)
 		}
 	}
 
@@ -246,7 +246,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	// for unmarshalling every time.
 	var account Account
 	root, err := s.trie.Commit(func(_ [][]byte, _ []byte, leaf []byte, parent common.Hash) error {
-		if err := msgpack.Unmarshal(leaf, &account); err != nil {
+		if err := encoding.Unmarshal(leaf, &account); err != nil {
 			return nil
 		}
 		if account.Root != emptyRoot {
@@ -323,8 +323,8 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	}
 
 	data = new(Account)
-	if err := msgpack.Unmarshal(enc, data); err != nil {
-		log15.Error("Failed to decode state object", "addr", addr, "err", err)
+	if err := encoding.Unmarshal(enc, data); err != nil {
+		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
 
@@ -347,7 +347,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	// Encode the account and update the account trie
 	addr := obj.Address()
 
-	data, err := msgpack.Marshal(obj)
+	data, err := encoding.Marshal(obj)
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
@@ -399,7 +399,7 @@ func (s *StateDB) GetBalance(addr common.Address) *big.Int {
 	if stateObject != nil {
 		return stateObject.Balance()
 	}
-	return common.Big0
+	return big.NewInt(0)
 }
 
 func (s *StateDB) GetNonce(addr common.Address) uint64 {

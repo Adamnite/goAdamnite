@@ -10,8 +10,9 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/event"
-	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/rpc"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -22,7 +23,6 @@ const (
 
 type Node struct {
 	config *Config
-	log    log15.Logger
 	stop   chan struct{}
 
 	ipc    *ipcServer
@@ -54,13 +54,8 @@ func New(cfg *Config) (*Node, error) {
 		cfg.DataDir = absdatadir
 	}
 
-	if cfg.Logger == nil {
-		cfg.Logger = log15.New()
-	}
-
 	node := &Node{
 		config:          cfg,
-		log:             cfg.Logger,
 		stop:            make(chan struct{}),
 		adamniteServer:  rpc.NewAdamniteServer(nil, nil, 0),
 		server:          &bargossip.Server{Config: cfg.P2P},
@@ -68,13 +63,10 @@ func New(cfg *Config) (*Node, error) {
 		eventmux:        new(event.TypeMux),
 	}
 
-	// node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
-
-	node.ipc = newIPCServer(node.log, 0)
+	node.ipc = newIPCServer(0)
 
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.ServerPrvKey = node.config.NodeKey()
-	node.server.Config.Logger = node.log
 
 	if node.server.Config.NodeDatabase == "" {
 		node.server.Config.NodeDatabase = node.config.NodeDB()
@@ -127,7 +119,7 @@ func (n *Node) Start() error {
 }
 
 func (n *Node) openEndPoints() error {
-	n.log.Info("Starting P2P node", "instance", n.server.Name)
+	log.Info("Starting P2P node", "instance", n.server.Name)
 	if err := n.server.Start(); err != nil {
 		return convertFileLockError(err)
 	}

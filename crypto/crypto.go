@@ -198,7 +198,7 @@ func PubkeyByteToAddress(p []byte) common.Address {
 }
 
 func ValidateSignatureValues(v byte, r, s *big.Int) bool {
-	if r.Cmp(common.Big1) < 0 || s.Cmp(common.Big1) < 0 {
+	if r.Cmp(big.NewInt(1)) < 0 || s.Cmp(big.NewInt(1)) < 0 {
 		return false
 	}
 	return r.Cmp(secp256k1N) < 0 && s.Cmp(secp256k1N) < 0 && (v == 0 || v == 1)

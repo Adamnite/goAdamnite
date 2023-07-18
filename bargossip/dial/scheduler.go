@@ -8,6 +8,8 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/findnode"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type AddConnection func(net.Conn, ConnectionFlag, *admnode.GossipNode) error
@@ -92,7 +94,7 @@ loop:
 		case node := <-s.nodeRecvCh:
 			if freeConnections > 0 {
 				if err := s.isValidateDialNode(node); err != nil {
-					s.Log.Debug("dial validate error", "id", node.ID(), "ip", node.IP(), "err", err)
+					log.Debug("dial validate error", "id", node.ID(), "ip", node.IP(), "err", err)
 				} else {
 					s.dialNode(newTask(node, OutboundConnection))
 				}

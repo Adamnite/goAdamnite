@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/log15"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // NodePool is the table that stores the neighbor nodes.
 type NodePool struct {
 	bootstrapNodes []*node
 	db             *admnode.NodeDB
-	log            log15.Logger
 	transport      findNodeTransport
 	rand           *mrand.Rand
 	buckets        [BucketCount]*bucket
@@ -32,10 +32,9 @@ type bucket struct {
 	graylist  []*node
 }
 
-func newNodePool(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootnodes []*admnode.GossipNode, log log15.Logger) (*NodePool, error) {
+func newNodePool(findNodeTransport findNodeTransport, db *admnode.NodeDB, bootnodes []*admnode.GossipNode) (*NodePool, error) {
 	table := &NodePool{
 		db:        db,
-		log:       log,
 		transport: findNodeTransport,
 		rand:      mrand.New(mrand.NewSource(0)),
 	}
@@ -79,7 +78,7 @@ func (tab *NodePool) loadNodes() {
 	for i := range seeds {
 		seed := seeds[i]
 		tab.addSeenNode(seed)
-		tab.log.Trace("Found seed node", "id", seed.ID(), "addr", seed.getUDPAddr())
+		log.Trace("Found seed node", "id", seed.ID(), "addr", seed.getUDPAddr())
 	}
 }
 

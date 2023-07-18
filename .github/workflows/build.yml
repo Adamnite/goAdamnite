@@ -3,7 +3,7 @@ name: Adamnite
 on:
   pull_request:
     branches:
-      - VM-Stable
+      - stable
 
 jobs:
   build:

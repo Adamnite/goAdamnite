@@ -8,7 +8,6 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
 	"github.com/adamnite/go-adamnite/common/mclock"
-	"github.com/adamnite/go-adamnite/log15"
 )
 
 type Config struct {
@@ -27,8 +26,6 @@ type Config struct {
 	// MaxPendingOutboundConnections is the maximum number of pending outbound peer connections
 	MaxPendingOutboundConnections int
 
-	Log log15.Logger
-
 	Clock mclock.Clock
 
 	Rand *mrand.Rand
@@ -40,9 +37,6 @@ func (cfg Config) withDefaults() Config {
 	}
 	if cfg.MaxPendingOutboundConnections == 0 {
 		cfg.MaxPendingOutboundConnections = defaultMaxPendingOutboundConnections
-	}
-	if cfg.Log == nil {
-		cfg.Log = log15.Root()
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = mclock.System{}

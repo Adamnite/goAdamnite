@@ -2,6 +2,8 @@
 
 An implementation of the Adamnite Protocol in the GoLang programming language.
 
+![Build](https://github.com/Adamnite/goAdamnite/actions/workflows/build.yml/badge.svg)
+
 ## Running A1 smart contract
 
 In case you want to run your A1 smart contract on the Adamnite blockchain, make sure you go through the following steps:

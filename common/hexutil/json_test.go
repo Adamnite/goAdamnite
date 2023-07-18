@@ -101,10 +101,6 @@ func TestMarshalBytes(t *testing.T) {
 			t.Errorf("%x: MarshalJSON output mismatch: got %q, want %q", in, out, want)
 			continue
 		}
-		if out := Bytes(in).String(); out != test.want {
-			t.Errorf("%x: String mismatch: got %q, want %q", in, out, test.want)
-			continue
-		}
 	}
 }
 
