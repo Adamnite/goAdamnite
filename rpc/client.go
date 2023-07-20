@@ -2,27 +2,24 @@ package rpc
 
 import (
 	"fmt"
-	"log"
 	"net/rpc"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 const clientPreface = "[Adamnite RPC client] %v \n"
 
 func (a *AdamniteClient) print(methodName string) {
-	if a.DebugOutput {
-		log.Printf(clientPreface, methodName)
-	}
+	log.Debug(clientPreface, methodName)
 }
 func (a *AdamniteClient) printError(methodName string, err error) {
-	log.Printf(clientPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+	log.Error(clientPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 
 type AdamniteClient struct {
-	DebugOutput       bool
 	endpoint          string
 	client            rpc.Client
 	callerAddress     *common.Address
@@ -137,8 +134,7 @@ func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
 		return AdamniteClient{}, err
 	}
 	return AdamniteClient{
-		DebugOutput: false,
-		endpoint:    endpoint,
-		client:      *client,
+		endpoint: endpoint,
+		client:   *client,
 	}, nil
 }
