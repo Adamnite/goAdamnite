@@ -109,8 +109,8 @@ func TestMessaging(t *testing.T) {
 	}
 
 	input := struct {
-		FromPublicKey string
-		ToPublicKey   string
+		PublicKeyA    string
+		PublicKeyB    string
 		RawMessage    string
 		SignedMessage string
 	}{

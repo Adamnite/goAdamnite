@@ -19,9 +19,14 @@ import (
 
 //bouncer acts as the endpoint handler for points primarily called by external clients (eg, those who weren't there when the data was passed, or need select data)
 
-type MessageKey struct {
-	FromPublicKey string
-	ToPublicKey   string
+type messagesKey struct {
+	PublicKeyA string
+	PublicKeyB string
+}
+
+type messageContent struct {
+	Timestamp int64  `msgpack:"timestamp"`
+	Content   string `msgpack:"content"`
 }
 
 type BouncerServer struct {
@@ -35,7 +40,7 @@ type BouncerServer struct {
 	propagator  func(ForwardingContent, *[]byte) error
 	getMessages func(common.Address, common.Address) []*utils.CaesarMessage
 
-	messages map[*MessageKey][]*utils.CaesarMessage
+	messages map[messagesKey][]*messageContent
 }
 
 const bouncerPreface = "[Adamnite Bouncer RPC server] %v \n"
@@ -64,7 +69,7 @@ func NewBouncerServer(stateDB *statedb.StateDB, chain *blockchain.Blockchain, po
 	bouncer.chain = chain
 	bouncer.DebugOutput = false
 	bouncer.Version = "0.1.2"
-	bouncer.messages = make(map[*MessageKey][]*utils.CaesarMessage)
+	bouncer.messages = make(map[messagesKey][]*messageContent)
 	bouncer.propagator = func(ForwardingContent, *[]byte) error {
 		return fmt.Errorf("this is an incomplete bouncer server, and cannot forward")
 	}
@@ -246,8 +251,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	b.print("New Message")
 
 	input := struct {
-		FromPublicKey string
-		ToPublicKey   string
+		PublicKeyA    string
+		PublicKeyB    string
 		RawMessage    string
 		SignedMessage string
 	}{}
@@ -257,19 +262,23 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	msg := utils.NewSignedCaesarMessage(
-		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
-		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
+	m := utils.NewSignedCaesarMessage(
+		accounts.AccountFromPubBytes(common.FromHex(input.PublicKeyB)),
+		accounts.AccountFromPubBytes(common.FromHex(input.PublicKeyA)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
 
 	// TODO: Verify the message
 
-	k := &MessageKey{
-		input.FromPublicKey,
-		input.ToPublicKey,
+	k := messagesKey{
+		input.PublicKeyA,
+		input.PublicKeyB,
 	}
-	b.messages[k] = append(b.messages[k], msg)
+	c := &messageContent{
+		m.InitialTime,
+		hex.EncodeToString(m.Message),
+	}
+	b.messages[k] = append(b.messages[k], c)
 
 	data, _ := encoding.Marshal(true)
 	*reply = data
@@ -281,19 +290,19 @@ const bouncerGetMessages = "BouncerServer.GetMessages"
 func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 	b.print("Get messages")
 
-	input := &MessageKey{}
+	input := &messagesKey{}
 
 	if err := encoding.Unmarshal(*params, input); err != nil {
 		b.printError("Get messages", err)
 		return err
 	}
 
-	encryptedMessages := make(map[int64]string)
+	encryptedMessages := make(map[string][]*messageContent)
 	for k, v := range b.messages {
-		if k.FromPublicKey == input.FromPublicKey && k.ToPublicKey == input.ToPublicKey {
-			for _, m := range v {
-				encryptedMessages[m.InitialTime] = hex.EncodeToString(m.Message)
-			}
+		if k.PublicKeyA == input.PublicKeyA && k.PublicKeyB == input.PublicKeyB {
+			encryptedMessages[input.PublicKeyA] = v
+		} else if k.PublicKeyA == input.PublicKeyB && k.PublicKeyB == input.PublicKeyA {
+			encryptedMessages[input.PublicKeyB] = v
 		}
 	}
 
