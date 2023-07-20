@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/rpc"
 	"strings"
@@ -11,7 +10,9 @@ import (
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
+
 	encoding "github.com/vmihailenco/msgpack/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 type AdamniteServer struct {
@@ -31,7 +32,6 @@ type AdamniteServer struct {
 	newVoteHandler            func(utils.Voter) error
 	newMessageHandler         func(*utils.CaesarMessage)
 	Run                       func()
-	DebugOutput               bool
 }
 
 func (a *AdamniteServer) Addr() string {
@@ -75,12 +75,10 @@ func (a *AdamniteServer) Close() {
 const serverPreface = "[Adamnite RPC server] %v \n"
 
 func (a *AdamniteServer) print(methodName string) {
-	if a.DebugOutput {
-		log.Printf(serverPreface, methodName)
-	}
+	log.Debug(serverPreface, methodName)
 }
 func (a *AdamniteServer) printError(methodName string, err error) {
-	log.Printf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+	log.Error(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
 	if _, exists := a.seenConnections[fc.Hash()]; exists {
@@ -242,7 +240,6 @@ func NewAdamniteServer(port uint32) *AdamniteServer {
 	adamnite := new(AdamniteServer)
 	adamnite.timesTestHasBeenCalled = 0
 	adamnite.seenConnections = make(map[common.Hash]common.Void)
-	adamnite.DebugOutput = false
 	adamnite.Version = "0.1.2"
 
 	if err := rpcServer.Register(adamnite); err != nil {
