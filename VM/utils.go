@@ -180,6 +180,10 @@ func (cache *DBCache) PreCacheContract(address string) error {
 	}
 	return nil
 }
+func (cache *DBCache) UploadChangedContracts() error {
+	// UploadContract(cache.api)
+	return nil
+}
 
 // API DB Spoofing
 type DBSpoofer struct {

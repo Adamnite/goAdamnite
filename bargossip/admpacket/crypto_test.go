@@ -5,12 +5,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
+	"encoding/hex"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common/hexutil"
 	"github.com/adamnite/go-adamnite/crypto"
 )
 
@@ -18,7 +18,7 @@ func Test_ECDH(t *testing.T) {
 	var (
 		staticKey = hexPrivkey("0xfb757dc581730490a1d7a00deea65e9b1936924caaea8f44d476014856b68736")
 		publicKey = hexPubkey(crypto.S256(), "0x039961e4c2356d61bedb83052c115d311acb3a96f5777296dcf297351130266231")
-		want      = hexutil.MustDecode("0x033b11a2a1f214567e1537ce5e509ffd9b21373247f2a3ff6841f4976f53165e7e")
+		want, _   = hex.DecodeString("0x033b11a2a1f214567e1537ce5e509ffd9b21373247f2a3ff6841f4976f53165e7e")
 	)
 	result := ecdh(staticKey, publicKey)
 	check(t, "shared-secret", result, want)
@@ -77,7 +77,11 @@ func hexPrivkey(input string) *ecdsa.PrivateKey {
 }
 
 func hexPubkey(curve elliptic.Curve, input string) *ecdsa.PublicKey {
-	key, err := DecodePubkey(curve, hexutil.MustDecode(input))
+	inBytes, err := hex.DecodeString(input)
+	if err != nil {
+		panic(err)
+	}
+	key, err := DecodePubkey(curve, inBytes)
 	if err != nil {
 		panic(err)
 	}

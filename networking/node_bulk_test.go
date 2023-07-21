@@ -199,7 +199,7 @@ func TestTransactionPropagation(t *testing.T) {
 	// log.Println(ans.Time)
 	// log.Println(ans.Signature)
 	// log.Println(ans.Equal(transaction))
-	assert.True(t, ans.Equal(*transaction), "failed to return equal transaction")
+	assert.True(t, ans.Equal(transaction), "failed to return equal transaction")
 	// assert.Equal(t, transaction, *ans, "not equal")
 }
 
