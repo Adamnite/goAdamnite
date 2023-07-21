@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core/types"
 )
 
 type TxPool interface {
-	Get(hash common.Hash) *types.Transaction
+	Get(hash utils.Hash) *types.Transaction
 }
 
 type AdamniteHandlerInterface interface {

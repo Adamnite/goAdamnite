@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -22,7 +22,7 @@ func setupTestCaesarNode(autoConnectSeed *networking.Contact) (*accounts.Account
 }
 
 func TestTwoServersMessagingOpenly(t *testing.T) {
-	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	seedNode := networking.NewNetNode(utils.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
 
@@ -53,7 +53,7 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 }
 
 func TestManyOpenMessages(t *testing.T) {
-	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	seedNode := networking.NewNetNode(utils.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
 

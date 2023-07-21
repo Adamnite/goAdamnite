@@ -7,8 +7,8 @@ import (
 	"github.com/adamnite/go-adamnite/adm"
 	"github.com/adamnite/go-adamnite/adm/adamconfig"
 	"github.com/adamnite/go-adamnite/bargossip"
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/common/fdutils"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/fdutils"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/node"
@@ -80,7 +80,7 @@ func setWitnessAddress(ctx *cli.Context, cfg *adamconfig.Config) {
 		witnessAddr = ctx.String(WitnessAddressFlag.Name)
 	}
 
-	cfg.Validator.WitnessAddress = common.HexToAddress(witnessAddr)
+	cfg.Validator.WitnessAddress = utils.HexToAddress(witnessAddr)
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *bargossip.Config) {

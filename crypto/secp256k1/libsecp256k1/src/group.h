@@ -75,7 +75,7 @@ static void secp256k1_ge_set_table_gej_var(secp256k1_ge *r, const secp256k1_gej 
 /** Bring a batch inputs given in jacobian coordinates (with known z-ratios) to
  *  the same global z "denominator". zr must contain the known z-ratios such
  *  that mul(a[i].z, zr[i+1]) == a[i+1].z. zr[0] is ignored. The x and y
- *  coordinates of the result are stored in r, the common z coordinate is
+ *  coordinates of the result are stored in r, the utils z coordinate is
  *  stored in globalz. */
 static void secp256k1_ge_globalz_set_table_gej(size_t len, secp256k1_ge *r, secp256k1_fe *globalz, const secp256k1_gej *a, const secp256k1_fe *zr);
 

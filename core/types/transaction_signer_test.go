@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 )
 
@@ -16,7 +16,7 @@ func TestAdamniteSigner(t *testing.T) {
 
 	vote := NewVoteTransaction(
 		0,
-		common.HexToAddress("0x2d9487a9551db05414018c7fac9aed393f2fccda"),
+		utils.HexToAddress("0x2d9487a9551db05414018c7fac9aed393f2fccda"),
 		new(big.Int),
 		1)
 

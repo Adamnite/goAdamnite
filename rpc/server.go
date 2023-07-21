@@ -9,22 +9,22 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
 type AdamniteServer struct {
 	chain           *blockchain.Blockchain
-	hostingNodeID   common.Address
-	seenConnections map[common.Hash]common.Void
+	hostingNodeID   utils.Address
+	seenConnections map[utils.Hash]utils.Void
 	Version         string
 
 	GetContactsFunction       func() PassedContacts
 	listener                  net.Listener
 	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
 	timesTestHasBeenCalled    int
-	newConnection             func(string, common.Address)
+	newConnection             func(string, utils.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(*utils.Transaction, *[]byte) error
 	newCandidateHandler       func(utils.Candidate) error
@@ -39,7 +39,7 @@ func (a *AdamniteServer) Addr() string {
 }
 func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
-	newConn func(string, common.Address),
+	newConn func(string, utils.Address),
 	newTransaction func(*utils.Transaction, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
@@ -48,7 +48,7 @@ func (a *AdamniteServer) SetHandlers(
 func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
 }
-func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
+func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, utils.Address)) {
 	a.newConnection = newConn
 }
 
@@ -57,9 +57,9 @@ func (a *AdamniteServer) SetTransactionHandler(handler func(*utils.Transaction, 
 	a.newTransactionReceived = handler
 }
 
-func (a *AdamniteServer) SetHostingID(id *common.Address) {
+func (a *AdamniteServer) SetHostingID(id *utils.Address) {
 	if id == nil {
-		a.hostingNodeID = common.Address{0}
+		a.hostingNodeID = utils.Address{0}
 		return
 	}
 	a.hostingNodeID = *id
@@ -86,7 +86,7 @@ func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
 	if _, exists := a.seenConnections[fc.Hash()]; exists {
 		return true //we've already seen it
 	}
-	a.seenConnections[fc.Hash()] = common.Void{} //this doesn't actually use any memory
+	a.seenConnections[fc.Hash()] = utils.Void{} //this doesn't actually use any memory
 	return false
 }
 
@@ -176,7 +176,7 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	a.print("Get Version")
 	receivedData := struct {
-		Address           common.Address
+		Address           utils.Address
 		HostingServerPort string
 	}{}
 	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
@@ -241,7 +241,7 @@ func NewAdamniteServer(port uint32) *AdamniteServer {
 
 	adamnite := new(AdamniteServer)
 	adamnite.timesTestHasBeenCalled = 0
-	adamnite.seenConnections = make(map[common.Hash]common.Void)
+	adamnite.seenConnections = make(map[utils.Hash]utils.Void)
 	adamnite.DebugOutput = false
 	adamnite.Version = "0.1.2"
 

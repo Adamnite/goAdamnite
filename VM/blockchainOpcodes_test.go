@@ -8,7 +8,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -81,7 +81,7 @@ func preTestSetup() {
 		panic("error in preTestSetup")
 	}
 	vm = NewVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
-	vm.contract.Address = common.BytesToAddress(testAddress)
+	vm.contract.Address = utils.BytesToAddress(testAddress)
 	vm.config.CodeGetter = spoofer.GetCode
 }
 
@@ -100,13 +100,13 @@ func TestOpBalance(t *testing.T) {
 	testBalance.Mul(testBalance, big.NewInt(100))
 
 	db := rawdb.NewMemoryDB()
-	state, _ := statedb.New(common.Hash{}, statedb.NewDatabase(db))
-	state.AddBalance(common.BytesToAddress(testAddress), testBalance)
+	state, _ := statedb.New(utils.Hash{}, statedb.NewDatabase(db))
+	state.AddBalance(utils.BytesToAddress(testAddress), testBalance)
 	rootHash := state.IntermediateRoot(false)
 	state.Database().TrieDB().Commit(rootHash, false, nil)
 	vm.Statedb = state
 
-	// fmt.Println(state.GetBalance(common.BytesToAddress(testAddress)))
+	// fmt.Println(state.GetBalance(utils.BytesToAddress(testAddress)))
 	fmt.Println(vm.Call2(hashes[1]+"", 1000))
 	assert.Equal(t, testBalance, arrayToBalance(vm.vmStack))
 }

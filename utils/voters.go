@@ -3,7 +3,7 @@ package utils
 import (
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -33,7 +33,7 @@ func (v *Voter) SignTo(candidate Candidate, signer accounts.Account) error {
 	return nil
 }
 
-func (v Voter) Address() common.Address {
+func (v Voter) Address() utils.Address {
 	return accounts.AccountFromPubBytes(v.From).Address
 }
 func (v Voter) Account() accounts.Account {

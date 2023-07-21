@@ -1,7 +1,7 @@
 package VM
 
 import (
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 type opAddress struct {
@@ -38,7 +38,7 @@ func (op balance) doOp(m *Machine) error {
 	addressUints[0] = m.popFromStack()
 
 	addr := uintsArrayToAddress(addressUints)
-	value := m.Statedb.GetBalance(common.BytesToAddress(addr))
+	value := m.Statedb.GetBalance(utils.BytesToAddress(addr))
 	balanceInts := balanceToArray(*value)
 	for i := range balanceInts {
 		m.pushToStack(balanceInts[i])

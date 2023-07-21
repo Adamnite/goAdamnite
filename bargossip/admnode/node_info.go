@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/common/math"
+	"github.com/adamnite/go-adamnite/utils/math"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"

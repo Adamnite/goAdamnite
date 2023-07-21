@@ -5,7 +5,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 )
@@ -46,7 +46,7 @@ type NetNode struct {
 	consensusTransactionHandler func(*utils.Transaction) error
 }
 
-func NewNetNode(address common.Address) *NetNode {
+func NewNetNode(address utils.Address) *NetNode {
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
 		maxOutboundConnections: 5,
@@ -77,7 +77,7 @@ func (n NetNode) GetBouncerString() string {
 func (n *NetNode) SetMaxConnections(newMax uint) {
 	n.maxOutboundConnections = newMax
 }
-func (n *NetNode) SetBounceServerMessaging(getMsgs func(common.Address, common.Address) []*utils.CaesarMessage) {
+func (n *NetNode) SetBounceServerMessaging(getMsgs func(utils.Address, utils.Address) []*utils.CaesarMessage) {
 	if n.bouncerServer == nil {
 		return
 	}
@@ -177,7 +177,7 @@ func (n *NetNode) handleTransaction(transaction *utils.Transaction, transactionB
 				FinalEndpoint: rpc.SendTransactionEndpoint,
 				FinalParams:   *transactionBytes,
 				InitialSender: transaction.From,
-				// Signature:     common.BytesToHash(transaction.Signature), // i think this works, but not 100% sure its right.
+				// Signature:     utils.BytesToHash(transaction.Signature), // i think this works, but not 100% sure its right.
 			},
 			&[]byte{},
 		)
@@ -211,7 +211,7 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 }
 
 // TODO: eventually this will also make sure versioning is the same, or will be renamed.
-func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
+func (n *NetNode) versionCheck(remoteIP string, nodeID utils.Address) {
 	if remoteIP == "" {
 		return
 	}

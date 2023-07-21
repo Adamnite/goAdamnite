@@ -3,7 +3,7 @@ package utils
 import (
 	"container/heap"
 
-	"github.com/adamnite/go-adamnite/common/mclock"
+	"github.com/adamnite/go-adamnite/utils/mclock"
 )
 
 type inboundConnItem struct {

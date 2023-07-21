@@ -2,50 +2,50 @@ package rawdb
 
 import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core/types"
 
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (common.Hash, error) {
+func ReadHeaderHash(db adamnitedb.AdamniteDBReader, blockNum uint64) (utils.Hash, error) {
 
 	data, _ := db.Get(blockHeaderHashKey(blockNum))
 
 	if len(data) == 0 {
-		return common.Hash{}, nil
+		return utils.Hash{}, nil
 	}
 
-	return common.BytesToHash(data), nil
+	return utils.BytesToHash(data), nil
 }
 
-func WriteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash, node []byte) {
+func WriteTrieNode(db adamnitedb.AdamniteDBWriter, hash utils.Hash, node []byte) {
 	if err := db.Insert(hash[:], node); err != nil {
 		log15.Crit("Failed to store trie node", "err", err)
 	}
 }
 
 // ReadTrieNode retrieves the trie node of the provided hash.
-func ReadTrieNode(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
+func ReadTrieNode(db adamnitedb.AdamniteDBReader, hash utils.Hash) []byte {
 	data, _ := db.Get(hash[:])
 	return data
 }
 
-func DeleteTrieNode(db adamnitedb.AdamniteDBWriter, hash common.Hash) {
+func DeleteTrieNode(db adamnitedb.AdamniteDBWriter, hash utils.Hash) {
 	if err := db.Delete(hash[:]); err != nil {
 		log15.Crit("Failed to delete trie node", "err", err)
 	}
 }
 
 // ReadPreimage retrieves a single preimage of the provided hash.
-func ReadPreimage(db adamnitedb.AdamniteDBReader, hash common.Hash) []byte {
+func ReadPreimage(db adamnitedb.AdamniteDBReader, hash utils.Hash) []byte {
 	data, _ := db.Get(preimageKey(hash))
 	return data
 }
 
 // WritePreimages writes the provided set of preimages to the database.
-func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[common.Hash][]byte) {
+func WritePreimages(db adamnitedb.AdamniteDBWriter, preimages map[utils.Hash][]byte) {
 	for hash, preimage := range preimages {
 		if err := db.Insert(preimageKey(hash), preimage); err != nil {
 			log15.Crit("Failed to store trie preimage", "err", err)
@@ -90,7 +90,7 @@ func WriteBlock(db adamnitedb.AdamniteDBWriter, block *types.Block) {
 	WriteHeader(db, block.Header())
 }
 
-func WriteBody(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, body *types.Body) {
+func WriteBody(db adamnitedb.AdamniteDBWriter, hash utils.Hash, blockNum uint64, body *types.Body) {
 
 	data, err := msgpack.Marshal(body)
 	if err != nil {
@@ -99,7 +99,7 @@ func WriteBody(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64
 	WriteBodyMsgPack(db, hash, blockNum, data)
 }
 
-func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash common.Hash, blockNum uint64, msgpack msgpack.RawMessage) {
+func WriteBodyMsgPack(db adamnitedb.AdamniteDBWriter, hash utils.Hash, blockNum uint64, msgpack msgpack.RawMessage) {
 	if err := db.Insert(blockBodyKey(blockNum, hash), msgpack); err != nil {
 		log15.Crit("Failed to store block body", "err", err)
 	}
@@ -124,7 +124,7 @@ func WriteHeader(db adamnitedb.AdamniteDBWriter, header *types.BlockHeader) {
 	}
 }
 
-func WriteHeaderNumber(db adamnitedb.AdamniteDBWriter, hash common.Hash, number uint64) {
+func WriteHeaderNumber(db adamnitedb.AdamniteDBWriter, hash utils.Hash, number uint64) {
 	key := headerNumberKey(hash)
 	enc := encodeBlockNumber(number)
 	if err := db.Insert(key, enc); err != nil {

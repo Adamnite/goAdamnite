@@ -75,3 +75,60 @@ func NewBigRatFromString(value string) (*BigRat, bool) {
 		Rat: br,
 	}, true
 }
+
+// PadBytesLeft pads the given byte slice on the left with zeros to the specified length.
+func PadBytesLeft(b []byte, length int) []byte {
+	if len(b) >= length {
+		return b
+	}
+
+	padded := make([]byte, length)
+	copy(padded[length-len(b):], b)
+	return padded
+}
+
+// GetDecimalPercentage returns the percentage representation of a decimal value as a big integer.
+// For example, for value 0.75 and scale 2, it returns 75.
+func GetDecimalPercentage(value float64, scale int) *big.Int {
+	percentage := new(big.Int)
+	percentage.SetFloat64(value * 100)
+	percentage.Mul(percentage, big.NewInt(int64(10*scale)))
+	return percentage
+}
+
+// SliceBytes slices a big-endian byte representation into chunks of specified size.
+func SliceBytes(b []byte, chunkSize int) [][]byte {
+	if chunkSize <= 0 {
+		return nil
+	}
+
+	numChunks := (len(b) + chunkSize - 1) / chunkSize
+	chunks := make([][]byte, numChunks)
+
+	for i := 0; i < numChunks; i++ {
+		start := i * chunkSize
+		end := start + chunkSize
+		if end > len(b) {
+			end = len(b)
+		}
+		chunks[i] = b[start:end]
+	}
+
+	return chunks
+}
+
+// BytesToBigEndianUint64 converts a byte slice to a big-endian uint64.
+func BytesToBigEndianUint64(b []byte) uint64 {
+	if len(b) > 8 {
+		return 0
+	}
+	zeroPadded := PadBytesLeft(b, 8)
+	return binary.BigEndian.Uint64(zeroPadded)
+}
+
+// BigEndianUint64ToBytes converts a big-endian uint64 to a byte slice.
+func BigEndianUint64ToBytes(value uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, value)
+	return b
+}

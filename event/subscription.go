@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common/mclock"
+	"github.com/adamnite/go-adamnite/utils/mclock"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a

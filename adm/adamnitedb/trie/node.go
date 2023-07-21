@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -160,7 +160,7 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 	return n, nil
 }
 
-const hashLen = common.HashLength
+const hashLen = utils.HashLength
 
 func decodeRef(buf []byte) (node, []byte, error) {
 	kind, val, rest, err := serialization.Split(buf)

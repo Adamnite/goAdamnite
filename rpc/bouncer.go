@@ -11,7 +11,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	encoding "github.com/vmihailenco/msgpack/v5"
@@ -33,7 +33,7 @@ type BouncerServer struct {
 	Version     string
 
 	propagator  func(ForwardingContent, *[]byte) error
-	getMessages func(common.Address, common.Address) []*utils.CaesarMessage
+	getMessages func(utils.Address, utils.Address) []*utils.CaesarMessage
 
 	messages map[*MessageKey][]*utils.CaesarMessage
 }
@@ -52,7 +52,7 @@ func (b *BouncerServer) printError(methodName string, err error) {
 func (b *BouncerServer) SetHandlers(propagator func(ForwardingContent, *[]byte) error) {
 	b.propagator = propagator
 }
-func (b *BouncerServer) SetMessagingHandlers(getMsg func(common.Address, common.Address) []*utils.CaesarMessage) {
+func (b *BouncerServer) SetMessagingHandlers(getMsg func(utils.Address, utils.Address) []*utils.CaesarMessage) {
 	b.getMessages = getMsg
 }
 
@@ -133,7 +133,7 @@ func (b *BouncerServer) GetBalance(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	data, err := encoding.Marshal(b.stateDB.GetBalance(common.HexToAddress(input.Address)).String())
+	data, err := encoding.Marshal(b.stateDB.GetBalance(utils.HexToAddress(input.Address)).String())
 	if err != nil {
 		b.printError("Get balance", err)
 		return err
@@ -179,7 +179,7 @@ func (b *BouncerServer) CreateAccount(params *[]byte, reply *[]byte) error {
 		}
 	}
 
-	b.stateDB.CreateAccount(common.HexToAddress(input.Address))
+	b.stateDB.CreateAccount(utils.HexToAddress(input.Address))
 	b.addresses = append(b.addresses, input.Address)
 
 	data, err := encoding.Marshal(true)
@@ -198,7 +198,7 @@ func (b *BouncerServer) GetBlockByHash(params *[]byte, reply *[]byte) error {
 	b.print("Get block by hash")
 
 	input := struct {
-		BlockHash common.Hash
+		BlockHash utils.Hash
 	}{}
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
@@ -258,10 +258,10 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	}
 
 	msg := utils.NewSignedCaesarMessage(
-		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
-		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
-		common.FromHex(input.RawMessage),
-		common.FromHex(input.SignedMessage))
+		accounts.AccountFromPubBytes(utils.FromHex(input.ToPublicKey)),
+		accounts.AccountFromPubBytes(utils.FromHex(input.FromPublicKey)),
+		utils.FromHex(input.RawMessage),
+		utils.FromHex(input.SignedMessage))
 
 	// TODO: Verify the message
 

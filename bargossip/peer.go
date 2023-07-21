@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common/mclock"
+	"github.com/adamnite/go-adamnite/utils/mclock"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/log15"
 )

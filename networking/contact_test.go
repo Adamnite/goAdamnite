@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +16,7 @@ func TestConnectionStatusMath(t *testing.T) {
 	// testContacts[0] = &Contact{"1.2.3.4:1234", 1}
 	// testContacts[1] = &Contact{"1.2.3.4:1235", 2}
 	for i := range testContacts {
-		add := common.Address{}
+		add := utils.Address{}
 		add.SetBytes(big.NewInt(int64(i)).Bytes())
 		testContacts[i] = &Contact{"1.2.3.4:" + fmt.Sprint(i), add}
 
@@ -74,7 +74,7 @@ func TestWhitelistGeneration(t *testing.T) {
 	conBook := NewContactBook(nil)
 
 	for i := range testContacts {
-		add := common.Address{}
+		add := utils.Address{}
 		add.SetBytes(big.NewInt(int64(i)).Bytes())
 		testContacts[i] = &Contact{"1.2.3.4:" + fmt.Sprint(i), add}
 

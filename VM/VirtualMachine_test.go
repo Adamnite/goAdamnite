@@ -31,7 +31,7 @@ func TestCall2(t *testing.T) {
 	vm := NewVirtualMachine(wasmBytes, []uint64{}, nil, 1000)
 
 	// The hash passed here should be the function index
-	var getCodeMock = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	var getCodeMock = func(hash []byte) (FunctionType, []Operationutils, []ControlBlock) {
 		var index = 0
 
 		if hash[0] == 0x1 {
@@ -118,7 +118,7 @@ func TestGettingFinalDataChanges(t *testing.T) {
 		largeNumberOffset = 1100
 	)
 	// vm.config.debugStack = true
-	vm.callStack[0].Code = []OperationCommon{
+	vm.callStack[0].Code = []Operationutils{
 		localGet{0, 0},
 		localGet{0, 0},
 		GlobalSet{-1, 0},

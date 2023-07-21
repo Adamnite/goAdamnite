@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
@@ -35,8 +35,8 @@ type ConsensusNode struct {
 	ocdbLink      string                 //off chain database, if running the VM verification, this should be local.
 	vm            *VM.Machine
 
-	autoVoteForNode *common.Address
-	autoVoteWith    *common.Address
+	autoVoteForNode *utils.Address
+	autoVoteWith    *utils.Address
 	autoStakeAmount *big.Int
 }
 

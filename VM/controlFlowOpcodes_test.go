@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -383,7 +383,7 @@ func Test_Call(t *testing.T) {
 	vm.AddLocal(float64(5))
 	vm.callStack[0].Locals = vm.locals
 
-	callerAddr := common.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
+	callerAddr := utils.BytesToAddress([]byte{0x1, 0x2, 0x3, 0x4})
 	var gas = big.NewInt(100)
 	contract := newContract(callerAddr, gas, module.codeSection[0].body, 100)
 	spoofer := NewDBSpoofer()

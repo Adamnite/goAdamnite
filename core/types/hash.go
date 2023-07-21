@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/serialization"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/crypto/sha3"
@@ -20,7 +20,7 @@ var encodeBufferPool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
 
-func serializationHash(x interface{}) (h common.Hash) {
+func serializationHash(x interface{}) (h utils.Hash) {
 	sha := hasherPool.Get().(sha3.ShakeHash)
 	defer hasherPool.Put(sha)
 	sha.Reset()
@@ -29,7 +29,7 @@ func serializationHash(x interface{}) (h common.Hash) {
 	return h
 }
 
-func prefixedSerializationHash(prefix byte, x interface{}) (h common.Hash) {
+func prefixedSerializationHash(prefix byte, x interface{}) (h utils.Hash) {
 	sha := hasherPool.Get().(sha3.ShakeHash)
 	defer hasherPool.Put(sha)
 	sha.Reset()
@@ -42,7 +42,7 @@ func prefixedSerializationHash(prefix byte, x interface{}) (h common.Hash) {
 type TrieHasher interface {
 	Reset()
 	Update([]byte, []byte)
-	Hash() common.Hash
+	Hash() utils.Hash
 }
 
 type DerivableList interface {
@@ -53,10 +53,10 @@ type DerivableList interface {
 func encodeForDerive(list DerivableList, i int, buf *bytes.Buffer) []byte {
 	buf.Reset()
 	list.EncodeIndex(i, buf)
-	return common.CopyBytes(buf.Bytes())
+	return utils.CopyBytes(buf.Bytes())
 }
 
-func DeriveSha(list DerivableList, hasher TrieHasher) common.Hash {
+func DeriveSha(list DerivableList, hasher TrieHasher) utils.Hash {
 	hasher.Reset()
 
 	valueBuf := encodeBufferPool.Get().(*bytes.Buffer)

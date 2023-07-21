@@ -11,7 +11,7 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
@@ -38,10 +38,10 @@ type Blockchain struct {
 
 	// For demo version
 	blocks         []types.Block // memory cache
-	blocksByHash   map[common.Hash]*types.Block
+	blocksByHash   map[utils.Hash]*types.Block
 	blocksByNumber map[*big.Int]*types.Block
 
-	accountStates map[common.Address]accountSet
+	accountStates map[utils.Address]accountSet
 
 	// events
 	importBlockFeed event.Feed
@@ -56,7 +56,7 @@ func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engi
 		chainConfig:    chainConfig,
 		db:             db,
 		engine:         engine,
-		blocksByHash:   make(map[common.Hash]*types.Block),
+		blocksByHash:   make(map[utils.Hash]*types.Block),
 		blocksByNumber: make(map[*big.Int]*types.Block),
 	}
 
@@ -78,7 +78,7 @@ func (bc *Blockchain) CurrentHeader() *types.BlockHeader {
 	return bc.CurrentBlock().Header()
 }
 
-func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockHeader {
+func (bc *Blockchain) GetHeader(hash utils.Hash, number *big.Int) *types.BlockHeader {
 	data, _ := bc.db.Get(headerKey(number.Uint64(), hash))
 	if len(data) == 0 {
 		return nil
@@ -93,7 +93,7 @@ func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockH
 
 }
 
-func headerKey(number uint64, hash common.Hash) []byte {
+func headerKey(number uint64, hash utils.Hash) []byte {
 	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
@@ -103,7 +103,7 @@ func encodeBlockNumber(number uint64) []byte {
 	return enc
 }
 
-func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
+func (bc *Blockchain) GetHeaderByHash(hash utils.Hash) *types.BlockHeader {
 	return bc.blocksByHash[hash].Header()
 }
 
@@ -111,21 +111,21 @@ func (bc *Blockchain) GetHeaderByNumber(number *big.Int) *types.BlockHeader {
 	return bc.blocksByNumber[number].Header()
 }
 
-func (bc *Blockchain) GetBlock(hash common.Hash, number *big.Int) *types.Block {
+func (bc *Blockchain) GetBlock(hash utils.Hash, number *big.Int) *types.Block {
 	if number == nil {
 		return bc.GetBlockByHash(hash)
 	}
 	return bc.GetBlockByNumber(number)
 }
 
-func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
+func (bc *Blockchain) GetBlockByHash(hash utils.Hash) *types.Block {
 	return bc.blocksByHash[hash]
 }
 
 func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
 	return bc.blocksByNumber[number]
 }
-func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
+func (bc *Blockchain) StateAt(root utils.Hash) (*statedb.StateDB, error) {
 	return nil, nil
 }
 

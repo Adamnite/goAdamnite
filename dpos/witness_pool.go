@@ -6,8 +6,8 @@ import (
 	"sort"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/common/math"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/math"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/dpos/poh"
@@ -56,7 +56,7 @@ func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float
 }
 
 type WitnessInfo struct {
-	address common.Address
+	address utils.Address
 	voters  []utils.Voter
 }
 type WitnessConfig struct {
@@ -72,19 +72,19 @@ var DefaultDemoWitnessConfig = WitnessConfig{
 }
 
 // var WitnessList = []WitnessInfo{{
-// 	address: common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+// 	address: utils.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 // 	voters: []utils.Voter{
 // 		{
-// 			Address:       common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+// 			Address:       utils.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 // 			StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(100)),
 // 		},
 // 	},
 // },
 // 	{
-// 		address: common.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
+// 		address: utils.HexToAddress("0rbYLvW3xd9yEqpAhEBph4wPwFKo"),
 // 		voters: []utils.Voter{
 // 			{
-// 				Address:       common.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
+// 				Address:       utils.HexToAddress("3HCiFhyA1Kv3s25BeABHt7wW6N8y"),
 // 				StakingAmount: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(50)),
 // 			},
 // 		},
@@ -100,14 +100,14 @@ type WitnessPool struct {
 
 	Witnesses []utils.Witness
 	seed      []byte
-	Votes     map[common.Address]*utils.Voter
+	Votes     map[utils.Address]*utils.Voter
 	sigcache  *lru.ARCCache
 	Number    uint64
-	Hash      common.Hash
+	Hash      utils.Hash
 	blacklist []utils.Witness
 }
 
-func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []utils.Witness) *WitnessPool {
+func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash utils.Hash, witnesses []utils.Witness) *WitnessPool {
 
 	pool := &WitnessPool{
 		config:            config,
@@ -118,7 +118,7 @@ func NewRoundWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig, 
 		vrfMaps:           make(map[string]utils.Witness, 0),
 		witnessCandidates: make([]utils.Witness, 0),
 		Witnesses:         witnesses,
-		Votes:             map[common.Address]*utils.Voter{},
+		Votes:             map[utils.Address]*utils.Voter{},
 	}
 
 	return pool
@@ -133,7 +133,7 @@ func NewWitnessPool(config WitnessConfig, chainConfig *params.ChainConfig) *Witn
 		vrfMaps:           make(map[string]utils.Witness, 0),
 		witnessCandidates: make([]utils.Witness, 0),
 
-		Votes: map[common.Address]*utils.Voter{},
+		Votes: map[utils.Address]*utils.Voter{},
 	}
 
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
@@ -267,7 +267,7 @@ func (cp *WitnessPool) _IsBetterFit(newWit utils.Witness) (bool, int) {
 	}
 	return false, -1
 }
-func GetWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash common.Hash) (*WitnessPool, error) {
+func GetWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash utils.Hash) (*WitnessPool, error) {
 
 	blob, err := db.Get(append([]byte(prefixKeyOfWitnessPool), hash[:]...))
 	if err != nil {
@@ -291,11 +291,11 @@ func (wp *WitnessPool) saveWitnessPool(db adamnitedb.Database) error {
 	return db.Insert(append([]byte(prefixKeyOfWitnessPool), wp.Hash[:]...), blob)
 }
 
-func (wp *WitnessPool) isVoted(voterAddr common.Address) bool {
+func (wp *WitnessPool) isVoted(voterAddr utils.Address) bool {
 	return wp.Votes[voterAddr] != nil
 }
 
-func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
+func (wp *WitnessPool) getVoteNum(addr utils.Address) *big.Int {
 	voteNum := big.NewInt(0)
 	if wp.Votes[addr] != nil {
 		voteNum.Set(wp.Votes[addr].StakingAmount)
@@ -303,7 +303,7 @@ func (wp *WitnessPool) getVoteNum(addr common.Address) *big.Int {
 	return voteNum
 }
 
-func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address) common.Address {
+func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *utils.Address) utils.Address {
 	if prevWitnessAddr == nil {
 		return wp.Witnesses[0].GetAddress()
 
@@ -318,7 +318,7 @@ func (wp *WitnessPool) GetCurrentWitnessAddress(prevWitnessAddr *common.Address)
 			}
 		}
 	}
-	return common.Address{}
+	return utils.Address{}
 }
 
 func (wp *WitnessPool) copy() *WitnessPool {
@@ -374,7 +374,7 @@ func (wp *WitnessPool) witnessPoolFromBlockHeader(headers []*types.BlockHeader) 
 		if number%EpochBlockCount == 0 {
 			if number > 0 {
 
-				witnesspool.Votes = make(map[common.Address]*utils.Voter)
+				witnesspool.Votes = make(map[utils.Address]*utils.Voter)
 				witnesspool.witnessCandidates = make([]utils.Witness, 0)
 			}
 			witnesspool.Witnesses = dposData.Witnesses

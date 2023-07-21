@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 var (
@@ -75,7 +75,7 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 		return nil, errMemorydbClosed
 	}
 	if entry, ok := db.db[string(key)]; ok {
-		return common.CopyBytes(entry), nil
+		return utils.CopyBytes(entry), nil
 	}
 	return nil, errMemorydbNotFound
 }
@@ -88,7 +88,7 @@ func (db *Database) Insert(key []byte, value []byte) error {
 	if db.db == nil {
 		return errMemorydbClosed
 	}
-	db.db[string(key)] = common.CopyBytes(value)
+	db.db[string(key)] = utils.CopyBytes(value)
 	return nil
 }
 
@@ -186,14 +186,14 @@ type batch struct {
 
 // Insert inserts the given value into the batch for later committing.
 func (b *batch) Insert(key, value []byte) error {
-	b.writes = append(b.writes, keyvalue{common.CopyBytes(key), common.CopyBytes(value), false})
+	b.writes = append(b.writes, keyvalue{utils.CopyBytes(key), utils.CopyBytes(value), false})
 	b.size += len(value)
 	return nil
 }
 
 // Delete inserts the a key removal into the batch for later committing.
 func (b *batch) Delete(key []byte) error {
-	b.writes = append(b.writes, keyvalue{common.CopyBytes(key), nil, true})
+	b.writes = append(b.writes, keyvalue{utils.CopyBytes(key), nil, true})
 	b.size += len(key)
 	return nil
 }

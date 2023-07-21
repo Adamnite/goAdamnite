@@ -8,7 +8,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/spf13/cobra"
 )
@@ -29,8 +29,8 @@ func init() {
 func triggerUpload(codeBytes []byte) bool {
 	// uploads a contract to the local DB, returns true if successful
 	db := rawdb.NewMemoryDB()
-	callerAddress := common.BytesToAddress([]byte{0x00})
-	state, err := statedb.New(common.Hash{}, statedb.NewDatabase(db))
+	callerAddress := utils.BytesToAddress([]byte{0x00})
+	state, err := statedb.New(utils.Hash{}, statedb.NewDatabase(db))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -57,7 +57,7 @@ func triggerUpload(codeBytes []byte) bool {
 		panic(err)
 	}
 
-	// contract := VM.NewContract(common.Address{}, value, bytes, gas)
+	// contract := VM.NewContract(utils.Address{}, value, bytes, gas)
 	// err := VM.UploadContract(serverUrl, *contract)
 	err = vMachine.UploadContract(serverUrl)
 	if err != nil {

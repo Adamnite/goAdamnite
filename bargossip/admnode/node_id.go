@@ -8,7 +8,7 @@ import (
 	"math/bits"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/common/math"
+	"github.com/adamnite/go-adamnite/utils/math"
 	"golang.org/x/crypto/sha3"
 )
 

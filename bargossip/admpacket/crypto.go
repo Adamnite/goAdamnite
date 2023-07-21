@@ -10,7 +10,7 @@ import (
 	"hash"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common/math"
+	"github.com/adamnite/go-adamnite/utils/math"
 	"github.com/adamnite/go-adamnite/crypto"
 	"golang.org/x/crypto/hkdf"
 )

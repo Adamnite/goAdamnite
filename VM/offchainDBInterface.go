@@ -22,7 +22,7 @@ func NewAPICodeGetter(apiString string) APIcodeGetter {
 	return APIcodeGetter{apiEndpointString: apiString}
 }
 
-func (c APIcodeGetter) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+func (c APIcodeGetter) GetCode(hash []byte) (FunctionType, []Operationutils, []ControlBlock) {
 	locCopy, err := GetMethodCode(c.apiEndpointString, hex.EncodeToString(hash))
 	if err != nil {
 		panic(err)

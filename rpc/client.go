@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/rpc"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
@@ -25,11 +25,11 @@ type AdamniteClient struct {
 	DebugOutput       bool
 	endpoint          string
 	client            rpc.Client
-	callerAddress     *common.Address
+	callerAddress     *utils.Address
 	hostingServerPort string //the string version of the port that our Server is running on.
 }
 
-func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPort string) {
+func (a *AdamniteClient) SetAddressAndHostingPort(add *utils.Address, hostingPort string) {
 	a.callerAddress = add
 	a.hostingServerPort = hostingPort
 }
@@ -66,7 +66,7 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		return nil, ErrNoAccountSet
 	}
 	sendingData := struct {
-		Address           common.Address
+		Address           utils.Address
 		HostingServerPort string
 	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
 
@@ -101,7 +101,7 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	return passed
 }
 
-func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
+func (a *AdamniteClient) GetBalance(address utils.Address) (*string, error) {
 	a.print("Get balance")
 
 	input := struct {

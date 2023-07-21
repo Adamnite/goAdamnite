@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/abiosoft/ishell/v2"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/networking"
 )
 
@@ -45,7 +45,7 @@ func (sh *SeedHandler) Start(c *ishell.Context) {
 		c.Println("server already started")
 		return
 	}
-	sh.hosting = networking.NewNetNode(common.Address{0})
+	sh.hosting = networking.NewNetNode(utils.Address{0})
 	if err := sh.hosting.AddServer(); err != nil {
 		c.Println(err)
 		return

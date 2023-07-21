@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -34,7 +34,7 @@ func NewDBSpoofer() DBSpoofer {
 	return DBSpoofer{map[string]CodeStored{}}
 }
 
-func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []Operationutils, []ControlBlock) {
 	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
 	ops, blocks := parseBytes(localCode.CodeBytes)
 
@@ -157,15 +157,15 @@ func addressToInts(address interface{}) []uint64 {
 	ans := []uint64{0, 0, 0, 0}
 	var addressBytes []byte
 	switch v := address.(type) {
-	case common.Address:
+	case utils.Address:
 		addressBytes = v.Bytes()
 	case []byte:
-		if len(v) != common.AddressLength { //224 bits
-			return addressToInts(common.BytesToAddress(v))
+		if len(v) != utils.AddressLength { //224 bits
+			return addressToInts(utils.BytesToAddress(v))
 		}
 		addressBytes = v
 	}
-	for i := 0; i < 8-common.AddressLength%8; i++ {
+	for i := 0; i < 8-utils.AddressLength%8; i++ {
 		//we've made sure that the address is the correct address length.
 		//Now, we need to make sure that it is divisible into uint64s.
 		addressBytes = append(addressBytes, 0)
@@ -182,7 +182,7 @@ func uintsArrayToAddress(input []uint64) []byte {
 	for i := 0; i < len(input); i++ {
 		ans = LE.AppendUint64(ans, input[i])
 	}
-	return ans[:common.AddressLength]
+	return ans[:utils.AddressLength]
 }
 func balanceToArray(input big.Int) []uint64 {
 	//takes a big int and returns an array of LE formatted uint64s
@@ -251,7 +251,7 @@ func (code CodeStored) Hash() ([]byte, error) {
 }
 func contractDataToContract(cdata ContractData) *Contract {
 	con := Contract{
-		Address: common.HexToAddress(cdata.Address),
+		Address: utils.HexToAddress(cdata.Address),
 		Storage: cdata.Storage,
 	}
 	for _, code := range cdata.Methods {
@@ -273,15 +273,15 @@ func contractToContractData(con Contract) ContractData {
 	return cdata
 }
 
-func (con Contract) Hash() common.Hash {
+func (con Contract) Hash() utils.Hash {
 	contractBytes, err := ContractToMSGPackBytes(con)
 	if err != nil {
-		return common.BytesToHash([]byte{0})
+		return utils.BytesToHash([]byte{0})
 	}
 	h := sha256.New()
 	h.Write(contractBytes)
 	// fmt.Printf("%x", h.Sum(nil))
-	return common.BytesToHash(h.Sum(nil))
+	return utils.BytesToHash(h.Sum(nil))
 }
 
 func ContractToMSGPackBytes(con Contract) ([]byte, error) {

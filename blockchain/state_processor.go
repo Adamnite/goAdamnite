@@ -5,7 +5,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"
@@ -79,7 +79,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *statedb.StateDB, c
 	return *usedGas, nil
 }
 
-func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *common.Address, gp *big.Int,
+func ApplyTransaction(config *params.ChainConfig, bc *Blockchain, author *utils.Address, gp *big.Int,
 	statedb *statedb.StateDB, header *types.BlockHeader, tx *types.Transaction, usedGas *uint64, vmcfg VM.VMConfig, blockContext VM.BlockContext) (*VM.Machine, error) {
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))

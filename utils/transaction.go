@@ -8,13 +8,13 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 )
 
 type Transaction struct {
-	From      common.Address
-	To        common.Address
+	From      utils.Address
+	To        utils.Address
 	Amount    *big.Int
 	Time      time.Time
 	Signature []byte
@@ -34,11 +34,11 @@ func (t *Transaction) Sign(key ecdsa.PrivateKey) (err error) { //TODO: replace w
 }
 
 // does not use the time in the hash value, as that is used for the random source value.
-func (t *Transaction) Hash() common.Hash {
+func (t *Transaction) Hash() utils.Hash {
 	data := append(t.From.Bytes(), t.To.Bytes()...)
 	data = append(data, t.Amount.Bytes()...)
 
-	return common.BytesToHash(crypto.Sha512(data))
+	return utils.BytesToHash(crypto.Sha512(data))
 }
 
 // Verify that the signature used in the transaction is correct

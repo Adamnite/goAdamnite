@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/vmihailenco/msgpack/v5"
@@ -19,7 +19,7 @@ var (
 
 type Signer interface {
 	// Sender returns the sender address of the transaction.
-	Sender(tx *Transaction) (common.Address, error)
+	Sender(tx *Transaction) (utils.Address, error)
 
 	// SignatureValues returns the R, S, V values
 	SignatureValues(tx *Transaction, signature []byte) (r, s, v *big.Int, err error)
@@ -28,24 +28,24 @@ type Signer interface {
 	ChainType() *big.Int
 
 	// Hash returns the signature hash
-	Hash(tx *Transaction) common.Hash
+	Hash(tx *Transaction) utils.Hash
 }
 
 type AdamniteSigner struct{}
 
-func (as AdamniteSigner) Sender(tx *Transaction) (common.Address, error) {
+func (as AdamniteSigner) Sender(tx *Transaction) (utils.Address, error) {
 	if tx.Type() != VOTE_TX && tx.Type() != NORMAL_TX {
-		return common.Address{}, ErrTxTypeNotSupported
+		return utils.Address{}, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignature()
 	return recoverPlain(as.Hash(tx), r, s, v)
 }
 
-func (as AdamniteSigner) Hash(tx *Transaction) common.Hash {
+func (as AdamniteSigner) Hash(tx *Transaction) utils.Hash {
 	// serial := serialization.Serialize(tx.Nonce())
 	serial, _ := msgpack.Marshal(tx.Nonce())
 	bytes := crypto.Sha512(serial)
-	hash := common.Hash{}
+	hash := utils.Hash{}
 	copy(hash[:], bytes)
 	return hash
 }
@@ -72,13 +72,13 @@ func decodeSignature(sig []byte) (r, s, v *big.Int) {
 	return r, s, v
 }
 
-func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error) {
+func recoverPlain(sighash utils.Hash, R, S, Vb *big.Int) (utils.Address, error) {
 	if Vb.BitLen() > 8 {
-		return common.Address{}, ErrInvalidSig
+		return utils.Address{}, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
 	if !crypto.ValidateSignatureValues(V, R, S) {
-		return common.Address{}, ErrInvalidSig
+		return utils.Address{}, ErrInvalidSig
 	}
 	// encode the signature in uncompressed format
 	r, s := R.Bytes(), S.Bytes()
@@ -89,10 +89,10 @@ func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error
 	// recover the public key from the signature
 	pub, err := crypto.Recover(sighash[:], sig)
 	if err != nil {
-		return common.Address{}, err
+		return utils.Address{}, err
 	}
 	if len(pub) == 0 || pub[0] != 4 {
-		return common.Address{}, errors.New("invalid public key")
+		return utils.Address{}, errors.New("invalid public key")
 	}
 	return crypto.PubkeyByteToAddress(pub), nil
 }
@@ -108,10 +108,10 @@ func SignTransaction(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transac
 	return tx.WithSignature(s, signature)
 }
 
-func Sender(signer Signer, tx *Transaction) (common.Address, error) {
+func Sender(signer Signer, tx *Transaction) (utils.Address, error) {
 	addr, err := signer.Sender(tx)
 	if err != nil {
-		return common.Address{}, err
+		return utils.Address{}, err
 	}
 
 	return addr, nil

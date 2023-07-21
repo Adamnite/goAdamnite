@@ -5,14 +5,14 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
 type PassedContacts struct {
-	NodeIDs                    []common.Address
+	NodeIDs                    []utils.Address
 	ConnectionStrings          []string
-	BlacklistIDs               []common.Address
+	BlacklistIDs               []utils.Address
 	BlacklistConnectionStrings []string
 }
 
@@ -27,8 +27,8 @@ func Decode(data []byte, v interface{}) error {
 type AdmVersionReply struct {
 	Client_version string
 	Timestamp      time.Time
-	Addr_received  common.Address //address is passed as a string
-	Addr_from      common.Address
+	Addr_received  utils.Address //address is passed as a string
+	Addr_from      utils.Address
 	Last_round     *big.Int
 	Nonce          int //TODO: check what the nonce should be
 }

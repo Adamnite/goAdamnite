@@ -3,7 +3,7 @@ package caesar
 import (
 	"sort"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -13,16 +13,16 @@ type CaesarNode struct {
 	netHandler        *networking.NetNode
 	signerSet         *accounts.Account
 	msgByHash         map[string]*utils.CaesarMessage
-	msgByRecipient    map[common.Address][]*utils.CaesarMessage
-	msgBySender       map[common.Address][]*utils.CaesarMessage
+	msgByRecipient    map[utils.Address][]*utils.CaesarMessage
+	msgBySender       map[utils.Address][]*utils.CaesarMessage
 	NewMessageUpdater func(*utils.CaesarMessage)
 }
 
 func NewCaesarNode(sendingKey *accounts.Account) *CaesarNode {
 	cn := CaesarNode{
 		msgByHash:      make(map[string]*utils.CaesarMessage),
-		msgByRecipient: make(map[common.Address][]*utils.CaesarMessage),
-		msgBySender:    make(map[common.Address][]*utils.CaesarMessage),
+		msgByRecipient: make(map[utils.Address][]*utils.CaesarMessage),
+		msgBySender:    make(map[utils.Address][]*utils.CaesarMessage),
 	}
 	if sendingKey == nil {
 		cn.signerSet, _ = accounts.GenerateAccount()
@@ -50,7 +50,7 @@ func (cn *CaesarNode) StartBouncer() {
 func (cn CaesarNode) GetConnectionPoint() string {
 	return cn.netHandler.GetConnectionString()
 }
-func (cn CaesarNode) GetMessagesBetween(a, b common.Address) []*utils.CaesarMessage {
+func (cn CaesarNode) GetMessagesBetween(a, b utils.Address) []*utils.CaesarMessage {
 	ansMessages := []*utils.CaesarMessage{}
 	for _, msg := range cn.msgBySender[a] {
 		if msg.To.Address == b {

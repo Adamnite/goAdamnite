@@ -5,7 +5,7 @@
 //
 // go-adamnite Nat library include nat-pmp and nat-upnp for UDP hole punching.
 //
-// UDP hole punching is a commonly used technique employed in NAT applications
+// UDP hole punching is a utilsly used technique employed in NAT applications
 // for maintaining UDP(User Datagram Protocol) packet streams that traverse the NAT.
 // nat.Interface can map local ports to ports accessible from the Internet.
 

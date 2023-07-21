@@ -7,7 +7,7 @@ import (
 
 	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/caesar"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -18,7 +18,7 @@ type CaesarHandler struct {
 	server              *caesar.CaesarNode
 	thisUser            *accounts.Account
 	maxMessagesOnScreen int
-	chatLogs            map[common.Address][]*chatText //the chat history by mapping
+	chatLogs            map[utils.Address][]*chatText //the chat history by mapping
 	HoldingFocus        bool
 }
 type chatText struct {
@@ -57,7 +57,7 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 
 // get a Caesar chat handler
 func NewCaesarHandler() *CaesarHandler {
-	return &CaesarHandler{maxMessagesOnScreen: 10, chatLogs: make(map[common.Address][]*chatText), HoldingFocus: false}
+	return &CaesarHandler{maxMessagesOnScreen: 10, chatLogs: make(map[utils.Address][]*chatText), HoldingFocus: false}
 }
 func (ch CaesarHandler) isServerLive() bool {
 	return ch.server != nil

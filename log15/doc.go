@@ -29,7 +29,7 @@ Now you're ready to start logging:
 
 Convention
 
-Because recording a human-meaningful message is common and good practice, the first argument to every
+Because recording a human-meaningful message is utils and good practice, the first argument to every
 logging method is the value to the *implicit* key 'msg'.
 
 Additionally, the level you choose for a message will be automatically added with the key 'lvl', and so
@@ -74,7 +74,7 @@ single interface that is inspired by net/http's handler interface:
 
 
 Handlers can filter records, format them, or dispatch to multiple other Handlers.
-This package implements a number of Handlers for common logging patterns that are
+This package implements a number of Handlers for utils logging patterns that are
 easily composed to create flexible, custom logging structures.
 
 Here's an example handler that prints logfmt output to Stdout:

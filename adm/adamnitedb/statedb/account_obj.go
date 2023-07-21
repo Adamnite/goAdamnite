@@ -5,12 +5,12 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type Storage map[common.Hash]common.Hash
+type Storage map[utils.Hash]utils.Hash
 
 func (s Storage) String() (str string) {
 	for key, value := range s {
@@ -34,8 +34,8 @@ func (s Storage) Copy() Storage {
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
 type stateObject struct {
-	address  common.Address
-	addrHash common.Hash
+	address  utils.Address
+	addrHash utils.Hash
 	data     Account
 	db       *StateDB
 
@@ -54,22 +54,22 @@ type stateObject struct {
 type Account struct {
 	Nonce   uint64
 	Balance *big.Int
-	Root    common.Hash // merkle root of the storage trie
+	Root    utils.Hash // merkle root of the storage trie
 }
 
-func newObject(db *StateDB, addr common.Address, data Account) *stateObject {
+func newObject(db *StateDB, addr utils.Address, data Account) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
 	}
 
-	if data.Root == (common.Hash{}) {
+	if data.Root == (utils.Hash{}) {
 		data.Root = emptyRoot
 	}
 
 	return &stateObject{
 		db:             db,
 		address:        addr,
-		addrHash:       common.BytesToHash(crypto.Sha512(addr[:])),
+		addrHash:       utils.BytesToHash(crypto.Sha512(addr[:])),
 		data:           data,
 		dirtyStorage:   make(Storage),
 		originStorage:  make(Storage),
@@ -82,7 +82,7 @@ func (s *stateObject) setNonce(nonce uint64) {
 }
 
 // Returns the address of the contract/account
-func (s *stateObject) Address() common.Address {
+func (s *stateObject) Address() utils.Address {
 	return s.address
 }
 
@@ -126,7 +126,7 @@ func (s *stateObject) finalise(prefetch bool) {
 	for key, value := range s.dirtyStorage {
 		s.pendingStorage[key] = value
 		if value != s.originStorage[key] {
-			slotsToPrefetch = append(slotsToPrefetch, common.CopyBytes(key[:]))
+			slotsToPrefetch = append(slotsToPrefetch, utils.CopyBytes(key[:]))
 		}
 	}
 
@@ -181,16 +181,16 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		s.originStorage[key] = value
 
 		var v []byte
-		if (value == common.Hash{}) {
+		if (value == utils.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
 		} else {
 			// Encoding []byte cannot fail, ok to ignore the error.
-			v, _ = msgpack.Marshal(common.TrimLeftZeroes(value[:]))
+			v, _ = msgpack.Marshal(utils.TrimLeftZeroes(value[:]))
 			s.setError(tr.TryUpdate(key[:], v))
 		}
 		// ToDO: implement snapshot
 
-		usedStorage = append(usedStorage, common.CopyBytes(key[:])) // Copy needed for closure
+		usedStorage = append(usedStorage, utils.CopyBytes(key[:])) // Copy needed for closure
 	}
 
 	// ToDO: implement prefetcher
@@ -209,7 +209,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 			var err error
 			s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
 			if err != nil {
-				s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
+				s.trie, _ = db.OpenStorageTrie(s.addrHash, utils.Hash{})
 				s.setError(fmt.Errorf("can't create storage trie: %v", err))
 			}
 		}

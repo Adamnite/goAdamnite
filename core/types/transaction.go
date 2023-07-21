@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -51,7 +51,7 @@ type Transaction_Data interface {
 	txtype() TxType
 	copy() Transaction_Data
 	chain_TYPE() *big.Int
-	to() *common.Address
+	to() *utils.Address
 	amount() *big.Int
 	message() []byte
 	message_size() *big.Int //Size of message in bytes
@@ -82,7 +82,7 @@ func NewTx(inner Transaction_Data) *Transaction {
 	return tx
 }
 
-func (tx *Transaction) To() *common.Address {
+func (tx *Transaction) To() *utils.Address {
 	return tx.InnerData.to()
 }
 
@@ -91,8 +91,8 @@ func (tx *Transaction) Decode(s Transaction_Data, _ int) {
 }
 
 type Message struct {
-	to         *common.Address
-	from       common.Address
+	to         *utils.Address
+	from       utils.Address
 	nonce      uint64
 	amount     *big.Int
 	gasLimit   uint64
@@ -101,10 +101,10 @@ type Message struct {
 	checkNonce bool
 }
 
-func (msg Message) From() common.Address {
+func (msg Message) From() utils.Address {
 	return msg.from
 }
-func (msg Message) To() *common.Address {
+func (msg Message) To() *utils.Address {
 	return msg.to
 }
 func (msg Message) AtePrice() *big.Int {
@@ -147,7 +147,7 @@ func (tx *Transaction) setDecoded(inner Transaction_Data, size int) {
 	tx.InnerData = inner
 	tx.timestamp = time.Now()
 	if size > 0 {
-		tx.size.Store(common.StorageSize(size))
+		tx.size.Store(utils.StorageSize(size))
 	}
 }
 
@@ -186,22 +186,22 @@ func (tx *Transaction) Cost() *big.Int {
 	return total
 }
 
-func (tx *Transaction) Size() common.StorageSize {
+func (tx *Transaction) Size() utils.StorageSize {
 	if size := tx.size.Load(); size != nil {
-		return size.(common.StorageSize)
+		return size.(utils.StorageSize)
 	}
 	c := writeCounter(0)
 	msgpack.NewEncoder(&c).Encode(&tx.InnerData)
-	tx.size.Store(common.StorageSize(c))
-	return common.StorageSize(c)
+	tx.size.Store(utils.StorageSize(c))
+	return utils.StorageSize(c)
 }
 
-func (tx *Transaction) Hash() common.Hash {
+func (tx *Transaction) Hash() utils.Hash {
 	if hash := tx.hash.Load(); hash != nil {
-		return hash.(common.Hash)
+		return hash.(utils.Hash)
 	}
 
-	var h common.Hash
+	var h utils.Hash
 	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
@@ -254,7 +254,7 @@ func (s *TxByPrice) Pop() interface{} {
 }
 
 type TransactionsByPriceAndNonce struct {
-	txs    map[common.Address]Transactions //List of transaction records currently sorted by account
+	txs    map[utils.Address]Transactions //List of transaction records currently sorted by account
 	heads  TxByPrice                       // next transaction for each unique account (price heap)
 	signer Signer                          //The signer of the transaction set
 }
@@ -264,7 +264,7 @@ type TransactionsByPriceAndNonce struct {
 //
 // Note that the input map is re-owned, so the caller should no longer interact with
 // if after provided to the constructor.
-func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[utils.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {

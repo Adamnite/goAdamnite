@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common/hexutil"
+	"github.com/adamnite/go-adamnite/utils/hexutil"
 	"github.com/adamnite/go-adamnite/crypto"
 )
 

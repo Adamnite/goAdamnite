@@ -3,7 +3,7 @@ package consensus
 import (
 	"fmt"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils"
 )
 
@@ -12,7 +12,7 @@ const (
 )
 
 type WitnessInfo struct {
-	address common.Address
+	address utils.Address
 	voters  []utils.Voter
 }
 

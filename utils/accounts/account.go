@@ -11,14 +11,14 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/crypto/ecies"
 	"github.com/adamnite/go-adamnite/crypto/secp256k1"
 )
 
 type Account struct {
-	Address    common.Address
+	Address    utils.Address
 	PublicKey  []byte
 	privateKey []byte
 	Balance    *big.Int
@@ -114,8 +114,8 @@ func (a *Account) Decrypt(msg []byte) ([]byte, error) {
 	return priv.Decrypt(msg, nil, nil)
 }
 
-// types that have a hash method that returns common.Hash
-type commonHashAble interface{ Hash() common.Hash }
+// types that have a hash method that returns utils.Hash
+type utilsHashAble interface{ Hash() utils.Hash }
 
 // types that have a hash method that returns bytes
 type hashAble interface{ Hash() []byte }
@@ -126,7 +126,7 @@ type hasGetBytes interface{ Bytes() []byte }
 func toHashedBytes(data interface{}) []byte {
 	var dataBytes []byte = []byte{}
 	switch v := data.(type) {
-	case commonHashAble:
+	case utilsHashAble:
 		dataBytes = v.Hash().Bytes()
 	case hashAble:
 		dataBytes = v.Hash()
@@ -136,7 +136,7 @@ func toHashedBytes(data interface{}) []byte {
 		dataBytes = []byte(v)
 	case []byte:
 		dataBytes = v
-	case []commonHashAble:
+	case []utilsHashAble:
 		for _, a := range v {
 			dataBytes = append(dataBytes, a.Hash().Bytes()...)
 		}
@@ -167,8 +167,8 @@ func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
 	return
 }
 
-func createAddress(publicKey []byte) common.Address {
-	var addr common.Address
+func createAddress(publicKey []byte) utils.Address {
+	var addr utils.Address
 	addr.SetBytes(ripemd160Hash(sha512Hash(publicKey[1:])))
 	return addr
 }

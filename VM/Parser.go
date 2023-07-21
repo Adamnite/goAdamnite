@@ -8,8 +8,8 @@ import (
 
 var reader = bytes.NewReader
 
-func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
-	ansOps := []OperationCommon{}
+func parseBytes(bytes []byte) ([]Operationutils, []ControlBlock) {
+	ansOps := []Operationutils{}
 	pointInBytes := 0
 
 	// The first control here marks the beginning of the function

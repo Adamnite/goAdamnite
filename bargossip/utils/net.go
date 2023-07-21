@@ -146,7 +146,7 @@ func sameNet(bits uint, ip, other net.IP) bool {
 // DistinctNetSet tracks IPs, ensuring that at most N of them
 // fall into the same network range.
 type DistinctNetSet struct {
-	Subnet uint // number of common prefix bits
+	Subnet uint // number of utils prefix bits
 	Limit  uint // maximum number of IPs in each subnet
 
 	members map[string]uint

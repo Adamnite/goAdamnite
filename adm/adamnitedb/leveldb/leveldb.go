@@ -4,7 +4,8 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bloom"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
@@ -50,7 +51,7 @@ func New(file string, cache int, handles int, readonly bool) (*Database, error) 
 	logger := log15.New("database", file)
 	usedCache := options.GetBlockCacheCapacity() + options.GetWriteBuffer()*2
 
-	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(usedCache), "handles", options.GetOpenFilesCacheCapacity(), "readonly", options.ReadOnly)
+	logger.Info("Allocated cache and file handles", "cache", utils.StorageSize(usedCache), "handles", options.GetOpenFilesCacheCapacity(), "readonly", options.ReadOnly)
 
 	db, err := leveldb.OpenFile(file, options)
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {

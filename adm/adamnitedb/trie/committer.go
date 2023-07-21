@@ -6,7 +6,7 @@ import (
 	"hash"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -17,7 +17,7 @@ const leafChanSize = 200
 // leaf represents a trie leaf value
 type leaf struct {
 	size int         // size of the rlp data (estimate)
-	hash common.Hash // hash of rlp data
+	hash utils.Hash // hash of rlp data
 	node node        // the node to commit
 }
 
@@ -174,14 +174,14 @@ func (c *committer) store(n node, db *Database) node {
 	if c.leafCh != nil {
 		c.leafCh <- &leaf{
 			size: size,
-			hash: common.BytesToHash(hash),
+			hash: utils.BytesToHash(hash),
 			node: n,
 		}
 	} else if db != nil {
 		// No leaf-callback used, but there's still a database. Do serial
 		// insertion
 		db.lock.Lock()
-		db.insert(common.BytesToHash(hash), size, n)
+		db.insert(utils.BytesToHash(hash), size, n)
 		db.lock.Unlock()
 	}
 	return hash

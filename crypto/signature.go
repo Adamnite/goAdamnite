@@ -5,7 +5,7 @@ import (
 	"crypto/elliptic"
 	"fmt"
 
-	"github.com/adamnite/goadamnite/common"
+	"github.com/adamnite/goadamnite/utils"
 	"github.com/adamnite/goadamnite/crypto/secp256k1"
 )
 

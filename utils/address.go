@@ -14,6 +14,8 @@ const (
 
 type Address [AddressLength]byte
 
+type Hash [HashLength]byte
+
 func (a Address) MarshalMsgpack() ([]byte, error) {
 	return a[:], nil
 }

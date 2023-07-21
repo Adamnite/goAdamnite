@@ -4,15 +4,15 @@ import (
 	"crypto"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/common/math"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/math"
 	"github.com/adamnite/go-adamnite/params"
 	lru "github.com/hashicorp/golang-lru"
 )
 
 type Witness interface {
 	// GetAddress returns the witness address
-	GetAddress() common.Address
+	GetAddress() utils.Address
 
 	// GetVoters returns the list of voters
 	GetVoters() []Voter
@@ -38,7 +38,7 @@ type Witness interface {
 }
 
 type WitnessImpl struct {
-	Address        common.Address
+	Address        utils.Address
 	Voters         []Voter
 	Prove          []byte
 	WeightVRF      *big.Float
@@ -47,7 +47,7 @@ type WitnessImpl struct {
 	blocksApproved uint64
 }
 
-func (w *WitnessImpl) GetAddress() common.Address {
+func (w *WitnessImpl) GetAddress() utils.Address {
 	return w.Address
 }
 
@@ -101,14 +101,14 @@ type WitnessPool struct {
 
 	witnessCandidates []Witness
 	// vrfWeights        []float32
-	vrfMaps map[common.Address]*Witness //map the account address to the witness pointer (no need to re-save it)
+	vrfMaps map[utils.Address]*Witness //map the account address to the witness pointer (no need to re-save it)
 
 	Witnesses []Witness
 	seed      []byte
-	Votes     map[common.Address]*Voter
+	Votes     map[utils.Address]*Voter
 	sigcache  *lru.ARCCache
 	Number    uint64
-	Hash      common.Hash
+	Hash      utils.Hash
 	blacklist []Witness
 }
 
@@ -117,10 +117,10 @@ func NewWitnessPool(chainConfig *params.ChainConfig) *WitnessPool {
 	pool := &WitnessPool{
 		chainConfig: chainConfig,
 
-		vrfMaps:           make(map[common.Address]*Witness),
+		vrfMaps:           make(map[utils.Address]*Witness),
 		witnessCandidates: []Witness{},
 
-		Votes: map[common.Address]*Voter{},
+		Votes: map[utils.Address]*Voter{},
 	}
 
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {

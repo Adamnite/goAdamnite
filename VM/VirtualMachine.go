@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/params"
 )
 
-func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
+func NewVirtualMachineWithContract(apiEndpoint string, contract *utils.Address) (*Machine, error) {
 	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
 
 	if contract == nil {
@@ -27,7 +27,7 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 
 	return vm, nil
 }
-func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
+func (vm *Machine) ResetToContract(apiEndpoint string, contract utils.Address) error {
 	vm.Reset()
 	con, err := GetContractData(apiEndpoint, contract.Hex())
 	if err != nil {
@@ -42,7 +42,7 @@ func (vm *Machine) CallWith(apiEndpoint string, rt *RuntimeChanges) (*RuntimeCha
 	}
 	spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
 	//TODO: either way, cleanup here
-	vm.config.CodeGetter = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	vm.config.CodeGetter = func(hash []byte) (FunctionType, []Operationutils, []ControlBlock) {
 		stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
 		if err != nil {
 			panic(err) //TODO: handle this better.
@@ -58,7 +58,7 @@ func (vm *Machine) CallOnContractWith(rt *RuntimeChanges) (*RuntimeChanges, erro
 	rt.ErrorsEncountered = err
 	return vm.UpdateChanges(rt), err
 }
-func newContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
+func newContract(caller utils.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
 }
@@ -150,17 +150,17 @@ func (m *Machine) OutputMemory() string {
 }
 
 // CanTransfer checks whether there are enough funds in the address' account to make a transfer.
-func CanTransfer(db *statedb.StateDB, addr common.Address, amount *big.Int) bool {
+func CanTransfer(db *statedb.StateDB, addr utils.Address, amount *big.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db *statedb.StateDB, sender, recipient common.Address, amount *big.Int) {
+func Transfer(db *statedb.StateDB, sender, recipient utils.Address, amount *big.Int) {
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }
 
-func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
+func NewBlockContext(coinbase utils.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
 	bc := BlockContext{}
 	bc.Coinbase = coinbase
 	bc.GasLimit = ateLimit
@@ -319,7 +319,7 @@ func (m *Machine) useAte(gas uint64) bool {
 	return true
 }
 
-func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+func defaultCodeGetter(hash []byte) (FunctionType, []Operationutils, []ControlBlock) {
 	panic(fmt.Errorf("virtual machine does not have a code getter setup"))
 }
 
@@ -417,7 +417,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (m *Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
+func (m *Machine) Call(caller utils.Address, addr utils.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if m.currentFrame > int(m.config.maxCallStackDepth) {
 		return nil, gas, ErrDepth
 	}
@@ -462,20 +462,20 @@ func getModuleLen(module *Module) uint64 {
 	return le
 }
 
-func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, value *big.Int, address common.Address) (common.Address, uint64, error) {
+func (m *Machine) create(caller utils.Address, codeBytes []byte, gas uint64, value *big.Int, address utils.Address) (utils.Address, uint64, error) {
 	//creates a new contract from the bytes passed (whole module) and uploads those functions, then has a locally created contract (only in this VM)
 	if m.currentFrame > int(m.config.maxCallStackDepth) {
-		return common.Address{}, gas, ErrDepth
+		return utils.Address{}, gas, ErrDepth
 	}
 
 	if !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-		return common.Address{}, gas, ErrInsufficientBalance
+		return utils.Address{}, gas, ErrInsufficientBalance
 	}
 
 	nonce := m.Statedb.GetNonce(caller)
 
 	if nonce+1 < nonce {
-		return common.Address{}, gas, ErrNonceUintOverflow
+		return utils.Address{}, gas, ErrNonceUintOverflow
 	}
 
 	m.Statedb.SetNonce(caller, nonce+1)
@@ -489,7 +489,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 	}
 
 	if m.Statedb.GetNonce(address) != 0 || address.String() == "" {
-		return common.Address{}, 0, ErrContractAddressCollision
+		return utils.Address{}, 0, ErrContractAddressCollision
 	}
 
 	// Create a new account on the state
@@ -541,7 +541,7 @@ func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, va
 }
 
 // Create creates a new contract using code as deployment code.
-func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
+func (m *Machine) Create(caller utils.Address, code []byte, gas uint64, value *big.Int) (contractAddr utils.Address, leftOverGas uint64, err error) {
 	addrBytes := caller.Bytes()
 	nonce := m.Statedb.GetNonce(caller)
 	addrBytes = append(addrBytes, byte(nonce))
@@ -600,7 +600,7 @@ func (m *Machine) AddLocal(n interface{}) {
 	}
 }
 
-func (m *Machine) GetContractHash() common.Hash {
+func (m *Machine) GetContractHash() utils.Hash {
 	return m.contract.Hash()
 }
 

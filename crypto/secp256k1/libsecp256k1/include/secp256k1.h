@@ -412,7 +412,7 @@ SECP256K1_API SECP256K1_WARN_UNUSED_RESULT int secp256k1_ecdsa_verify(
  *
  *  No other forms of ECDSA malleability are known and none seem likely, but
  *  there is no formal proof that ECDSA, even with this additional restriction,
- *  is free of other malleability. Commonly used serialization schemes will also
+ *  is free of other malleability. utilsly used serialization schemes will also
  *  accept various non-unique encodings, so care should be taken when this
  *  property is required for an application.
  *

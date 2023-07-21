@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -235,7 +235,7 @@ func (st *StackTrie) insert(key, value []byte) {
 
 		// Check if chunks are identical. If so, recurse into
 		// the child node. Otherwise, the key has to be split
-		// into 1) an optional common prefix, 2) the fullnode
+		// into 1) an optional utils prefix, 2) the fullnode
 		// representing the two differing path, and 3) a leaf
 		// for each of the differentiated subtrees.
 		if diffidx == len(st.key) {
@@ -267,7 +267,7 @@ func (st *StackTrie) insert(key, value []byte) {
 			p = st
 			st.nodeType = branchNode
 		} else {
-			// the common prefix is at least one byte
+			// the utils prefix is at least one byte
 			// long, insert a new intermediate branch
 			// node.
 			st.children[0] = stackTrieFromPool(st.db)
@@ -291,7 +291,7 @@ func (st *StackTrie) insert(key, value []byte) {
 
 		// Overwriting a key isn't supported, which means that
 		// the current leaf is expected to be split into 1) an
-		// optional extension for the common prefix of these 2
+		// optional extension for the utils prefix of these 2
 		// keys, 2) a fullnode selecting the path on which the
 		// keys differ, and 3) one leaf for the differentiated
 		// component of each key.
@@ -434,7 +434,7 @@ func (st *StackTrie) hash() {
 	st.key = st.key[:0]
 	st.nodeType = hashedNode
 	if len(h.tmp) < 32 {
-		st.val = common.CopyBytes(h.tmp)
+		st.val = utils.CopyBytes(h.tmp)
 		return
 	}
 	// Write the hash to the 'val'. We allocate a new val here to not mutate
@@ -451,7 +451,7 @@ func (st *StackTrie) hash() {
 }
 
 // Hash returns the hash of the current node
-func (st *StackTrie) Hash() (h common.Hash) {
+func (st *StackTrie) Hash() (h utils.Hash) {
 	st.hash()
 	if len(st.val) != 32 {
 		// If the node's RLP isn't 32 bytes long, the node will not
@@ -463,9 +463,9 @@ func (st *StackTrie) Hash() (h common.Hash) {
 		h.sha.Reset()
 		h.sha.Write(st.val)
 		h.sha.Read(ret)
-		return common.BytesToHash(ret)
+		return utils.BytesToHash(ret)
 	}
-	return common.BytesToHash(st.val)
+	return utils.BytesToHash(st.val)
 }
 
 // Commit will firstly hash the entrie trie if it's still not hashed
@@ -475,9 +475,9 @@ func (st *StackTrie) Hash() (h common.Hash) {
 //
 // The associated database is expected, otherwise the whole commit
 // functionality should be disabled.
-func (st *StackTrie) Commit() (common.Hash, error) {
+func (st *StackTrie) Commit() (utils.Hash, error) {
 	if st.db == nil {
-		return common.Hash{}, ErrCommitDisabled
+		return utils.Hash{}, ErrCommitDisabled
 	}
 	st.hash()
 	if len(st.val) != 32 {
@@ -491,7 +491,7 @@ func (st *StackTrie) Commit() (common.Hash, error) {
 		h.sha.Write(st.val)
 		h.sha.Read(ret)
 		st.db.Insert(ret, st.val)
-		return common.BytesToHash(ret), nil
+		return utils.BytesToHash(ret), nil
 	}
-	return common.BytesToHash(st.val), nil
+	return utils.BytesToHash(st.val), nil
 }

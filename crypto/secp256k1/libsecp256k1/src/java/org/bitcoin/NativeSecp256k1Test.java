@@ -1,6 +1,6 @@
 package org.bitcoin;
 
-import com.google.common.io.BaseEncoding;
+import com.google.utils.io.BaseEncoding;
 import java.util.Arrays;
 import java.math.BigInteger;
 import javax.xml.bind.DatatypeConverter;

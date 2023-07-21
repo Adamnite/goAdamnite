@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -58,11 +58,11 @@ type NodeIterator interface {
 	Error() error
 
 	// Hash returns the hash of the current node.
-	Hash() common.Hash
+	Hash() utils.Hash
 
 	// Parent returns the hash of the parent of the current node. The hash may be the one
 	// grandparent if the immediate parent is an internal node with no hash.
-	Parent() common.Hash
+	Parent() utils.Hash
 
 	// Path returns the hex-encoded path to the current node.
 	// Callers must not retain references to the return value after calling Next.
@@ -104,9 +104,9 @@ type NodeIterator interface {
 // nodeIteratorState represents the iteration state at one particular node of the
 // trie, which can be resumed at a later invocation.
 type nodeIteratorState struct {
-	hash    common.Hash // Hash of the node being iterated (nil if not standalone)
+	hash    utils.Hash // Hash of the node being iterated (nil if not standalone)
 	node    node        // Trie node being iterated
-	parent  common.Hash // Hash of the first full ancestor node (nil if current is the root)
+	parent  utils.Hash // Hash of the first full ancestor node (nil if current is the root)
 	index   int         // Child to be processed next
 	pathlen int         // Length of the path to this node
 }
@@ -146,16 +146,16 @@ func (it *nodeIterator) AddResolver(resolver adamnitedb.Database) {
 	it.resolver = resolver
 }
 
-func (it *nodeIterator) Hash() common.Hash {
+func (it *nodeIterator) Hash() utils.Hash {
 	if len(it.stack) == 0 {
-		return common.Hash{}
+		return utils.Hash{}
 	}
 	return it.stack[len(it.stack)-1].hash
 }
 
-func (it *nodeIterator) Parent() common.Hash {
+func (it *nodeIterator) Parent() utils.Hash {
 	if len(it.stack) == 0 {
-		return common.Hash{}
+		return utils.Hash{}
 	}
 	return it.stack[len(it.stack)-1].parent
 }
@@ -284,7 +284,7 @@ func (it *nodeIterator) peek(descend bool) (*nodeIteratorState, *int, []byte, er
 	for len(it.stack) > 0 {
 		parent := it.stack[len(it.stack)-1]
 		ancestor := parent.hash
-		if (ancestor == common.Hash{}) {
+		if (ancestor == utils.Hash{}) {
 			ancestor = parent.parent
 		}
 		state, path, ok := it.nextChild(parent, ancestor)
@@ -317,7 +317,7 @@ func (it *nodeIterator) peekSeek(seekKey []byte) (*nodeIteratorState, *int, []by
 	for len(it.stack) > 0 {
 		parent := it.stack[len(it.stack)-1]
 		ancestor := parent.hash
-		if (ancestor == common.Hash{}) {
+		if (ancestor == utils.Hash{}) {
 			ancestor = parent.parent
 		}
 		state, path, ok := it.nextChildAt(parent, ancestor, seekKey)
@@ -352,12 +352,12 @@ func (st *nodeIteratorState) resolve(it *nodeIterator, path []byte) error {
 			return err
 		}
 		st.node = resolved
-		st.hash = common.BytesToHash(hash)
+		st.hash = utils.BytesToHash(hash)
 	}
 	return nil
 }
 
-func findChild(n *fullNode, index int, path []byte, ancestor common.Hash) (node, *nodeIteratorState, []byte, int) {
+func findChild(n *fullNode, index int, path []byte, ancestor utils.Hash) (node, *nodeIteratorState, []byte, int) {
 	var (
 		child     node
 		state     *nodeIteratorState
@@ -368,7 +368,7 @@ func findChild(n *fullNode, index int, path []byte, ancestor common.Hash) (node,
 			child = n.Children[index]
 			hash, _ := child.cache()
 			state = &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
+				hash:    utils.BytesToHash(hash),
 				node:    child,
 				parent:  ancestor,
 				index:   -1,
@@ -382,7 +382,7 @@ func findChild(n *fullNode, index int, path []byte, ancestor common.Hash) (node,
 	return nil, nil, nil, 0
 }
 
-func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor common.Hash) (*nodeIteratorState, []byte, bool) {
+func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor utils.Hash) (*nodeIteratorState, []byte, bool) {
 	switch node := parent.node.(type) {
 	case *fullNode:
 		//Full node, move to the first non-nil child.
@@ -395,7 +395,7 @@ func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor common.Has
 		if parent.index < 0 {
 			hash, _ := node.Val.cache()
 			state := &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
+				hash:    utils.BytesToHash(hash),
 				node:    node.Val,
 				parent:  ancestor,
 				index:   -1,
@@ -410,7 +410,7 @@ func (it *nodeIterator) nextChild(parent *nodeIteratorState, ancestor common.Has
 
 // nextChildAt is similar to nextChild, except that it targets a child as close to the
 // target key as possible, thus skipping siblings.
-func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor common.Hash, key []byte) (*nodeIteratorState, []byte, bool) {
+func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor utils.Hash, key []byte) (*nodeIteratorState, []byte, bool) {
 	switch n := parent.node.(type) {
 	case *fullNode:
 		// Full node, move to the first non-nil child before the desired key position
@@ -441,7 +441,7 @@ func (it *nodeIterator) nextChildAt(parent *nodeIteratorState, ancestor common.H
 		if parent.index < 0 {
 			hash, _ := n.Val.cache()
 			state := &nodeIteratorState{
-				hash:    common.BytesToHash(hash),
+				hash:    utils.BytesToHash(hash),
 				node:    n.Val,
 				parent:  ancestor,
 				index:   -1,
@@ -504,11 +504,11 @@ func NewDifferenceIterator(a, b NodeIterator) (NodeIterator, *int) {
 	return it, &it.count
 }
 
-func (it *differenceIterator) Hash() common.Hash {
+func (it *differenceIterator) Hash() utils.Hash {
 	return it.b.Hash()
 }
 
-func (it *differenceIterator) Parent() common.Hash {
+func (it *differenceIterator) Parent() utils.Hash {
 	return it.b.Parent()
 }
 
@@ -564,7 +564,7 @@ func (it *differenceIterator) Next(bool) bool {
 			return true
 		case 0:
 			// a and b are identical; skip this whole subtree if the nodes have hashes
-			hasHash := it.a.Hash() == common.Hash{}
+			hasHash := it.a.Hash() == utils.Hash{}
 			if !it.b.Next(hasHash) {
 				return false
 			}
@@ -615,11 +615,11 @@ func NewUnionIterator(iters []NodeIterator) (NodeIterator, *int) {
 	return ui, &ui.count
 }
 
-func (it *unionIterator) Hash() common.Hash {
+func (it *unionIterator) Hash() utils.Hash {
 	return (*it.items)[0].Hash()
 }
 
-func (it *unionIterator) Parent() common.Hash {
+func (it *unionIterator) Parent() utils.Hash {
 	return (*it.items)[0].Parent()
 }
 
@@ -674,7 +674,7 @@ func (it *unionIterator) Next(descend bool) bool {
 	for len(*it.items) > 0 && ((!descend && bytes.HasPrefix((*it.items)[0].Path(), least.Path())) || compareNodes(least, (*it.items)[0]) == 0) {
 		skipped := heap.Pop(it.items).(NodeIterator)
 		// Skip the whole subtree if the nodes have hashes; otherwise just skip this node
-		if skipped.Next(skipped.Hash() == common.Hash{}) {
+		if skipped.Next(skipped.Hash() == utils.Hash{}) {
 			it.count++
 			// If there are more elements, push the iterator back on the heap
 			heap.Push(it.items, skipped)

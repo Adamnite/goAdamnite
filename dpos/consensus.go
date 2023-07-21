@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
 )
@@ -17,9 +17,9 @@ type ChainHeaderReader interface {
 	GetHeaderByNumber(number *big.Int) *types.BlockHeader
 
 	// GetHeaderByHash retrieves the header from the database by hash.
-	GetHeaderByHash(hash common.Hash) *types.BlockHeader
+	GetHeaderByHash(hash utils.Hash) *types.BlockHeader
 
-	GetHeader(hash common.Hash, number *big.Int) *types.BlockHeader
+	GetHeader(hash utils.Hash, number *big.Int) *types.BlockHeader
 }
 
 type ChainReader interface {
@@ -29,18 +29,18 @@ type ChainReader interface {
 	ChainHeaderReader
 
 	// GetBlockByHash retrieves the block from the database by hash.
-	GetBlockByHash(hash common.Hash) *types.Block
+	GetBlockByHash(hash utils.Hash) *types.Block
 
 	// GetBlockByNumber retrieves the block from the database by number.
 	GetBlockByNumber(number *big.Int) *types.Block
 
-	GetBlock(hash common.Hash, number *big.Int) *types.Block
+	GetBlock(hash utils.Hash, number *big.Int) *types.Block
 }
 
 // Engine is an algorithm agnostic consensus engine.
 type Engine interface {
 	// Witness retrives the Adamnite address that generated the given block
-	Witness(header *types.BlockHeader) (common.Address, error)
+	Witness(header *types.BlockHeader) (utils.Address, error)
 
 	// VerifyHeader checks whether a header conforms to the consensus rules of the given engine.
 	VerifyHeader(header *types.BlockHeader, chain ChainReader, blockInterval uint64) error

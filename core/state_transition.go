@@ -6,7 +6,7 @@ import (
 
 	virtMach "github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
@@ -27,9 +27,9 @@ type StateTransition struct {
 
 // Message represents a message sent to a contract.
 type Message interface {
-	From() common.Address
-	//FromFrontier() (common.Address, error)
-	To() *common.Address
+	From() utils.Address
+	//FromFrontier() (utils.Address, error)
+	To() *utils.Address
 
 	AtePrice() *big.Int
 	Ate() uint64
@@ -57,9 +57,9 @@ func ApplyMessage(vm *virtMach.Machine, msg Message) ([]byte, uint64, bool, erro
 }
 
 // to returns the recipient of the message.
-func (st *StateTransition) to() common.Address {
+func (st *StateTransition) to() utils.Address {
 	if st.msg == nil || st.msg.To() == nil /* contract creation */ {
-		return common.Address{}
+		return utils.Address{}
 	}
 	return *st.msg.To()
 }

@@ -1,6 +1,6 @@
 package VM
 
-type OperationCommon interface {
+type Operationutils interface {
 	doOp(m *Machine) error
 }
 

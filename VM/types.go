@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/params"
 )
 
@@ -23,12 +23,12 @@ const (
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(*statedb.StateDB, common.Address, *big.Int) bool
+	CanTransferFunc func(*statedb.StateDB, utils.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(*statedb.StateDB, common.Address, common.Address, *big.Int)
+	TransferFunc func(*statedb.StateDB, utils.Address, utils.Address, *big.Int)
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
-	GetHashFunc func(uint64) common.Hash
+	GetHashFunc func(uint64) utils.Hash
 )
 
 type VirtualMachine interface {
@@ -40,7 +40,7 @@ type VirtualMachine interface {
 }
 
 type ControlBlock struct {
-	code      []OperationCommon
+	code      []Operationutils
 	startAt   uint64
 	elseAt    uint64
 	endAt     uint64
@@ -52,7 +52,7 @@ type Machine struct {
 	VirtualMachine
 	pointInCode       uint64
 	contract          Contract
-	vmCode            []OperationCommon
+	vmCode            []Operationutils
 	vmStack           []uint64          //the stack the VM uses
 	contractStorage   []uint64          //the storage of the smart contracts data.
 	storageChanges    map[uint32]uint64 //point to new value
@@ -80,7 +80,7 @@ type BlockContext struct {
 	GetHash GetHashFunc
 
 	// Block information
-	Coinbase    common.Address
+	Coinbase    utils.Address
 	GasLimit    uint64
 	BlockNumber *big.Int
 	Time        *big.Int
@@ -88,7 +88,7 @@ type BlockContext struct {
 	BaseFee     *big.Int
 }
 
-type GetCode func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
+type GetCode func(hash []byte) (FunctionType, []Operationutils, []ControlBlock)
 
 type VMConfig struct {
 	maxCallStackDepth        uint
@@ -102,7 +102,7 @@ type VMConfig struct {
 }
 
 type Frame struct {
-	Code         []OperationCommon
+	Code         []Operationutils
 	Regs         []int64
 	Locals       []uint64
 	Ip           uint64
@@ -114,9 +114,9 @@ type Frame struct {
 // Contract represents an adm contract in the state database. It contains
 // the contract methods, calling arguments.
 type Contract struct {
-	Address       common.Address //the Address of the contract
+	Address       utils.Address //the Address of the contract
 	Value         *big.Int
-	CallerAddress common.Address
+	CallerAddress utils.Address
 	Code          []CodeStored
 	CodeHashes    []string //the hash of the code,the code is only actually in Contract.Code once its called
 	Storage       []uint64
@@ -125,9 +125,9 @@ type Contract struct {
 }
 
 type RuntimeChanges struct {
-	Caller            common.Address //who called this
+	Caller            utils.Address //who called this
 	CallTime          time.Time      //when was it called
-	ContractCalled    common.Address //what was called
+	ContractCalled    utils.Address //what was called
 	ParametersPassed  []byte         //what was passed on the call
 	GasLimit          uint64         //did they set a gas limit
 	ChangeStartPoints []uint64       //data from the results

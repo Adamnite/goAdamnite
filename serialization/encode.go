@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	// Common encoded values.
+	// utils encoded values.
 	// These are useful when implementing Encodeserialization.
 	EmptyString = []byte{0x80}
 	EmptyList   = []byte{0xC0}

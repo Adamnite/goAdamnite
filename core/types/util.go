@@ -1,8 +1,8 @@
 package types
 
-import "github.com/adamnite/go-adamnite/common"
+import "github.com/adamnite/go-adamnite/utils"
 
-type writeCounter common.StorageSize
+type writeCounter utils.StorageSize
 
 func (c *writeCounter) Write(b []byte) (int, error) {
 	*c += writeCounter(len(b))

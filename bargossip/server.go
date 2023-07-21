@@ -15,7 +15,7 @@ import (
 	"github.com/adamnite/go-adamnite/bargossip/findnode"
 	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/bargossip/utils"
-	"github.com/adamnite/go-adamnite/common/mclock"
+	"github.com/adamnite/go-adamnite/utils/mclock"
 	"github.com/adamnite/go-adamnite/log15"
 )
 
@@ -243,7 +243,7 @@ func (srv *Server) initializeFindPeerModule(listener *net.UDPConn) (err error) {
 }
 
 // ***************************************************************************************************** //
-// **************************** ADAMNITE P2P Server Common functions *********************************** //
+// **************************** ADAMNITE P2P Server utils functions *********************************** //
 // ***************************************************************************************************** //
 
 // checkInboundConections check the ip address to accept connection.

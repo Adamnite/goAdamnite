@@ -3,7 +3,7 @@ package VM
 // This file will be used for OPCODES for which gas computation depends on
 // different parameters
 
-// Common Gas costs
+// utils Gas costs
 const (
 	GasQuickStep   uint64 = 1
 	GasFastestStep uint64 = 3

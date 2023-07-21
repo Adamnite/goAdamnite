@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 	addTwoCodeStored    VM.CodeStored
 	addTwoFunctionHash  []byte
 	testContract        VM.Contract
-	testAccount         = common.Address{0, 1, 2}
+	testAccount         = utils.Address{0, 1, 2}
 )
 
 func setup() error {
@@ -32,7 +32,7 @@ func setup() error {
 
 	addTwoCodeStored = stored[0]
 	addTwoFunctionHash, _ = addTwoCodeStored.Hash()
-	testContract = VM.Contract{CallerAddress: common.Address{1}, Value: big.NewInt(0), Input: nil, Gas: 30000, CodeHashes: []string{hex.EncodeToString(addTwoFunctionHash)}}
+	testContract = VM.Contract{CallerAddress: utils.Address{1}, Value: big.NewInt(0), Input: nil, Gas: 30000, CodeHashes: []string{hex.EncodeToString(addTwoFunctionHash)}}
 	return nil
 }
 func TestProcessingRun(t *testing.T) {

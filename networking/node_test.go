@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTwoNodes(t *testing.T) {
-	nodeA := NewNetNode(common.Address{0})
-	nodeB := NewNetNode(common.Address{1})
+	nodeA := NewNetNode(utils.Address{0})
+	nodeB := NewNetNode(utils.Address{1})
 
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
@@ -31,8 +31,8 @@ func TestTwoNodes(t *testing.T) {
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {
-	nodeA := NewNetNode(common.Address{0})
-	nodeB := NewNetNode(common.Address{1})
+	nodeA := NewNetNode(utils.Address{0})
+	nodeB := NewNetNode(utils.Address{1})
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 	}
 
 	wrongNodeID := &Contact{
-		NodeID:           common.Address{0, 1, 2, 3, 4, 5},
+		NodeID:           utils.Address{0, 1, 2, 3, 4, 5},
 		ConnectionString: nodeA.thisContact.ConnectionString,
 	}
 
@@ -69,7 +69,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 }
 
 func TestSingleNode(t *testing.T) {
-	testingNode := NewNetNode(common.Address{0})
+	testingNode := NewNetNode(utils.Address{0})
 
 	fmt.Println(testingNode.thisContact.NodeID)
 

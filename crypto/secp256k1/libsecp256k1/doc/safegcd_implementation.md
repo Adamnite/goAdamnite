@@ -9,7 +9,7 @@ The actual implementation is in C of course, but for demonstration purposes Pyth
 Most implementation aspects and optimizations are explained, except those that depend on the specific
 number representation used in the C code.
 
-## 1. Computing the Greatest Common Divisor (GCD) using divsteps
+## 1. Computing the Greatest utils Divisor (GCD) using divsteps
 
 The algorithm from the paper (section 11), at a very high level, is this:
 
@@ -29,7 +29,7 @@ def gcd(f, g):
     return abs(f)
 ```
 
-It computes the greatest common divisor of an odd integer *f* and any integer *g*. Its inner loop
+It computes the greatest utils divisor of an odd integer *f* and any integer *g*. Its inner loop
 keeps rewriting the variables *f* and *g* alongside a state variable *&delta;* that starts at *1*, until
 *g=0* is reached. At that point, *|f|* gives the GCD. Each of the transitions in the loop is called a
 "division step" (referred to as divstep in what follows).
@@ -48,7 +48,7 @@ Why it works:
 - Neither of those two operations change the GCD:
   - For (a), assume *gcd(f,g)=c*, then it must be the case that *f=a&thinsp;c* and *g=b&thinsp;c* for some integers *a*
     and *b*. As *(g,g-f)=(b&thinsp;c,(b-a)c)* and *(f,f+g)=(a&thinsp;c,(a+b)c)*, the result clearly still has
-    common factor *c*. Reasoning in the other direction shows that no common factor can be added by
+    utils factor *c*. Reasoning in the other direction shows that no utils factor can be added by
     doing so either.
   - For (b), we know that *f* is odd, so *gcd(f,g)* clearly has no factor *2*, and we can remove
     it from *g*.

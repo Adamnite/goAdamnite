@@ -6,20 +6,20 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/log15"
 	"golang.org/x/crypto/sha3"
 )
 
 var (
 	// emptyRoot is the known root hash of an empty trie.
-	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	emptyRoot = utils.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyState is the known hash of an empty state trie entry.
 	emptyState = sha3.Sum512(nil)
 )
 
-type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error
+type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent utils.Hash) error
 
 type Trie struct {
 	db       *Database
@@ -39,14 +39,14 @@ func (t *Trie) newFlag() nodeFlag {
 // trie is initially empty and does not require a database. Otherwise,
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
-func New(root common.Hash, db *Database) (*Trie, error) {
+func New(root utils.Hash, db *Database) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
 	}
 	trie := &Trie{
 		db: db,
 	}
-	if root != (common.Hash{}) && root != emptyRoot {
+	if root != (utils.Hash{}) && root != emptyRoot {
 		rootnode, err := trie.resolveHash(root[:], nil)
 		if err != nil {
 			return nil, err
@@ -150,7 +150,7 @@ func (t *Trie) tryGetNode(origNode node, path []byte, pos int) (item []byte, new
 		if hash == nil {
 			return nil, origNode, 0, errors.New("non-consensus node")
 		}
-		blob, err := t.db.Node(common.BytesToHash(hash))
+		blob, err := t.db.Node(utils.BytesToHash(hash))
 		return blob, origNode, 1, err
 	}
 	// Path still needs to be traversed, descend into children
@@ -451,7 +451,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 }
 
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
-	hash := common.BytesToHash(n)
+	hash := utils.BytesToHash(n)
 	if node := t.db.node(hash); node != nil {
 		return node, nil
 	}
@@ -460,15 +460,15 @@ func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 
 // Hash returns the root hash of the trie. It does not write to the
 // database and can be used even if the trie doesn't have one.
-func (t *Trie) Hash() common.Hash {
+func (t *Trie) Hash() utils.Hash {
 	hash, cached, _ := t.hashRoot()
 	t.root = cached
-	return common.BytesToHash(hash.(hashNode))
+	return utils.BytesToHash(hash.(hashNode))
 }
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
-func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
+func (t *Trie) Commit(onleaf LeafCallback) (root utils.Hash, err error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")
 	}
@@ -508,7 +508,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 		wg.Wait()
 	}
 	if err != nil {
-		return common.Hash{}, err
+		return utils.Hash{}, err
 	}
 	t.root = newRoot
 	return rootHash, nil
@@ -533,7 +533,7 @@ func (t *Trie) Reset() {
 	t.unhashed = 0
 }
 
-func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, error) {
+func NewTrieWithPrefix(root utils.Hash, prefix []byte, db *Database) (*Trie, error) {
 	trie, err := New(root, db)
 	if err != nil {
 		return nil, err

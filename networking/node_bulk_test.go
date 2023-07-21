@@ -10,14 +10,14 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLotsOfNodes(t *testing.T) {
-	seedNode := NewNetNode(common.Address{0})
+	seedNode := NewNetNode(utils.Address{0})
 	seedNode.AddServer()
 
 	fmt.Println("seed node has been spun up")
@@ -26,7 +26,7 @@ func TestLotsOfNodes(t *testing.T) {
 	//seed known are nodes that the seed knows of directly.
 	seedKnowNodes := make([]*NetNode, 50)
 	for i := 0; i < len(seedKnowNodes); i++ {
-		x := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
+		x := NewNetNode(utils.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
 		x.AddServer()
 		x.ConnectToContact(&seedContact)
 		seedKnowNodes[i] = x
@@ -152,7 +152,7 @@ func TestTransactionPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
+	testerNode := NewNetNode(utils.Address{0xFF, 0xFF, 0xFF, 0xFF})
 	var ans = &utils.Transaction{}
 	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
 		// log.Println("\nworking!!!!\n\nWORKING!!!")
@@ -164,7 +164,7 @@ func TestTransactionPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
-	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
+	outsideNode := NewNetNode(utils.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
 	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
@@ -173,8 +173,8 @@ func TestTransactionPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 	transaction := utils.Transaction{
-		From:      common.Address{0xA, 1, 2, 3, 4, 5},
-		To:        common.Address{0xB, 1, 2, 3, 4, 5},
+		From:      utils.Address{0xA, 1, 2, 3, 4, 5},
+		To:        utils.Address{0xB, 1, 2, 3, 4, 5},
 		Amount:    big.NewInt(1000),
 		Time:      time.Now(),
 		Signature: []byte{1, 2, 3, 4, 5},
@@ -199,7 +199,7 @@ func TestTransactionPropagation(t *testing.T) {
 func generateLineOfNodes(count int) ([]*NetNode, error) {
 	nodes := make([]*NetNode, count)
 	for i := range nodes {
-		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
+		node := NewNetNode(utils.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
 		nodes[i] = node
 		if err := node.AddServer(); err != nil {
 			return nil, err
@@ -226,7 +226,7 @@ func generateClusteredNodes(clusterCount, clusterSize int) ([][]*NetNode, error)
 	for x := 0; x < clusterCount; x++ {
 		nodeRow := []*NetNode{}
 		for y := 0; y < clusterSize; y++ {
-			node := NewNetNode(common.Address{byte(x), byte(y)})
+			node := NewNetNode(utils.Address{byte(x), byte(y)})
 			nodeRow = append(nodeRow, node)
 			node.maxOutboundConnections = uint(clusterCount) + uint(clusterSize) //let one node connect to an entire row and column
 			if err := node.AddServer(); err != nil {
