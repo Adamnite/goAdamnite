@@ -11,17 +11,17 @@ type journalEntry interface {
 	revert(*StateDB)
 
 	// dirtied returns the adamnite address modified by this journal entry.
-	dirtied() *common.Address
+	dirtied() *bytes.Address
 }
 
 type journal struct {
 	entries []journalEntry
-	dirties map[common.Address]int
+	dirties map[bytes.Address]int
 }
 
 func newJournal() *journal {
 	return &journal{
-		dirties: make(map[common.Address]int),
+		dirties: make(map[bytes.Address]int),
 	}
 }
 
@@ -45,7 +45,7 @@ func (j *journal) revert(statedb *StateDB, snapshot int) {
 	j.entries = j.entries[:snapshot]
 }
 
-func (j *journal) dirty(addr common.Address) {
+func (j *journal) dirty(addr bytes.Address) {
 	j.dirties[addr]++
 }
 
@@ -54,7 +54,7 @@ func (j *journal) length() int {
 }
 
 type createObjectChange struct {
-	account *common.Address
+	account *bytes.Address
 }
 
 func (change createObjectChange) revert(s *StateDB) {
@@ -62,7 +62,7 @@ func (change createObjectChange) revert(s *StateDB) {
 	delete(s.stateObjectsDirty, *change.account)
 }
 
-func (change createObjectChange) dirtied() *common.Address {
+func (change createObjectChange) dirtied() *bytes.Address {
 	return change.account
 }
 
@@ -75,12 +75,12 @@ func (change resetObjectChange) revert(s *StateDB) {
 	s.setStateObject(change.prev)
 }
 
-func (change resetObjectChange) dirtied() *common.Address {
+func (change resetObjectChange) dirtied() *bytes.Address {
 	return nil
 }
 
 type suicideChange struct {
-	account     *common.Address
+	account     *bytes.Address
 	prev        bool // whether account had already suicided
 	prevbalance *big.Int
 }
@@ -93,12 +93,12 @@ func (sch suicideChange) revert(s *StateDB) {
 	}
 }
 
-func (sch suicideChange) dirtied() *common.Address {
+func (sch suicideChange) dirtied() *bytes.Address {
 	return sch.account
 }
 
 type balanceChange struct {
-	account *common.Address
+	account *bytes.Address
 	prev    *big.Int
 }
 
@@ -106,12 +106,12 @@ func (bch balanceChange) revert(s *StateDB) {
 	s.getStateObject(*bch.account).setBalance(bch.prev)
 }
 
-func (bch balanceChange) dirtied() *common.Address {
+func (bch balanceChange) dirtied() *bytes.Address {
 	return bch.account
 }
 
 type nonceChange struct {
-	account *common.Address
+	account *bytes.Address
 	prev    uint64
 }
 
@@ -119,6 +119,6 @@ func (nch nonceChange) revert(s *StateDB) {
 	s.getStateObject(*nch.account).setNonce(nch.prev)
 }
 
-func (nch nonceChange) dirtied() *common.Address {
+func (nch nonceChange) dirtied() *bytes.Address {
 	return nch.account
 }

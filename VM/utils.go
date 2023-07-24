@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -157,15 +157,15 @@ func addressToInts(address interface{}) []uint64 {
 	ans := []uint64{0, 0, 0, 0}
 	var addressBytes []byte
 	switch v := address.(type) {
-	case common.Address:
+	case bytes.Address:
 		addressBytes = v.Bytes()
 	case []byte:
-		if len(v) != common.AddressLength { //224 bits
+		if len(v) != bytes.AddressLength { //224 bits
 			return addressToInts(common.BytesToAddress(v))
 		}
 		addressBytes = v
 	}
-	for i := 0; i < 8-common.AddressLength%8; i++ {
+	for i := 0; i < 8-bytes.AddressLength%8; i++ {
 		//we've made sure that the address is the correct address length.
 		//Now, we need to make sure that it is divisible into uint64s.
 		addressBytes = append(addressBytes, 0)
@@ -182,7 +182,7 @@ func uintsArrayToAddress(input []uint64) []byte {
 	for i := 0; i < len(input); i++ {
 		ans = LE.AppendUint64(ans, input[i])
 	}
-	return ans[:common.AddressLength]
+	return ans[:bytes.AddressLength]
 }
 func balanceToArray(input big.Int) []uint64 {
 	//takes a big int and returns an array of LE formatted uint64s

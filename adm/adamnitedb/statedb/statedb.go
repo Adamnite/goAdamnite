@@ -30,28 +30,28 @@ type revision struct {
 
 type StateDB struct {
 	db           Database
-	originalRoot common.Hash // The pre-state root, before any changes were made
+	originalRoot bytes.Hash // The pre-state root, before any changes were made
 	trie         Trie
 	hasher       hash.Hash
 
-	snapAccounts  map[common.Hash][]byte
-	snapWitnesses map[common.Hash][]byte
+	snapAccounts  map[bytes.Hash][]byte
+	snapWitnesses map[bytes.Hash][]byte
 
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int
 
-	stateObjects        map[common.Address]*stateObject
-	stateObjectsDirty   map[common.Address]struct{}
-	stateObjectsPending map[common.Address]struct{}
+	stateObjects        map[bytes.Address]*stateObject
+	stateObjectsDirty   map[bytes.Address]struct{}
+	stateObjectsPending map[bytes.Address]struct{}
 	lock                sync.Mutex
 	dbErr               error
 
-	thash, bhash common.Hash
+	thash, bhash bytes.Hash
 	txIndex      int
 }
 
-func New(root common.Hash, db Database) (*StateDB, error) {
+func New(root bytes.Hash, db Database) (*StateDB, error) {
 	tr, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err
@@ -61,11 +61,11 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		db:                  db,
 		originalRoot:        root,
 		trie:                tr,
-		snapAccounts:        make(map[common.Hash][]byte),
-		snapWitnesses:       make(map[common.Hash][]byte),
-		stateObjects:        make(map[common.Address]*stateObject),
-		stateObjectsDirty:   make(map[common.Address]struct{}),
-		stateObjectsPending: make(map[common.Address]struct{}),
+		snapAccounts:        make(map[bytes.Hash][]byte),
+		snapWitnesses:       make(map[bytes.Hash][]byte),
+		stateObjects:        make(map[bytes.Address]*stateObject),
+		stateObjectsDirty:   make(map[bytes.Address]struct{}),
+		stateObjectsPending: make(map[bytes.Address]struct{}),
 		journal:             newJournal(),
 	}
 
@@ -77,11 +77,11 @@ func (s *StateDB) Copy() *StateDB {
 	state := &StateDB{
 		db:                  s.db,
 		trie:                s.db.CopyTrie(s.trie),
-		stateObjects:        make(map[common.Address]*stateObject, len(s.journal.dirties)),
-		stateObjectsPending: make(map[common.Address]struct{}, len(s.stateObjectsPending)),
-		stateObjectsDirty:   make(map[common.Address]struct{}, len(s.journal.dirties)),
-		snapAccounts:        make(map[common.Hash][]byte),
-		snapWitnesses:       make(map[common.Hash][]byte),
+		stateObjects:        make(map[bytes.Address]*stateObject, len(s.journal.dirties)),
+		stateObjectsPending: make(map[bytes.Address]struct{}, len(s.stateObjectsPending)),
+		stateObjectsDirty:   make(map[bytes.Address]struct{}, len(s.journal.dirties)),
+		snapAccounts:        make(map[bytes.Hash][]byte),
+		snapWitnesses:       make(map[bytes.Hash][]byte),
 		journal:             newJournal(),
 	}
 	// Copy the dirty states, logs, and preimages
@@ -133,14 +133,14 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	return stateObject
 }
 
-func (s *StateDB) SetNonce(addr common.Address, nonce uint64) {
+func (s *StateDB) SetNonce(addr bytes.Address, nonce uint64) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
 		stateObj.SetNonce(nonce)
 	}
 }
 
-func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) AddBalance(addr bytes.Address, amount *big.Int) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
 		stateObj.AddBalance(amount)
@@ -148,21 +148,21 @@ func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 }
 
 // SubBalance subtracts amount from the account associated with addr.
-func (s *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SubBalance(addr bytes.Address, amount *big.Int) {
 	stateObject := s.GetOrNewStateObj(addr)
 	if stateObject != nil {
 		stateObject.SubBalance(amount)
 	}
 }
 
-func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+func (s *StateDB) SetBalance(addr bytes.Address, amount *big.Int) {
 	stateObj := s.GetOrNewStateObj(addr)
 	if stateObj != nil {
 		stateObj.SetBalance(amount)
 	}
 }
 
-func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
+func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) bytes.Hash {
 	s.Finalise(deleteEmptyObjects)
 
 	// ToDO: implement prefetcher logic
@@ -188,7 +188,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// ToDO: implement prefetcher logic
 
 	if len(s.stateObjectsPending) > 0 {
-		s.stateObjectsPending = make(map[common.Address]struct{})
+		s.stateObjectsPending = make(map[bytes.Address]struct{})
 	}
 
 	return s.trie.Hash()
@@ -216,9 +216,9 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 }
 
 // Commit writes the state to the underlying in-memory trie database.
-func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
+func (s *StateDB) Commit(deleteEmptyObjects bool) (bytes.Hash, error) {
 	if s.dbErr != nil {
-		return common.Hash{}, fmt.Errorf("commit aborted due to earlier error: %v", s.dbErr)
+		return bytes.Hash{}, fmt.Errorf("commit aborted due to earlier error: %v", s.dbErr)
 	}
 	// Finalize any pending changes and merge everything into the tries
 	s.IntermediateRoot(deleteEmptyObjects)
@@ -229,12 +229,12 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		if obj := s.stateObjects[addr]; !obj.deleted {
 			// Write any storage changes in the state object to its storage trie
 			if err := obj.CommitTrie(s.db); err != nil {
-				return common.Hash{}, err
+				return bytes.Hash{}, err
 			}
 		}
 	}
 	if len(s.stateObjectsDirty) > 0 {
-		s.stateObjectsDirty = make(map[common.Address]struct{})
+		s.stateObjectsDirty = make(map[bytes.Address]struct{})
 	}
 	if codeWriter.ValueSize() > 0 {
 		if err := codeWriter.Write(); err != nil {
@@ -245,7 +245,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	// The onleaf func is called _serially_, so we can reuse the same account
 	// for unmarshalling every time.
 	var account Account
-	root, err := s.trie.Commit(func(_ [][]byte, _ []byte, leaf []byte, parent common.Hash) error {
+	root, err := s.trie.Commit(func(_ [][]byte, _ []byte, leaf []byte, parent bytes.Hash) error {
 		if err := msgpack.Unmarshal(leaf, &account); err != nil {
 			return nil
 		}
@@ -264,7 +264,7 @@ func (s *StateDB) Database() Database {
 	return s.db
 }
 
-func (s *StateDB) GetOrNewStateObj(addr common.Address) *stateObject {
+func (s *StateDB) GetOrNewStateObj(addr bytes.Address) *stateObject {
 	stateObj := s.getStateObject(addr)
 	if stateObj == nil {
 		stateObj, _ = s.createStateObject(addr)
@@ -272,7 +272,7 @@ func (s *StateDB) GetOrNewStateObj(addr common.Address) *stateObject {
 	return stateObj
 }
 
-func (s *StateDB) createStateObject(addr common.Address) (newObj, prev *stateObject) {
+func (s *StateDB) createStateObject(addr bytes.Address) (newObj, prev *stateObject) {
 	prev = s.getDeletedStateObject(addr)
 
 	newObj = newObject(s, addr, Account{})
@@ -296,14 +296,14 @@ func (s *StateDB) setStateObject(obj *stateObject) {
 	s.stateObjects[obj.Address()] = obj
 }
 
-func (s *StateDB) getStateObject(addr common.Address) *stateObject {
+func (s *StateDB) getStateObject(addr bytes.Address) *stateObject {
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
 	}
 	return nil
 }
 
-func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
+func (s *StateDB) getDeletedStateObject(addr bytes.Address) *stateObject {
 	if obj := s.stateObjects[addr]; obj != nil {
 		return obj
 	}
@@ -387,14 +387,14 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 	s.validRevisions = s.validRevisions[:idx]
 }
 
-func (s *StateDB) Prepare(thash, bhash common.Hash, ti int) {
+func (s *StateDB) Prepare(thash, bhash bytes.Hash, ti int) {
 	s.thash = thash
 	s.bhash = bhash
 	s.txIndex = ti
 }
 
 // Retrieve the balance from the given address or 0 if object not found
-func (s *StateDB) GetBalance(addr common.Address) *big.Int {
+func (s *StateDB) GetBalance(addr bytes.Address) *big.Int {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Balance()
@@ -402,7 +402,7 @@ func (s *StateDB) GetBalance(addr common.Address) *big.Int {
 	return common.Big0
 }
 
-func (s *StateDB) GetNonce(addr common.Address) uint64 {
+func (s *StateDB) GetNonce(addr bytes.Address) uint64 {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.Nonce()
@@ -411,11 +411,11 @@ func (s *StateDB) GetNonce(addr common.Address) uint64 {
 }
 
 // Exist reports whether the given account exists in state.
-func (s *StateDB) Exist(addr common.Address) bool {
+func (s *StateDB) Exist(addr bytes.Address) bool {
 	return s.getStateObject(addr) != nil
 }
 
-func (s *StateDB) CreateAccount(addr common.Address) {
+func (s *StateDB) CreateAccount(addr bytes.Address) {
 	newObj, prev := s.createStateObject(addr)
 	if prev != nil {
 		newObj.setBalance(prev.data.Balance)

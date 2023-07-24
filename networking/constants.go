@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 )
 
 var (
@@ -16,7 +17,7 @@ var (
 	ErrNoNewConnectionsMade    = fmt.Errorf("no new connections were actually made after sprawl")
 )
 
-var blacklisted common.Void
+var blacklisted bytes.Void
 
 const (
 	//the time we ascribe to a missed connection. We ascribe 1.5x the connection time limit.

@@ -11,7 +11,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/utils"
 	encoding "github.com/vmihailenco/msgpack/v5"
 )
@@ -19,15 +19,21 @@ import (
 type AdamniteServer struct {
 	stateDB         *statedb.StateDB
 	chain           *blockchain.Blockchain
+<<<<<<< Updated upstream
 	hostingNodeID   common.Address
 	seenConnections map[common.Hash]common.Void
+=======
+	hostingNodeID   bytes.Address
+	externalIP      string
+	seenConnections syncmap.Map // map[bytes.Hash]bytes.Void
+>>>>>>> Stashed changes
 
 	addresses                 []string
 	GetContactsFunction       func() PassedContacts
 	listener                  net.Listener
 	mostRecentReceivedIP      string //TODO: CHECK THIS! Most likely can cause a race condition.
 	timesTestHasBeenCalled    int
-	newConnection             func(string, common.Address)
+	newConnection             func(string, bytes.Address)
 	forwardingMessageReceived func(ForwardingContent, *[]byte) error
 	newTransactionReceived    func(*utils.Transaction, *[]byte) error
 	newCandidateHandler       func(utils.Candidate) error
@@ -42,8 +48,14 @@ func (a *AdamniteServer) Addr() string {
 }
 func (a *AdamniteServer) SetHandlers(
 	newForward func(ForwardingContent, *[]byte) error,
+<<<<<<< Updated upstream
 	newConn func(string, common.Address),
 	newTransaction func(*utils.Transaction, *[]byte) error) {
+=======
+	newConn func(string, bytes.Address),
+	newTransaction func(utils.TransactionType) error,
+	newBlock func(utils.BlockType) error) {
+>>>>>>> Stashed changes
 	a.forwardingMessageReceived = newForward
 	a.newConnection = newConn
 	a.newTransactionReceived = newTransaction
@@ -51,18 +63,22 @@ func (a *AdamniteServer) SetHandlers(
 func (a *AdamniteServer) SetForwardFunc(newForward func(ForwardingContent, *[]byte) error) {
 	a.forwardingMessageReceived = newForward
 }
-func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, common.Address)) {
+func (a *AdamniteServer) SetNewConnectionFunc(newConn func(string, bytes.Address)) {
 	a.newConnection = newConn
 }
 
+<<<<<<< Updated upstream
 // set a response point if we get asked to handle a transaction
 func (a *AdamniteServer) SetTransactionHandler(handler func(*utils.Transaction, *[]byte) error) {
 	a.newTransactionReceived = handler
 }
 
 func (a *AdamniteServer) SetHostingID(id *common.Address) {
+=======
+func (a *AdamniteServer) SetHostingID(id *bytes.Address) {
+>>>>>>> Stashed changes
 	if id == nil {
-		a.hostingNodeID = common.Address{0}
+		a.hostingNodeID = bytes.Address{0}
 		return
 	}
 	a.hostingNodeID = *id
@@ -175,8 +191,13 @@ const getVersionEndpoint = "AdamniteServer.GetVersion"
 func (a *AdamniteServer) GetVersion(params *[]byte, reply *[]byte) error {
 	a.print("Get Version")
 	receivedData := struct {
+<<<<<<< Updated upstream
 		Address           common.Address
 		HostingServerPort string
+=======
+		Address                 bytes.Address
+		HostingServerConnection string
+>>>>>>> Stashed changes
 	}{}
 	if err := encoding.Unmarshal(*params, &receivedData); err != nil {
 		a.printError("Get Version", err)

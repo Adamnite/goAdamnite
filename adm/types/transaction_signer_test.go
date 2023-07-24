@@ -4,7 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/utils
 	"github.com/adamnite/go-adamnite/crypto"
 )
 

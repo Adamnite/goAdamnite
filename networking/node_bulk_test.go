@@ -10,14 +10,20 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLotsOfNodes(t *testing.T) {
+<<<<<<< Updated upstream
 	seedNode := NewNetNode(common.Address{0})
+=======
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	seedNode := NewNetNode(bytes.Address{0})
+>>>>>>> Stashed changes
 	seedNode.AddServer()
 
 	fmt.Println("seed node has been spun up")
@@ -26,7 +32,7 @@ func TestLotsOfNodes(t *testing.T) {
 	//seed known are nodes that the seed knows of directly.
 	seedKnowNodes := make([]*NetNode, 50)
 	for i := 0; i < len(seedKnowNodes); i++ {
-		x := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
+		x := NewNetNode(utils.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
 		x.AddServer()
 		x.ConnectToContact(&seedContact)
 		seedKnowNodes[i] = x
@@ -152,22 +158,30 @@ func TestTransactionPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 
+<<<<<<< Updated upstream
 	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
 	var ans = &utils.Transaction{}
 	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
 		// log.Println("\nworking!!!!\n\nWORKING!!!")
 		// log.Panicln("have faith")
 		*ans = *foo
+=======
+	testerNode := NewNetNode(bytes.Address{0xFF, 0xFF, 0xFF, 0xFF})
+	var ans = &utils.BaseTransaction{}
+	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo utils.TransactionType) error {
+		*ans = *foo.(*utils.BaseTransaction)
+>>>>>>> Stashed changes
 		return nil
 	}, nil, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
-	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
+	outsideNode := NewNetNode(bytes.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
 	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
+<<<<<<< Updated upstream
 	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {
 		t.Fatal(err)
@@ -178,6 +192,25 @@ func TestTransactionPropagation(t *testing.T) {
 		Amount:    big.NewInt(1000),
 		Time:      time.Now(),
 		Signature: []byte{1, 2, 3, 4, 5},
+=======
+	client := NewNetNode(bytes.Address{0xAF, 0xFF, 0xFF, 0x00})
+	err = client.AddFullServer(nil, nil, nil, nil, nil, nil)
+	client.ConnectToContact(&outsideNode.thisContact)
+	// client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sender, _ := accounts.GenerateAccount()
+	transaction, err := utils.NewBaseTransaction(
+		sender,
+		bytes.Address{0xB, 1, 2, 3, 4, 5},
+		big.NewInt(1000),
+		big.NewInt(1000),
+	)
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+>>>>>>> Stashed changes
 	}
 	log.Println("\n\nInfo")
 
@@ -199,7 +232,7 @@ func TestTransactionPropagation(t *testing.T) {
 func generateLineOfNodes(count int) ([]*NetNode, error) {
 	nodes := make([]*NetNode, count)
 	for i := range nodes {
-		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
+		node := NewNetNode(utils.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
 		nodes[i] = node
 		if err := node.AddServer(); err != nil {
 			return nil, err
@@ -226,7 +259,7 @@ func generateClusteredNodes(clusterCount, clusterSize int) ([][]*NetNode, error)
 	for x := 0; x < clusterCount; x++ {
 		nodeRow := []*NetNode{}
 		for y := 0; y < clusterSize; y++ {
-			node := NewNetNode(common.Address{byte(x), byte(y)})
+			node := NewNetNode(bytes.Address{byte(x), byte(y)})
 			nodeRow = append(nodeRow, node)
 			node.MaxOutboundConnections = uint(clusterCount) + uint(clusterSize) //let one node connect to an entire row and column
 			if err := node.AddServer(); err != nil {

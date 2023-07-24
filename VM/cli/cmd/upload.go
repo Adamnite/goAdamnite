@@ -90,3 +90,47 @@ var uploadCmd = &cobra.Command{
 		}
 	},
 }
+<<<<<<< Updated upstream
+=======
+
+func init() {
+	uploadCmd.Flags().StringVar(&hexBytes, "from-hex", "", "bytes in hexadecimal representation")
+	uploadCmd.Flags().StringVar(&filePath, "from-file", "", "path to binary file")
+
+	uploadCmd.Flags().StringVarP(&dbHost, "db-host", "d", "http://localhost:5000", "database server where smart contract will be uploaded")
+	uploadCmd.Flags().Uint64VarP(&gas, "gas", "g", 0, "amount of gas to allocate for the execution")
+	uploadCmd.Flags().BoolVar(&stateless, "stateless", true, "whether to retrieve context from live blockchain (if true user has to provide block information)")
+
+	rootCmd.AddCommand(uploadCmd)
+}
+
+func upload(bytes []byte) bool {
+	callerAddress := common.BytesToAddress([]byte{0x00})
+
+	db := rawdb.NewMemoryDB()
+	stateDB, err := statedb.New(bytes.Hash{}, statedb.NewDatabase(db))
+	if err != nil {
+		log.Fatal(err)
+	}
+	stateDB.CreateAccount(callerAddress)
+	stateDB.AddBalance(callerAddress, big.NewInt(1000000))
+
+	config := VM.GetDefaultConfig()
+	config.Uri = dbHost
+
+	vm := VM.NewVM(stateDB, &config, nil)
+	_, _, err = vm.Create(callerAddress, bytes, gas, big.NewInt(1))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// contract := vm.NewContract(bytes.Address{}, value, bytes, gas)
+	// err := vm.UploadContract(dbHost, *contract)
+
+	err = vm.UploadContract(dbHost)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return true
+}
+>>>>>>> Stashed changes

@@ -7,7 +7,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
@@ -35,7 +35,7 @@ type AdamniteImpl struct {
 	p2pServer *bargossip.Server
 
 	validator  *validator.Validator
-	witness    common.Address
+	witness    bytes.Address
 	dposEngine dpos.DPOS
 }
 

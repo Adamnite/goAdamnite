@@ -17,7 +17,7 @@ const leafChanSize = 200
 // leaf represents a trie leaf value
 type leaf struct {
 	size int         // size of the rlp data (estimate)
-	hash common.Hash // hash of rlp data
+	hash bytes.Hash // hash of rlp data
 	node node        // the node to commit
 }
 

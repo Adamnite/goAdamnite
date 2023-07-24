@@ -79,7 +79,7 @@ func New(config *params.ChainConfig, db adamnitedb.Database) *AdamniteDPOS {
 type DposData struct {
 	Witnesses []utils.Witness `json:"witnesses"`
 
-	Votes map[common.Address]utils.Voter `json:"votes"`
+	Votes map[bytes.Address]utils.Voter `json:"votes"`
 }
 
 func (adpos *AdamniteDPOS) Close() error {
@@ -92,7 +92,7 @@ func bigModIsZero(a *big.Int, b *big.Int) bool {
 	return big.NewInt(0).Mod(a, b).Cmp(big.NewInt(0)) == 0
 }
 
-func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash common.Hash, parents []*types.BlockHeader) (*WitnessPool, error) {
+func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash bytes.Hash, parents []*types.BlockHeader) (*WitnessPool, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 	var (
 		headers     []*types.BlockHeader
@@ -166,7 +166,7 @@ func (adpos *AdamniteDPOS) witnesspool(chain ChainReader, number *big.Int, hash 
 	return witnessPool, err
 }
 
-func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, hash common.Hash, parents []*types.BlockHeader) (*poh.DBWitnessPool, error) {
+func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, hash bytes.Hash, parents []*types.BlockHeader) (*poh.DBWitnessPool, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
 
 	var (
@@ -242,11 +242,11 @@ func (adpos *AdamniteDPOS) dbwitnesspool(chain ChainReader, number *big.Int, has
 	return dbwitnessPool, err
 }
 
-func (adpos *AdamniteDPOS) Witness(header *types.BlockHeader) (common.Address, error) {
+func (adpos *AdamniteDPOS) Witness(header *types.BlockHeader) (bytes.Address, error) {
 	return header.Witness, nil
 }
 
-func (adpos *AdamniteDPOS) DBWitness(header *types.BlockHeader) (common.Address, error) {
+func (adpos *AdamniteDPOS) DBWitness(header *types.BlockHeader) (bytes.Address, error) {
 	return header.DBWitness, nil
 }
 
@@ -289,7 +289,7 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 
 	dposData := DposData{
 		Witnesses: []utils.Witness{},
-		Votes:     map[common.Address]utils.Voter{},
+		Votes:     map[bytes.Address]utils.Voter{},
 	}
 
 	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
@@ -306,7 +306,7 @@ func (adpos *AdamniteDPOS) Prepare(chain ChainReader, header *types.BlockHeader)
 
 	pohData := poh.PoHData{
 		Witnesses: []utils.Witness{},
-		Votes:     map[common.Address]utils.Voter{},
+		Votes:     map[bytes.Address]utils.Voter{},
 	}
 	if bigModIsZero(number, big.NewInt(EpochBlockCount)) {
 		pohData.Witnesses = dbwitnesspool.CalcWitnesses()
@@ -342,8 +342,8 @@ func (adpos *AdamniteDPOS) Finalize(chain ChainReader, header *types.BlockHeader
 	return types.NewBlock(header, txs, trie.NewStackTrie(nil)), nil
 }
 
-func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[common.Address]utils.Voter) {
-	votes = map[common.Address]utils.Voter{}
+func (adpos *AdamniteDPOS) calVote(chain ChainReader, header *types.BlockHeader, state *statedb.StateDB, txs []*types.Transaction) (votes map[bytes.Address]utils.Voter) {
+	votes = map[bytes.Address]utils.Voter{}
 
 	number := header.Number
 	var witnessPool *WitnessPool

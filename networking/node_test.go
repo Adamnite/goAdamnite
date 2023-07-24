@@ -4,13 +4,24 @@ import (
 	"fmt"
 	"testing"
 
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
+=======
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/rpc"
+>>>>>>> Stashed changes
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTwoNodes(t *testing.T) {
+<<<<<<< Updated upstream
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
+=======
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	nodeA := NewNetNode(bytes.Address{0})
+	nodeB := NewNetNode(bytes.Address{1})
+>>>>>>> Stashed changes
 
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
@@ -31,8 +42,14 @@ func TestTwoNodes(t *testing.T) {
 	fmt.Println("all worked!")
 }
 func TestTwoNodesFlagChanges(t *testing.T) {
+<<<<<<< Updated upstream
 	nodeA := NewNetNode(common.Address{0})
 	nodeB := NewNetNode(common.Address{1})
+=======
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	nodeA := NewNetNode(bytes.Address{0})
+	nodeB := NewNetNode(bytes.Address{1})
+>>>>>>> Stashed changes
 	if err := nodeA.AddServer(); err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +73,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 	}
 
 	wrongNodeID := &Contact{
-		NodeID:           common.Address{0, 1, 2, 3, 4, 5},
+		NodeID:           bytes.Address{0, 1, 2, 3, 4, 5},
 		ConnectionString: nodeA.thisContact.ConnectionString,
 	}
 
@@ -69,7 +86,7 @@ func TestTwoNodesFlagChanges(t *testing.T) {
 }
 
 func TestSingleNode(t *testing.T) {
-	testingNode := NewNetNode(common.Address{0})
+	testingNode := NewNetNode(bytes.Address{0})
 
 	fmt.Println(testingNode.thisContact.NodeID)
 

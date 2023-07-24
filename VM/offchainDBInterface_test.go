@@ -8,7 +8,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +26,7 @@ var (
 	// 	Storage: []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	// }
 	db            = rawdb.NewMemoryDB()
-	state, _      = statedb.New(common.Hash{}, statedb.NewDatabase(db))
+	state, _      = statedb.New(bytes.Hash{}, statedb.NewDatabase(db))
 	callerAddress = []byte{0, 1, 2, 3, 4, 5}
 )
 

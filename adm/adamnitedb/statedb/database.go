@@ -20,10 +20,10 @@ const (
 
 type Database interface {
 	// OpenTrie opens the main account trie.
-	OpenTrie(root common.Hash) (Trie, error)
+	OpenTrie(root bytes.Hash) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
-	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
+	OpenStorageTrie(addrHash, root bytes.Hash) (Trie, error)
 
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
@@ -35,8 +35,8 @@ type Trie interface {
 	TryGet(key []byte) ([]byte, error)
 	TryUpdate(key, value []byte) error
 	TryDelete(key []byte) error
-	Hash() common.Hash
-	Commit(onleaf trie.LeafCallback) (common.Hash, error)
+	Hash() bytes.Hash
+	Commit(onleaf trie.LeafCallback) (bytes.Hash, error)
 	NodeIterator(startKey []byte) trie.NodeIterator
 	Prove(key []byte, fromLevel uint, proofDb adamnitedb.AdamniteDBWriter) error
 }
@@ -61,7 +61,7 @@ func NewDatabaseWithConfig(db adamnitedb.Database, config *trie.Config) Database
 }
 
 // OpenTrie opens the main account trie at a specific root hash.
-func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenTrie(root bytes.Hash) (Trie, error) {
 	tr, err := trie.NewSecure(root, db.db)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenStorageTrie(addrHash, root bytes.Hash) (Trie, error) {
 	tr, err := trie.NewSecure(root, db.db)
 	if err != nil {
 		return nil, err

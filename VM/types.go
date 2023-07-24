@@ -10,8 +10,12 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/params"
+=======
+	"github.com/adamnite/go-adamnite/utils"
+>>>>>>> Stashed changes
 )
 
 var LE = binary.LittleEndian
@@ -23,12 +27,12 @@ const (
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(*statedb.StateDB, common.Address, *big.Int) bool
+	CanTransferFunc func(*statedb.StateDB, bytes.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(*statedb.StateDB, common.Address, common.Address, *big.Int)
+	TransferFunc func(*statedb.StateDB, bytes.Address, bytes.Address, *big.Int)
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
-	GetHashFunc func(uint64) common.Hash
+	GetHashFunc func(uint64) bytes.Hash
 )
 
 type VirtualMachine interface {
@@ -114,9 +118,9 @@ type Frame struct {
 // Contract represents an adm contract in the state database. It contains
 // the contract methods, calling arguments.
 type Contract struct {
-	Address       common.Address //the Address of the contract
+	Address       bytes.Address //the Address of the contract
 	Value         *big.Int
-	CallerAddress common.Address
+	CallerAddress bytes.Address
 	Code          []CodeStored
 	CodeHashes    []string //the hash of the code,the code is only actually in Contract.Code once its called
 	Storage       []uint64

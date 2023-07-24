@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 )
 
 var (
@@ -14,16 +14,16 @@ var (
 )
 
 type BlockHeader struct {
-	ParentHash      common.Hash    `json:"parentHash" gencodec:"required"`  // The hash of the current block
+	ParentHash      bytes.Hash    `json:"parentHash" gencodec:"required"`  // The hash of the current block
 	Time            uint64         `json:"timestamp" gencodec:"required"`   // The timestamp at which the block was approved
-	Witness         common.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
-	WitnessRoot     common.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
-	DBWitness       common.Address `json:"dbwitness" gencodec:"required"`   //The address of the db witness. required in db witness pool
+	Witness         bytes.Address `json:"witness" gencodec:"required"`     // The address of the witness that proposed the block
+	WitnessRoot     bytes.Hash    `json:"witnessRoot" gencodec:"required"` // A hash of the witness state
+	DBWitness       bytes.Address `json:"dbwitness" gencodec:"required"`   //The address of the db witness. required in db witness pool
 	Number          *big.Int       `json:"number" gencodec:"required"`      // The block number of the current block
-	Signature       common.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
-	TransactionRoot common.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
+	Signature       bytes.Hash    `json:"signature" gencodec:"required"`   // The block signature that validates the block was created by right validator
+	TransactionRoot bytes.Hash    `json:"txroot" gencodec:"required"`      // The root of the merkle tree in which transactions for this block are stored
 	CurrentRound    uint64         `json:"round" gencodec:"required"`       // The current epoch number of the DPOS vote round
-	StateRoot       common.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
+	StateRoot       bytes.Hash    `json:"stateRoot" gencodec:"required"`   // A hash of the current state
 	Extra           []byte         `json:"extraData"        gencodec:"required"`
 	CurrentEpoch    uint64         //no json info added, this is just to get things to compile.
 }
@@ -80,13 +80,13 @@ func NewBlockWithHeader(header *BlockHeader) *Block {
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
-func (h *BlockHeader) Hash() common.Hash {
+func (h *BlockHeader) Hash() bytes.Hash {
 	return serializationHash(h)
 }
 
-func (b *Block) Hash() common.Hash {
+func (b *Block) Hash() bytes.Hash {
 	if hash := b.hash.Load(); hash != nil {
-		return hash.(common.Hash)
+		return hash.(bytes.Hash)
 	}
 	v := b.header.Hash()
 	b.hash.Store(v)

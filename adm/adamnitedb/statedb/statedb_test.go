@@ -11,7 +11,7 @@ import (
 
 func TestTrieUpdate(t *testing.T) {
 	db := rawdb.NewMemoryDB()
-	state, _ := New(common.Hash{}, NewDatabase(db))
+	state, _ := New(bytes.Hash{}, NewDatabase(db))
 
 	for i := byte(0); i < 255; i++ {
 		addr := common.BytesToAddress([]byte{i})
@@ -26,23 +26,23 @@ func TestTrieUpdate(t *testing.T) {
 func TestTrieStateUpdate(t *testing.T) {
 	transDb := rawdb.NewMemoryDB()
 	finalDb := rawdb.NewMemoryDB()
-	transState, _ := New(common.Hash{}, NewDatabase(transDb))
-	finalState, _ := New(common.Hash{}, NewDatabase(finalDb))
+	transState, _ := New(bytes.Hash{}, NewDatabase(transDb))
+	finalState, _ := New(bytes.Hash{}, NewDatabase(finalDb))
 
-	modifyAccount := func(state *StateDB, addr common.Address, i, tweak byte) {
+	modifyAccount := func(state *StateDB, addr bytes.Address, i, tweak byte) {
 		state.SetBalance(addr, big.NewInt(int64(i*10)+int64(tweak)))
 		state.SetNonce(addr, uint64(10*i+tweak))
 	}
 
 	for i := byte(0); i < 255; i++ {
-		modifyAccount(transState, common.Address{i}, i, 0)
+		modifyAccount(transState, bytes.Address{i}, i, 0)
 	}
 
 	transState.IntermediateRoot(false)
 
 	for i := byte(0); i < 255; i++ {
-		modifyAccount(transState, common.Address{i}, i, 1)
-		modifyAccount(finalState, common.Address{i}, i, 1)
+		modifyAccount(transState, bytes.Address{i}, i, 1)
+		modifyAccount(finalState, bytes.Address{i}, i, 1)
 	}
 
 	transRoot, err := transState.Commit(false)

@@ -52,7 +52,7 @@ func FromECDSA(priv *ecdsa.PrivateKey) []byte {
 	if priv == nil {
 		return nil
 	}
-	return math.PaddedBigBytes(priv.D, priv.Params().BitSize/8)
+	return math.PadBytesLeft(priv.D, priv.Params().BitSize/8)
 }
 
 func Sha512(data []byte) []byte {
@@ -188,12 +188,12 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 	return elliptic.Marshal(Secp256k1(), pub.X, pub.Y)
 }
 
-func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
+func PubkeyToAddress(p ecdsa.PublicKey) bytes.Address {
 	pubBytes := FromECDSAPub(&p)
 	return common.BytesToAddress(ripemd160Hash(Sha512(pubBytes[1:])))
 }
 
-func PubkeyByteToAddress(p []byte) common.Address {
+func PubkeyByteToAddress(p []byte) bytes.Address {
 	return common.BytesToAddress(ripemd160Hash(Sha512(p[1:])))
 }
 

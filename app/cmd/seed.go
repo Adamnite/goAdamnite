@@ -43,7 +43,7 @@ func (sh *SeedHandler) Start(c *ishell.Context) {
 		c.Println("server already started")
 		return
 	}
-	sh.hosting = networking.NewNetNode(common.Address{0})
+	sh.hosting = networking.NewNetNode(bytes.Address{0})
 	if err := sh.hosting.AddServer(); err != nil {
 		c.Println(err)
 		return

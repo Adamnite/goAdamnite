@@ -9,7 +9,7 @@ import (
 )
 
 type TxPool interface {
-	Get(hash common.Hash) *types.Transaction
+	Get(hash bytes.Hash) *types.Transaction
 }
 
 type AdamniteHandlerInterface interface {

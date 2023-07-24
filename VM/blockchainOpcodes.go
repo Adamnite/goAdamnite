@@ -1,7 +1,7 @@
 package VM
 
 import (
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 )
 
 type opAddress struct {

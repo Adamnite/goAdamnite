@@ -19,7 +19,7 @@ var (
 	emptyState = sha3.Sum512(nil)
 )
 
-type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error
+type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent bytes.Hash) error
 
 type Trie struct {
 	db       *Database
@@ -39,14 +39,14 @@ func (t *Trie) newFlag() nodeFlag {
 // trie is initially empty and does not require a database. Otherwise,
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
-func New(root common.Hash, db *Database) (*Trie, error) {
+func New(root bytes.Hash, db *Database) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
 	}
 	trie := &Trie{
 		db: db,
 	}
-	if root != (common.Hash{}) && root != emptyRoot {
+	if root != (bytes.Hash{}) && root != emptyRoot {
 		rootnode, err := trie.resolveHash(root[:], nil)
 		if err != nil {
 			return nil, err
@@ -460,7 +460,7 @@ func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 
 // Hash returns the root hash of the trie. It does not write to the
 // database and can be used even if the trie doesn't have one.
-func (t *Trie) Hash() common.Hash {
+func (t *Trie) Hash() bytes.Hash {
 	hash, cached, _ := t.hashRoot()
 	t.root = cached
 	return common.BytesToHash(hash.(hashNode))
@@ -468,7 +468,7 @@ func (t *Trie) Hash() common.Hash {
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
-func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
+func (t *Trie) Commit(onleaf LeafCallback) (root bytes.Hash, err error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")
 	}
@@ -508,7 +508,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 		wg.Wait()
 	}
 	if err != nil {
-		return common.Hash{}, err
+		return bytes.Hash{}, err
 	}
 	t.root = newRoot
 	return rootHash, nil
@@ -533,7 +533,7 @@ func (t *Trie) Reset() {
 	t.unhashed = 0
 }
 
-func NewTrieWithPrefix(root common.Hash, prefix []byte, db *Database) (*Trie, error) {
+func NewTrieWithPrefix(root bytes.Hash, prefix []byte, db *Database) (*Trie, error) {
 	trie, err := New(root, db)
 	if err != nil {
 		return nil, err

@@ -101,12 +101,12 @@ type dposWorker struct {
 	mu            sync.RWMutex
 	current       *environment
 	pendingMu     sync.RWMutex
-	pendingTasks  map[common.Hash]*task
+	pendingTasks  map[bytes.Hash]*task
 	snapshotMu    sync.RWMutex
 	snapshotBlock *types.Block
 	snapshotState *statedb.StateDB
 
-	coinbase common.Address
+	coinbase bytes.Address
 	extra    []byte
 	newTxs   int32 // Count of newly arrived transactions since the last seal job commit.
 
@@ -151,7 +151,7 @@ func newDposWorker(config *Config, chainConfig *params.ChainConfig, dpos dpos.DP
 	return worker
 }
 
-func (w *dposWorker) setCoinbase(addr common.Address) {
+func (w *dposWorker) setCoinbase(addr bytes.Address) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.coinbase = addr
@@ -334,7 +334,7 @@ func (w *dposWorker) mainLoop() {
 				coinbase := w.coinbase
 				w.mu.RUnlock()
 
-				txs := make(map[common.Address]types.Transactions)
+				txs := make(map[bytes.Address]types.Transactions)
 				for _, tx := range ev.Txs {
 					acc, _ := types.Sender(w.current.signer, tx)
 					txs[acc] = append(txs[acc], tx)
@@ -384,7 +384,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 	tstart := time.Now()
 	parent := w.chain.CurrentBlock()
 
-	// var wAddr common.Address
+	// var wAddr bytes.Address
 	// if parent.Numberu64()%dpos.EpochBlockCount == 0 {
 	// 	wAddr = w.adamnite.WitnessPool().GetCurrentWitnessAddress(nil)
 	// } else {
@@ -431,7 +431,7 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 		return
 	}
 
-	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+	localTxs, remoteTxs := make(map[bytes.Address]types.Transactions), pending
 	for _, account := range w.adamnite.TxPool().Locals() {
 		if txs := remoteTxs[account]; len(txs) > 0 {
 			delete(remoteTxs, account)
@@ -459,14 +459,14 @@ func (w *dposWorker) createNewWork(interrupt *int32, noempty bool, timestamp int
 	return
 }
 
-func (w *dposWorker) commitTransaction(tx *types.Transaction, coinbase common.Address) error {
+func (w *dposWorker) commitTransaction(tx *types.Transaction, coinbase bytes.Address) error {
 
 	w.current.txs = append(w.current.txs, tx)
 
 	return nil
 }
 
-func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address) bool {
+func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase bytes.Address) bool {
 
 	if w.current == nil {
 		return true
@@ -480,7 +480,7 @@ func (w *dposWorker) commitTransactions(txs *types.TransactionsByPriceAndNonce, 
 		}
 		types.Sender(w.current.signer, tx)
 
-		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+		w.current.state.Prepare(tx.Hash(), bytes.Hash{}, w.current.tcount)
 
 		err := w.commitTransaction(tx, coinbase)
 		if err != nil {

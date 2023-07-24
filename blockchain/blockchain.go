@@ -38,10 +38,10 @@ type Blockchain struct {
 
 	// For demo version
 	blocks         []types.Block // memory cache
-	blocksByHash   map[common.Hash]*types.Block
+	blocksByHash   map[bytes.Hash]*types.Block
 	blocksByNumber map[*big.Int]*types.Block
 
-	accountStates map[common.Address]accountSet
+	accountStates map[bytes.Address]accountSet
 
 	// events
 	importBlockFeed event.Feed
@@ -55,8 +55,12 @@ func NewBlockchain(db adamnitedb.Database, chainConfig *params.ChainConfig, engi
 	bc := &Blockchain{
 		chainConfig:    chainConfig,
 		db:             db,
+<<<<<<< Updated upstream
 		engine:         engine,
 		blocksByHash:   make(map[common.Hash]*types.Block),
+=======
+		blocksByHash:   make(map[bytes.Hash]*types.Block),
+>>>>>>> Stashed changes
 		blocksByNumber: make(map[*big.Int]*types.Block),
 	}
 
@@ -78,7 +82,7 @@ func (bc *Blockchain) CurrentHeader() *types.BlockHeader {
 	return bc.CurrentBlock().Header()
 }
 
-func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockHeader {
+func (bc *Blockchain) GetHeader(hash bytes.Hash, number *big.Int) *types.BlockHeader {
 	data, _ := bc.db.Get(headerKey(number.Uint64(), hash))
 	if len(data) == 0 {
 		return nil
@@ -93,7 +97,7 @@ func (bc *Blockchain) GetHeader(hash common.Hash, number *big.Int) *types.BlockH
 
 }
 
-func headerKey(number uint64, hash common.Hash) []byte {
+func headerKey(number uint64, hash bytes.Hash) []byte {
 	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
@@ -103,7 +107,7 @@ func encodeBlockNumber(number uint64) []byte {
 	return enc
 }
 
-func (bc *Blockchain) GetHeaderByHash(hash common.Hash) *types.BlockHeader {
+func (bc *Blockchain) GetHeaderByHash(hash bytes.Hash) *types.BlockHeader {
 	if val, ok := bc.blocksByHash[hash]; ok {
 		return val.Header()
 	}
@@ -117,21 +121,21 @@ func (bc *Blockchain) GetHeaderByNumber(number *big.Int) *types.BlockHeader {
 	return nil
 }
 
-func (bc *Blockchain) GetBlock(hash common.Hash, number *big.Int) *types.Block {
+func (bc *Blockchain) GetBlock(hash bytes.Hash, number *big.Int) *types.Block {
 	if number == nil {
 		return bc.GetBlockByHash(hash)
 	}
 	return bc.GetBlockByNumber(number)
 }
 
-func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
+func (bc *Blockchain) GetBlockByHash(hash bytes.Hash) *types.Block {
 	return bc.blocksByHash[hash]
 }
 
 func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
 	return bc.blocksByNumber[number]
 }
-func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
+func (bc *Blockchain) StateAt(root bytes.Hash) (*statedb.StateDB, error) {
 	return nil, nil
 }
 

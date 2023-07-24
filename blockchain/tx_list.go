@@ -535,7 +535,7 @@ func (l *txPricedList) Reheap() {
 	reheap := make(priceHeap, 0, l.all.RemoteCount())
 
 	l.stales, l.remotes = 0, &reheap
-	l.all.Range(func(hash common.Hash, tx *types.Transaction, local bool) bool {
+	l.all.Range(func(hash bytes.Hash, tx *types.Transaction, local bool) bool {
 		*l.remotes = append(*l.remotes, tx)
 		return true
 	}, false, true) // Only iterate remotes

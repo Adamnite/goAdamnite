@@ -6,7 +6,12 @@ import (
 	"math/big"
 	"testing"
 
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
+=======
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/crypto"
+>>>>>>> Stashed changes
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +52,7 @@ func TestVoteForAllEqually(t *testing.T) {
 		candidateTotal int = 5
 		voterTotal     int = 5
 	)
-	seedNode := networking.NewNetNode(common.Address{0, 0, 0})
+	seedNode := networking.NewNetNode(bytes.Address{0, 0, 0})
 	if err := seedNode.AddServer(); err != nil {
 		t.Fatal(err)
 	}

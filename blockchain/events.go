@@ -1,7 +1,7 @@
 package blockchain
 
 import (
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/core/types"
 )
 
@@ -17,7 +17,7 @@ type NewTxsEvent struct{ Txs []*types.Transaction }
 
 type ChainEvent struct {
 	Block *types.Block
-	Hash  common.Hash
+	Hash  bytes.Hash
 }
 
 type ChainSideEvent struct {

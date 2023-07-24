@@ -160,7 +160,7 @@ func decodeFull(hash, elems []byte) (*fullNode, error) {
 	return n, nil
 }
 
-const hashLen = common.HashLength
+const hashLen = bytes.HashLength
 
 func decodeRef(buf []byte) (node, []byte, error) {
 	kind, val, rest, err := serialization.Split(buf)

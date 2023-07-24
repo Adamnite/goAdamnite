@@ -5,12 +5,13 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type Storage map[common.Hash]common.Hash
+type Storage map[bytes.Hash]bytes.Hash
 
 func (s Storage) String() (str string) {
 	for key, value := range s {
@@ -34,8 +35,8 @@ func (s Storage) Copy() Storage {
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
 type stateObject struct {
-	address  common.Address
-	addrHash common.Hash
+	address  bytes.Address
+	addrHash bytes.Hash
 	data     Account
 	db       *StateDB
 
@@ -54,15 +55,15 @@ type stateObject struct {
 type Account struct {
 	Nonce   uint64
 	Balance *big.Int
-	Root    common.Hash // merkle root of the storage trie
+	Root    bytes.Hash // merkle root of the storage trie
 }
 
-func newObject(db *StateDB, addr common.Address, data Account) *stateObject {
+func newObject(db *StateDB, addr bytes.Address, data Account) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
 	}
 
-	if data.Root == (common.Hash{}) {
+	if data.Root == (bytes.Hash{}) {
 		data.Root = emptyRoot
 	}
 
@@ -82,7 +83,7 @@ func (s *stateObject) setNonce(nonce uint64) {
 }
 
 // Returns the address of the contract/account
-func (s *stateObject) Address() common.Address {
+func (s *stateObject) Address() bytes.Address {
 	return s.address
 }
 
@@ -181,7 +182,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		s.originStorage[key] = value
 
 		var v []byte
-		if (value == common.Hash{}) {
+		if (value == bytes.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
 		} else {
 			// Encoding []byte cannot fail, ok to ignore the error.
@@ -209,7 +210,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 			var err error
 			s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
 			if err != nil {
-				s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
+				s.trie, _ = db.OpenStorageTrie(s.addrHash, bytes.Hash{})
 				s.setError(fmt.Errorf("can't create storage trie: %v", err))
 			}
 		}

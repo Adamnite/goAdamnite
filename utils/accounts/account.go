@@ -11,21 +11,28 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/crypto/ecies"
 	"github.com/adamnite/go-adamnite/crypto/secp256k1"
 )
 
 type Account struct {
+<<<<<<< Updated upstream
 	Address    common.Address
+=======
+	Address    utils.Address
+>>>>>>> Stashed changes
 	PublicKey  []byte
 	privateKey []byte
 	Balance    *big.Int
 }
 
 func AccountFromPubBytes(pubKey []byte) Account {
+<<<<<<< Updated upstream
 	//TODO: should add an error for if the pubKey is invalid
+=======
+>>>>>>> Stashed changes
 	return Account{
 		Address:   crypto.PubkeyByteToAddress(pubKey),
 		PublicKey: pubKey,
@@ -49,9 +56,16 @@ func AccountFromPrivEcdsa(privKey *ecdsa.PrivateKey) Account {
 	}
 
 }
+<<<<<<< Updated upstream
 func AccountFromPrivBytes(privKey []byte) (Account, error) {
+=======
+func AccountFromPrivBytes(privKey []byte) Account {
+>>>>>>> Stashed changes
 	ePriv, err := crypto.ToECDSA(privKey)
+
+	publicKey := ePriv.PublicKey
 	if err != nil {
+<<<<<<< Updated upstream
 		return Account{}, err
 	}
 	publicKey := ePriv.PublicKey
@@ -61,6 +75,16 @@ func AccountFromPrivBytes(privKey []byte) (Account, error) {
 		privateKey: privKey,
 		Balance:    big.NewInt(0),
 	}, nil
+=======
+		return Account{}
+	}
+	return Account{
+		Address:    createAddress(publicKey.X.Bytes()),
+		PublicKey:  elliptic.Marshal(publicKey, publicKey.X, publicKey.Y),
+		privateKey: privKey,
+		Balance:    big.NewInt(0),
+	}
+>>>>>>> Stashed changes
 }
 
 func GenerateAccount() (*Account, error) {
@@ -69,6 +93,7 @@ func GenerateAccount() (*Account, error) {
 		log.Printf("Account generation error: %s", err)
 		return nil, err
 	}
+<<<<<<< Updated upstream
 
 	return &Account{
 		Address:    createAddress(publicKey),
@@ -89,6 +114,15 @@ func (a *Account) Store(storagePoint string) error {
 		return err
 	}
 	return crypto.SaveECDSA(storagePoint, k)
+=======
+
+	return &Account{
+		Address:    createAddress(publicKey),
+		PublicKey:  publicKey,
+		privateKey: privateKey,
+		Balance:    big.NewInt(0),
+	}, nil
+>>>>>>> Stashed changes
 }
 
 // sign data, and return a 65 byte array. Data can be most interface types
@@ -128,8 +162,8 @@ func (a *Account) Decrypt(msg []byte) ([]byte, error) {
 	return priv.Decrypt(msg, nil, nil)
 }
 
-// types that have a hash method that returns common.Hash
-type commonHashAble interface{ Hash() common.Hash }
+// types that have a hash method that returns utils.Hash
+type utilsHashAble interface{ Hash() utils.Hash }
 
 // types that have a hash method that returns bytes
 type hashAble interface{ Hash() []byte }
@@ -140,7 +174,7 @@ type hasGetBytes interface{ Bytes() []byte }
 func toHashedBytes(data interface{}) []byte {
 	var dataBytes []byte = []byte{}
 	switch v := data.(type) {
-	case commonHashAble:
+	case utilsHashAble:
 		dataBytes = v.Hash().Bytes()
 	case hashAble:
 		dataBytes = v.Hash()
@@ -150,7 +184,7 @@ func toHashedBytes(data interface{}) []byte {
 		dataBytes = []byte(v)
 	case []byte:
 		dataBytes = v
-	case []commonHashAble:
+	case []utilsHashAble:
 		for _, a := range v {
 			dataBytes = append(dataBytes, a.Hash().Bytes()...)
 		}
@@ -181,8 +215,13 @@ func generateKeys() (rawPublicKey, rawPrivateKey []byte, err error) {
 	return
 }
 
+<<<<<<< Updated upstream
 func createAddress(publicKey []byte) common.Address {
 	var addr common.Address
+=======
+func createAddress(publicKey []byte) utils.Address {
+	var addr utils.Address
+>>>>>>> Stashed changes
 	addr.SetBytes(ripemd160Hash(sha512Hash(publicKey[1:])))
 	return addr
 }

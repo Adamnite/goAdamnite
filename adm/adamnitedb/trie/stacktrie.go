@@ -451,7 +451,7 @@ func (st *StackTrie) hash() {
 }
 
 // Hash returns the hash of the current node
-func (st *StackTrie) Hash() (h common.Hash) {
+func (st *StackTrie) Hash() (h bytes.Hash) {
 	st.hash()
 	if len(st.val) != 32 {
 		// If the node's RLP isn't 32 bytes long, the node will not
@@ -475,9 +475,9 @@ func (st *StackTrie) Hash() (h common.Hash) {
 //
 // The associated database is expected, otherwise the whole commit
 // functionality should be disabled.
-func (st *StackTrie) Commit() (common.Hash, error) {
+func (st *StackTrie) Commit() (bytes.Hash, error) {
 	if st.db == nil {
-		return common.Hash{}, ErrCommitDisabled
+		return bytes.Hash{}, ErrCommitDisabled
 	}
 	st.hash()
 	if len(st.val) != 32 {

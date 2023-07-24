@@ -5,10 +5,15 @@ import (
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
+<<<<<<< Updated upstream
 )
+=======
+	"golang.org/x/sync/syncmap"
+
+>>>>>>> Stashed changes
 
 //version packet needs to contain
 //client_version
@@ -45,7 +50,12 @@ type NetNode struct {
 	consensusTransactionHandler func(*utils.Transaction) error
 }
 
+<<<<<<< Updated upstream
 func NewNetNode(address common.Address) *NetNode {
+=======
+// TODO: we should add a port option so that people can allow forwarding on that port
+func NewNetNode(address bytes.Address) *NetNode {
+>>>>>>> Stashed changes
 	n := NetNode{
 		thisContact:            Contact{NodeID: address}, //TODO: add the address on netNode creation.
 		MaxOutboundConnections: 5,
@@ -72,10 +82,29 @@ func (n NetNode) GetMaxGreylist() int {
 func (n *NetNode) SetMaxConnections(newMax uint) {
 	n.MaxOutboundConnections = newMax
 }
+<<<<<<< Updated upstream
 
 // use to setup a max length a node will have its grey list as. Use 0 to ignore this. Only truncates when shortening the list
 func (n *NetNode) SetMaxGreyList(maxLength uint) {
 	n.contactBook.maxGreyList = maxLength
+=======
+func (n *NetNode) SetBounceServerMessaging(getMsgs func(bytes.Address, bytes.Address) []*utils.CaesarMessage) {
+	if n.bouncerServer == nil {
+		return
+	}
+	n.bouncerServer.SetMessagingHandlers(getMsgs)
+}
+func (n *NetNode) AddBouncerServer(
+	state *statedb.StateDB, chain *blockchain.Blockchain,
+	hostPort uint32,
+) {
+	if n.bouncerServer != nil {
+		log.Println("closing old bouncer server before starting new")
+		n.bouncerServer.Close()
+	}
+	n.bouncerServer = rpc.NewBouncerServer(state, chain, hostPort)
+	n.bouncerServer.SetHandlers(n.handleForward)
+>>>>>>> Stashed changes
 }
 
 // spins up a RPC server with chain reference, and capability to properly propagate transactions
@@ -187,7 +216,7 @@ func (n *NetNode) handleForward(content rpc.ForwardingContent, reply *[]byte) er
 }
 
 // TODO: eventually this will also make sure versioning is the same, or will be renamed.
-func (n *NetNode) versionCheck(remoteIP string, nodeID common.Address) {
+func (n *NetNode) versionCheck(remoteIP string, nodeID bytes.Address) {
 	if remoteIP == "" {
 		return
 	}

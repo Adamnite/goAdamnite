@@ -8,7 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -51,7 +52,7 @@ type Transaction_Data interface {
 	txtype() TxType
 	copy() Transaction_Data
 	chain_TYPE() *big.Int
-	to() *common.Address
+	to() *bytes.Address
 	amount() *big.Int
 	message() []byte
 	message_size() *big.Int //Size of message in bytes
@@ -82,7 +83,7 @@ func NewTx(inner Transaction_Data) *Transaction {
 	return tx
 }
 
-func (tx *Transaction) To() *common.Address {
+func (tx *Transaction) To() *bytes.Address {
 	return tx.InnerData.to()
 }
 
@@ -91,8 +92,8 @@ func (tx *Transaction) Decode(s Transaction_Data, _ int) {
 }
 
 type Message struct {
-	to         *common.Address
-	from       common.Address
+	to         *bytes.Address
+	from       bytes.Address
 	nonce      uint64
 	amount     *big.Int
 	gasLimit   uint64
@@ -101,10 +102,10 @@ type Message struct {
 	checkNonce bool
 }
 
-func (msg Message) From() common.Address {
+func (msg Message) From() bytes.Address {
 	return msg.from
 }
-func (msg Message) To() *common.Address {
+func (msg Message) To() *bytes.Address {
 	return msg.to
 }
 func (msg Message) AtePrice() *big.Int {
@@ -196,12 +197,12 @@ func (tx *Transaction) Size() common.StorageSize {
 	return common.StorageSize(c)
 }
 
-func (tx *Transaction) Hash() common.Hash {
+func (tx *Transaction) Hash() bytes.Hash {
 	if hash := tx.hash.Load(); hash != nil {
-		return hash.(common.Hash)
+		return hash.(bytes.Hash)
 	}
 
-	var h common.Hash
+	var h bytes.Hash
 	h = prefixedSerializationHash(byte(tx.Type()), tx.InnerData)
 	tx.hash.Store(h)
 	return h
@@ -254,7 +255,7 @@ func (s *TxByPrice) Pop() interface{} {
 }
 
 type TransactionsByPriceAndNonce struct {
-	txs    map[common.Address]Transactions //List of transaction records currently sorted by account
+	txs    map[bytes.Address]Transactions //List of transaction records currently sorted by account
 	heads  TxByPrice                       // next transaction for each unique account (price heap)
 	signer Signer                          //The signer of the transaction set
 }
@@ -264,7 +265,7 @@ type TransactionsByPriceAndNonce struct {
 //
 // Note that the input map is re-owned, so the caller should no longer interact with
 // if after provided to the constructor.
-func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
+func NewTransactionsByPriceAndNonce(signer Signer, txs map[bytes.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price and received time based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {

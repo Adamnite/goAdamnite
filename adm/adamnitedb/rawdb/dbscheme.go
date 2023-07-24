@@ -36,7 +36,7 @@ func encodeBlockNumber(number uint64) []byte {
 }
 
 // preimageKey = preimagePrefix + hash
-func preimageKey(hash common.Hash) []byte {
+func preimageKey(hash bytes.Hash) []byte {
 	return append(preimagePrefix, hash[:]...)
 }
 
@@ -45,15 +45,15 @@ func epochKey() []byte {
 }
 
 // blockBodyKey = blockBodyPrefix + num (uint64 big endian) + hash
-func blockBodyKey(number uint64, hash common.Hash) []byte {
+func blockBodyKey(number uint64, hash bytes.Hash) []byte {
 	return append(append(blockBodyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
 
-func headerNumberKey(hash common.Hash) []byte {
+func headerNumberKey(hash bytes.Hash) []byte {
 	return append(headerNumberPrefix, hash.Bytes()...)
 }
 
 // headerKey = headerPrefix + num (uint64 big endian) + hash
-func headerKey(number uint64, hash common.Hash) []byte {
+func headerKey(number uint64, hash bytes.Hash) []byte {
 	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }

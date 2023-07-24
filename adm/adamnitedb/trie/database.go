@@ -52,11 +52,11 @@ type Database struct {
 	diskdb adamnitedb.Database
 
 	cleans  *fastcache.Cache
-	dirties map[common.Hash]*cachedNode // Data and references relationships of dirty trie nodes
-	oldest  common.Hash                 // Oldest tracked node, flush-list head
-	newest  common.Hash                 // Newest tracked node, flush-list tail
+	dirties map[bytes.Hash]*cachedNode // Data and references relationships of dirty trie nodes
+	oldest  bytes.Hash                 // Oldest tracked node, flush-list head
+	newest  bytes.Hash                 // Newest tracked node, flush-list tail
 
-	preimages map[common.Hash][]byte // Preimages of nodes from the secure trie
+	preimages map[bytes.Hash][]byte // Preimages of nodes from the secure trie
 	seckeybuf [secureKeyLength]byte  // Ephemeral buffer for calculating preimage keys
 
 	gctime  time.Duration      // Time spent on garbage collection since last commit
@@ -126,10 +126,10 @@ type cachedNode struct {
 	size uint16 // Byte size of the useful cached data
 
 	parents  uint32                 // Number of live nodes referencing this one
-	children map[common.Hash]uint16 // External children referenced by this node
+	children map[bytes.Hash]uint16 // External children referenced by this node
 
-	flushPrev common.Hash // Previous node in the flush-list
-	flushNext common.Hash // Next node in the flush-list
+	flushPrev bytes.Hash // Previous node in the flush-list
+	flushNext bytes.Hash // Next node in the flush-list
 }
 
 // cachedNodeSize is the raw size of a cachedNode data structure without any
@@ -156,7 +156,7 @@ func (n *cachedNode) rlp() []byte {
 
 // obj returns the decoded and expanded trie node, either directly from the cache,
 // or by regenerating it from the rlp encoded blob.
-func (n *cachedNode) obj(hash common.Hash) node {
+func (n *cachedNode) obj(hash bytes.Hash) node {
 	if node, ok := n.node.(rawNode); ok {
 		return mustDecodeNode(hash[:], node)
 	}
@@ -166,7 +166,7 @@ func (n *cachedNode) obj(hash common.Hash) node {
 // forChilds invokes the callback for all the tracked children of this node,
 // both the implicit ones from inside the node as well as the explicit ones
 // from outside the node.
-func (n *cachedNode) forChilds(onChild func(hash common.Hash)) {
+func (n *cachedNode) forChilds(onChild func(hash bytes.Hash)) {
 	for child := range n.children {
 		onChild(child)
 	}
@@ -177,7 +177,7 @@ func (n *cachedNode) forChilds(onChild func(hash common.Hash)) {
 
 // forGatherChildren traverses the node hierarchy of a collapsed storage node and
 // invokes the callback for all the hashnode children.
-func forGatherChildren(n node, onChild func(hash common.Hash)) {
+func forGatherChildren(n node, onChild func(hash bytes.Hash)) {
 	switch n := n.(type) {
 	case *rawShortNode:
 		forGatherChildren(n.Val, onChild)
@@ -284,12 +284,12 @@ func NewDatabaseWithConfig(diskdb adamnitedb.Database, config *Config) *Database
 	db := &Database{
 		diskdb: diskdb,
 		cleans: cleans,
-		dirties: map[common.Hash]*cachedNode{{}: {
-			children: make(map[common.Hash]uint16),
+		dirties: map[bytes.Hash]*cachedNode{{}: {
+			children: make(map[bytes.Hash]uint16),
 		}},
 	}
 	if config == nil || config.Preimages { // TODO(karalabe): Flip to default off in the future
-		db.preimages = make(map[common.Hash][]byte)
+		db.preimages = make(map[bytes.Hash][]byte)
 	}
 	return db
 }
@@ -303,7 +303,7 @@ func (db *Database) DiskDB() adamnitedb.Database {
 // The blob size must be specified to allow proper size tracking.
 // All nodes inserted by this function will be reference tracked
 // and in theory should only used for **trie nodes** insertion.
-func (db *Database) insert(hash common.Hash, size int, node node) {
+func (db *Database) insert(hash bytes.Hash, size int, node node) {
 	// If the node's already cached, skip
 	if _, ok := db.dirties[hash]; ok {
 		return
@@ -316,7 +316,7 @@ func (db *Database) insert(hash common.Hash, size int, node node) {
 		size:      uint16(size),
 		flushPrev: db.newest,
 	}
-	entry.forChilds(func(child common.Hash) {
+	entry.forChilds(func(child bytes.Hash) {
 		if c := db.dirties[child]; c != nil {
 			c.parents++
 		}
@@ -324,12 +324,12 @@ func (db *Database) insert(hash common.Hash, size int, node node) {
 	db.dirties[hash] = entry
 
 	// Update the flush-list endpoints
-	if db.oldest == (common.Hash{}) {
+	if db.oldest == (bytes.Hash{}) {
 		db.oldest, db.newest = hash, hash
 	} else {
 		db.dirties[db.newest].flushNext, db.newest = hash, hash
 	}
-	db.dirtiesSize += common.StorageSize(common.HashLength + entry.size)
+	db.dirtiesSize += common.StorageSize(bytes.HashLength + entry.size)
 }
 
 // insertPreimage writes a new trie node pre-image to the memory database if it's
@@ -337,7 +337,7 @@ func (db *Database) insert(hash common.Hash, size int, node node) {
 // only use if the preimage will NOT be changed later on.
 //
 // Note, this method assumes that the database's lock is held!
-func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
+func (db *Database) insertPreimage(hash bytes.Hash, preimage []byte) {
 	// Short circuit if preimage collection is disabled
 	if db.preimages == nil {
 		return
@@ -347,12 +347,12 @@ func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
 		return
 	}
 	db.preimages[hash] = preimage
-	db.preimagesSize += common.StorageSize(common.HashLength + len(preimage))
+	db.preimagesSize += common.StorageSize(bytes.HashLength + len(preimage))
 }
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *Database) node(hash common.Hash) node {
+func (db *Database) node(hash bytes.Hash) node {
 	// Retrieve the node from the clean cache if available
 	if db.cleans != nil {
 		if enc := db.cleans.Get(nil, hash[:]); enc != nil {
@@ -388,9 +388,9 @@ func (db *Database) node(hash common.Hash) node {
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
 // cached, the method queries the persistent database for the content.
-func (db *Database) Node(hash common.Hash) ([]byte, error) {
+func (db *Database) Node(hash bytes.Hash) ([]byte, error) {
 	// It doesn't make sense to retrieve the metaroot
-	if hash == (common.Hash{}) {
+	if hash == (bytes.Hash{}) {
 		return nil, errors.New("not found trie ")
 	}
 	// Retrieve the node from the clean cache if available
@@ -427,7 +427,7 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
 // found cached, the method queries the persistent database for the content.
-func (db *Database) preimage(hash common.Hash) []byte {
+func (db *Database) preimage(hash bytes.Hash) []byte {
 	// Short circuit if preimage collection is disabled
 	if db.preimages == nil {
 		return nil
@@ -453,13 +453,13 @@ func (db *Database) secureKey(key []byte) []byte {
 // Nodes retrieves the hashes of all the nodes cached within the memory database.
 // This method is extremely expensive and should only be used to validate internal
 // states in test code.
-func (db *Database) Nodes() []common.Hash {
+func (db *Database) Nodes() []bytes.Hash {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
-	var hashes = make([]common.Hash, 0, len(db.dirties))
+	var hashes = make([]bytes.Hash, 0, len(db.dirties))
 	for hash := range db.dirties {
-		if hash != (common.Hash{}) { // Special case for "root" references/nodes
+		if hash != (bytes.Hash{}) { // Special case for "root" references/nodes
 			hashes = append(hashes, hash)
 		}
 	}
@@ -470,7 +470,7 @@ func (db *Database) Nodes() []common.Hash {
 // This function is used to add reference between internal trie node
 // and external node(e.g. storage trie root), all internal trie nodes
 // are referenced together by database itself.
-func (db *Database) Reference(child common.Hash, parent common.Hash) {
+func (db *Database) Reference(child bytes.Hash, parent bytes.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -478,7 +478,7 @@ func (db *Database) Reference(child common.Hash, parent common.Hash) {
 }
 
 // reference is the private locked version of Reference.
-func (db *Database) reference(child common.Hash, parent common.Hash) {
+func (db *Database) reference(child bytes.Hash, parent bytes.Hash) {
 	// If the node does not exist, it's a node pulled from disk, skip
 	node, ok := db.dirties[child]
 	if !ok {
@@ -486,22 +486,22 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 	}
 	// If the reference already exists, only duplicate for roots
 	if db.dirties[parent].children == nil {
-		db.dirties[parent].children = make(map[common.Hash]uint16)
+		db.dirties[parent].children = make(map[bytes.Hash]uint16)
 		db.childrenSize += cachedNodeChildrenSize
-	} else if _, ok = db.dirties[parent].children[child]; ok && parent != (common.Hash{}) {
+	} else if _, ok = db.dirties[parent].children[child]; ok && parent != (bytes.Hash{}) {
 		return
 	}
 	node.parents++
 	db.dirties[parent].children[child]++
 	if db.dirties[parent].children[child] == 1 {
-		db.childrenSize += common.HashLength + 2 // uint16 counter
+		db.childrenSize += bytes.HashLength + 2 // uint16 counter
 	}
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *Database) Dereference(root common.Hash) {
+func (db *Database) Dereference(root bytes.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
-	if root == (common.Hash{}) {
+	if root == (bytes.Hash{}) {
 		log15.Error("Attempted to dereference the trie cache meta root")
 		return
 	}
@@ -509,7 +509,7 @@ func (db *Database) Dereference(root common.Hash) {
 	defer db.lock.Unlock()
 
 	nodes, storage, start := len(db.dirties), db.dirtiesSize, time.Now()
-	db.dereference(root, common.Hash{})
+	db.dereference(root, bytes.Hash{})
 
 	db.gcnodes += uint64(nodes - len(db.dirties))
 	db.gcsize += storage - db.dirtiesSize
@@ -524,7 +524,7 @@ func (db *Database) Dereference(root common.Hash) {
 }
 
 // dereference is the private locked version of Dereference.
-func (db *Database) dereference(child common.Hash, parent common.Hash) {
+func (db *Database) dereference(child bytes.Hash, parent bytes.Hash) {
 	// Dereference the parent-child
 	node := db.dirties[parent]
 
@@ -532,7 +532,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 		node.children[child]--
 		if node.children[child] == 0 {
 			delete(node.children, child)
-			db.childrenSize -= (common.HashLength + 2) // uint16 counter
+			db.childrenSize -= (bytes.HashLength + 2) // uint16 counter
 		}
 	}
 	// If the child does not exist, it's a previously committed node.
@@ -553,20 +553,20 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 		switch child {
 		case db.oldest:
 			db.oldest = node.flushNext
-			db.dirties[node.flushNext].flushPrev = common.Hash{}
+			db.dirties[node.flushNext].flushPrev = bytes.Hash{}
 		case db.newest:
 			db.newest = node.flushPrev
-			db.dirties[node.flushPrev].flushNext = common.Hash{}
+			db.dirties[node.flushPrev].flushNext = bytes.Hash{}
 		default:
 			db.dirties[node.flushPrev].flushNext = node.flushNext
 			db.dirties[node.flushNext].flushPrev = node.flushPrev
 		}
 		// Dereference all children and delete the node
-		node.forChilds(func(hash common.Hash) {
+		node.forChilds(func(hash bytes.Hash) {
 			db.dereference(hash, child)
 		})
 		delete(db.dirties, child)
-		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
+		db.dirtiesSize -= common.StorageSize(bytes.HashLength + int(node.size))
 		if node.children != nil {
 			db.childrenSize -= cachedNodeChildrenSize
 		}
@@ -590,7 +590,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	// the total memory consumption, the maintenance metadata is also needed to be
 	// counted.
 	size := db.dirtiesSize + common.StorageSize((len(db.dirties)-1)*cachedNodeSize)
-	size += db.childrenSize - common.StorageSize(len(db.dirties[common.Hash{}].children)*(common.HashLength+2))
+	size += db.childrenSize - common.StorageSize(len(db.dirties[bytes.Hash{}].children)*(bytes.HashLength+2))
 
 	// If the preimage cache got large enough, push to disk. If it's still small
 	// leave for later to deduplicate writes.
@@ -611,7 +611,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	}
 	// Keep committing nodes from the flush-list until we're below allowance
 	oldest := db.oldest
-	for size > limit && oldest != (common.Hash{}) {
+	for size > limit && oldest != (bytes.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
 		if err := batch.Insert(oldest[:], node.rlp()); err != nil {
@@ -628,9 +628,9 @@ func (db *Database) Cap(limit common.StorageSize) error {
 		// Iterate to the next flush item, or abort if the size cap was achieved. Size
 		// is the total size, including the useful cached data (hash -> blob), the
 		// cache item metadata, as well as external children mappings.
-		size -= common.StorageSize(common.HashLength + int(node.size) + cachedNodeSize)
+		size -= common.StorageSize(bytes.HashLength + int(node.size) + cachedNodeSize)
 		if node.children != nil {
-			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+			size -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(bytes.HashLength+2))
 		}
 		oldest = node.flushNext
 	}
@@ -647,7 +647,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 		if db.preimages == nil {
 			log15.Error("Attempted to reset preimage cache whilst disabled")
 		} else {
-			db.preimages, db.preimagesSize = make(map[common.Hash][]byte), 0
+			db.preimages, db.preimagesSize = make(map[bytes.Hash][]byte), 0
 		}
 	}
 	for db.oldest != oldest {
@@ -655,13 +655,13 @@ func (db *Database) Cap(limit common.StorageSize) error {
 		delete(db.dirties, db.oldest)
 		db.oldest = node.flushNext
 
-		db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
+		db.dirtiesSize -= common.StorageSize(bytes.HashLength + int(node.size))
 		if node.children != nil {
-			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+			db.childrenSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(bytes.HashLength+2))
 		}
 	}
-	if db.oldest != (common.Hash{}) {
-		db.dirties[db.oldest].flushPrev = common.Hash{}
+	if db.oldest != (bytes.Hash{}) {
+		db.dirties[db.oldest].flushPrev = bytes.Hash{}
 	}
 	db.flushnodes += uint64(nodes - len(db.dirties))
 	db.flushsize += storage - db.dirtiesSize
@@ -683,7 +683,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 //
 // Note, this method is a non-synchronized mutator. It is unsafe to call this
 // concurrently with other mutators.
-func (db *Database) Commit(node common.Hash, report bool, callback func(common.Hash)) error {
+func (db *Database) Commit(node bytes.Hash, report bool, callback func(bytes.Hash)) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -733,7 +733,7 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 
 	// Reset the storage counters and bumped metrics
 	if db.preimages != nil {
-		db.preimages, db.preimagesSize = make(map[common.Hash][]byte), 0
+		db.preimages, db.preimagesSize = make(map[bytes.Hash][]byte), 0
 	}
 	memcacheCommitTimeTimer.Update(time.Since(start))
 	memcacheCommitSizeMeter.Mark(int64(storage - db.dirtiesSize))
@@ -754,14 +754,14 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 }
 
 // commit is the private locked version of Commit.
-func (db *Database) commit(hash common.Hash, batch adamnitedb.Batch, uncacher *cleaner, callback func(common.Hash)) error {
+func (db *Database) commit(hash bytes.Hash, batch adamnitedb.Batch, uncacher *cleaner, callback func(bytes.Hash)) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.dirties[hash]
 	if !ok {
 		return nil
 	}
 	var err error
-	node.forChilds(func(child common.Hash) {
+	node.forChilds(func(child bytes.Hash) {
 		if err == nil {
 			err = db.commit(child, batch, uncacher, callback)
 		}
@@ -807,19 +807,19 @@ func (c *cleaner) Insert(key []byte, rlp []byte) error {
 	switch hash {
 	case c.db.oldest:
 		c.db.oldest = node.flushNext
-		c.db.dirties[node.flushNext].flushPrev = common.Hash{}
+		c.db.dirties[node.flushNext].flushPrev = bytes.Hash{}
 	case c.db.newest:
 		c.db.newest = node.flushPrev
-		c.db.dirties[node.flushPrev].flushNext = common.Hash{}
+		c.db.dirties[node.flushPrev].flushNext = bytes.Hash{}
 	default:
 		c.db.dirties[node.flushPrev].flushNext = node.flushNext
 		c.db.dirties[node.flushNext].flushPrev = node.flushPrev
 	}
 	// Remove the node from the dirty cache
 	delete(c.db.dirties, hash)
-	c.db.dirtiesSize -= common.StorageSize(common.HashLength + int(node.size))
+	c.db.dirtiesSize -= common.StorageSize(bytes.HashLength + int(node.size))
 	if node.children != nil {
-		c.db.dirtiesSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(common.HashLength+2))
+		c.db.dirtiesSize -= common.StorageSize(cachedNodeChildrenSize + len(node.children)*(bytes.HashLength+2))
 	}
 	// Move the flushed node into the clean cache to prevent insta-reloads
 	if c.db.cleans != nil {
@@ -843,7 +843,7 @@ func (db *Database) Size() (common.StorageSize, common.StorageSize) {
 	// the total memory consumption, the maintenance metadata is also needed to be
 	// counted.
 	var metadataSize = common.StorageSize((len(db.dirties) - 1) * cachedNodeSize)
-	var metarootRefs = common.StorageSize(len(db.dirties[common.Hash{}].children) * (common.HashLength + 2))
+	var metarootRefs = common.StorageSize(len(db.dirties[bytes.Hash{}].children) * (bytes.HashLength + 2))
 	return db.dirtiesSize + db.childrenSize + metadataSize - metarootRefs, db.preimagesSize
 }
 

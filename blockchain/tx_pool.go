@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/params"
@@ -35,7 +36,7 @@ type TxPool struct {
 	chainConfig *params.ChainConfig
 	chain       blockChain
 	mu          sync.RWMutex
-	pending     map[common.Address]*txList
+	pending     map[bytes.Address]*txList
 	all         *txLookup
 	scope       event.SubscriptionScope
 	locals      *accountSet
@@ -44,8 +45,8 @@ type TxPool struct {
 
 type blockChain interface {
 	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number *big.Int) *types.Block
-	StateAt(root common.Hash) (*statedb.StateDB, error)
+	GetBlock(hash bytes.Hash, number *big.Int) *types.Block
+	StateAt(root bytes.Hash) (*statedb.StateDB, error)
 }
 
 func NewTxPool(config TxPoolConfig, chainConfig *params.ChainConfig, chain blockChain) *TxPool {
@@ -54,29 +55,29 @@ func NewTxPool(config TxPoolConfig, chainConfig *params.ChainConfig, chain block
 		chainConfig: chainConfig,
 		chain:       chain,
 
-		pending: make(map[common.Address]*txList),
+		pending: make(map[bytes.Address]*txList),
 		all:     newTxLookup(),
 	}
 
 	return pool
 }
 
-func (pool *TxPool) Get(txHash common.Hash) *types.Transaction {
+func (pool *TxPool) Get(txHash bytes.Hash) *types.Transaction {
 	return pool.all.Get(txHash)
 }
 
-func (pool *TxPool) Pending() (map[common.Address]types.Transactions, error) {
+func (pool *TxPool) Pending() (map[bytes.Address]types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	pending := make(map[common.Address]types.Transactions)
+	pending := make(map[bytes.Address]types.Transactions)
 	for addr, list := range pool.pending {
 		pending[addr] = list.Flatten()
 	}
 	return pending, nil
 }
 
-func (pool *TxPool) Locals() []common.Address {
+func (pool *TxPool) Locals() []bytes.Address {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 

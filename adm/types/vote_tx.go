@@ -9,14 +9,14 @@ import (
 type VoteTransaction struct {
 	Type      TxType         // transaction type
 	Nonce     uint64         // nonce of the sender account
-	Candidate common.Address // the candidate address of witness or block producer
+	Candidate bytes.Address // the candidate address of witness or block producer
 	AtePrice  *big.Int       // wei per gas
 	AteMax    uint64         // gas limit
 	V, R, S   *big.Int       // signature value
 
 }
 
-func NewVoteTransaction(nonce uint64, candidate common.Address, atePrice *big.Int, ateMax uint64) *Transaction {
+func NewVoteTransaction(nonce uint64, candidate bytes.Address, atePrice *big.Int, ateMax uint64) *Transaction {
 	return NewTx(&VoteTransaction{
 		Type:      VOTE_TX,
 		Nonce:     nonce,
@@ -64,7 +64,7 @@ func (tx *VoteTransaction) message() []byte        { return nil }
 func (tx *VoteTransaction) message_size() *big.Int { return nil }
 func (tx *VoteTransaction) ATE_MAX() uint64        { return tx.AteMax }
 func (tx *VoteTransaction) ATE_price() *big.Int    { return tx.AtePrice }
-func (tx *VoteTransaction) to() *common.Address    { return nil }
+func (tx *VoteTransaction) to() *bytes.Address    { return nil }
 func (tx *VoteTransaction) nonce() uint64          { return tx.Nonce }
 
 func (tx *VoteTransaction) rawSignature() (v, r, s *big.Int) {

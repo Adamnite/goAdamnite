@@ -14,11 +14,11 @@ import (
 
 // Validator creates blocks based on Adamnite DPOS consensus.
 type Validator struct {
-	witnessAddr common.Address
+	witnessAddr bytes.Address
 	adamnite    AdamniteImplInterface
 	dposEngine  dpos.DPOS
 	dposWorker  *dposWorker
-	coinbase    common.Address
+	coinbase    bytes.Address
 	mux         *event.TypeMux
 
 	exitCh  chan struct{}
@@ -27,7 +27,7 @@ type Validator struct {
 }
 
 type Config struct {
-	WitnessAddress common.Address
+	WitnessAddress bytes.Address
 	Recommit       time.Duration
 }
 
@@ -85,7 +85,7 @@ func (v *Validator) PendingBlock() *types.Block {
 	return v.dposWorker.pendingBlock()
 }
 
-func (v *Validator) SetCoinbase(addr common.Address) {
+func (v *Validator) SetCoinbase(addr bytes.Address) {
 	v.coinbase = addr
 	v.dposWorker.setCoinbase(addr)
 }

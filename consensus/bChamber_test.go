@@ -9,7 +9,21 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/VM"
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
+=======
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/blockchain"
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/rpc"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/accounts"
+	"github.com/adamnite/go-adamnite/utils/safe"
+	"github.com/stretchr/testify/assert"
+>>>>>>> Stashed changes
 )
 
 var (
@@ -19,7 +33,7 @@ var (
 	addTwoCodeStored    VM.CodeStored
 	addTwoFunctionHash  []byte
 	testContract        VM.Contract
-	testAccount         = common.Address{0, 1, 2}
+	testAccount         = bytes.Address{0, 1, 2}
 )
 
 func setup() error {
@@ -32,7 +46,7 @@ func setup() error {
 
 	addTwoCodeStored = stored[0]
 	addTwoFunctionHash, _ = addTwoCodeStored.Hash()
-	testContract = VM.Contract{CallerAddress: common.Address{1}, Value: big.NewInt(0), Input: nil, Gas: 30000, CodeHashes: []string{hex.EncodeToString(addTwoFunctionHash)}}
+	testContract = VM.Contract{CallerAddress: bytes.Address{1}, Value: big.NewInt(0), Input: nil, Gas: 30000, CodeHashes: []string{hex.EncodeToString(addTwoFunctionHash)}}
 	return nil
 }
 func TestProcessingRun(t *testing.T) {
@@ -80,7 +94,171 @@ func TestProcessingRun(t *testing.T) {
 	}
 
 }
+<<<<<<< Updated upstream
 func TestMain(m *testing.M) {
 	code := m.Run()
 	os.Exit(code)
+=======
+func TestVMTransactions(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	testNodeCount := 5
+	db := VM.NewSpoofedDBCache(nil, nil)
+	methodsAsString := "0061736d01000000010a0260027f7f017f600000030302000105030100020614037f01419088040b7f004180080b7f004188080b073705066d656d6f727902000367657400001648656c6c6f576f726c645f44656661756c7443544f52000105626c6f636b0301036d736703020a0c020700200120006a0b02000b0b1301004180080b0c0000000000000000040400000045046e616d65011e020003676574011648656c6c6f576f726c645f44656661756c7443544f52071201000f5f5f737461636b5f706f696e746572090a0100072e726f64617461"
+	//just has the add function.
+	hashes, err := db.DB.AddModuleToSpoofedCode(methodsAsString)
+	if err != nil {
+		panic(err)
+	}
+	addTwoFunction := hashes[0]
+	addTwoContract := VM.Contract{
+		Address:    common.HexToAddress("0x123456"),
+		CodeHashes: []string{hex.EncodeToString(addTwoFunction)},
+	}
+	db.DB.AddContract(addTwoContract.Address.Hex(), &addTwoContract)
+
+	seed := networking.NewNetNode(bytes.Address{0})
+	// seed.AddServer()
+	transactionsSeen := safe.NewSafeSlice()
+	blocksSeen := safe.NewSafeSlice()
+	seed.AddFullServer(
+		nil,
+		nil,
+		func(pt utils.TransactionType) error {
+			//the transactions seen logger
+			transactionsSeen.Append(pt)
+			return nil
+		}, func(b utils.BlockType) error {
+			blocksSeen.Append(b.(*utils.VMBlock))
+			//the blocks seen logger
+			return nil
+		},
+		nil,
+		nil,
+	)
+
+	seedContact := seed.GetOwnContact()
+
+	conAccounts := []*accounts.Account{}
+	conNodes := []*ConsensusNode{}
+
+	maxTimePerRound.SetDuration(time.Millisecond * 1200)
+	maxTimePrecision.SetDuration(time.Millisecond * 500)
+
+	for i := 0; i < testNodeCount; i++ {
+		if ac, err := accounts.GenerateAccount(); err != nil {
+			i -= 1
+			continue
+		} else {
+			conAccounts = append(conAccounts, ac)
+			cn, err := NewAConsensus(ac)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := cn.AddBConsensus(db); err != nil {
+				t.Fatal(err)
+			}
+			conNodes = append(conNodes, cn)
+			if err := cn.netLogic.ConnectToContact(&seedContact); err != nil {
+				t.Fatal(err)
+			}
+			//now we need to add the statedb
+			db := rawdb.NewMemoryDB()
+			stateDB, _ := statedb.New(bytes.Hash{}, statedb.NewDatabase(db))
+
+			rootHash := stateDB.IntermediateRoot(false)
+			stateDB.Database().TrieDB().Commit(rootHash, false, nil)
+			blockchain, _ := blockchain.NewBlockchain(
+				db,
+				params.TestnetChainConfig,
+			)
+			stateDB.AddBalance(conAccounts[0].Address, big.NewInt(int64(testNodeCount)*50000))
+			//add the balance so that this 0th account can send all the test transaction
+			_, err = stateDB.Commit(false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cn.state = stateDB
+			cn.chain = blockchain
+
+			cn.netLogic.ResetConnections()
+			cn.autoStakeAmount = big.NewInt(1)
+
+		}
+	}
+	round0StartTime := time.Now().UTC().Add(time.Second)
+
+	for _, cn := range conNodes {
+		cn.netLogic.SprawlConnections(3, 0)
+		cn.netLogic.ResetConnections()
+		if err := cn.ProposeCandidacy(0); err != nil {
+			t.Fatal(err)
+		}
+		cn.poolsB.GetApplyingRound().SetStartTime(round0StartTime)
+	}
+
+	if len(conNodes[1].poolsB.totalCandidates) < testNodeCount-1 {
+		fmt.Println("nodes aren't talking to each other")
+		fmt.Println(len(conNodes[0].poolsB.totalCandidates))
+		t.Fail()
+	}
+	//we now have x candidates
+	maxTransactionsPerBlock = 10
+	maxBlocksPerRound = uint64(testNodeCount)
+	seed.FillOpenConnections()
+	transactions := []*utils.VMCallTransaction{}
+	<-time.After(maxTimePerRound.Duration())
+	assert.EqualValues(
+		t,
+		1,
+		conNodes[0].poolsB.currentWorkingRoundID.Get(),
+		"round is not correct",
+	)
+	for i := 0; i < maxTransactionsPerBlock*int(maxBlocksPerRound)*testNodeCount; i++ {
+		testTransaction, err := utils.NewBaseTransaction(conAccounts[0], addTwoContract.Address, big.NewInt(1), big.NewInt(100000))
+		if err != nil {
+			t.Fatal(err)
+		}
+		vmTransaction, err := utils.NewVMTransactionFrom(conAccounts[0], testTransaction, append(addTwoFunction, 0x7f, 0x1, 0x7f, 0x2))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := conNodes[0].netLogic.Propagate(vmTransaction); err != nil {
+			t.Fatal(err)
+		}
+		transactions = append(transactions, vmTransaction)
+		<-time.After(maxTimePrecision.Duration())
+	}
+	<-time.After(maxTimePerRound.Duration())
+
+	//everything *should* be reviewed by now.
+	assert.Equal(
+		t,
+		len(transactions),
+		transactionsSeen.Len(),
+		"wrong number of unique transactions passed the seed node",
+	) //if this returns, then its propagation of transactions that isn't working
+	assert.Equal(
+		t,
+		int(transactionsSeen.Len()/maxTransactionsPerBlock),
+		blocksSeen.Len(),
+		"wrong number of blocks went past this node",
+	)
+	blockTransactions := []utils.TransactionType{}
+	blockHashesSeen := [][]byte{}
+	blocksSeen.ForEach(func(_ int, b any) bool {
+		assert.Equal(
+			t, maxTransactionsPerBlock, len(b.(*utils.VMBlock).Transactions),
+			"god why. Wrong number of transactions per block",
+		)
+		blockTransactions = append(blockTransactions, b.(*utils.VMBlock).Transactions...)
+		blockHashesSeen = append(blockHashesSeen, b.(*utils.VMBlock).Hash().Bytes())
+		return true
+	})
+	for _, x := range blockHashesSeen {
+		log.Printf("hashSeen: %x", x)
+	}
+	assert.Equal(t, len(transactions), len(blockTransactions), "wrong transaction count")
+	log.Printf("current round is %v", conNodes[0].poolsB.currentWorkingRoundID.Get())
+	//should be 2
+>>>>>>> Stashed changes
 }

@@ -1,6 +1,7 @@
 package types
 
-import "github.com/adamnite/go-adamnite/common"
+import "github.com/adamnite/go-adamnite/utils"
+import "github.com/adamnite/go-adamnite/utils/bytes"
 
 type writeCounter common.StorageSize
 

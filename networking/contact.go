@@ -7,13 +7,14 @@ import (
 	"sort"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
 type Contact struct { //the contacts list from this point.
 	ConnectionString string //ip and port for the specified endpoint.
-	NodeID           common.Address
+	NodeID           bytes.Address
 	//any other data needed about an endpoint would be stored here.
 }
 
@@ -26,7 +27,7 @@ type ContactBook struct {
 	connections          []*connectionStatus
 	connectionsByContact map[*Contact]*connectionStatus
 
-	blacklistSet map[*Contact]common.Void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
+	blacklistSet map[*Contact]bytes.Void //taking a mapping to an empty struct doesn't take up any extra memory, and gives us o1 to check if a contact is blacklisted.
 }
 
 func NewContactBook(owner *Contact) ContactBook {
@@ -35,7 +36,7 @@ func NewContactBook(owner *Contact) ContactBook {
 		maxGreyList:          0,
 		connections:          make([]*connectionStatus, 0),
 		connectionsByContact: make(map[*Contact]*connectionStatus),
-		blacklistSet:         make(map[*Contact]common.Void),
+		blacklistSet:         make(map[*Contact]bytes.Void),
 	}
 }
 func (cb *ContactBook) Erase(contact *Contact) {
@@ -155,9 +156,9 @@ func (cb *ContactBook) AddToBlacklist(contact *Contact) {
 }
 func (cb *ContactBook) GetContactList() rpc.PassedContacts {
 	passed := rpc.PassedContacts{
-		NodeIDs:                    []common.Address{},
+		NodeIDs:                    []bytes.Address{},
 		ConnectionStrings:          []string{},
-		BlacklistIDs:               []common.Address{},
+		BlacklistIDs:               []bytes.Address{},
 		BlacklistConnectionStrings: []string{},
 	}
 	for _, x := range cb.connections {
@@ -210,14 +211,14 @@ func (cb *ContactBook) SelectWhitelist(goalCount int) []*Contact {
 		goalCount = connectionsLength
 	}
 	ansContacts := []*Contact{}
-	attemptedIndexes := make(map[int]common.Void)
+	attemptedIndexes := make(map[int]bytes.Void)
 	for i := 0; len(ansContacts) < goalCount; i++ {
 
 		index := int(math.Pow(rand.Float64(), 4) * float64(connectionsLength))
 		if _, used := attemptedIndexes[index]; !used {
 			//this is, in fact, a new index.
 			ansContacts = append(ansContacts, cb.connections[index].contact)
-			attemptedIndexes[index] = common.Void{}
+			attemptedIndexes[index] = bytes.Void{}
 		}
 	}
 	for k := range attemptedIndexes {

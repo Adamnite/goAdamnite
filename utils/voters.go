@@ -3,7 +3,11 @@ package utils
 import (
 	"math/big"
 
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
+=======
+	"github.com/adamnite/go-adamnite/utils"
+>>>>>>> Stashed changes
 	"github.com/adamnite/go-adamnite/utils/accounts"
 )
 
@@ -33,7 +37,11 @@ func (v *Voter) SignTo(candidate Candidate, signer accounts.Account) error {
 	return nil
 }
 
+<<<<<<< Updated upstream
 func (v Voter) Address() common.Address {
+=======
+func (v Voter) Address() utils.Address {
+>>>>>>> Stashed changes
 	return accounts.AccountFromPubBytes(v.From).Address
 }
 func (v Voter) Account() accounts.Account {

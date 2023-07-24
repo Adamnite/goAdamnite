@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
@@ -17,6 +18,31 @@ import (
 
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
 	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
+=======
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/utils"
+)
+
+func NewVirtualMachineWithDB(contract *bytes.Address, dbInterface DBInterfaceItem) (*Machine, error) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
+	vm.config.Getter = dbInterface
+	if contract == nil {
+		return vm, ErrContractNotStored
+	}
+	//get the contract from the DB
+	con, err := dbInterface.GetContract(contract.Hex())
+	if err != nil {
+		return vm, err
+	}
+	vm.contract = *con
+
+	return vm, nil
+}
+
+// TODO: delete
+func NewVirtualMachineWithContract(apiEndpoint string, contract *bytes.Address) (*Machine, error) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
+>>>>>>> Stashed changes
 
 	if contract == nil {
 		return vm, nil
@@ -27,7 +53,13 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 
 	return vm, nil
 }
+<<<<<<< Updated upstream
 func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
+=======
+
+// TODO: delete
+func (vm *Machine) ResetToContract(apiEndpoint string, contract bytes.Address) error {
+>>>>>>> Stashed changes
 	vm.Reset()
 	con, err := GetContractData(apiEndpoint, contract.Hex())
 	if err != nil {
@@ -58,7 +90,7 @@ func (vm *Machine) CallOnContractWith(rt *RuntimeChanges) (*RuntimeChanges, erro
 	rt.ErrorsEncountered = err
 	return vm.UpdateChanges(rt), err
 }
-func newContract(caller common.Address, value *big.Int, input []byte, gas uint64) *Contract {
+func newContract(caller bytes.Address, value *big.Int, input []byte, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller, Value: value, Input: input, Gas: gas}
 	return c
 }
@@ -417,8 +449,13 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
+<<<<<<< Updated upstream
 func (m *Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if m.currentFrame > int(m.config.maxCallStackDepth) {
+=======
+func (m *Machine) Call(caller bytes.Address, addr bytes.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
+	if m.currentFrame > maxCallStackDepth {
+>>>>>>> Stashed changes
 		return nil, gas, ErrDepth
 	}
 
@@ -600,7 +637,7 @@ func (m *Machine) AddLocal(n interface{}) {
 	}
 }
 
-func (m *Machine) GetContractHash() common.Hash {
+func (m *Machine) GetContractHash() bytes.Hash {
 	return m.contract.Hash()
 }
 

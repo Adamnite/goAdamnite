@@ -9,7 +9,12 @@ import (
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
+=======
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/consensus/pendingHandling"
+>>>>>>> Stashed changes
 	"github.com/adamnite/go-adamnite/crypto"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
@@ -35,8 +40,13 @@ type ConsensusNode struct {
 	ocdbLink      string                 //off chain database, if running the VM verification, this should be local.
 	vm            *VM.Machine
 
+<<<<<<< Updated upstream
 	autoVoteForNode *common.Address
 	autoVoteWith    *common.Address
+=======
+	autoVoteForNode *crypto.PublicKey //the NodeID that is running the node
+	autoVoteWith    *bytes.Address
+>>>>>>> Stashed changes
 	autoStakeAmount *big.Int
 }
 

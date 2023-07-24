@@ -9,7 +9,7 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/log15"
 	"github.com/adamnite/go-adamnite/params"
@@ -19,21 +19,21 @@ import (
 type Genesis struct {
 	Config          *params.ChainConfig  `json:"config"`
 	Time            uint64               `json:"time"`
-	Witness         common.Address       `json:"witness"`
+	Witness         bytes.Address       `json:"witness"`
 	Alloc           GenesisAlloc         `json:"alloc" gencodec:"required"`
 	Number          uint64               `json:"number"`
-	ParentHash      common.Hash          `json:"parentHash"`
-	Signature       common.Hash          `json:"signature"`
-	TransactionRoot common.Hash          `json:"txroot"`
+	ParentHash      bytes.Hash          `json:"parentHash"`
+	Signature       bytes.Hash          `json:"signature"`
+	TransactionRoot bytes.Hash          `json:"txroot"`
 	WitnessList     []GenesisWitnessInfo `json:"witnessList"`
 }
 
 type GenesisWitnessInfo struct {
-	address common.Address
+	address bytes.Address
 	voters  []utils.Voter
 }
 
-type GenesisAlloc map[common.Address]GenesisAccount
+type GenesisAlloc map[bytes.Address]GenesisAccount
 
 type GenesisAccount struct {
 	PrivateKey []byte
@@ -47,7 +47,7 @@ func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
 		return nil, errors.New("db must be set")
 	}
 
-	statedb, _ := statedb.New(common.Hash{}, statedb.NewDatabase(db))
+	statedb, _ := statedb.New(bytes.Hash{}, statedb.NewDatabase(db))
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetNonce(addr, account.Nonce)
@@ -123,17 +123,17 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	}
 }
 
-func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*params.ChainConfig, bytes.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		return nil, common.Hash{}, errors.New("genesis has no chain configuration")
+		return nil, bytes.Hash{}, errors.New("genesis has no chain configuration")
 	}
 
 	stored, err := rawdb.ReadHeaderHash(db, 0)
 	if err != nil {
-		return nil, common.Hash{}, errors.New("db access error")
+		return nil, bytes.Hash{}, errors.New("db access error")
 	}
 
-	if (stored == common.Hash{}) { // There is no genesis
+	if (stored == bytes.Hash{}) { // There is no genesis
 		if genesis == nil {
 			log15.Info("Writing testnet genesis block")
 			genesis = DefaultTestnetGenesisBlock()
@@ -142,7 +142,7 @@ func WriteGenesisBlockWithOverride(db adamnitedb.Database, genesis *Genesis) (*p
 		}
 		block, err := genesis.Write(db)
 		if err != nil {
-			return genesis.Config, common.Hash{}, err
+			return genesis.Config, bytes.Hash{}, err
 		}
 		return genesis.Config, block.Hash(), nil
 	}

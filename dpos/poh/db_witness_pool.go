@@ -60,7 +60,7 @@ func VRF(stakingAmount float64, blockValidationPercent float64, voterCount float
 }
 
 type DBWitnessInfo struct {
-	address common.Address
+	address bytes.Address
 	voters  []utils.Voter
 }
 
@@ -112,7 +112,7 @@ var (
 type PoHData struct {
 	Witnesses []utils.Witness `json:"dbwitnesses"`
 
-	Votes map[common.Address]utils.Voter `json:"dbvotes"`
+	Votes map[bytes.Address]utils.Voter `json:"dbvotes"`
 }
 
 type DBWitnessPool struct {
@@ -125,13 +125,13 @@ type DBWitnessPool struct {
 
 	Witnesses []utils.Witness
 	seed      []byte
-	Votes     map[common.Address]*utils.Voter
+	Votes     map[bytes.Address]*utils.Voter
 	sigcache  *lru.ARCCache
 	Number    uint64
-	Hash      common.Hash
+	Hash      bytes.Hash
 }
 
-func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash common.Hash, witnesses []utils.Witness) *DBWitnessPool {
+func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig, sigcache *lru.ARCCache, number uint64, hash bytes.Hash, witnesses []utils.Witness) *DBWitnessPool {
 
 	pool := &DBWitnessPool{
 		config:            config,
@@ -142,7 +142,7 @@ func NewDBRoundWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConf
 		vrfMaps:           make(map[string]utils.Witness, 0),
 		witnessCandidates: make([]utils.Witness, 0),
 		Witnesses:         witnesses,
-		Votes:             map[common.Address]*utils.Voter{},
+		Votes:             map[bytes.Address]*utils.Voter{},
 	}
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 		if number == 0 {
@@ -208,7 +208,7 @@ func NewDBWitnessPool(config DBWitnessConfig, chainConfig *params.ChainConfig) *
 		vrfMaps:           make(map[string]utils.Witness, 0),
 		witnessCandidates: make([]utils.Witness, 0),
 
-		Votes: map[common.Address]*utils.Voter{},
+		Votes: map[bytes.Address]*utils.Voter{},
 	}
 	if chainConfig.ChainID == params.TestnetChainConfig.ChainID {
 
@@ -329,7 +329,7 @@ func (cp *DBWitnessPool) SetWitnessCandidates(witnessCandidates []utils.Witness)
 	cp.witnessCandidates = witnessCandidates
 }
 
-func GetDBWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash common.Hash) (*DBWitnessPool, error) {
+func GetDBWitnessPool(config *params.ChainConfig, sigcache *lru.ARCCache, db adamnitedb.Database, hash bytes.Hash) (*DBWitnessPool, error) {
 
 	blob, err := db.Get(append([]byte(prefixKeyOfDBWitnessPool), hash[:]...))
 	if err != nil {
@@ -353,7 +353,7 @@ func (wp *DBWitnessPool) SaveDBWitnessPool(db adamnitedb.Database) error {
 	return db.Insert(append([]byte(prefixKeyOfDBWitnessPool), wp.Hash[:]...), blob)
 }
 
-func (wp *DBWitnessPool) IsVoted(voterAddr common.Address) bool {
+func (wp *DBWitnessPool) IsVoted(voterAddr bytes.Address) bool {
 	return wp.Votes[voterAddr] != nil
 }
 func (wp *DBWitnessPool) copy() *DBWitnessPool {
@@ -409,7 +409,7 @@ func (wp *DBWitnessPool) DbWitnessPoolFromBlockHeader(headers []*types.BlockHead
 		if number%EpochBlockCount == 0 {
 			if number > 0 {
 
-				witnesspool.Votes = make(map[common.Address]*utils.Voter)
+				witnesspool.Votes = make(map[bytes.Address]*utils.Voter)
 				witnesspool.witnessCandidates = make([]utils.Witness, 0)
 			}
 			witnesspool.Witnesses = pohData.Witnesses
@@ -456,12 +456,12 @@ func PohDataEncode(poh PoHData) []byte {
 	bytes, _ := msgpack.Marshal(poh)
 	return bytes
 }
-func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (common.Address, error) {
+func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (bytes.Address, error) {
 
 	// If the signature's already cached, return that
 	hash := header.Hash()
 	if address, known := sigcache.Get(hash); known {
-		return address.(common.Address), nil
+		return address.(bytes.Address), nil
 	}
 
 	signature := header.Extra
@@ -469,7 +469,7 @@ func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (common.Addres
 	// Recover the public key and the Adamnite address
 	pubkey, err := crypto.Recover(SealHash(header).Bytes(), signature)
 	if err != nil {
-		return common.Address{}, err
+		return bytes.Address{}, err
 	}
 
 	signer := crypto.PubkeyByteToAddress(pubkey)
@@ -478,7 +478,7 @@ func Ecrecover(header *types.BlockHeader, sigcache *lru.ARCCache) (common.Addres
 	return signer, nil
 }
 
-func SealHash(header *types.BlockHeader) (hash common.Hash) {
+func SealHash(header *types.BlockHeader) (hash bytes.Hash) {
 	hasher := crypto.NewRipemd160State()
 	encodeSignHeader(hasher, header)
 	hasher.Sum(hash[:0])

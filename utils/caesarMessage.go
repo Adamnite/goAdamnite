@@ -43,8 +43,25 @@ func NewCaesarMessage(to accounts.Account, from accounts.Account, saying interfa
 	}
 	ansMsg.Message = ansBytes
 
+<<<<<<< Updated upstream
 	err = ansMsg.Sign()
 	return &ansMsg, err
+=======
+	err = c.Sign()
+	return &c, err
+}
+
+// NewCaesarMessage creates a new Caesar message with signature set
+func NewSignedCaesarMessage(to accounts.Account, from accounts.Account, message []byte, signature []byte) *CaesarMessage {
+	return &CaesarMessage{
+		To:               to,
+		From:             from,
+		InitialTime:      time.Now().UnixMicro(),
+		HasHostingServer: false,
+		Message:		  message,
+		Signature: 		  signature,
+	}
+>>>>>>> Stashed changes
 }
 
 // Hash the message

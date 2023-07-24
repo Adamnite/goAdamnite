@@ -11,28 +11,42 @@ import (
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/blockchain"
+<<<<<<< Updated upstream
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/dpos"
+=======
+	"github.com/adamnite/go-adamnite/utils/bytes"
+	"github.com/adamnite/go-adamnite/utils"
+>>>>>>> Stashed changes
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
 	niteBigExponent = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(20), nil) // big math version of 10**20
-	testAccounts    = []common.Address{
-		common.BytesToAddress([]byte{0x00}),
-		common.BytesToAddress([]byte{0x01}),
-		common.BytesToAddress([]byte{0x02}),
+	testAccounts    = []bytes.Address{
+		bytes.BytesToAddress([]byte{0x00}),
+		bytes.BytesToAddress([]byte{0x01}),
+		bytes.BytesToAddress([]byte{0x02}),
 	}
 	testBalances = []*big.Int{
 		big.NewInt(0),
 		big.NewInt(1),
 		big.NewInt(2),
 	}
+<<<<<<< Updated upstream
 	testDB      = rawdb.NewMemoryDB()
 	stateDB, _  = statedb.New(common.Hash{}, statedb.NewDatabase(testDB))
 	chainConfig = params.TestnetChainConfig
 	client      AdamniteClient
+=======
+	testDB        = rawdb.NewMemoryDB()
+	stateDB, _    = statedb.New(bytes.Hash{}, statedb.NewDatabase(testDB))
+	chainConfig   = params.TestnetChainConfig
+	client        AdamniteClient
+	bouncerServer *BouncerServer
+	bouncerClient *rpc.Client
+>>>>>>> Stashed changes
 )
 
 func setup() {
@@ -100,7 +114,7 @@ func TestGetChainID(t *testing.T) {
 
 func TestGetVersion(t *testing.T) {
 	leeway := time.Second / 10 //no actions can be instant, so this is how much time allowance i give.
-	client.SetAddressAndHostingPort(&common.Address{123}, "")
+	client.SetAddressAndHostingPort(&bytes.Address{123}, "")
 	version, err := client.GetVersion()
 	now := time.Now().UTC()
 	if err != nil {

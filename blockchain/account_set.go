@@ -1,23 +1,24 @@
 package blockchain
 
 import (
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/core/types"
 )
 
 // accountSet is simply a set of addresses to check for existence, and a signer
 // capable of deriving addresses from transactions.
 type accountSet struct {
-	accounts map[common.Address]struct{}
+	accounts map[bytes.Address]struct{}
 	signer   types.Signer
-	cache    *[]common.Address
+	cache    *[]bytes.Address
 }
 
 // newAccountSet creates a new address set with an associated signer for sender
 // derivations.
-func newAccountSet(signer types.Signer, addrs ...common.Address) *accountSet {
+func newAccountSet(signer types.Signer, addrs ...bytes.Address) *accountSet {
 	as := &accountSet{
-		accounts: make(map[common.Address]struct{}),
+		accounts: make(map[bytes.Address]struct{}),
 		signer:   signer,
 	}
 	for _, addr := range addrs {
@@ -27,7 +28,7 @@ func newAccountSet(signer types.Signer, addrs ...common.Address) *accountSet {
 }
 
 // contains checks if a given address is contained within the set.
-func (as *accountSet) contains(addr common.Address) bool {
+func (as *accountSet) contains(addr bytes.Address) bool {
 	_, exist := as.accounts[addr]
 	return exist
 }
@@ -46,7 +47,7 @@ func (as *accountSet) containsTx(tx *types.Transaction) bool {
 }
 
 // add inserts a new address into the set to track.
-func (as *accountSet) add(addr common.Address) {
+func (as *accountSet) add(addr bytes.Address) {
 	as.accounts[addr] = struct{}{}
 	as.cache = nil
 }
@@ -60,9 +61,9 @@ func (as *accountSet) addTx(tx *types.Transaction) {
 
 // flatten returns the list of addresses within this set, also caching it for later
 // reuse. The returned slice should not be changed!
-func (as *accountSet) flatten() []common.Address {
+func (as *accountSet) flatten() []bytes.Address {
 	if as.cache == nil {
-		accounts := make([]common.Address, 0, len(as.accounts))
+		accounts := make([]bytes.Address, 0, len(as.accounts))
 		for account := range as.accounts {
 			accounts = append(accounts, account)
 		}

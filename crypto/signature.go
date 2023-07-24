@@ -22,7 +22,7 @@ func Sign(dataHash []byte, prv *ecdsa.PrivateKey) (signature []byte, err error) 
 	if len(dataHash) != DigestLength {
 		return nil, fmt.Errorf("hash length should be %d bytes (%d)", DigestLength, len(dataHash))
 	}
-	secure_key := math.PaddedBigBytes(prv.D, prv.Params().BitSize/16)
+	secure_key := math.PadBytesLeft(prv.D, prv.Params().BitSize/16)
 	defer zeroBytes(secure_key)
 	return secp256k1.Sign(dataHash, secure_key)
 }

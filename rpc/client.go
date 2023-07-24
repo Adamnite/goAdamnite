@@ -23,14 +23,22 @@ func (a *AdamniteClient) printError(methodName string, err error) {
 }
 
 type AdamniteClient struct {
+<<<<<<< Updated upstream
 	DebugOutput       bool
 	endpoint          string
 	client            rpc.Client
 	callerAddress     *common.Address
 	hostingServerPort string //the string version of the port that our Server is running on.
+=======
+	DebugOutput            bool
+	endpoint               string
+	client                 *rpc.Client
+	callerAddress          *bytes.Address
+	hostingServerConnector string //the string version of the port that our Server is running on.
+>>>>>>> Stashed changes
 }
 
-func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPort string) {
+func (a *AdamniteClient) SetAddressAndHostingPort(add *bytes.Address, hostingPort string) {
 	a.callerAddress = add
 	a.hostingServerPort = hostingPort
 }
@@ -67,9 +75,15 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		return nil, ErrNoAccountSet
 	}
 	sendingData := struct {
+<<<<<<< Updated upstream
 		Address           common.Address
 		HostingServerPort string
 	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
+=======
+		Address                 bytes.Address
+		HostingServerConnection string
+	}{Address: *a.callerAddress, HostingServerConnection: a.hostingServerConnector}
+>>>>>>> Stashed changes
 
 	addressBytes, err := encoding.Marshal(sendingData)
 	if err != nil {
@@ -102,6 +116,7 @@ func (a *AdamniteClient) GetContactList() *PassedContacts {
 	return passed
 }
 
+<<<<<<< Updated upstream
 func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 	a.print("Get chain id")
 	reply := []byte{}
@@ -122,6 +137,9 @@ func (a *AdamniteClient) GetChainID() (*big.Int, error) {
 }
 
 func (a *AdamniteClient) GetBalance(address common.Address) (*string, error) {
+=======
+func (a *AdamniteClient) GetBalance(address bytes.Address) (*string, error) {
+>>>>>>> Stashed changes
 	a.print("Get balance")
 
 	input := struct {

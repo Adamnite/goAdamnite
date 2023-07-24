@@ -24,7 +24,7 @@ type Peer struct {
 	rw      bargossip.MsgReadWriter
 	version uint
 
-	blockHead common.Hash // head block hash
+	blockHead bytes.Hash // head block hash
 
 	knownBlocks         gset.Set
 	queuedBlocks        chan *types.Block
@@ -32,8 +32,8 @@ type Peer struct {
 
 	txpool      TxPool
 	knownTxs    gset.Set
-	txBroadcast chan []common.Hash
-	txAnnounce  chan []common.Hash
+	txBroadcast chan []bytes.Hash
+	txAnnounce  chan []bytes.Hash
 
 	terminate chan struct{}
 	lock      sync.RWMutex
@@ -49,8 +49,8 @@ func NewPeer(version uint, p *bargossip.Peer, rw bargossip.MsgReadWriter, txpool
 		knownBlocks:         mapset.NewSet(),
 		queuedBlocks:        make(chan *types.Block, maxQueuedBlocks),
 		anounceQueuedBlocks: make(chan *types.Block, maxQueuedBlockAnns),
-		txBroadcast:         make(chan []common.Hash),
-		txAnnounce:          make(chan []common.Hash),
+		txBroadcast:         make(chan []bytes.Hash),
+		txAnnounce:          make(chan []bytes.Hash),
 		txpool:              txpool,
 		terminate:           make(chan struct{}),
 	}
@@ -60,7 +60,7 @@ func NewPeer(version uint, p *bargossip.Peer, rw bargossip.MsgReadWriter, txpool
 	return peer
 }
 
-func (p *Peer) Head() (hash common.Hash) {
+func (p *Peer) Head() (hash bytes.Hash) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 

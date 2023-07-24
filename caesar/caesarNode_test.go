@@ -4,7 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/networking"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
@@ -22,7 +23,12 @@ func setupTestCaesarNode(autoConnectSeed *networking.Contact) (*accounts.Account
 }
 
 func TestTwoServersMessagingOpenly(t *testing.T) {
+<<<<<<< Updated upstream
 	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+=======
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	seedNode := networking.NewNetNode(bytes.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+>>>>>>> Stashed changes
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
 
@@ -53,7 +59,12 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 }
 
 func TestManyOpenMessages(t *testing.T) {
+<<<<<<< Updated upstream
 	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+=======
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
+	seedNode := networking.NewNetNode(bytes.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+>>>>>>> Stashed changes
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
 

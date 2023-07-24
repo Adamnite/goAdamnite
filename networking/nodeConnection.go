@@ -5,7 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adamnite/go-adamnite/common"
+	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/bytes"
 	"github.com/adamnite/go-adamnite/rpc"
 )
 
@@ -54,7 +55,7 @@ func (n *NetNode) FillOpenConnections() error {
 func (n *NetNode) ConnectToSeed(connectionPoint string) error {
 	tempSeedContact := Contact{
 		ConnectionString: connectionPoint,
-		NodeID:           common.Address{0, 0, 0, 0}, //use the 0 address to test this
+		NodeID:           bytes.Address{0, 0, 0, 0}, //use the 0 address to test this
 	}
 	if err := n.ConnectToContact(&tempSeedContact); err != nil {
 		return err
