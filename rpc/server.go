@@ -75,10 +75,10 @@ func (a *AdamniteServer) Close() {
 const serverPreface = "[Adamnite RPC server] %v \n"
 
 func (a *AdamniteServer) print(methodName string) {
-	log.Debug(serverPreface, methodName)
+	log.Debugf(serverPreface, methodName)
 }
 func (a *AdamniteServer) printError(methodName string, err error) {
-	log.Error(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+	log.Errorf(serverPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 func (a *AdamniteServer) AlreadySeen(fc ForwardingContent) bool {
 	if _, exists := a.seenConnections[fc.Hash()]; exists {
