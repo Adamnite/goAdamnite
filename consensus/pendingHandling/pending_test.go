@@ -25,7 +25,7 @@ func TestPendingTransactions(t *testing.T) {
 	ans = tq.Pop()
 
 	assert.NotNil(t, ans, "nothing returned")
-	assert.True(t, ans.Equal(*testTransaction), "transaction not equal after being returned")
+	assert.True(t, ans.Equal(testTransaction), "transaction not equal after being returned")
 	if tq.Pop() != nil {
 		fmt.Println("popped more transactions than it should have")
 		t.Fail()
@@ -45,7 +45,7 @@ func TestSorting(t *testing.T) {
 	}
 	tq.Remove(transactions[5])
 	tq.SortQueue()
-	if !tq.Pop().Equal(*transactions[len(transactions)-1]) {
+	if !tq.Pop().Equal(transactions[len(transactions)-1]) {
 		fmt.Println("popping the wrong value after sorting")
 		t.Fail()
 	}
