@@ -13,10 +13,10 @@ import (
 const clientPreface = "[Adamnite RPC client] %v \n"
 
 func (a *AdamniteClient) print(methodName string) {
-	log.Debug(clientPreface, methodName)
+	log.Debugf(clientPreface, methodName)
 }
 func (a *AdamniteClient) printError(methodName string, err error) {
-	log.Error(clientPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+	log.Errorf(clientPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 
 type AdamniteClient struct {

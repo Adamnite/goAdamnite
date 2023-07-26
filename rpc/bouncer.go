@@ -21,8 +21,8 @@ import (
 //bouncer acts as the endpoint handler for points primarily called by external clients (eg, those who weren't there when the data was passed, or need select data)
 
 type messagesKey struct {
-	PublicKeyA string
-	PublicKeyB string
+	FromPublicKey string
+	ToPublicKey   string
 }
 
 type messageContent struct {
@@ -46,10 +46,10 @@ type BouncerServer struct {
 const bouncerPreface = "[Adamnite Bouncer RPC server] %v \n"
 
 func (b *BouncerServer) print(methodName string) {
-	log.Debug(bouncerPreface, methodName)
+	log.Debugf(bouncerPreface, methodName)
 }
 func (b *BouncerServer) printError(methodName string, err error) {
-	log.Error(bouncerPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
+	log.Errorf(bouncerPreface, fmt.Sprintf("%v\tError: %s", methodName, err))
 }
 
 func (b *BouncerServer) SetHandlers(propagator func(ForwardingContent, *[]byte) error) {
@@ -248,8 +248,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	b.print("New Message")
 
 	input := struct {
-		PublicKeyA    string
-		PublicKeyB    string
+		FromPublicKey string
+		ToPublicKey   string
 		RawMessage    string
 		SignedMessage string
 	}{}
@@ -260,16 +260,16 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	}
 
 	m := utils.NewSignedCaesarMessage(
-		accounts.AccountFromPubBytes(common.FromHex(input.PublicKeyB)),
-		accounts.AccountFromPubBytes(common.FromHex(input.PublicKeyA)),
+		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
+		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
 
 	// TODO: Verify the message
 
 	k := messagesKey{
-		input.PublicKeyA,
-		input.PublicKeyB,
+		input.FromPublicKey,
+		input.ToPublicKey,
 	}
 	c := &messageContent{
 		m.InitialTime,
@@ -294,16 +294,28 @@ func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 		return err
 	}
 
-	encryptedMessages := make(map[string][]*messageContent)
+	type message struct {
+		FromPublicKey string `msgpack:"fromPublicKey"`
+		Timestamp     int64  `msgpack:"timestamp"`
+		Content       string `msgpack:"content"`
+	}
+
+	var messages []message
+
 	for k, v := range b.messages {
-		if k.PublicKeyA == input.PublicKeyA && k.PublicKeyB == input.PublicKeyB {
-			encryptedMessages[input.PublicKeyA] = v
-		} else if k.PublicKeyA == input.PublicKeyB && k.PublicKeyB == input.PublicKeyA {
-			encryptedMessages[input.PublicKeyB] = v
+		if (k.FromPublicKey == input.FromPublicKey && k.ToPublicKey == input.ToPublicKey) ||
+		   (k.FromPublicKey == input.ToPublicKey && k.ToPublicKey == input.FromPublicKey) {
+			for _, m := range v {
+				messages = append(messages, message{
+					FromPublicKey: k.FromPublicKey,
+					Timestamp    : m.Timestamp,
+					Content      : m.Content,
+				})
+			}
 		}
 	}
 
-	data, err := encoding.Marshal(encryptedMessages)
+	data, err := encoding.Marshal(messages)
 	if err != nil {
 		b.printError("Get messages", err)
 		return err
