@@ -124,7 +124,6 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 		case Op_i32_gt_u:
 			ansOps = append(ansOps, i32Gtu{})
 			pointInBytes += 1
-
 		case Op_i32_le_s:
 			ansOps = append(ansOps, i32Les{})
 			pointInBytes += 1
@@ -138,7 +137,7 @@ func parseBytes(bytes []byte) ([]OperationCommon, []ControlBlock) {
 			pointInBytes += 1
 
 		case Op_i32_ge_u:
-			ansOps = append(ansOps, i32Eqz{})
+			ansOps = append(ansOps, i32Geu{})
 			pointInBytes += 1
 
 		case Op_i64_eqz:

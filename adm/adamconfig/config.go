@@ -5,16 +5,16 @@ import (
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/dpos"
 
-	"github.com/adamnite/go-adamnite/core"
+	"github.com/adamnite/go-adamnite/blockchain"
 	"github.com/adamnite/go-adamnite/node"
 	"github.com/adamnite/go-adamnite/params"
 )
 
 type Config struct {
-	Genesis   *core.Genesis `toml:",omitempty"`
+	Genesis   *blockchain.Genesis `toml:",omitempty"`
 	NetworkId uint64
 
-	TxPool  core.TxPoolConfig
+	TxPool  blockchain.TxPoolConfig
 	Witness dpos.WitnessConfig
 
 	Validator validator.Config
@@ -26,7 +26,7 @@ type Config struct {
 
 var Defaults = Config{
 	NetworkId:       888,
-	TxPool:          core.DefaultTxPoolConfig,
+	TxPool:          blockchain.DefaultTxPoolConfig,
 	Witness:         dpos.DefaultWitnessConfig,
 	Validator:       validator.DefaultConfig,
 	AdamniteDbCache: 512,

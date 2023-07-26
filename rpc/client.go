@@ -6,8 +6,8 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/utils"
-	encoding "github.com/vmihailenco/msgpack/v5"
 	log "github.com/sirupsen/logrus"
+	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
 const clientPreface = "[Adamnite RPC client] %v \n"
@@ -20,28 +20,29 @@ func (a *AdamniteClient) printError(methodName string, err error) {
 }
 
 type AdamniteClient struct {
-	endpoint          string
-	client            rpc.Client
-	callerAddress     *common.Address
-	hostingServerPort string //the string version of the port that our Server is running on.
+	DebugOutput            bool
+	endpoint               string
+	client                 *rpc.Client
+	callerAddress          *common.Address
+	hostingServerConnector string //the string version of the port that our Server is running on.
 }
 
 func (a *AdamniteClient) SetAddressAndHostingPort(add *common.Address, hostingPort string) {
 	a.callerAddress = add
-	a.hostingServerPort = hostingPort
+	a.hostingServerConnector = hostingPort
 }
 
 func (a *AdamniteClient) Close() {
 	a.client.Close()
 }
-func (a *AdamniteClient) SendTransaction(transaction *utils.Transaction) error {
+func (a *AdamniteClient) SendTransaction(transaction *utils.TransactionType) error {
 	log.Printf(clientPreface, "Send Transaction")
 	data, err := encoding.Marshal(&transaction)
 	if err != nil {
 		return err
 	}
 
-	return a.client.Call(SendTransactionEndpoint, &data, &[]byte{})
+	return a.client.Call(NewTransactionEndpoint, &data, &[]byte{})
 }
 func (a *AdamniteClient) ForwardMessage(content ForwardingContent, reply *[]byte) error {
 	a.print("Forward Message")
@@ -63,9 +64,9 @@ func (a *AdamniteClient) GetVersion() (*AdmVersionReply, error) {
 		return nil, ErrNoAccountSet
 	}
 	sendingData := struct {
-		Address           common.Address
-		HostingServerPort string
-	}{Address: *a.callerAddress, HostingServerPort: a.hostingServerPort}
+		Address                 common.Address
+		HostingServerConnection string
+	}{Address: *a.callerAddress, HostingServerConnection: a.hostingServerConnector}
 
 	sendingBytes, err := encoding.Marshal(sendingData)
 	if err != nil {
@@ -134,7 +135,8 @@ func NewAdamniteClient(endpoint string) (AdamniteClient, error) {
 		return AdamniteClient{}, err
 	}
 	return AdamniteClient{
-		endpoint: endpoint,
-		client:   *client,
+		DebugOutput: false,
+		endpoint:    endpoint,
+		client:      client,
 	}, nil
 }

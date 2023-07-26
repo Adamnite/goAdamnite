@@ -13,10 +13,12 @@ import (
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
+	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLotsOfNodes(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	seedNode := NewNetNode(common.Address{0})
 	seedNode.AddServer()
 
@@ -73,7 +75,8 @@ func TestLinearForward(t *testing.T) {
 		FinalReply:      getLastNodeContactsReply,
 		InitialSender:   nodes[0].thisContact.NodeID,
 	}
-	if err := nodes[0].activeContactToClient[(&nodes[1].thisContact)].ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
+	con, _ := nodes[0].activeContactToClient.Load((&nodes[1].thisContact))
+	if err := con.(*rpc.AdamniteClient).ForwardMessage(getLastNodesContacts, &[]byte{}); err != nil {
 		if err.Error() != rpc.ErrAlreadyForwarded.Error() {
 			t.Fatal(err)
 		}
@@ -153,35 +156,40 @@ func TestTransactionPropagation(t *testing.T) {
 	}
 
 	testerNode := NewNetNode(common.Address{0xFF, 0xFF, 0xFF, 0xFF})
-	var ans = &utils.Transaction{}
-	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo *utils.Transaction) error {
-		// log.Println("\nworking!!!!\n\nWORKING!!!")
-		// log.Panicln("have faith")
-		*ans = *foo
+	var ans = &utils.BaseTransaction{}
+	testerNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, func(foo utils.TransactionType) error {
+		*ans = *foo.(*utils.BaseTransaction)
 		return nil
-	}, nil, nil)
+	}, nil, nil, nil)
 	if err = nodes[0][0].ConnectToContact(&testerNode.thisContact); err != nil {
 		t.Fatal(err)
 	}
 	// outsideNode := nodes[len(nodes)-1][len(nodes[0])-1]
 	outsideNode := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0xFF})
 	// outsideNode.contactBook.connectionsByContact
-	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil)
+	outsideNode.AddFullServer(&statedb.StateDB{}, &blockchain.Blockchain{}, nil, nil, nil, nil)
 	outsideNode.ConnectToContact(&nodes[len(nodes)-1][len(nodes[0])-1].thisContact)
-	client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
+	client := NewNetNode(common.Address{0xAF, 0xFF, 0xFF, 0x00})
+	err = client.AddFullServer(nil, nil, nil, nil, nil, nil)
+	client.ConnectToContact(&outsideNode.thisContact)
+	// client, err := rpc.NewAdamniteClient(outsideNode.thisContact.ConnectionString)
 	if err != nil {
 		t.Fatal(err)
 	}
-	transaction := utils.Transaction{
-		From:      common.Address{0xA, 1, 2, 3, 4, 5},
-		To:        common.Address{0xB, 1, 2, 3, 4, 5},
-		Amount:    big.NewInt(1000),
-		Time:      time.Now(),
-		Signature: []byte{1, 2, 3, 4, 5},
+	sender, _ := accounts.GenerateAccount()
+	transaction, err := utils.NewBaseTransaction(
+		sender,
+		common.Address{0xB, 1, 2, 3, 4, 5},
+		big.NewInt(1000),
+		big.NewInt(1000),
+	)
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
 	}
 	log.Println("\n\nInfo")
 
-	if err := client.SendTransaction(&transaction); err != nil {
+	if err := client.Propagate(transaction); err != nil {
 		t.Fatal(err)
 	}
 
@@ -197,6 +205,7 @@ func TestTransactionPropagation(t *testing.T) {
 
 // generates a line where each node is connected to the one in front, and behind itself.
 func generateLineOfNodes(count int) ([]*NetNode, error) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodes := make([]*NetNode, count)
 	for i := range nodes {
 		node := NewNetNode(common.BytesToAddress(big.NewInt(int64(i + 1)).Bytes()))
@@ -222,6 +231,7 @@ func generateLineOfNodes(count int) ([]*NetNode, error) {
 
 // generate clusters of nodes
 func generateClusteredNodes(clusterCount, clusterSize int) ([][]*NetNode, error) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	nodes := make([][]*NetNode, clusterCount)
 	for x := 0; x < clusterCount; x++ {
 		nodeRow := []*NetNode{}

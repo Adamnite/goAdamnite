@@ -12,7 +12,3 @@ const (
 	GasSlowStep    uint64 = 50
 	GasExtStep     uint64 = 100
 )
-
-func gasStorageStore() uint64 {
-	return 1000
-}

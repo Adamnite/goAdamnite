@@ -14,7 +14,7 @@ import (
 
 var (
 	testAddress = []byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13}
-	spoofer     DBSpoofer
+	spoofer     *DBSpoofer
 	vm          *Machine
 	hashes      []string
 )
@@ -80,9 +80,9 @@ func preTestSetup() {
 	if err != nil {
 		panic("error in preTestSetup")
 	}
-	vm = NewVirtualMachine([]byte(emptyModule()), []uint64{}, nil, 1000)
+	vm = NewVirtualMachine([]byte(emptyModule()), []uint64{}, 1000)
 	vm.contract.Address = common.BytesToAddress(testAddress)
-	vm.config.CodeGetter = spoofer.GetCode
+	vm.config.Getter = spoofer
 }
 
 func TestOpAddress(t *testing.T) {
@@ -113,14 +113,11 @@ func TestOpBalance(t *testing.T) {
 
 func TestOpBlocktimestamp(t *testing.T) {
 	preTestSetup()
-	blockts := big.NewInt(1673372829)
-	blockCtx := BlockContext{}
-	blockCtx.Time = blockts
-	vm.BlockCtx = blockCtx
+	vm.callTimeStart = 1234
 	vm.Call2(hashes[2]+"", 1000)
 	res := vm.popFromStack()
 	fmt.Printf("res: %v\n", res)
-	assert.Equal(t, blockts, big.NewInt(1673372829))
+	assert.Equal(t, vm.callTimeStart, res)
 }
 
 func TestOpDatasize(t *testing.T) {

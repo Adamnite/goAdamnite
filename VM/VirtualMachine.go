@@ -9,17 +9,32 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
 	"github.com/adamnite/go-adamnite/common"
-	"github.com/adamnite/go-adamnite/crypto"
-	"github.com/adamnite/go-adamnite/params"
+	"github.com/adamnite/go-adamnite/utils"
 )
 
+func NewVirtualMachineWithDB(contract *common.Address, dbInterface DBInterfaceItem) (*Machine, error) {
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
+	vm.config.Getter = dbInterface
+	if contract == nil {
+		return vm, ErrContractNotStored
+	}
+	//get the contract from the DB
+	con, err := dbInterface.GetContract(contract.Hex())
+	if err != nil {
+		return vm, err
+	}
+	vm.contract = *con
+
+	return vm, nil
+}
+
+// TODO: delete
 func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address) (*Machine, error) {
-	vm := NewVirtualMachine([]byte{}, []uint64{}, nil, 1000)
+	vm := NewVirtualMachine([]byte{}, []uint64{}, 1000)
 
 	if contract == nil {
-		return vm, nil
+		return vm, ErrContractNotStored
 	}
 	if err := vm.ResetToContract(apiEndpoint, *contract); err != nil {
 		return nil, err
@@ -27,6 +42,8 @@ func NewVirtualMachineWithContract(apiEndpoint string, contract *common.Address)
 
 	return vm, nil
 }
+
+// TODO: delete
 func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) error {
 	vm.Reset()
 	con, err := GetContractData(apiEndpoint, contract.Hex())
@@ -36,24 +53,26 @@ func (vm *Machine) ResetToContract(apiEndpoint string, contract common.Address) 
 	vm.contract = *con
 	return nil
 }
-func (vm *Machine) CallWith(apiEndpoint string, rt *RuntimeChanges) (*RuntimeChanges, error) {
+
+// TODO: delete
+func (vm *Machine) CallWith(apiEndpoint string, rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
 	if err := vm.ResetToContract(apiEndpoint, rt.ContractCalled); err != nil {
 		return nil, err
 	}
-	spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
+	// spoofer := NewDBSpoofer() //this is either smart, or *very* stupid, i cant honestly tell
 	//TODO: either way, cleanup here
-	vm.config.CodeGetter = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
-		stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
-		if err != nil {
-			panic(err) //TODO: handle this better.
-		}
-		spoofer.AddSpoofedCode(hex.EncodeToString(hash), *stored)
+	// vm.config.Getter. = func(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	// 	stored, err := GetMethodCode(apiEndpoint, hex.EncodeToString(hash))
+	// 	if err != nil {
+	// 		panic(err) //TODO: handle this better.
+	// 	}
+	// 	spoofer.AddSpoofedCode(hex.EncodeToString(hash), *stored)
 
-		return spoofer.GetCode(hash)
-	}
+	// 	return spoofer.GetCode(hash)
+	// }
 	return vm.CallOnContractWith(rt)
 }
-func (vm *Machine) CallOnContractWith(rt *RuntimeChanges) (*RuntimeChanges, error) {
+func (vm *Machine) CallOnContractWith(rt *utils.RuntimeChanges) (*utils.RuntimeChanges, error) {
 	err := vm.Call2(rt.ParametersPassed, rt.GasLimit)
 	rt.ErrorsEncountered = err
 	return vm.UpdateChanges(rt), err
@@ -63,23 +82,9 @@ func newContract(caller common.Address, value *big.Int, input []byte, gas uint64
 	return c
 }
 
-func GetCodeBytes2(uri string, hash string) ([]byte, error) {
-	code, err := GetMethodCode(uri, hash)
-	if err != nil {
-		return nil, err
-	}
-	return code.CodeBytes, nil
-}
-
 func GetDefaultConfig() VMConfig {
 	return VMConfig{
-		maxCallStackDepth:        1024,
-		gasLimit:                 30000, // 30000 ATE
-		returnOnGasLimitExceeded: true,
-		debugStack:               false,
-		CodeGetter:               defaultCodeGetter,
-		CodeBytesGetter:          GetCodeBytes2,
-		Uri:                      "https//default.uri",
+		debugStack: false,
 	}
 }
 
@@ -112,7 +117,7 @@ func (m *Machine) run() error {
 
 			// Activate the new frame
 			if m.currentFrame > oldFrameNum {
-				if m.currentFrame > int(m.config.maxCallStackDepth) {
+				if m.currentFrame > maxCallStackDepth {
 					return ErrDepth
 				}
 				currentFrame = m.callStack[m.currentFrame]
@@ -147,31 +152,6 @@ func (m *Machine) OutputMemory() string {
 		ans += strconv.FormatUint(uint64(v), 16) + " "
 	}
 	return ans
-}
-
-// CanTransfer checks whether there are enough funds in the address' account to make a transfer.
-func CanTransfer(db *statedb.StateDB, addr common.Address, amount *big.Int) bool {
-	return db.GetBalance(addr).Cmp(amount) >= 0
-}
-
-// Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db *statedb.StateDB, sender, recipient common.Address, amount *big.Int) {
-	db.SubBalance(sender, amount)
-	db.AddBalance(recipient, amount)
-}
-
-func NewBlockContext(coinbase common.Address, ateLimit uint64, blockNumber *big.Int, time *big.Int, diff *big.Int, fee *big.Int) BlockContext {
-	bc := BlockContext{}
-	bc.Coinbase = coinbase
-	bc.GasLimit = ateLimit
-	bc.BlockNumber = blockNumber
-	bc.Time = time
-	bc.Difficulty = diff
-	bc.BaseFee = fee
-	bc.CanTransfer = CanTransfer
-	bc.Transfer = Transfer
-
-	return bc
 }
 
 func initMemoryWithDataSection(module *Module, vm *Machine) {
@@ -213,23 +193,6 @@ func initVMState(machine *Machine) {
 	// initMemoryWithDataSection(&machine.module, machine)
 }
 
-func NewVM(statedb *statedb.StateDB, config *VMConfig, chainConfig *params.ChainConfig) *Machine {
-	machine := new(Machine)
-	machine.Statedb = statedb
-	// machine.BlockCtx = ni
-	// machine.txCtx = txc
-	machine.chainConfig = chainConfig
-
-	if config != nil {
-		machine.config = *config
-	} else {
-		machine.config = GetDefaultConfig()
-	}
-	machine.gas = config.gasLimit //TODO: check this out
-
-	return machine
-}
-
 func SetCallCode(m *Machine, funcBodyBytes []byte, gas uint64) {
 	m.vmCode, m.controlBlockStack = parseBytes(funcBodyBytes)
 	m.gas = gas
@@ -242,17 +205,12 @@ func SetCodeAndInit(m *Machine, funcBodyBytes []byte, gas uint64) {
 }
 
 // This constructor is let for compatibility only and should be updated/removed
-func NewVirtualMachine(wasmBytes []byte, storage []uint64, config *VMConfig, gas uint64) *Machine {
+func NewVirtualMachine(wasmBytes []byte, storage []uint64, gas uint64) *Machine {
 	machine := new(Machine)
 	machine.pointInCode = 0
 	machine.contractStorage = storage
 	machine.gas = gas
-
-	if config != nil {
-		machine.config = *config
-	} else {
-		machine.config = GetDefaultConfig()
-	}
+	machine.config = GetDefaultConfig()
 
 	// Push the main frame
 	machine.currentFrame = 0
@@ -326,7 +284,7 @@ func defaultCodeGetter(hash []byte) (FunctionType, []OperationCommon, []ControlB
 // Called when invoking specific function inside the contract
 func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 	// Structure: 0x[16 bytes func identifier][param1..][param2...][param3]
-	// Note: The callbytes is following the wasm encoding scheme. can be passed as string or byte array
+	// Note: The call bytes is following the wasm encoding scheme. can be passed as string or byte array
 	var bytes []byte
 	switch v := callBytes.(type) {
 	case string:
@@ -342,7 +300,7 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 	}
 
 	funcIdentifier := bytes[:16]
-	funcTypes, funcCode, controlStack := m.config.CodeGetter(funcIdentifier)
+	funcTypes, funcCode, controlStack := m.config.Getter.GetCode(funcIdentifier)
 	var params []uint64
 	//get the params from the bytes passed.
 	for i := uint64(len(funcIdentifier)); i < uint64(len(bytes)); i++ {
@@ -382,9 +340,9 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 			params = append(params, num)
 			i += 8
 		default:
-			println("Parsed valtype %v", valTypeByte)
+			println("Parsed val type %v", valTypeByte)
 			println("at index ", i)
-			return fmt.Errorf("parsed valtype %v, no such known type", valTypeByte)
+			return fmt.Errorf("parsed val type %v, no such known type", valTypeByte)
 		}
 	}
 
@@ -418,20 +376,15 @@ func (m *Machine) Call2(callBytes interface{}, gas uint64) error {
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
 func (m *Machine) Call(caller common.Address, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
-	if m.currentFrame > int(m.config.maxCallStackDepth) {
+	if m.currentFrame > maxCallStackDepth {
 		return nil, gas, ErrDepth
 	}
-
-	// if value.Sign() != 0 && !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-	// 	return nil, gas, ErrInsufficientBalance
-	// }
 
 	if !m.Statedb.Exist(addr) {
 		m.Statedb.CreateAccount(addr)
 	}
 
 	snapshot := m.Statedb.Snapshot()
-	m.BlockCtx.Transfer(m.Statedb, caller, addr, value)
 
 	// Retrieve the method code and execute it
 	if len(input) == 0 {
@@ -460,97 +413,6 @@ func getModuleLen(module *Module) uint64 {
 		le += uint64(len(module.codeSection[i].body))
 	}
 	return le
-}
-
-func (m *Machine) create(caller common.Address, codeBytes []byte, gas uint64, value *big.Int, address common.Address) (common.Address, uint64, error) {
-	//creates a new contract from the bytes passed (whole module) and uploads those functions, then has a locally created contract (only in this VM)
-	if m.currentFrame > int(m.config.maxCallStackDepth) {
-		return common.Address{}, gas, ErrDepth
-	}
-
-	if !m.BlockCtx.CanTransfer(m.Statedb, caller, value) {
-		return common.Address{}, gas, ErrInsufficientBalance
-	}
-
-	nonce := m.Statedb.GetNonce(caller)
-
-	if nonce+1 < nonce {
-		return common.Address{}, gas, ErrNonceUintOverflow
-	}
-
-	m.Statedb.SetNonce(caller, nonce+1)
-
-	// Ensure there's no existing contract already at the designated address
-	_, err := GetContractData(m.config.Uri, address.Hex())
-
-	if err == nil || err != ERR_CONTRACT_NOT_STORED {
-		//either theres a strange error, or the contract already exists.
-		return address, gas, err
-	}
-
-	if m.Statedb.GetNonce(address) != 0 || address.String() == "" {
-		return common.Address{}, 0, ErrContractAddressCollision
-	}
-
-	// Create a new account on the state
-	snapshot := m.Statedb.Snapshot()
-	m.Statedb.CreateAccount(address)
-
-	m.BlockCtx.Transfer(m.Statedb, caller, address, value)
-
-	// Initialize a new contract and set the code that is to be used by the ADVM.
-	contract := newContract(caller, value, codeBytes, gas)
-	contract.Address = address
-	m.contract = *contract
-
-	module := *decode(codeBytes)
-	modLen := getModuleLen(&module)
-
-	// Check whether the max code size has been exceeded
-	if err == nil && modLen > m.config.maxCodeSize {
-		m.Statedb.RevertToSnapshot(snapshot)
-		return address, 0, ErrMaxCodeSizeExceeded
-	}
-
-	// if the contract creation ran successfully and no errors were returned
-	// calculate the gas required to store the code.
-
-	// @TODO update this with right creation price
-	//TODO: update this to charge only for new methods being uploaded.
-	createModuleGas := modLen * 2000
-	if createModuleGas > m.gas {
-		m.Statedb.RevertToSnapshot(snapshot)
-		return address, m.gas, ErrCodeStoreOutOfGas
-	}
-
-	// Upload the module here
-	codeStored, hashesOfMethods, err := UploadModuleFunctions(m.config.Uri, module)
-
-	if err != nil {
-		m.Statedb.RevertToSnapshot(snapshot)
-		// Somehow revert the uploading here?
-	}
-	m.contract.Code = codeStored
-	m.contract.CodeHashes = make([]string, len(hashesOfMethods))
-	for i, hashBytes := range hashesOfMethods {
-		m.contract.CodeHashes[i] = hex.EncodeToString(hashBytes)
-	}
-
-	m.gas -= createModuleGas
-	return address, contract.Gas, err
-}
-
-// Create creates a new contract using code as deployment code.
-func (m *Machine) Create(caller common.Address, code []byte, gas uint64, value *big.Int) (contractAddr common.Address, leftOverGas uint64, err error) {
-	addrBytes := caller.Bytes()
-	nonce := m.Statedb.GetNonce(caller)
-	addrBytes = append(addrBytes, byte(nonce))
-
-	contractKey, err := crypto.GenerateKey()
-
-	contractAddr = crypto.PubkeyToAddress(contractKey.PublicKey)
-
-	return m.create(caller, code, gas, value, contractAddr)
 }
 
 func (m *Machine) Reset() {
@@ -610,9 +472,9 @@ func (m *Machine) UploadContract(APIEndpoint string) error {
 }
 
 // sort the changes from the method being ran, allowing this to be passed along the chain and to the OffChainDB efficiently
-func (m *Machine) GetChanges() RuntimeChanges {
+func (m *Machine) GetChanges() utils.RuntimeChanges {
 	// we want to return an array of the changes, with as few starts as possible,
-	changes := RuntimeChanges{
+	changes := utils.RuntimeChanges{
 		Caller:            m.contract.CallerAddress,
 		CallTime:          time.Now().UTC(), //this should not be used! this should be changed to the time at the start of the call.
 		ContractCalled:    m.contract.Address,
@@ -622,7 +484,7 @@ func (m *Machine) GetChanges() RuntimeChanges {
 	return *m.UpdateChanges(&changes)
 }
 
-func (m *Machine) UpdateChanges(changes *RuntimeChanges) *RuntimeChanges {
+func (m *Machine) UpdateChanges(changes *utils.RuntimeChanges) *utils.RuntimeChanges {
 	changes.Changed = [][]byte{}
 	changes.ChangeStartPoints = []uint64{}
 	keys := make([]uint32, 0, len(m.storageChanges))

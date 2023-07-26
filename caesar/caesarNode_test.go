@@ -6,6 +6,7 @@ import (
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/networking"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,7 @@ func setupTestCaesarNode(autoConnectSeed *networking.Contact) (*accounts.Account
 }
 
 func TestTwoServersMessagingOpenly(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
@@ -53,6 +55,7 @@ func TestTwoServersMessagingOpenly(t *testing.T) {
 }
 
 func TestManyOpenMessages(t *testing.T) {
+	rpc.USE_LOCAL_IP = true //use local IPs so we don't wait to get our IP, and don't need to deal with opening the firewall port
 	seedNode := networking.NewNetNode(common.Address{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
 	seedNode.AddServer()
 	seedContact := seedNode.GetOwnContact()
@@ -71,7 +74,7 @@ func TestManyOpenMessages(t *testing.T) {
 	seedNode.FillOpenConnections()
 	for _, node := range testingNodes {
 		for _, target := range testingAccounts {
-			if err := node.Send(*target, "hi"); err != nil {
+			if err := node.Send(target, "hi"); err != nil {
 				t.Fatal("error from node:%w to: %w with err:%w", node, target, err)
 			}
 		}

@@ -5,10 +5,12 @@ import (
 
 	"github.com/abiosoft/ishell/v2"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/rpc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCaesarMessaging(t *testing.T) {
+	rpc.USE_LOCAL_IP = true
 	seedNode := NewSeedHandler()
 	seedShell := ishell.New()
 	seedShell.AddCmd(seedNode.GetSeedCommands())

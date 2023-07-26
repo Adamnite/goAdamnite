@@ -3,9 +3,9 @@ package rpc
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net"
 	"net/rpc"
-	"math/big"
 	"strings"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
@@ -14,8 +14,8 @@ import (
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/adamnite/go-adamnite/utils/accounts"
 
-	encoding "github.com/vmihailenco/msgpack/v5"
 	log "github.com/sirupsen/logrus"
+	encoding "github.com/vmihailenco/msgpack/v5"
 )
 
 //bouncer acts as the endpoint handler for points primarily called by external clients (eg, those who weren't there when the data was passed, or need select data)
@@ -31,11 +31,11 @@ type messageContent struct {
 }
 
 type BouncerServer struct {
-	stateDB     *statedb.StateDB
-	chain       *blockchain.Blockchain
-	addresses   []string
-	listener    net.Listener
-	Version     string
+	stateDB   *statedb.StateDB
+	chain     *blockchain.Blockchain
+	addresses []string
+	listener  net.Listener
+	Version   string
 
 	propagator  func(ForwardingContent, *[]byte) error
 	getMessages func(common.Address, common.Address) []*utils.CaesarMessage
@@ -176,7 +176,7 @@ func (b *BouncerServer) CreateAccount(params *[]byte, reply *[]byte) error {
 
 	for _, address := range b.addresses {
 		if address == input.Address {
-			log.Printf(serverPreface, ErrPreExistingAccount)
+			log.Printf(bouncerPreface, ErrPreExistingAccount)
 			return ErrPreExistingAccount
 		}
 	}
@@ -260,8 +260,8 @@ func (b *BouncerServer) NewMessage(params *[]byte, reply *[]byte) error {
 	}
 
 	m := utils.NewSignedCaesarMessage(
-		accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
-		accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
+		*accounts.AccountFromPubBytes(common.FromHex(input.ToPublicKey)),
+		*accounts.AccountFromPubBytes(common.FromHex(input.FromPublicKey)),
 		common.FromHex(input.RawMessage),
 		common.FromHex(input.SignedMessage))
 
@@ -304,12 +304,12 @@ func (b *BouncerServer) GetMessages(params *[]byte, reply *[]byte) error {
 
 	for k, v := range b.messages {
 		if (k.FromPublicKey == input.FromPublicKey && k.ToPublicKey == input.ToPublicKey) ||
-		   (k.FromPublicKey == input.ToPublicKey && k.ToPublicKey == input.FromPublicKey) {
+			(k.FromPublicKey == input.ToPublicKey && k.ToPublicKey == input.FromPublicKey) {
 			for _, m := range v {
 				messages = append(messages, message{
 					FromPublicKey: k.FromPublicKey,
-					Timestamp    : m.Timestamp,
-					Content      : m.Content,
+					Timestamp:     m.Timestamp,
+					Content:       m.Content,
 				})
 			}
 		}
@@ -330,7 +330,7 @@ const sendTransactionEndpoint = "BouncerServer.SendTransaction"
 func (b *BouncerServer) SendTransaction(params *[]byte, reply *[]byte) error {
 	b.print("Send transaction")
 
-	var input *utils.Transaction
+	var input utils.TransactionType
 
 	if err := encoding.Unmarshal(*params, &input); err != nil {
 		b.printError("Send transaction", err)

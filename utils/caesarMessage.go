@@ -55,8 +55,8 @@ func NewSignedCaesarMessage(to accounts.Account, from accounts.Account, message 
 		From:             from,
 		InitialTime:      time.Now().UnixMicro(),
 		HasHostingServer: false,
-		Message:		  message,
-		Signature: 		  signature,
+		Message:          message,
+		Signature:        signature,
 	}
 }
 
@@ -81,12 +81,12 @@ func (cm CaesarMessage) Verify() bool {
 }
 
 // get the message contents by decrypting it
-func (cm CaesarMessage) GetMessage(recipient accounts.Account) ([]byte, error) {
+func (cm CaesarMessage) GetMessage(recipient *accounts.Account) ([]byte, error) {
 	return recipient.Decrypt(cm.Message)
 }
 
 // get the message contents by decrypting it
-func (cm CaesarMessage) GetMessageString(recipient accounts.Account) (string, error) {
+func (cm CaesarMessage) GetMessageString(recipient *accounts.Account) (string, error) {
 	msg, err := cm.GetMessage(recipient)
 	return string(msg), err
 }

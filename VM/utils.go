@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
@@ -25,15 +26,187 @@ type CodeStored struct {
 	CodeBytes   []byte
 }
 
+type DBInterfaceItem interface {
+	GetCode([]byte) (FunctionType, []OperationCommon, []ControlBlock)
+	GetContract(string) (*Contract, error)
+}
+type LocalDBTester struct {
+	codeGetter     func([]byte) (FunctionType, []OperationCommon, []ControlBlock)
+	contractGetter func(string) (*Contract, error)
+}
+
+func NewLocalDBTester(
+	codeGetter func([]byte) (FunctionType, []OperationCommon, []ControlBlock),
+	contractGetter func(string) (*Contract, error),
+) *LocalDBTester {
+	return &LocalDBTester{
+		codeGetter:     codeGetter,
+		contractGetter: contractGetter,
+	}
+}
+func (ldbt *LocalDBTester) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	return ldbt.codeGetter(hash)
+}
+func (ldbt *LocalDBTester) GetContract(address string) (*Contract, error) {
+	return ldbt.contractGetter(address)
+}
+
+type DBCacheAble interface {
+	GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock)
+	PreCacheCode(hash []byte) error
+	GetContract(address string) (*Contract, error)
+	PreCacheContract(address string) error
+}
+
+// a thread safe spoofing of a DBCache
+type SpoofedDBCache struct {
+	lock          sync.Mutex
+	DB            *DBSpoofer
+	cacheCode     func(hash []byte)
+	cacheContract func(address string)
+}
+
+func NewSpoofedDBCache(cacheCode func([]byte), cacheContract func(string)) *SpoofedDBCache {
+	return &SpoofedDBCache{
+		DB:            NewDBSpoofer(),
+		cacheCode:     cacheCode,
+		cacheContract: cacheContract,
+	}
+}
+func (sdbc *SpoofedDBCache) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	return sdbc.DB.GetCode(hash)
+}
+func (sdbc *SpoofedDBCache) PreCacheCode(hash []byte) error {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	if sdbc.cacheCode != nil {
+		sdbc.cacheCode(hash)
+	}
+	return nil
+}
+func (sdbc *SpoofedDBCache) GetContract(address string) (*Contract, error) {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	return sdbc.DB.GetContract(address)
+}
+
+func (sdbc *SpoofedDBCache) PreCacheContract(address string) error {
+	sdbc.lock.Lock()
+	defer sdbc.lock.Unlock()
+	if sdbc.cacheContract != nil {
+		sdbc.cacheContract(address)
+	}
+	return nil
+}
+
+type DBCache struct {
+	// cache acts the same as the DBSpoofer, except it is thread safe, and get's its own code
+	funcLock  sync.Mutex
+	functions map[string]CodeStored //hash=>functions
+	conLock   sync.Mutex
+	contracts map[string]*Contract
+	api       string
+}
+
+func NewDBCache(apiEndpoint string) DBCacheAble {
+	return &DBCache{
+		functions: map[string]CodeStored{},
+		contracts: map[string]*Contract{},
+		api:       apiEndpoint,
+	}
+}
+
+func (cache *DBCache) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
+	hashString := hex.EncodeToString(hash)
+	cache.funcLock.Lock()
+	defer cache.funcLock.Unlock()
+	if _, exists := cache.functions[hashString]; !exists {
+		//TODO: use this error! should be used!
+		codeStored, _ := GetMethodCode(cache.api, hashString)
+		cache.functions[hashString] = *codeStored
+	}
+	localCode := cache.functions[hashString]
+	ops, blocks := parseBytes(localCode.CodeBytes)
+
+	funcType := FunctionType{
+		params:  localCode.CodeParams,
+		results: localCode.CodeResults,
+		string:  hex.EncodeToString(hash), //so you can lie better.
+	}
+	return funcType, ops, blocks
+}
+func (cache *DBCache) PreCacheCode(hash []byte) error {
+	hashString := hex.EncodeToString(hash)
+	cache.funcLock.Lock()
+	defer cache.funcLock.Unlock()
+	if _, exists := cache.functions[hashString]; exists {
+		//we have it locally already!
+		return nil
+	}
+	codeStored, err := GetMethodCode(cache.api, hashString)
+	if err != nil {
+		return err
+	}
+	cache.functions[hashString] = *codeStored
+	return nil
+}
+func (cache *DBCache) GetContract(address string) (*Contract, error) {
+	cache.conLock.Lock()
+	defer cache.conLock.Unlock()
+	contract, exists := cache.contracts[address]
+	if exists {
+		return contract, nil
+	}
+	//hopefully we just don't have it locally.
+	contract, err := GetContractData(cache.api, address)
+	if err != nil {
+		return nil, err
+	}
+	cache.contracts[address] = contract
+	return contract, nil
+}
+func (cache *DBCache) PreCacheContract(address string) error {
+	cache.conLock.Lock()
+	defer cache.conLock.Unlock()
+	if _, exists := cache.contracts[address]; exists {
+		return nil //we already have it locally
+	}
+	if contract, err := GetContractData(cache.api, address); err != nil {
+		return err
+	} else {
+		cache.contracts[address] = contract
+	}
+	return nil
+}
+func (cache *DBCache) UploadChangedContracts() error {
+	// UploadContract(cache.api)
+	return nil
+}
+
 // API DB Spoofing
 type DBSpoofer struct {
 	storedFunctions map[string]CodeStored //hash=>functions
+	storedContracts map[string]*Contract
 }
 
-func NewDBSpoofer() DBSpoofer {
-	return DBSpoofer{map[string]CodeStored{}}
+func NewDBSpoofer() *DBSpoofer {
+	return &DBSpoofer{
+		storedFunctions: map[string]CodeStored{},
+		storedContracts: map[string]*Contract{},
+	}
 }
-
+func (spoof *DBSpoofer) GetContract(contractAddress string) (*Contract, error) {
+	if contract, exists := spoof.storedContracts[contractAddress]; exists {
+		return contract, nil
+	} else {
+		return nil, fmt.Errorf("contract not stored")
+	}
+}
+func (spoof *DBSpoofer) AddContract(address string, contract *Contract) {
+	spoof.storedContracts[address] = contract
+}
 func (spoof *DBSpoofer) GetCode(hash []byte) (FunctionType, []OperationCommon, []ControlBlock) {
 	localCode := spoof.storedFunctions[hex.EncodeToString(hash)]
 	ops, blocks := parseBytes(localCode.CodeBytes)
@@ -55,7 +228,10 @@ func (spoof *DBSpoofer) AddModuleToSpoofedCode(input interface{}) ([][]byte, err
 	case Module:
 		mod = v
 	case string:
-		hexBinary, _ := hex.DecodeString(v)
+		hexBinary, err := hex.DecodeString(v)
+		if err != nil {
+			return nil, err
+		}
 		mod = *decode(hexBinary)
 	case []byte:
 		mod = *decode(v)
@@ -113,40 +289,6 @@ func (spoof *DBSpoofer) getCode2CallName(hash string, inputs []uint64) string {
 		ansString += "42" + (hex.EncodeToString(LE.AppendUint64([]byte{}, inputs[i]))[2:])
 	} //TODO: write this properly to actually take the param type into account.
 	return ansString
-}
-
-type BCSpoofer struct {
-	contractAddress []byte
-	balances        map[string]big.Int
-	callerAddress   []byte
-	callBlockTime   []byte
-}
-
-func newBCSpoofer() BCSpoofer {
-	spoofer := BCSpoofer{}
-	spoofer.contractAddress = []byte{}
-	spoofer.balances = make(map[string]big.Int)
-	return spoofer
-}
-
-func (s BCSpoofer) setBalanceFromByteAddress(address []byte, balance big.Int) {
-	s.balances[hex.EncodeToString(address)] = balance
-}
-func (s BCSpoofer) setBalance(address string, balance big.Int) {
-	s.balances[address] = balance
-}
-
-func (s BCSpoofer) getAddress() []byte {
-	return s.contractAddress
-}
-func (s BCSpoofer) getBalance(address []byte) big.Int {
-	return s.balances[hex.EncodeToString(address)]
-}
-func (s BCSpoofer) getCallerAddress() []byte {
-	return s.callerAddress
-}
-func (s BCSpoofer) getBlockTimestamp() []byte {
-	return s.callBlockTime
 }
 
 //GENERALLY USEFUL

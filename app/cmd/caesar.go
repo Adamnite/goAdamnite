@@ -40,7 +40,7 @@ func (ch *CaesarHandler) addChatMsg(msg *utils.CaesarMessage) {
 			time:   msg.GetTime().Format(time.Kitchen),
 		})
 	} else {
-		text, _ := msg.GetMessageString(*ch.thisUser)
+		text, _ := msg.GetMessageString(ch.thisUser)
 		newMsg := chatText{
 			fromUs: false,
 			text:   text,
@@ -198,7 +198,7 @@ func (ch *CaesarHandler) OpenChat(c *ishell.Context) {
 	ch.HoldingFocus = false
 }
 
-func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target accounts.Account) error {
+func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target *accounts.Account) error {
 	c.Println("\n\n\n\n\n\n")
 	userMsgColor := color.New(color.BgGreen)
 	otherMsgColor := color.New(color.BgBlue)
@@ -222,7 +222,7 @@ func (ch *CaesarHandler) updateChatScreen(c *ishell.Context, target accounts.Acc
 	}
 	return nil
 }
-func (ch *CaesarHandler) sendMessage(target accounts.Account, text string) {
+func (ch *CaesarHandler) sendMessage(target *accounts.Account, text string) {
 	//TODO: check the account is real, otherwise this will break
 	if err := ch.server.Send(target, text); err != nil {
 		log.Println(err)
