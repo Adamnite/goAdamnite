@@ -1,9 +1,11 @@
 package VM
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"net/http"
 	"testing"
 
 	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
@@ -30,69 +32,68 @@ var (
 	callerAddress = []byte{0, 1, 2, 3, 4, 5}
 )
 
+// a simple test to see if the offchain DB is actually live. Otherwise these tests cannot return a truthful error.
+func isDBAPILive() bool {
+	//just push to a known empty API, and see if we get an error that it's offline, or not able to be written to
+	re, err := http.NewRequest("PUT", apiEndpoint+"/contract/0x0000", bytes.NewReader([]byte{}))
+	if err != nil {
+		return false
+	}
+	ans, err := http.DefaultClient.Do(re)
+	if err != nil {
+		return false
+	}
+	return ans.StatusCode == 200
+}
+
+// automatically skips tests if the DB is offline.
+func skipIfDBOffline(t *testing.T) {
+	if !isDBAPILive() {
+		t.Skip("skipping test. No DB is online to test against.")
+	}
+}
+
 func TestUploadingContract(t *testing.T) {
+	skipIfDBOffline(t)
 	testContract = newContract(common.BytesToAddress([]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}), big.NewInt(0), nil, 10000)
 	err := UploadContract(apiEndpoint, *testContract)
 	fmt.Println(testContract.Address.Hex())
 	fmt.Println(testContract)
 	if err != nil {
-		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
-			fmt.Println("Local Server Appears to be offline.")
-			t.SkipNow()
-		} else {
-			fmt.Println(err)
-			t.Fail()
-		}
+		t.Fatal(err)
 	}
 }
 
 func TestGettingContract(t *testing.T) {
+	skipIfDBOffline(t)
 	cdata, err := GetContractData(apiEndpoint, testContract.Address.Hex())
 	if err != nil {
-		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
-			fmt.Println("Local Server Appears to be offline.")
-			t.SkipNow()
-		} else {
-			fmt.Println(err)
-			t.Fail()
-		}
+		t.Fatal(err)
 	}
 	if !contractsEqual(*cdata, *testContract) {
 		t.Fail()
 	}
 	// fmt.Println("Contract retrieved is ")
 	// fmt.Println(*cdata)
-
 }
 
 func TestUploadingCode(t *testing.T) {
+	skipIfDBOffline(t)
 	fmt.Println(addTwoFunctionHash)
 
 	hash, err := UploadMethod(apiEndpoint, addTwoCodeStored)
 	if err != nil {
-		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
-			fmt.Println("Local Server Appears to be offline.")
-			t.SkipNow()
-		} else {
-			fmt.Println(err)
-			t.Fail()
-		}
-
+		t.Fatal(err)
 	}
 	//assert the hex string format of the hash
 	assert.Equal(t, hex.EncodeToString(addTwoFunctionHash), hex.EncodeToString(hash))
 
 }
 func TestGettingCode(t *testing.T) {
+	skipIfDBOffline(t)
 	codeString, err := GetMethodCode(apiEndpoint, hex.EncodeToString(addTwoFunctionHash))
 	if err != nil {
-		if err.Error()[len(err.Error())-27:] == "connect: connection refused" {
-			fmt.Println("Local Server Appears to be offline.")
-			t.SkipNow()
-		} else {
-			fmt.Println(err)
-			t.Fail()
-		}
+		t.Fatal(err)
 	}
 	assert.Equal(t, hex.EncodeToString(codeString.CodeBytes), addTwoFunctionCode)
 }
