@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -66,7 +66,7 @@ func UploadMethod(apiEndpoint string, code CodeStored) ([]byte, error) {
 		return nil, netErr
 	}
 
-	byteResponse, err := ioutil.ReadAll(ans.Body)
+	byteResponse, err := io.ReadAll(ans.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func GetMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 		return nil, err
 	}
 
-	byteResponse, err := ioutil.ReadAll(re.Body)
+	byteResponse, err := io.ReadAll(re.Body)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -176,7 +176,7 @@ func GetContractData(apiEndpoint string, contractAddress string) (*Contract, err
 		return nil, err
 	}
 
-	byteResponse, err := ioutil.ReadAll(re.Body)
+	byteResponse, err := io.ReadAll(re.Body)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
