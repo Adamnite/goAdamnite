@@ -1,8 +1,6 @@
- package adm
+package adm
 
 import (
-	"math/big"
-
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/dpos"

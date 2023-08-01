@@ -7,8 +7,8 @@ import (
 	"github.com/adamnite/go-adamnite/adm/validator"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/bargossip/admnode"
-	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/blockchain"
+	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/dpos"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/node"
@@ -107,9 +107,9 @@ func (adam *AdamniteImpl) Protocols() []bargossip.SubProtocol {
 	return adampro.MakeProtocols(adam.handler, adam.config.NetworkId, adam.adamniteDialCandidates)
 }
 
-func (adam *AdamniteImpl) Blockchain() *blockchain.Blockchain   { return adam.blockchain }
-func (adam *AdamniteImpl) TxPool() *blockchain.TxPool           { return adam.txPool }
-func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool { return adam.witnessPool }
+func (adam *AdamniteImpl) Blockchain() *blockchain.Blockchain { return adam.blockchain }
+func (adam *AdamniteImpl) TxPool() *blockchain.TxPool         { return adam.txPool }
+func (adam *AdamniteImpl) WitnessPool() *dpos.WitnessPool     { return adam.witnessPool }
 
 func (adam *AdamniteImpl) Start() error {
 	adam.handler.Start(adam.p2pServer.MaxPendingConnections)
