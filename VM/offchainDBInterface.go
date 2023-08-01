@@ -124,7 +124,6 @@ func UploadModuleFunctions(apiEndpoint string, mod Module) ([]CodeStored, [][]by
 		localHash, err := code.Hash()
 
 		if !bytes.Equal(newHash, localHash) || err != nil {
-			fmt.Println(err)
 			return nil, nil, fmt.Errorf("hashes are not equal, or could not hash local copy. ERR: %w, server hash: %v, local hash: %v", err, newHash, localHash)
 		}
 		hashes = append(hashes, newHash)
@@ -151,14 +150,12 @@ func GetMethodCode(apiEndpoint string, codeHash string) (*CodeStored, error) {
 
 	byteResponse, err := io.ReadAll(re.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	var code CodeStored
 	err = msgpack.Unmarshal(byteResponse, &code)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
@@ -172,13 +169,11 @@ func GetContractData(apiEndpoint string, contractAddress string) (*Contract, err
 	}
 	re, err := http.Get(contractApiString + "/contract/" + contractAddress)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	byteResponse, err := io.ReadAll(re.Body)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	if string(byteResponse) == "contract not stored" {
@@ -188,7 +183,6 @@ func GetContractData(apiEndpoint string, contractAddress string) (*Contract, err
 	var conData ContractData
 	err = msgpack.Unmarshal(byteResponse, &conData)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	foo := contractDataToContract(conData)

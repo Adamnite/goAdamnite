@@ -110,7 +110,7 @@ type DBCache struct {
 	api       string
 }
 
-func NewDBCache(apiEndpoint string) DBCacheAble {
+func NewDBCache(apiEndpoint string) *DBCache {
 	return &DBCache{
 		functions: map[string]CodeStored{},
 		contracts: map[string]*Contract{},
