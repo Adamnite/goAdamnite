@@ -3,7 +3,7 @@ package database
 import (
 	"log"
 
-	"github.com/adamnite/go-adamnite/adm/merkle"
+	"github.com/adamnite/go-adamnite/database/merkle"
 
 	"github.com/syndtr/goleveldb/leveldb"
 )
