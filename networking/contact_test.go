@@ -10,11 +10,8 @@ import (
 )
 
 func TestConnectionStatusMath(t *testing.T) {
-	// fmt.Println(MISSED_CONNECTION_TIME_PENALTY)
 	testContacts := make([]*Contact, 10)
 	conBook := NewContactBook(nil)
-	// testContacts[0] = &Contact{"1.2.3.4:1234", 1}
-	// testContacts[1] = &Contact{"1.2.3.4:1235", 2}
 	for i := range testContacts {
 		add := common.Address{}
 		add.SetBytes(big.NewInt(int64(i)).Bytes())

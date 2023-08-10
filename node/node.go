@@ -34,8 +34,8 @@ type Node struct {
 	state         int
 	lock          sync.Mutex
 
-	adamniteServer *rpc.Adamnite
-	rpcAPIs        []rpc.Adamnite
+	adamniteServer *rpc.AdamniteServer
+	rpcAPIs        []rpc.AdamniteServer
 	services       []Service
 
 	openedDatabases map[*OpenedDB]struct{}
@@ -57,7 +57,7 @@ func New(cfg *Config) (*Node, error) {
 	node := &Node{
 		config:          cfg,
 		stop:            make(chan struct{}),
-		adamniteServer:  rpc.NewAdamniteServer(nil, nil, 0),
+		adamniteServer:  rpc.NewAdamniteServer(0),
 		server:          &bargossip.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
 		eventmux:        new(event.TypeMux),

@@ -21,9 +21,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      # NOTE: Still doesn't work
-      # - name: Build
-      #   run: go build -v ./...
+      - name: Build
+        run: go build -v ./...
 
       - name: Test VM
         run: go test -v ./VM
