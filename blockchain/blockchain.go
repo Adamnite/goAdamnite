@@ -41,8 +41,6 @@ type Blockchain struct {
 	blocksByHash   map[common.Hash]*types.Block
 	blocksByNumber map[*big.Int]*types.Block
 
-	accountStates map[common.Address]accountSet
-
 	// events
 	importBlockFeed event.Feed
 	scope           event.SubscriptionScope
