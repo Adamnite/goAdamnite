@@ -2,21 +2,12 @@ package types
 
 import (
 	"bytes"
-	"container/heap"
-	"errors"
 	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
-)
-
-var (
-	ErrorCryptoSignature    = errors.New("Invalid Elliptic Curve Values")
-	ErrorEmptyTX            = errors.New("Empty Transaction Data")
-	ErrorLowFee             = errors.New("Fee lower than minimum fee dictated by network")
-	ErrorInvalidTransaction = errors.New("Transaction Balance is too large")
 )
 
 type TxType int8
@@ -211,85 +202,4 @@ func (tx *Transaction) Hash() common.Hash {
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
 	w.WriteByte(byte(tx.Type()))
 	return msgpack.NewEncoder(w).Encode(tx.InnerData)
-}
-
-type TxByNonce Transactions
-
-func (s TxByNonce) Len() int           { return len(s) }
-func (s TxByNonce) Less(i, j int) bool { return s[i].Nonce() < s[j].Nonce() }
-func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-func (tx *Transaction) ATEPriceCmp(other *Transaction) int {
-	return tx.InnerData.ATE_price().Cmp(other.InnerData.ATE_price())
-}
-
-func (tx *Transaction) ATEPriceIntCmp(other *big.Int) int {
-	return tx.InnerData.ATE_price().Cmp(other)
-}
-
-type TxByPrice Transactions
-
-func (s TxByPrice) Len() int { return len(s) }
-func (s TxByPrice) Less(i, j int) bool {
-	// If the prices are equal, use the time the transaction was first seen for
-	// deterministic sorting
-	cmp := s[i].ATEPrice().Cmp(s[j].ATEPrice())
-	if cmp == 0 {
-		return s[i].timestamp.Before(s[j].timestamp)
-	}
-	return cmp > 0
-}
-func (s TxByPrice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-func (s *TxByPrice) Push(x interface{}) {
-	*s = append(*s, x.(*Transaction))
-}
-
-func (s *TxByPrice) Pop() interface{} {
-	old := *s
-	n := len(old)
-	x := old[n-1]
-	*s = old[0 : n-1]
-	return x
-}
-
-type TransactionsByPriceAndNonce struct {
-	txs    map[common.Address]Transactions //List of transaction records currently sorted by account
-	heads  TxByPrice                       // next transaction for each unique account (price heap)
-	signer Signer                          //The signer of the transaction set
-}
-
-// newTransactionByPriceAndOnce creates a retrieving
-// Sort the trades by price in a non-cash way.
-//
-// Note that the input map is re-owned, so the caller should no longer interact with
-// if after provided to the constructor.
-func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
-	// Initialize a price and received time based heap with the head transactions
-	heads := make(TxByPrice, 0, len(txs))
-	for from, accTxs := range txs {
-		// Ensure the sender address is from the signer
-		if acc, _ := Sender(signer, accTxs[0]); acc != from {
-			delete(txs, from)
-			continue
-		}
-		heads = append(heads, accTxs[0])
-		txs[from] = accTxs[1:]
-	}
-	heap.Init(&heads)
-
-	//Assemble and return the transaction set
-	return &TransactionsByPriceAndNonce{
-		txs:    txs,
-		heads:  heads,
-		signer: signer,
-	}
-}
-
-// Peek returns the next transaction by price.
-func (t *TransactionsByPriceAndNonce) Peek() *Transaction {
-	if len(t.heads) == 0 {
-		return nil
-	}
-	return t.heads[0]
 }

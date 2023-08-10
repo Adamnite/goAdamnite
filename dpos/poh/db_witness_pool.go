@@ -490,7 +490,6 @@ func encodeSignHeader(w io.Writer, header *types.BlockHeader) {
 		header.ParentHash,
 		header.Witness,
 		header.WitnessRoot,
-		// header.CurrentEpoch,
 		header.Number,
 		header.Signature,
 		header.StateRoot,

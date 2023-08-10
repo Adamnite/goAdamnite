@@ -9,5 +9,4 @@ const (
 	Dubnite = 1    //Analagous to Wei in Ethereum
 	Decnite = 1e10 //Analagous to GWei in Ethereum
 	Nite    = 1e20 //Analgous to Eth in Ethereum
-
 )

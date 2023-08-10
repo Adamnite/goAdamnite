@@ -4,13 +4,11 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/adamnite/go-adamnite/bargossip"
-	"github.com/adamnite/go-adamnite/bargossip/nat"
 	"github.com/adamnite/go-adamnite/crypto"
 
 	log "github.com/sirupsen/logrus"
@@ -23,118 +21,12 @@ const (
 )
 
 type Config struct {
-	Name        string `toml:"-"`
-	Version     string `toml:"-"`
+	Name        string
+	Version     string
 	DataDir     string
-	KeyStoreDir string `toml:",omitempty"`
+	KeyStoreDir string
 	IPCPath     string
 	P2P         bargossip.Config
-}
-
-var DefaultConfig = Config{
-	Name:    "gnite",
-	IPCPath: "gnite.ipc",
-	DataDir: DefaultDataDir(),
-	P2P: bargossip.Config{
-		MaxPendingConnections:  50,
-		MaxInboundConnections:  50,
-		MaxOutboundConnections: 50,
-		ListenAddr:             ":30900",
-		NAT:                    nat.Any(),
-	},
-}
-
-var DefaultDemoConfig = Config{
-	Name:    "gnite-demo",
-	IPCPath: "gnite-demo.ipc",
-	DataDir: "",
-	P2P: bargossip.Config{
-		MaxPendingConnections:  50,
-		MaxInboundConnections:  50,
-		MaxOutboundConnections: 50,
-		ListenAddr:             ":30900",
-		NAT:                    nat.Any(),
-	},
-}
-
-// DefaultDataDir is the default data directory to use for the databases and other
-// persistence requirements.
-func DefaultDataDir() string {
-	// Try to place the data folder in the user's home dir
-	home := homeDir()
-	if home != "" {
-		switch runtime.GOOS {
-		case "darwin":
-			return filepath.Join(home, "Library", "Adamnite")
-		case "windows":
-			// We used to put everything in %HOME%\AppData\Roaming, but this caused
-			// problems with non-typical setups. If this fallback location exists and
-			// is non-empty, use it, otherwise DTRT and check %LOCALAPPDATA%.
-			fallback := filepath.Join(home, "AppData", "Roaming", "Adamnite")
-			appdata := windowsAppData()
-			if appdata == "" || isNonEmptyDir(fallback) {
-				return fallback
-			}
-			return filepath.Join(appdata, "Adamnite")
-		default:
-			return filepath.Join(home, ".adamnite")
-		}
-	}
-	// As we cannot guess a stable location, return empty and handle later
-	return ""
-}
-
-func homeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
-}
-
-func windowsAppData() string {
-	v := os.Getenv("LOCALAPPDATA")
-	if v == "" {
-		// Windows XP and below don't have LocalAppData. Crash here because
-		// we don't support Windows XP and undefining the variable will cause
-		// other issues.
-		panic("environment variable LocalAppData is undefined")
-	}
-	return v
-}
-
-func isNonEmptyDir(dir string) bool {
-	f, err := os.Open(dir)
-	if err != nil {
-		return false
-	}
-	names, _ := f.Readdir(1)
-	f.Close()
-	return len(names) > 0
-}
-
-func (c *Config) IPCEndpoint() string {
-	// Short circuit if IPC has not been enabled
-	if c.IPCPath == "" {
-		return ""
-	}
-	// On windows we can only use plain top-level pipes
-	if runtime.GOOS == "windows" {
-		if strings.HasPrefix(c.IPCPath, `\\.\pipe\`) {
-			return c.IPCPath
-		}
-		return `\\.\pipe\` + c.IPCPath
-	}
-	// Resolve names into the data directory full paths otherwise
-	if filepath.Base(c.IPCPath) == c.IPCPath {
-		if c.DataDir == "" {
-			return filepath.Join(os.TempDir(), c.IPCPath)
-		}
-		return filepath.Join(c.DataDir, c.IPCPath)
-	}
-	return c.IPCPath
 }
 
 func (c *Config) name() string {
@@ -223,26 +115,4 @@ func (c *Config) NodeDB() string {
 		return "" // ephemeral
 	}
 	return c.ResolvePath(datadirNodeDatabase)
-}
-
-func (c *Config) AccountConfig() (string, error) {
-	var (
-		keydir string
-		err    error
-	)
-
-	switch {
-	case filepath.IsAbs(c.KeyStoreDir):
-		keydir = c.KeyStoreDir
-	case c.DataDir != "":
-		if c.KeyStoreDir == "" {
-			keydir = filepath.Join(c.DataDir, datadirDefaultKeystore)
-		} else {
-			keydir, err = filepath.Abs(c.KeyStoreDir)
-		}
-	case c.KeyStoreDir != "":
-		keydir, err = filepath.Abs(c.KeyStoreDir)
-	}
-
-	return keydir, err
 }
