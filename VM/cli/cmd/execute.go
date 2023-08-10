@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/spf13/cobra"

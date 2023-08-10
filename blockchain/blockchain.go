@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 

@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/rawdb"
 	"github.com/adamnite/go-adamnite/common"
 )
 

@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/rawdb"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/rpc"

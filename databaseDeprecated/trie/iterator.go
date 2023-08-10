@@ -5,7 +5,7 @@ import (
 	"container/heap"
 	"errors"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/vmihailenco/msgpack/v5"
 )

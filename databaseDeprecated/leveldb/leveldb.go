@@ -3,7 +3,7 @@ package leveldb
 import (
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"

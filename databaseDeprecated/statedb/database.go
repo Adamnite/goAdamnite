@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/trie"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/golang/groupcache/lru"
 )

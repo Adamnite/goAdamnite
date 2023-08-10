@@ -6,9 +6,9 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/trie"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/dpos/poh"
 	"github.com/adamnite/go-adamnite/utils"

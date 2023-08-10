@@ -1,9 +1,9 @@
 package rawdb
 
 import (
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/leveldb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/memorydb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/leveldb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/memorydb"
 )
 
 type AdamniteDB struct {
