@@ -87,12 +87,6 @@ func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
 	return block, nil
 }
 
-func DefaultGenesisBlock() *Genesis {
-	return &Genesis{
-		Config: params.MainnetChainConfig,
-	}
-}
-
 func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
 		Config: params.TestnetChainConfig,
