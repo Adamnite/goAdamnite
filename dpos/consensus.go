@@ -3,7 +3,7 @@ package dpos
 import (
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
@@ -33,8 +33,6 @@ type ChainReader interface {
 
 	// GetBlockByNumber retrieves the block from the database by number.
 	GetBlockByNumber(number *big.Int) *types.Block
-
-	GetBlock(hash common.Hash, number *big.Int) *types.Block
 }
 
 // Engine is an algorithm agnostic consensus engine.

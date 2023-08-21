@@ -49,7 +49,6 @@ func SendItems(w MsgWriter, msgcode uint64, elems ...interface{}) error {
 }
 
 func (msg Msg) Discard() error {
-	// read, err: = io.ByteReader(msg.Payload)
 	_, err := io.Copy(ioutil.Discard, bytes.NewReader(msg.Payload))
 	return err
 }

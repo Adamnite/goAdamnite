@@ -7,7 +7,7 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/common/math"
 	"github.com/adamnite/go-adamnite/core/types"
@@ -490,7 +490,6 @@ func encodeSignHeader(w io.Writer, header *types.BlockHeader) {
 		header.ParentHash,
 		header.Witness,
 		header.WitnessRoot,
-		// header.CurrentEpoch,
 		header.Number,
 		header.Signature,
 		header.StateRoot,

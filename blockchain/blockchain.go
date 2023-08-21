@@ -5,8 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
 	"github.com/adamnite/go-adamnite/utils"
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -41,8 +40,6 @@ type Blockchain struct {
 	blocks         []types.Block // memory cache
 	blocksByHash   map[common.Hash]*types.Block
 	blocksByNumber map[*big.Int]*types.Block
-
-	accountStates map[common.Address]accountSet
 
 	// events
 	importBlockFeed event.Feed
@@ -112,22 +109,12 @@ func (bc *Blockchain) GetHeaderByNumber(number *big.Int) *types.BlockHeader {
 	return bc.blocksByNumber[number].Header()
 }
 
-func (bc *Blockchain) GetBlock(hash common.Hash, number *big.Int) *types.Block {
-	if number == nil {
-		return bc.GetBlockByHash(hash)
-	}
-	return bc.GetBlockByNumber(number)
-}
-
 func (bc *Blockchain) GetBlockByHash(hash common.Hash) *types.Block {
 	return bc.blocksByHash[hash]
 }
 
 func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
 	return bc.blocksByNumber[number]
-}
-func (bc *Blockchain) StateAt(root common.Hash) (*statedb.StateDB, error) {
-	return nil, nil
 }
 
 func (bc *Blockchain) CurrentBlock() *types.Block {

@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/rawdb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/VM"
 	"github.com/spf13/cobra"

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/trie"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/rawdb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/trie"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core/types"
 	"github.com/adamnite/go-adamnite/params"
@@ -85,12 +85,6 @@ func (g *Genesis) Write(db adamnitedb.Database) (*types.Block, error) {
 	rawdb.WriteBlock(db, block)
 
 	return block, nil
-}
-
-func DefaultGenesisBlock() *Genesis {
-	return &Genesis{
-		Config: params.MainnetChainConfig,
-	}
 }
 
 func DefaultTestnetGenesisBlock() *Genesis {

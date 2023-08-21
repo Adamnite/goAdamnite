@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/adamnite/go-adamnite/adm/adamnitedb"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/rawdb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/rawdb"
 	"github.com/adamnite/go-adamnite/bargossip"
 	"github.com/adamnite/go-adamnite/event"
 	"github.com/adamnite/go-adamnite/rpc"
@@ -34,8 +34,8 @@ type Node struct {
 	state         int
 	lock          sync.Mutex
 
-	adamniteServer *rpc.Adamnite
-	rpcAPIs        []rpc.Adamnite
+	adamniteServer *rpc.AdamniteServer
+	rpcAPIs        []rpc.AdamniteServer
 	services       []Service
 
 	openedDatabases map[*OpenedDB]struct{}
@@ -57,7 +57,7 @@ func New(cfg *Config) (*Node, error) {
 	node := &Node{
 		config:          cfg,
 		stop:            make(chan struct{}),
-		adamniteServer:  rpc.NewAdamniteServer(nil, nil, 0),
+		adamniteServer:  rpc.NewAdamniteServer(0),
 		server:          &bargossip.Server{Config: cfg.P2P},
 		openedDatabases: make(map[*OpenedDB]struct{}),
 		eventmux:        new(event.TypeMux),

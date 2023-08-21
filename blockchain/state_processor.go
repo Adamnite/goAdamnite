@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/adamnite/go-adamnite/VM"
-	"github.com/adamnite/go-adamnite/adm/adamnitedb/statedb"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/core"
 	"github.com/adamnite/go-adamnite/core/types"

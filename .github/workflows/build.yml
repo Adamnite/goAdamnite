@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - stable
+      - stable-merge-to
 
 jobs:
   build:
@@ -23,6 +24,8 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      # Note: Tests do not work yet
-      # - name: Test
-      #   run: go test -v ./...
+      - name: Test VM
+        run: go test -v ./VM
+
+      - name: Test RPC
+        run: go test -v ./rpc
