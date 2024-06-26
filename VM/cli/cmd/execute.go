@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/VM"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/params"
 	"github.com/spf13/cobra"
 )
@@ -140,7 +140,8 @@ func encodeFunctionArguments(args string, functionType VM.FunctionType) string {
 			if err != nil {
 				log.Fatal(err)
 			}
-			param = VM.LE.AppendUint64([]byte{}, math.Float64bits(value))
+			// param = VM.LE.AppendUint64([]byte{}, math.Float64bits(value))
+			VM.LE.PutUint64(param, math.Float64bits(value))
 		default:
 			log.Fatalf("Unknown parameter type: %v", paramType)
 		}

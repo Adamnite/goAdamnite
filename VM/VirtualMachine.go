@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/common"
 	"github.com/adamnite/go-adamnite/crypto"
+	"github.com/adamnite/go-adamnite/databaseDeprecated/statedb"
 	"github.com/adamnite/go-adamnite/params"
 )
 
@@ -635,8 +635,9 @@ func (m *Machine) UpdateChanges(changes *RuntimeChanges) *RuntimeChanges {
 	})
 	for _, point := range keys {
 		final := m.storageChanges[point]
-		finalBytes := LE.AppendUint64([]byte{}, final)
-		bytePoint := uint64(point) * 8 //point stores relative to uint64s, this is using bytes, so we need to change that
+		finalBytes := []byte{}
+		LE.PutUint64(finalBytes, final) // LE.AppendUint64([]byte{}, final) : FIX
+		bytePoint := uint64(point) * 8  //point stores relative to uint64s, this is using bytes, so we need to change that
 		if len(changes.ChangeStartPoints) > 0 &&
 			int(changes.ChangeStartPoints[len(changes.ChangeStartPoints)-1])+
 				len(changes.Changed[len(changes.Changed)-1]) ==
