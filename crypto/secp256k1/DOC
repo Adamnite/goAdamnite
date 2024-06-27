@@ -1,2 +1,0 @@
-///This library was initally forked from Bitcoin-Core's open source implementation of SECP256K1. In Adamnite, SECP256K1 is combined with the first half
-of the SHA-512 hash to generate the signature pair (r,s).
