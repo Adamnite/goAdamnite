@@ -141,7 +141,7 @@ func TestGettingFinalDataChanges(t *testing.T) {
 	goalTotalChanges := runCount //runcount-1 for the *10 numbers, then 1 for the main
 	firstPointChanges := []byte{0xff, 0xFF, 0, 0, 0, 0, 0, 0}
 	for i := 1; i < runCount; i++ {
-		firstPointChanges = LE.AppendUint64(firstPointChanges, uint64(i))
+		LE.PutUint64(firstPointChanges, uint64(i))
 	}
 	assert.Equal(t,
 		goalTotalChanges,
