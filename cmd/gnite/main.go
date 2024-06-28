@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/adamnite/go-adamnite/internal/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -94,6 +95,7 @@ func main() {
 	}...)
 
 	app.Action = func(ctx *cli.Context) error {
+		utils.ShowBanner()
 		logger.WithFields(log.Fields{"AAA": "2324234234"}).Info("Starting the gnite Node!!!")
 		logger.Info("Starting the gnite Node!!!")
 		return nil
