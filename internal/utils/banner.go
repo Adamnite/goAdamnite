@@ -12,8 +12,8 @@ func ShowBanner() {
 	println(red("      *   *       *         *       *   *       *   *   *   *"), green("*  *  *     *        *     * * * * "))
 	println(red("     *     *      *         *      *     *      *     *     *"), green("*   * *     *        *     *       "))
 	println(red("    * * * * *     *         *     * * * * *     *           *"), green("*     *  * * * *     *     * * * * "))
-	println(red("   *         *    *         *    *         *    *           *"), green("                                   "))
-	println(red("  *           *   *         *   *           *   *           *"), green("                                   "))
-	println(red(" *             *  * * * * *    *             *  *           *"), green("    Copyright@2024 Adamnite Lab    "))
+	println(red("   *         *    *         *    *         *    *           *"), green("           Version: 1.0.0          "))
+	println(red("  *           *   *         *   *           *   *           *"), green("             Open Source           "))
+	println(red(" *             *  * * * * *    *             *  *           *"), green(" Copyright@2021-2024 Adamnite Lab  "))
 	println(red("============================================================="), green("==================================="))
 }
