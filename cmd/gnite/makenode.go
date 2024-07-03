@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/adamnite/go-adamnite/internal/node"
-	"github.com/adamnite/go-adamnite/internal/utils"
+	"github.com/adamnite/go-adamnite/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,7 +29,7 @@ func makeGniteNode(ctx *cli.Context) *node.Node {
 
 	gniteNode, err := node.New(&cfg.Node)
 	if err != nil {
-		utils.Fatalf("Failed to create an Adamnite node: %v", err)
+		log.Error("Failed to create an Adamnite node", "err", err)
 	}
 
 	return gniteNode

@@ -8,7 +8,15 @@ import (
 )
 
 var DefaultConfig = Config{
-	DataDir: DefaultDataDir(),
+	DataDir:  DefaultDataDir(),
+	NodeType: NODE_TYPE_FULLNODE,
+	P2PPort:  40908,
+}
+
+var DefaultBootNodeConfig = Config{
+	DataDir:  DefaultDataDir(),
+	NodeType: NODE_TYPE_BOOTNODE,
+	P2PPort:  40909,
 }
 
 func DefaultDataDir() string {
