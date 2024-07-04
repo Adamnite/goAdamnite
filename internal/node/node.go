@@ -9,13 +9,17 @@ import (
 	"time"
 
 	"github.com/adamnite/go-adamnite/log"
+	"github.com/gogo/protobuf/proto"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
-	"google.golang.org/protobuf/proto"
+
+	"github.com/adamnite/go-adamnite/internal/bargossip"
+	p2p "github.com/adamnite/go-adamnite/internal/bargossip/pb"
+	ggio "github.com/gogo/protobuf/io"
 )
 
 // Node is a container on which services can be registered.
@@ -144,19 +148,19 @@ func (n *Node) verifyData(data []byte, signature []byte, peerId peer.ID, pubKeyD
 	idFromKey, err := peer.IDFromPublicKey(key)
 
 	if err != nil {
-		log.Println(err, "Failed to extract peer id from public key")
+		log.Error("Failed to extract peer id from public key", "err", err)
 		return false
 	}
 
 	// verify that message author node id matches the provided node public key
 	if idFromKey != peerId {
-		log.Println(err, "Node id and provided public key mismatch")
+		log.Error("Node id and provided public key mismatch", "err", err)
 		return false
 	}
 
 	res, err := key.Verify(data, signature)
 	if err != nil {
-		log.Println(err, "Error authenticating data")
+		log.Error("Error authenticating data", "err", err)
 		return false
 	}
 
@@ -168,14 +172,14 @@ func (n *Node) verifyData(data []byte, signature []byte, peerId peer.ID, pubKeyD
 func (n *Node) NewMessageData(messageId string, gossip bool) *p2p.MessageData {
 	// Add protobuf bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
-	nodePubKey, err := crypto.MarshalPublicKey(n.Peerstore().PubKey(n.ID()))
+	nodePubKey, err := crypto.MarshalPublicKey((*n.server).Peerstore().PubKey((*n.server).ID()))
 
 	if err != nil {
 		panic("Failed to get public key for sender from local peer store.")
 	}
 
-	return &p2p.MessageData{ClientVersion: clientVersion,
-		NodeId:     n.ID().String(),
+	return &p2p.MessageData{ClientVersion: bargossip.ClientVersion,
+		NodeId:     (*n.server).ID().String(),
 		NodePubKey: nodePubKey,
 		Timestamp:  time.Now().Unix(),
 		Id:         messageId,
@@ -186,9 +190,9 @@ func (n *Node) NewMessageData(messageId string, gossip bool) *p2p.MessageData {
 // data: reference of protobuf go data object to send (not the object itself)
 // s: network stream to write the data to
 func (n *Node) sendProtoMessage(id peer.ID, p protocol.ID, data proto.Message) bool {
-	s, err := n.NewStream(context.Background(), id, p)
+	s, err := (*n.server).NewStream(context.Background(), id, p)
 	if err != nil {
-		log.Println(err)
+		log.Error("sendProtoMessage error", "err", err)
 		return false
 	}
 	defer s.Close()
@@ -196,7 +200,7 @@ func (n *Node) sendProtoMessage(id peer.ID, p protocol.ID, data proto.Message) b
 	writer := ggio.NewFullWriter(s)
 	err = writer.WriteMsg(data)
 	if err != nil {
-		log.Println(err)
+		log.Error("sendProtoMessage write error", "err", err)
 		s.Reset()
 		return false
 	}

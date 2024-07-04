@@ -6,11 +6,11 @@ import (
 	"log"
 	"sync"
 
-	"github.com/google/uuid"
+	p2p "github.com/adamnite/go-adamnite/internal/bargossip/pb"
+	proto "github.com/gogo/protobuf/proto"
+	uuid "github.com/google/uuid"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p/core/host"
-	p2p "github.com/libp2p/go-libp2p/examples/multipro/pb"
-	"google.golang.org/protobuf/proto"
 )
 
 // pattern: /protocol-name/request-or-response-message/version
@@ -65,7 +65,7 @@ func (p *PingProtocol) onPingRequest(s network.Stream) {
 	log.Printf("%s: Sending ping response to %s. Message id: %s...", s.Conn().LocalPeer(), s.Conn().RemotePeer(), data.MessageData.Id)
 
 	resp := &p2p.PingResponse{MessageData: p.node.NewMessageData(data.MessageData.Id, false),
-		Message: fmt.Sprintf("Ping response from %s", p.node.ID())}
+		Message: fmt.Sprintf("Ping response from %s", (*p.node.server).ID())}
 
 	// sign the data
 	signature, err := p.node.signProtoMessage(resp)

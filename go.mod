@@ -4,9 +4,12 @@ go 1.22.4
 
 require (
 	github.com/fatih/color v1.17.0
+	github.com/gogo/protobuf v1.3.2
+	github.com/google/uuid v1.4.0
 	github.com/hashicorp/go-bexpr v0.1.14
 	github.com/holiman/uint256 v1.2.4
 	github.com/libp2p/go-libp2p v0.35.1
+	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.20
 	github.com/multiformats/go-multiaddr v0.12.4
@@ -30,10 +33,8 @@ require (
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5 // indirect
-	github.com/google/uuid v1.4.0 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/ipfs/go-cid v0.4.1 // indirect
