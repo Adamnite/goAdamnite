@@ -11,9 +11,9 @@ import (
 	"github.com/adamnite/go-adamnite/log"
 	"github.com/gogo/protobuf/proto"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 
@@ -41,13 +41,26 @@ type Node struct {
 
 func New(config *Config) (*Node, error) {
 	var r io.Reader
+
 	r = rand.Reader
 
-	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.ECDSA, 2048, r)
-	if err != nil {
-		log.Error("Key generation failed")
-		return nil, err
+	// check if the prvkey exists on the datadir
+
+	prvKey := checkNodeKey(config)
+
+	if prvKey == nil {
+		var err error
+
+		prvKey, _, err = crypto.GenerateKeyPairWithReader(crypto.ECDSA, 2048, r)
+		if err != nil {
+			log.Error("Key generation failed")
+			return nil, err
+		}
+
+		saveNodeKey(config, prvKey)
 	}
+
+	// save the prvkey
 
 	// 0.0.0.0 will listen on any interface device.
 	sourceMultiAddr, _ := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", config.P2PPort))

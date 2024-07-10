@@ -9,8 +9,8 @@ import (
 	p2p "github.com/adamnite/go-adamnite/internal/bargossip/pb"
 	proto "github.com/gogo/protobuf/proto"
 	uuid "github.com/google/uuid"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 )
 
 // pattern: /protocol-name/request-or-response-message/version
