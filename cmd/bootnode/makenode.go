@@ -13,6 +13,8 @@ type gniteConfig struct {
 func defaultBootNodeConfig() node.Config {
 	cfg := node.DefaultBootNodeConfig
 
+	cfg.ProtocolID = "/bootnode/1.0.0"
+
 	return cfg
 }
 

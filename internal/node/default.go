@@ -5,12 +5,15 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+
+	"github.com/adamnite/go-adamnite/internal/config"
 )
 
 var DefaultConfig = Config{
-	DataDir:  DefaultDataDir(),
-	NodeType: NODE_TYPE_FULLNODE,
-	P2PPort:  40908,
+	DataDir:        DefaultDataDir(),
+	NodeType:       NODE_TYPE_FULLNODE,
+	P2PPort:        40908,
+	BootstrapNodes: config.DefaultBootstrapNodes,
 }
 
 var DefaultBootNodeConfig = Config{

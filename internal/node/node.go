@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -11,15 +12,19 @@ import (
 	"github.com/adamnite/go-adamnite/log"
 	"github.com/gogo/protobuf/proto"
 	"github.com/libp2p/go-libp2p"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 
 	"github.com/adamnite/go-adamnite/internal/bargossip"
 	p2p "github.com/adamnite/go-adamnite/internal/bargossip/pb"
 	ggio "github.com/gogo/protobuf/io"
+	drouting "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	dutil "github.com/libp2p/go-libp2p/p2p/discovery/util"
 )
 
 // Node is a container on which services can be registered.
@@ -31,9 +36,12 @@ type Node struct {
 
 	prvKey crypto.PrivKey
 
+	bootstrapNodes []host.Host
+
 	// Channels
 	stop     chan struct{} // Channel to wait for termination notifications
 	onceStop sync.Once
+	pingDone chan bool
 
 	// Protocols
 	*PingProtocol
@@ -71,12 +79,17 @@ func New(config *Config) (*Node, error) {
 		log.Error("Bargossip server hosting error!")
 	}
 
-	return &Node{
-		config: *config,
-		prvKey: prvKey,
-		server: &server,
-		stop:   make(chan struct{}),
-	}, nil
+	node := &Node{
+		config:   *config,
+		prvKey:   prvKey,
+		server:   &server,
+		stop:     make(chan struct{}),
+		pingDone: make(chan bool),
+	}
+
+	node.PingProtocol = NewPingProtocol(node, node.pingDone)
+
+	return node, nil
 }
 
 func (n *Node) Wait() {
@@ -88,6 +101,100 @@ func (n *Node) Start() {
 	log.Info("Adamnite external address", "Addr", (*n.server).Addrs())
 	log.Info("Adamnite host ID", "ID", (*n.server).ID())
 
+	switch n.config.NodeType {
+	case NODE_TYPE_BOOTNODE:
+	case NODE_TYPE_FULLNODE:
+		n.StartPeerDiscovery()
+	}
+
+}
+
+func (n *Node) StartPeerDiscovery() {
+	log.Info("Adamnite bar-gossip peer discovery starts")
+
+	bootstrapPeers := make([]peer.AddrInfo, len(n.config.BootstrapNodes))
+	n.bootstrapNodes = make([]host.Host, len(n.config.BootstrapNodes))
+
+	for i, addr := range n.config.BootstrapNodes {
+		peerinfo, _ := peer.AddrInfoFromP2pAddr(addr)
+		bootstrapPeers[i] = *peerinfo
+	}
+
+	kademliaDHT, err := dht.New(context.Background(), *n.server, dht.BootstrapPeers(bootstrapPeers...))
+	if err != nil {
+		log.Error("dht table creating occurs error", "err", err)
+	}
+
+	// Bootstrap the DHT. In the default configuration, this spawns a Background
+	// thread that will refresh the peer table every five minutes.
+	log.Debug("Bootstrapping the DHT")
+	if err = kademliaDHT.Bootstrap(context.Background()); err != nil {
+		log.Error("dht table creating occurs error", "err", err)
+	}
+
+	n.ConnectToBootstrap(bootstrapPeers)
+
+	// Wait a bit to let bootstrapping finish (really bootstrap should block until it's ready, but that isn't the case yet.)
+	time.Sleep(1 * time.Second)
+
+	// We use a rendezvous point "meet me here" to announce our location.
+	// This is like telling your friends to meet you at the Eiffel Tower.
+	log.Info("Announcing ourselves...")
+	routingDiscovery := drouting.NewRoutingDiscovery(kademliaDHT)
+	dutil.Advertise(context.Background(), routingDiscovery, "rendezvous")
+	log.Debug("Successfully announced!")
+
+	// Now, look for others who have announced
+	// This is like your friend telling you the location to meet you.
+	log.Debug("Searching for other peers...")
+	peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
+	if err != nil {
+		panic(err)
+	}
+
+	for peer := range peerChan {
+		if peer.ID == (*n.server).ID() {
+			continue
+		}
+		log.Debug("Found peer:", peer)
+
+		log.Debug("Connecting to:", peer)
+		stream, err := (*n.server).NewStream(context.Background(), peer.ID, protocol.ID(n.config.ProtocolID))
+
+		if err != nil {
+			log.Warn("Connection failed:", err)
+			continue
+		} else {
+			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+			log.Trace("RW", rw)
+			// go writeData(rw)
+			// go readData(rw)
+		}
+
+		log.Info("Connected to:", peer)
+	}
+
+	select {}
+}
+
+func (n *Node) ConnectToBootstrap(bootstrapPeers []peer.AddrInfo) {
+	// Connecting to boostrap peers
+	log.Info("Connecting to bootsrap nodes")
+
+	for i := range bootstrapPeers {
+		(*n.server).Peerstore().AddAddrs(bootstrapPeers[i].ID, bootstrapPeers[i].Addrs, peerstore.PermanentAddrTTL)
+
+		// Connect to bootsrap node
+		if err := (*n.server).Connect(context.Background(), bootstrapPeers[i]); err != nil {
+			log.Error("Failed to connect bootstrap node", "bootstrap", bootstrapPeers[i].ID)
+			continue
+		}
+
+		log.Debug("Connected to bootstrap node:", "ID", bootstrapPeers[i].ID)
+		n.Ping(bootstrapPeers[i].ID)
+	}
+
+	select {}
 }
 
 func (n *Node) Close() {
