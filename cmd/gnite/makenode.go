@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/adamnite/go-adamnite/internal/flags"
 	"github.com/adamnite/go-adamnite/internal/node"
 	"github.com/adamnite/go-adamnite/log"
 	"github.com/urfave/cli/v2"
@@ -28,6 +29,10 @@ func loadGniteConfig(ctx *cli.Context) gniteConfig {
 
 func makeGniteNode(ctx *cli.Context) *node.Node {
 	cfg := loadGniteConfig(ctx)
+	err := setParams(ctx, &cfg)
+	if err != nil {
+		log.Error("Failed to set params", "err", err)
+	}
 
 	gniteNode, err := node.New(&cfg.Node)
 	if err != nil {
@@ -35,4 +40,13 @@ func makeGniteNode(ctx *cli.Context) *node.Node {
 	}
 
 	return gniteNode
+}
+
+func setParams(ctx *cli.Context, cfg *gniteConfig) error {
+	cfg.Node.P2PPort = uint32(ctx.Int(flags.NetworkPort.Name))
+
+	if ctx.IsSet(flags.DataDir.Name) {
+		cfg.Node.DataDir = ctx.String(flags.DataDir.Name)
+	}
+	return nil
 }

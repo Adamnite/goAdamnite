@@ -21,6 +21,18 @@ var (
 		Usage:    "Adamnite devnet for testing DPOS, bargossip",
 		Category: DevCategory,
 	}
+
+	NetworkPort = &cli.IntFlag{
+		Name:     "network.port",
+		Usage:    "Adamnite p2p listening port",
+		Value:    40908,
+		Category: NetworkCateogry,
+	}
+
+	DataDir = &cli.StringFlag{
+		Name:  "data-dir",
+		Usage: "Adamnite data directory path",
+	}
 )
 
 var (
@@ -28,5 +40,13 @@ var (
 		DeveloperFlag,
 		TestnetFlag,
 	}
-	NetworkFlags = append([]cli.Flag{MainnetFlag}, TestNetFlags...)
+	BlockNetFlags = append([]cli.Flag{MainnetFlag}, TestNetFlags...)
+
+	NetworkFlags = []cli.Flag{
+		NetworkPort,
+	}
+
+	BasicSettingsFlags = []cli.Flag{
+		DataDir,
+	}
 )

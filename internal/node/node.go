@@ -103,26 +103,19 @@ func (n *Node) Start() {
 
 	switch n.config.NodeType {
 	case NODE_TYPE_BOOTNODE:
+		go n.StartDHTService()
 	case NODE_TYPE_FULLNODE:
-		n.StartPeerDiscovery()
+		go n.StartPeerDiscovery()
 	}
 
 }
 
-func (n *Node) StartPeerDiscovery() {
-	log.Info("Adamnite bar-gossip peer discovery starts")
+func (n *Node) StartDHTService() {
+	log.Info("Adamnite bootstrap service starts")
 
-	bootstrapPeers := make([]peer.AddrInfo, len(n.config.BootstrapNodes))
-	n.bootstrapNodes = make([]host.Host, len(n.config.BootstrapNodes))
-
-	for i, addr := range n.config.BootstrapNodes {
-		peerinfo, _ := peer.AddrInfoFromP2pAddr(addr)
-		bootstrapPeers[i] = *peerinfo
-	}
-
-	kademliaDHT, err := dht.New(context.Background(), *n.server, dht.BootstrapPeers(bootstrapPeers...))
+	kademliaDHT, err := dht.New(context.Background(), *n.server, dht.Mode(dht.ModeAutoServer))
 	if err != nil {
-		log.Error("dht table creating occurs error", "err", err)
+		log.Error("Failed to start DHT service", "err", err)
 	}
 
 	// Bootstrap the DHT. In the default configuration, this spawns a Background
@@ -131,8 +124,6 @@ func (n *Node) StartPeerDiscovery() {
 	if err = kademliaDHT.Bootstrap(context.Background()); err != nil {
 		log.Error("dht table creating occurs error", "err", err)
 	}
-
-	n.ConnectToBootstrap(bootstrapPeers)
 
 	// Wait a bit to let bootstrapping finish (really bootstrap should block until it's ready, but that isn't the case yet.)
 	time.Sleep(1 * time.Second)
@@ -173,8 +164,72 @@ func (n *Node) StartPeerDiscovery() {
 
 		log.Info("Connected to:", peer)
 	}
+}
 
-	select {}
+func (n *Node) StartPeerDiscovery() {
+	log.Info("Adamnite bar-gossip peer discovery starts")
+
+	bootstrapPeers := make([]peer.AddrInfo, len(n.config.BootstrapNodes))
+	n.bootstrapNodes = make([]host.Host, len(n.config.BootstrapNodes))
+
+	for i, addr := range n.config.BootstrapNodes {
+		peerinfo, _ := peer.AddrInfoFromP2pAddr(addr)
+		bootstrapPeers[i] = *peerinfo
+	}
+
+	kademliaDHT, err := dht.New(context.Background(), *n.server, dht.BootstrapPeers(bootstrapPeers...))
+	if err != nil {
+		log.Error("dht table creating occurs error", "err", err)
+	}
+
+	n.ConnectToBootstrap(bootstrapPeers)
+
+	// Bootstrap the DHT. In the default configuration, this spawns a Background
+	// thread that will refresh the peer table every five minutes.
+	log.Debug("Bootstrapping the DHT")
+	if err = kademliaDHT.Bootstrap(context.Background()); err != nil {
+		log.Error("dht table creating occurs error", "err", err)
+	}
+
+	// Wait a bit to let bootstrapping finish (really bootstrap should block until it's ready, but that isn't the case yet.)
+	time.Sleep(1 * time.Second)
+
+	// We use a rendezvous point "meet me here" to announce our location.
+	// This is like telling your friends to meet you at the Eiffel Tower.
+	log.Info("Announcing ourselves...")
+	routingDiscovery := drouting.NewRoutingDiscovery(kademliaDHT)
+	dutil.Advertise(context.Background(), routingDiscovery, "rendezvous")
+	log.Debug("Successfully announced!")
+
+	// Now, look for others who have announced
+	// This is like your friend telling you the location to meet you.
+	log.Debug("Searching for other peers...")
+	peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
+	if err != nil {
+		panic(err)
+	}
+
+	for peer := range peerChan {
+		if peer.ID == (*n.server).ID() {
+			continue
+		}
+		log.Debug("Found peer:", peer)
+
+		log.Debug("Connecting to:", peer)
+		stream, err := (*n.server).NewStream(context.Background(), peer.ID, protocol.ID(n.config.ProtocolID))
+
+		if err != nil {
+			log.Warn("Connection failed:", err)
+			continue
+		} else {
+			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+			log.Trace("RW", rw)
+			// go writeData(rw)
+			// go readData(rw)
+		}
+
+		log.Info("Connected to:", peer)
+	}
 }
 
 func (n *Node) ConnectToBootstrap(bootstrapPeers []peer.AddrInfo) {
@@ -193,8 +248,6 @@ func (n *Node) ConnectToBootstrap(bootstrapPeers []peer.AddrInfo) {
 		log.Debug("Connected to bootstrap node:", "ID", bootstrapPeers[i].ID)
 		n.Ping(bootstrapPeers[i].ID)
 	}
-
-	select {}
 }
 
 func (n *Node) Close() {
