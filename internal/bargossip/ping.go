@@ -1,4 +1,4 @@
-package node
+package bargossip
 
 import (
 	"fmt"
@@ -19,17 +19,17 @@ const pingResponse = "/ping/pingresp/0.0.1"
 
 // PingProtocol type
 type PingProtocol struct {
-	node     *Node // local host
+	node     *LocalNode // local host
 	mu       sync.Mutex
 	requests map[string]*p2p.PingRequest // used to access request data from response handlers. Protected by mu
 	done     chan bool                   // only for demo purposes to stop main from terminating
 }
 
-func NewPingProtocol(node *Node, done chan bool) *PingProtocol {
+func NewPingProtocol(node *LocalNode, done chan bool) *PingProtocol {
 	log.Info("Starting PingProtocol", "ProtocolID", pingRequest)
 	p := &PingProtocol{node: node, requests: make(map[string]*p2p.PingRequest), done: done}
-	(*node.server).SetStreamHandler(pingRequest, p.onPingRequest)
-	(*node.server).SetStreamHandler(pingResponse, p.onPingResponse)
+	node.Server.SetStreamHandler(pingRequest, p.onPingRequest)
+	node.Server.SetStreamHandler(pingResponse, p.onPingResponse)
 	return p
 }
 
@@ -66,7 +66,7 @@ func (p *PingProtocol) onPingRequest(s network.Stream) {
 	log.Trace("Sending ping response", "local", s.Conn().LocalPeer(), "to", s.Conn().RemotePeer(), data.MessageData.Id)
 
 	resp := &p2p.PingResponse{MessageData: p.node.NewMessageData(data.MessageData.Id, false),
-		Message: fmt.Sprintf("Ping response from %s", (*p.node.server).ID())}
+		Message: fmt.Sprintf("Ping response from %s", p.node.Server.ID())}
 
 	// sign the data
 	signature, err := p.node.signProtoMessage(resp)
@@ -130,10 +130,10 @@ func (p *PingProtocol) onPingResponse(s network.Stream) {
 }
 
 func (p *PingProtocol) Ping(peerID peer.ID) bool {
-	log.Debug("Sending ping", "From", (*p.node.server).ID(), "To", peerID)
+	log.Debug("Sending ping", "From", p.node.Server.ID(), "To", peerID)
 	// create message data
 	req := &p2p.PingRequest{MessageData: p.node.NewMessageData(uuid.New().String(), false),
-		Message: fmt.Sprintf("Ping from %s", (*p.node.server).ID())}
+		Message: fmt.Sprintf("Ping from %s", p.node.Server.ID())}
 
 	// sign the data
 	signature, err := p.node.signProtoMessage(req)
