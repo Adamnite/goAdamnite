@@ -3,15 +3,20 @@ package bargossip
 import (
 	"bufio"
 	"context"
+	"fmt"
+	"math/big"
+	"os"
 	"time"
 
 	p2p "github.com/adamnite/go-adamnite/internal/bargossip/pb"
+	"github.com/adamnite/go-adamnite/internal/blockchain/types"
 	"github.com/adamnite/go-adamnite/log"
 	ggio "github.com/gogo/protobuf/io"
 	"github.com/gogo/protobuf/proto"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -23,86 +28,146 @@ import (
 type Config struct {
 	ProtocolID     string
 	BootstrapNodes []maddr.Multiaddr
+	NodeType       uint8
 }
 
 type LocalNode struct {
-	Config
+	config Config
 
-	Server host.Host
+	server host.Host
 
 	bootstrapNodes []host.Host
 
+	peers []RemoteNode
+
 	*PingProtocol
+
+	// Channels
+	chDisconPeer chan RemoteNode
+	chAddPeer    chan RemoteNode
+	chClose      chan bool
+}
+
+func CreateLocalNode(server host.Host, config Config) LocalNode {
+	localNode := LocalNode{
+		server:       server,
+		config:       config,
+		chDisconPeer: make(chan RemoteNode),
+		chAddPeer:    make(chan RemoteNode),
+	}
+
+	// Add stream hander
+	localNode.server.SetStreamHandler(protocol.ID(config.ProtocolID), localNode.handleStream)
+	return localNode
+}
+
+func (n *LocalNode) Start() {
+	go n.StartPeerManager()
+
+	switch n.config.NodeType {
+	case NODE_TYPE_BOOTNODE:
+		go n.StartDHTService()
+	case NODE_TYPE_FULLNODE:
+		go n.StartPeerDiscovery()
+	}
+}
+
+func (n *LocalNode) StartPeerManager() {
+	for {
+		select {
+		case rn := <-n.chDisconPeer:
+			for i, peer := range n.peers {
+				if peer.addrInfo.ID == rn.addrInfo.ID {
+					rn.Stop()
+					n.peers = append(n.peers[:i], n.peers[i+1:]...)
+				}
+			}
+		case rn := <-n.chAddPeer:
+			n.peers = append(n.peers, rn)
+			rn.Start()
+		case ret := <-n.chClose:
+			if ret {
+				return
+			}
+
+		}
+	}
+}
+
+func (n *LocalNode) GetServer() host.Host {
+	return n.server
 }
 
 func (n *LocalNode) StartDHTService() {
 	log.Info("Adamnite bootstrap service starts")
 
-	kademliaDHT, err := dht.New(context.Background(), n.Server, dht.Mode(dht.ModeAutoServer))
+	_, err := dht.New(context.Background(), n.server, dht.Mode(dht.ModeAutoServer))
 	if err != nil {
 		log.Error("Failed to start DHT service", "err", err)
 	}
-
-	// Bootstrap the DHT. In the default configuration, this spawns a Background
-	// thread that will refresh the peer table every five minutes.
-	log.Debug("Bootstrapping the DHT")
-	if err = kademliaDHT.Bootstrap(context.Background()); err != nil {
-		log.Error("dht table creating occurs error", "err", err)
-	}
-
-	// Wait a bit to let bootstrapping finish (really bootstrap should block until it's ready, but that isn't the case yet.)
-	time.Sleep(1 * time.Second)
-
-	// We use a rendezvous point "meet me here" to announce our location.
-	// This is like telling your friends to meet you at the Eiffel Tower.
-	log.Info("Announcing ourselves...")
-	routingDiscovery := drouting.NewRoutingDiscovery(kademliaDHT)
-	dutil.Advertise(context.Background(), routingDiscovery, "rendezvous")
-	log.Debug("Successfully announced!")
-
-	// Now, look for others who have announced
-	// This is like your friend telling you the location to meet you.
-	log.Debug("Searching for other peers...")
-	peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
-	if err != nil {
-		panic(err)
-	}
-
-	for peer := range peerChan {
-		if peer.ID == (n.Server).ID() {
-			continue
+	/*
+		// Bootstrap the DHT. In the default configuration, this spawns a Background
+		// thread that will refresh the peer table every five minutes.
+		log.Debug("Bootstrapping the DHT")
+		if err = kademliaDHT.Bootstrap(context.Background()); err != nil {
+			log.Error("dht table creating occurs error", "err", err)
 		}
-		log.Debug("Found peer:", peer)
 
-		log.Debug("Connecting to:", peer)
-		stream, err := n.Server.NewStream(context.Background(), peer.ID, protocol.ID(n.Config.ProtocolID))
+		// Wait a bit to let bootstrapping finish (really bootstrap should block until it's ready, but that isn't the case yet.)
+		time.Sleep(1 * time.Second)
 
+		// We use a rendezvous point "meet me here" to announce our location.
+		// This is like telling your friends to meet you at the Eiffel Tower.
+		log.Info("Announcing ourselves...")
+		routingDiscovery := drouting.NewRoutingDiscovery(kademliaDHT)
+		dutil.Advertise(context.Background(), routingDiscovery, "rendezvous")
+		log.Debug("Successfully announced!")
+
+		// Now, look for others who have announced
+		// This is like your friend telling you the location to meet you.
+		log.Debug("Searching for other peers...")
+		peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
 		if err != nil {
-			log.Warn("Connection failed:", err)
-			continue
-		} else {
-			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-			log.Trace("RW", rw)
-			// go writeData(rw)
-			// go readData(rw)
+			panic(err)
 		}
 
-		log.Info("Connected to:", peer)
-	}
+		for peer := range peerChan {
+			if peer.ID == (n.server).ID() {
+				continue
+			}
+			log.Debug("Found peer:", peer)
+
+			log.Debug("Connecting to:", peer)
+			stream, err := n.server.NewStream(context.Background(), peer.ID, protocol.ID(n.config.ProtocolID))
+
+			if err != nil {
+				log.Warn("Connection failed:", err)
+				continue
+			} else {
+				rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+				log.Trace("RW", rw)
+				// go writeData(rw)
+				// go readData(rw)
+			}
+
+			log.Info("Connected to:", peer)
+		}
+	*/
 }
 
 func (n *LocalNode) StartPeerDiscovery() {
 	log.Info("Adamnite bar-gossip peer discovery starts")
+	n.peers = make([]RemoteNode, 0)
 
-	bootstrapPeers := make([]peer.AddrInfo, len(n.Config.BootstrapNodes))
-	n.bootstrapNodes = make([]host.Host, len(n.Config.BootstrapNodes))
+	bootstrapPeers := make([]peer.AddrInfo, len(n.config.BootstrapNodes))
+	n.bootstrapNodes = make([]host.Host, len(n.config.BootstrapNodes))
 
-	for i, addr := range n.Config.BootstrapNodes {
+	for i, addr := range n.config.BootstrapNodes {
 		peerinfo, _ := peer.AddrInfoFromP2pAddr(addr)
 		bootstrapPeers[i] = *peerinfo
 	}
 
-	kademliaDHT, err := dht.New(context.Background(), n.Server, dht.BootstrapPeers(bootstrapPeers...))
+	kademliaDHT, err := dht.New(context.Background(), n.server, dht.BootstrapPeers(bootstrapPeers...))
 	if err != nil {
 		log.Error("dht table creating occurs error", "err", err)
 	}
@@ -126,34 +191,45 @@ func (n *LocalNode) StartPeerDiscovery() {
 	dutil.Advertise(context.Background(), routingDiscovery, "rendezvous")
 	log.Debug("Successfully announced!")
 
-	// Now, look for others who have announced
-	// This is like your friend telling you the location to meet you.
-	log.Debug("Searching for other peers...")
-	peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
-	if err != nil {
-		panic(err)
-	}
-
-	for peer := range peerChan {
-		if peer.ID == n.Server.ID() {
-			continue
-		}
-		log.Debug("Found peer:", peer)
-
-		log.Debug("Connecting to:", peer)
-		stream, err := n.Server.NewStream(context.Background(), peer.ID, protocol.ID(n.Config.ProtocolID))
-
+	for {
+		// Now, look for others who have announced
+		// This is like your friend telling you the location to meet you.
+		log.Debug("Searching for other peers...")
+		peerChan, err := routingDiscovery.FindPeers(context.Background(), "rendezvous")
 		if err != nil {
-			log.Warn("Connection failed:", err)
-			continue
-		} else {
-			rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
-			log.Trace("RW", rw)
-			// go writeData(rw)
-			// go readData(rw)
+			panic(err)
 		}
 
-		log.Info("Connected to:", peer)
+		for peer := range peerChan {
+			if peer.ID == n.server.ID() {
+				continue
+			}
+			log.Debug("Found peer:", peer.ID.String())
+
+			remotePeer := CreateRemoteNode(peer, n.chDisconPeer)
+
+			isConnected := false
+			for _, regPeer := range n.peers {
+				if regPeer.addrInfo.ID == peer.ID {
+					isConnected = true
+					break
+				}
+			}
+
+			if isConnected == false {
+				stream, err := n.server.NewStream(context.Background(), peer.ID, protocol.ID(n.config.ProtocolID))
+				if err != nil {
+					log.Warn("Connection failed", "err", err)
+					continue
+				}
+
+				remotePeer.stream = stream
+
+				n.chAddPeer <- remotePeer
+			}
+		}
+
+		time.Sleep(time.Minute * 20)
 	}
 }
 
@@ -162,16 +238,16 @@ func (n *LocalNode) ConnectToBootstrap(bootstrapPeers []peer.AddrInfo) {
 	log.Info("Connecting to bootsrap nodes")
 
 	for i := range bootstrapPeers {
-		n.Server.Peerstore().AddAddrs(bootstrapPeers[i].ID, bootstrapPeers[i].Addrs, peerstore.PermanentAddrTTL)
+		n.server.Peerstore().AddAddrs(bootstrapPeers[i].ID, bootstrapPeers[i].Addrs, peerstore.PermanentAddrTTL)
 
 		// Connect to bootsrap node
-		if err := n.Server.Connect(context.Background(), bootstrapPeers[i]); err != nil {
+		if err := n.server.Connect(context.Background(), bootstrapPeers[i]); err != nil {
 			log.Error("Failed to connect bootstrap node", "bootstrap", bootstrapPeers[i].ID)
 			continue
 		}
 
 		log.Debug("Connected to bootstrap node:", "ID", bootstrapPeers[i].ID)
-		// n.Server.Ping(bootstrapPeers[i].ID)
+		// n.server.Ping(bootstrapPeers[i].ID)
 	}
 }
 
@@ -217,7 +293,7 @@ func (n *LocalNode) signProtoMessage(message proto.Message) ([]byte, error) {
 
 // sign binary data using the local node's private key
 func (n *LocalNode) signData(data []byte) ([]byte, error) {
-	key := n.Server.Peerstore().PrivKey(n.Server.ID())
+	key := n.server.Peerstore().PrivKey(n.server.ID())
 	res, err := key.Sign(data)
 	return res, err
 }
@@ -262,14 +338,14 @@ func (n *LocalNode) verifyData(data []byte, signature []byte, peerId peer.ID, pu
 func (n *LocalNode) NewMessageData(messageId string, gossip bool) *p2p.MessageData {
 	// Add protobuf bin data for message author public key
 	// this is useful for authenticating  messages forwarded by a node authored by another node
-	nodePubKey, err := crypto.MarshalPublicKey(n.Server.Peerstore().PubKey(n.Server.ID()))
+	nodePubKey, err := crypto.MarshalPublicKey(n.server.Peerstore().PubKey(n.server.ID()))
 
 	if err != nil {
 		panic("Failed to get public key for sender from local peer store.")
 	}
 
 	return &p2p.MessageData{ClientVersion: ClientVersion,
-		NodeId:     n.Server.ID().String(),
+		NodeId:     n.server.ID().String(),
 		NodePubKey: nodePubKey,
 		Timestamp:  time.Now().Unix(),
 		Id:         messageId,
@@ -280,7 +356,7 @@ func (n *LocalNode) NewMessageData(messageId string, gossip bool) *p2p.MessageDa
 // data: reference of protobuf go data object to send (not the object itself)
 // s: network stream to write the data to
 func (n *LocalNode) sendProtoMessage(id peer.ID, p protocol.ID, data proto.Message) bool {
-	s, err := n.Server.NewStream(context.Background(), id, p)
+	s, err := n.server.NewStream(context.Background(), id, p)
 	if err != nil {
 		log.Error("sendProtoMessage error", "err", err)
 		return false
@@ -295,4 +371,74 @@ func (n *LocalNode) sendProtoMessage(id peer.ID, p protocol.ID, data proto.Messa
 		return false
 	}
 	return true
+}
+
+func (n *LocalNode) handleStream(stream network.Stream) {
+	log.Info("Start Adamnite Protocol...", "Protocol", n.config.ProtocolID)
+
+	// Create a buffer stream for non-blocking read and write.
+	rw := bufio.NewReadWriter(bufio.NewReader(stream), bufio.NewWriter(stream))
+
+	go n.readData(rw)
+	go n.writeData(rw)
+
+	// 'stream' will stay open until you close it (or the other side closes it).
+}
+
+func (n *LocalNode) readData(rw *bufio.ReadWriter) {
+	for {
+		str, err := rw.ReadString('\n')
+		if err != nil {
+			if err.Error() == "stream reset" {
+
+			} else {
+
+			}
+		}
+
+		if str == "" {
+			return
+		}
+		if str != "\n" {
+			// Green console colour: 	\x1b[32m
+			// Reset console colour: 	\x1b[0m
+			fmt.Printf("\x1b[32m%s\x1b[0m> ", str)
+		}
+
+	}
+}
+
+func (n *LocalNode) writeData(rw *bufio.ReadWriter) {
+	stdReader := bufio.NewReader(os.Stdin)
+
+	for {
+		fmt.Print("> ")
+		sendData, err := stdReader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading from stdin")
+			panic(err)
+		}
+
+		_, err = rw.WriteString(fmt.Sprintf("%s\n", sendData))
+		if err != nil {
+			fmt.Println("Error writing to buffer")
+			panic(err)
+		}
+		err = rw.Flush()
+		if err != nil {
+			fmt.Println("Error flushing buffer")
+			panic(err)
+		}
+	}
+}
+
+// func (n *LocalNode) broadcastMsg(msg)
+
+func (n *LocalNode) GetPeersCurrentBlockNumber() big.Int {
+
+	return *big.NewInt(0)
+}
+
+func (n *LocalNode) BroadcastBlock(block *types.Block) int {
+	return 0
 }

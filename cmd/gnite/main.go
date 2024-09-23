@@ -21,6 +21,7 @@ func init() {
 	nodeFlags = append(nodeFlags, flags.NetworkFlags...)
 	nodeFlags = append(nodeFlags, flags.BlockNetFlags...)
 	nodeFlags = append(nodeFlags, flags.BasicSettingsFlags...)
+	nodeFlags = append(nodeFlags, flags.ConsensusFlags...)
 }
 
 func main() {

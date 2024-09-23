@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/adamnite/go-adamnite/internal/common"
 	"github.com/adamnite/go-adamnite/internal/flags"
 	"github.com/adamnite/go-adamnite/internal/node"
 	"github.com/adamnite/go-adamnite/log"
@@ -48,5 +49,15 @@ func setParams(ctx *cli.Context, cfg *gniteConfig) error {
 	if ctx.IsSet(flags.DataDir.Name) {
 		cfg.Node.DataDir = ctx.String(flags.DataDir.Name)
 	}
+
+	if ctx.IsSet(flags.ValidatorFlag.Name) {
+		cfg.Node.ValidatorAddr = common.HexToAddress(ctx.String(flags.ValidatorFlag.Name))
+	} else {
+		cfg.Node.ValidatorAddr = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	}
+
+	cfg.Node.AdamniteConfig.MaxValidators = ctx.Uint(flags.MaxValidatorFlag.Name)
+	cfg.Node.AdamniteConfig.EpochDuration = ctx.Uint(flags.EpochDurationFlag.Name)
+	cfg.Node.AdamniteConfig.BlockDuration = ctx.Uint(flags.BlockDurationFlag.Name)
 	return nil
 }

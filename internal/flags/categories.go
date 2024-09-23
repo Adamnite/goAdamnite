@@ -6,4 +6,5 @@ const (
 	AdamniteCategory      = "ADAMNITE MAIN CHAIN"
 	NetworkCateogry       = "ADAMNITE NETWORK SETTINGS"
 	BasicSettingsCategory = "ADAMNITE BASIC SETTINGS"
+	DPOSCategory          = "ADAMNITE DPOS SETTINGS"
 )

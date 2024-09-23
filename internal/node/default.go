@@ -6,19 +6,20 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/adamnite/go-adamnite/internal/bargossip"
 	"github.com/adamnite/go-adamnite/internal/config"
 )
 
 var DefaultConfig = Config{
 	DataDir:        DefaultDataDir(),
-	NodeType:       NODE_TYPE_FULLNODE,
+	NodeType:       bargossip.NODE_TYPE_FULLNODE,
 	P2PPort:        40908,
 	BootstrapNodes: config.DefaultBootstrapNodes,
 }
 
 var DefaultBootNodeConfig = Config{
 	DataDir:  DefaultDataDir(),
-	NodeType: NODE_TYPE_BOOTNODE,
+	NodeType: bargossip.NODE_TYPE_BOOTNODE,
 	P2PPort:  40909,
 }
 

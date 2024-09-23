@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/adamnite/go-adamnite/internal/bargossip"
 	"github.com/libp2p/go-libp2p/core/crypto"
 )
 
@@ -12,9 +13,9 @@ func checkNodeKey(config *Config) crypto.PrivKey {
 	var nodeFileName string
 
 	switch config.NodeType {
-	case NODE_TYPE_BOOTNODE:
+	case bargossip.NODE_TYPE_BOOTNODE:
 		nodeFileName = "bootnode"
-	case NODE_TYPE_FULLNODE:
+	case bargossip.NODE_TYPE_FULLNODE:
 		nodeFileName = "gnite"
 	}
 
@@ -37,9 +38,9 @@ func saveNodeKey(config *Config, prvKey crypto.PrivKey) error {
 	var nodeFileName string
 
 	switch config.NodeType {
-	case NODE_TYPE_BOOTNODE:
+	case bargossip.NODE_TYPE_BOOTNODE:
 		nodeFileName = "bootnode"
-	case NODE_TYPE_FULLNODE:
+	case bargossip.NODE_TYPE_FULLNODE:
 		nodeFileName = "gnite"
 	}
 
@@ -69,9 +70,9 @@ func readNodeKey(config *Config) (crypto.PrivKey, error) {
 	var nodeFileName string
 
 	switch config.NodeType {
-	case NODE_TYPE_BOOTNODE:
+	case bargossip.NODE_TYPE_BOOTNODE:
 		nodeFileName = "bootnode"
-	case NODE_TYPE_FULLNODE:
+	case bargossip.NODE_TYPE_FULLNODE:
 		nodeFileName = "gnite"
 	}
 

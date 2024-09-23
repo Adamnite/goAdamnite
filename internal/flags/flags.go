@@ -33,6 +33,34 @@ var (
 		Name:  "data-dir",
 		Usage: "Adamnite data directory path",
 	}
+
+	// Validator
+	ValidatorFlag = &cli.StringFlag{
+		Name:     "validator.addr",
+		Usage:    "gnite will be run as validator using this address",
+		Category: DPOSCategory,
+	}
+
+	EpochDurationFlag = &cli.UintFlag{
+		Name:     "dpos.epoch.duration",
+		Usage:    "Adamnite DPOS epoch duration",
+		Value:    360,
+		Category: DPOSCategory,
+	}
+
+	MaxValidatorFlag = &cli.UintFlag{
+		Name:     "dpos.validator.max",
+		Usage:    "Adamnite DPOS epoch duration",
+		Value:    10,
+		Category: DPOSCategory,
+	}
+
+	BlockDurationFlag = &cli.UintFlag{
+		Name:     "dpos.block.duration",
+		Usage:    "Adamnite DPOS block duration",
+		Value:    10,
+		Category: DPOSCategory,
+	}
 )
 
 var (
@@ -48,5 +76,12 @@ var (
 
 	BasicSettingsFlags = []cli.Flag{
 		DataDir,
+	}
+
+	ConsensusFlags = []cli.Flag{
+		ValidatorFlag,
+		EpochDurationFlag,
+		MaxValidatorFlag,
+		BlockDurationFlag,
 	}
 )

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/adamnite/go-adamnite/internal/bargossip"
+	"github.com/adamnite/go-adamnite/internal/blockchain"
 	"github.com/adamnite/go-adamnite/log"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -24,6 +25,7 @@ type Node struct {
 
 	localNode   bargossip.LocalNode
 	remoteNodes []bargossip.RemoteNode
+	adamnite    blockchain.Blockchain
 
 	// Channels
 	stop     chan struct{} // Channel to wait for termination notifications
@@ -63,18 +65,21 @@ func New(config *Config) (*Node, error) {
 		log.Error("Bargossip server hosting error!")
 	}
 
+	localNode := bargossip.CreateLocalNode(server, bargossip.Config{
+		BootstrapNodes: config.BootstrapNodes,
+		ProtocolID:     config.ProtocolID,
+		NodeType:       config.NodeType,
+	})
+
+	adamnite := blockchain.New(config.AdamniteConfig, localNode, config.DataDir, config.ValidatorAddr)
+
 	node := &Node{
-		config:   *config,
-		prvKey:   prvKey,
-		stop:     make(chan struct{}),
-		pingDone: make(chan bool),
-		localNode: bargossip.LocalNode{
-			Server: server,
-			Config: bargossip.Config{
-				BootstrapNodes: config.BootstrapNodes,
-				ProtocolID:     config.ProtocolID,
-			},
-		},
+		config:    *config,
+		prvKey:    prvKey,
+		stop:      make(chan struct{}),
+		pingDone:  make(chan bool),
+		localNode: localNode,
+		adamnite:  adamnite,
 	}
 
 	return node, nil
@@ -86,16 +91,11 @@ func (n *Node) Wait() {
 
 func (n *Node) Start() {
 	log.Info("Adamnite DataDir path", "PATH", n.config.DataDir)
-	log.Info("Adamnite external address", "Addr", (n.localNode.Server).Addrs())
-	log.Info("Adamnite host ID", "ID", (*&n.localNode.Server).ID())
+	log.Info("Adamnite external address", "Addr", n.localNode.GetServer().Addrs())
+	log.Info("Adamnite host ID", "ID", n.localNode.GetServer().ID())
 
-	switch n.config.NodeType {
-	case NODE_TYPE_BOOTNODE:
-		go n.localNode.StartDHTService()
-	case NODE_TYPE_FULLNODE:
-		go n.localNode.StartPeerDiscovery()
-	}
-
+	n.localNode.Start()
+	n.adamnite.Start()
 }
 
 func (n *Node) Close() {
